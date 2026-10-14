@@ -1,9 +1,10 @@
 import { FLASH_POP, HE_POP, SIM_DT, type KillEvent, type Simulation } from './combat';
 import { computeControl } from './control';
 import { worldToRadar } from './coords';
+import { gunFromName, primaryGun } from './guns';
 import { UTIL_FLIGHT } from './grid';
 import type { TacticalEngine } from './predict';
-import type { BoardState, Player, Side, Utility, UtilType, Vec2 } from './types';
+import type { BoardState, Player, Side, Utility, UtilType, Vec2, Weapon } from './types';
 
 /**
  * Round review: replays a real round from a demo and grades what each player did, chess-style.
@@ -23,7 +24,73 @@ export interface DemoRound {
   kills: { t: number; attacker: string; victim: string; weapon: string; headshot: boolean; x: number; y: number; ax: number; ay: number }[];
   util: { t: number; type: UtilType; thrower: string; x: number; y: number }[];
   blind: { t: number; victim: string; attacker: string; dur: number }[];
+  /** Each player's economy a few seconds into the round (after buying). */
+  econ?: Record<string, PlayerEcon>;
 }
+
+export interface PlayerEcon {
+  money: number | null; // cash left after buying
+  equip: number | null; // value of what they carry
+  armor: number;
+  helmet: boolean;
+  defuser: boolean;
+  weapons: string[];
+}
+
+// ---- economy ----------------------------------------------------------------------------------
+
+/** Approximate CS2 prices, used when the demo has no equipment value. */
+const PRICES: [RegExp, number][] = [
+  [/awp/, 4750], [/scar|g3sg1/, 5000], [/m249/, 5200], [/negev/, 1700], [/aug/, 3300], [/sg ?553/, 3000], [/m4a4/, 3100],
+  [/m4a1/, 2900], [/ak-?47/, 2700], [/famas/, 2050], [/galil/, 1800], [/ssg ?08|scout/, 1700], [/p90/, 2350],
+  [/mp7|mp5/, 1500], [/mp9/, 1250], [/ump/, 1200], [/mac-?10/, 1050], [/bizon/, 1400], [/xm1014/, 2000], [/mag-?7/, 1300],
+  [/nova/, 1050], [/sawed/, 1100], [/deagle|desert eagle/, 700], [/revolver|r8/, 600], [/tec-?9|five-?seven|cz75/, 500],
+  [/p250/, 300], [/dual/, 300], [/incendiary/, 500], [/molotov/, 400], [/smoke/, 300], [/flash/, 200], [/he ?grenade|high explosive/, 300],
+  [/decoy/, 50], [/zeus|taser/, 200],
+];
+
+/** What kind of gun a player is really holding (best weapon in their inventory). */
+export function weaponClass(weapons: string[]): Weapon {
+  const w = weapons.map(x => x.toLowerCase());
+  if (w.some(x => /awp/.test(x))) return 'awp';
+  if (w.some(x => /ak-?47|m4a|famas|galil|sg ?553|aug|ssg ?08|scout|scar|g3sg1|m249|negev/.test(x))) return 'rifle';
+  if (w.some(x => /mp9|mac-?10|mp7|mp5|ump|p90|bizon|nova|xm1014|mag-?7|sawed/.test(x))) return 'smg';
+  return 'pistol';
+}
+
+/** Equipment value: the demo's own number when present, otherwise priced from the inventory. */
+export function equipValue(e: PlayerEcon | undefined): number | null {
+  if (!e) return null;
+  if (e.equip !== null && e.equip > 0) return e.equip;
+  let v = 0;
+  for (const w of e.weapons) { const hit = PRICES.find(([re]) => re.test(w.toLowerCase())); if (hit) v += hit[1]; }
+  if (e.armor > 0) v += e.helmet ? 1000 : 650;
+  if (e.defuser) v += 400;
+  return v;
+}
+
+export type BuyType = 'Pistol round' | 'Eco' | 'Semi-eco' | 'Force buy' | 'Full buy';
+
+export interface TeamEcon { side: Side; equip: number; avgEquip: number; money: number; buy: BuyType; known: boolean }
+
+/** Each side's buy for the round, classified from average equipment value per player. */
+export function teamEconomy(r: DemoRound, totalRounds: number): Record<Side, TeamEcon> {
+  const out = {} as Record<Side, TeamEcon>;
+  for (const side of ['CT', 'T'] as Side[]) {
+    const ids = Object.keys(r.frames.players).filter(id => r.frames.players[id].side === side);
+    const vals = ids.map(id => equipValue(r.econ?.[id])).filter((v): v is number => v !== null);
+    const equip = vals.reduce((a, b) => a + b, 0);
+    const avg = vals.length ? equip / vals.length : 0;
+    const money = ids.reduce((a, id) => a + (r.econ?.[id]?.money ?? 0), 0);
+    // MR12: rounds 1 and 13 are pistol rounds
+    const pistol = r.n === 1 || (totalRounds > 12 && r.n === 13);
+    const buy: BuyType = pistol ? 'Pistol round' : avg < 1200 ? 'Eco' : avg < 2500 ? 'Semi-eco' : avg < 3900 ? 'Force buy' : 'Full buy';
+    out[side] = { side, equip, avgEquip: avg, money, buy, known: vals.length > 0 };
+  }
+  return out;
+}
+
+const money = (v: number) => `$${Math.round(v).toLocaleString('en-US')}`;
 
 export interface DemoData {
   map: string;
@@ -95,7 +162,8 @@ export function buildReplay(engine: TacticalEngine, demo: DemoData, roundIdx: nu
 
   const players: Player[] = ids.map((id, i) => {
     const s = r.frames.players[id].side;
-    return { id, side: s, pos: { x: sim.x[i][0], y: sim.y[i][0] }, weapon: 'rifle', label: shortName(id) };
+    const gun = r.econ?.[id] ? primaryGun(r.econ[id].weapons) : undefined;
+    return { id, side: s, pos: { x: sim.x[i][0], y: sim.y[i][0] }, weapon: gun?.cls ?? 'rifle', gun: gun?.id, label: shortName(id) };
   });
   return { board: { players, utility, context }, sim, names: demo.names, round: r };
 }
@@ -106,7 +174,11 @@ const ROUND_TIME = 115;
 const BOMB_TIME = 40;
 
 /** CT win probability from the state of the round at time t. */
-export function evalState(state: { ct: number; t: number; ctHp: number; tHp: number; ctMap: number; tMap: number; planted: number | null; time: number }): number {
+export function evalState(state: {
+  ct: number; t: number; ctHp: number; tHp: number; ctMap: number; tMap: number; planted: number | null; time: number;
+  /** Average equipment value of the living players on each side (null = unknown). */
+  ctEquip?: number | null; tEquip?: number | null;
+}): number {
   const { ct, t } = state;
   if (t === 0 && state.planted === null) return 1;
   if (ct === 0) return 0;
@@ -115,6 +187,8 @@ export function evalState(state: { ct: number; t: number; ctHp: number; tHp: num
   let z = 0.55 * diff + (0.35 * diff) / Math.max(1, Math.min(ct, t)); // man advantage matters more when few are left
   z += 0.004 * (state.ctHp - state.tHp);
   z += 0.9 * (state.ctMap - state.tMap);
+  // guns win fights: a full buy (~$4.5k a head) vs an eco (~$700) is worth ~+2 on its own (≈88%)
+  if (state.ctEquip != null && state.tEquip != null) z += 0.52 * ((state.ctEquip - state.tEquip) / 1000);
   if (state.planted !== null) z -= 0.9 + 0.035 * Math.max(0, state.time - state.planted); // defuse gets harder as the timer runs
   else z += Math.max(0, state.time - (ROUND_TIME - 25)) * 0.07; // Ts running out of time to plant
   return 1 / (1 + Math.exp(-z));
@@ -180,14 +254,20 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   }
   const mapAt = (t: number) => control[Math.min(control.length - 1, Math.max(0, Math.round(t)))];
 
+  const gear = new Map(sim.ids.map(id => [id, equipValue(r.econ?.[id])]));
+  const hasEcon = [...gear.values()].some(v => v !== null);
   const stateAt = (t: number) => {
-    let ct = 0, tt = 0, ctHp = 0, tHp = 0;
+    let ct = 0, tt = 0, ctHp = 0, tHp = 0, ctGear = 0, tGear = 0;
     sim.ids.forEach((id, i) => {
       if (!alive(i, t)) return;
-      if (sideOf.get(id) === 'CT') { ct++; ctHp += hpAt(i, t); } else { tt++; tHp += hpAt(i, t); }
+      const g = gear.get(id) ?? 0;
+      if (sideOf.get(id) === 'CT') { ct++; ctHp += hpAt(i, t); ctGear += g; } else { tt++; tHp += hpAt(i, t); tGear += g; }
     });
     const m = mapAt(t);
-    return evalState({ ct, t: tt, ctHp, tHp, ctMap: m.ct, tMap: m.tt, planted: r.plant !== null && t >= r.plant ? r.plant : null, time: t });
+    return evalState({
+      ct, t: tt, ctHp, tHp, ctMap: m.ct, tMap: m.tt, planted: r.plant !== null && t >= r.plant ? r.plant : null, time: t,
+      ctEquip: hasEcon && ct ? ctGear / ct : null, tEquip: hasEcon && tt ? tGear / tt : null,
+    });
   };
 
   const curve: Review['curve'] = [];
@@ -210,7 +290,11 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     return best ? ` at ${best}` : '';
   };
 
+  const demoKill = (k: KillEvent) => r.kills.find(x => x.victim === k.victim && Math.abs(x.t - k.t) < 0.05);
   sim.kills.forEach((k, n) => {
+    const dk = demoKill(k);
+    const kGun = dk ? gunFromName(dk.weapon) : undefined;
+    const withGun = kGun ? ` with ${kGun.name}${dk?.headshot ? ' (headshot)' : ''}` : dk?.headshot ? ' (headshot)' : '';
     const before = stateAt(k.t - 0.05), after = stateAt(k.t + 0.05);
     const ctDelta = after - before;
     const vi = idx(k.victim);
@@ -232,9 +316,11 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (hpBefore < 50 && hpBefore > 0) why.push(`Already hurt (${hpBefore} hp) before the duel.`);
     if (k.cause !== 'gun') why.push(k.cause === 'he' ? 'Killed by an HE grenade.' : 'Burned by a molotov: stood in fire.');
     if (firstKill) why.push('First death of the round (lost the opening duel).');
+    const lost = gear.get(k.victim);
+    if (lost != null && lost >= 3000) why.push(`Lost ${money(lost)} of gear${r.econ?.[k.victim] && weaponClass(r.econ[k.victim].weapons) === 'awp' ? ' (incl. the AWP)' : ''}.`);
     moves.push({
       t: k.t, player: k.victim, side: vSide, kind: 'death', gain: loss, grade: grade(loss, false),
-      title: `${name(k.victim)} died${where(k.at)}`, why,
+      title: `${name(k.victim)} died${where(k.at)}${kGun ? ` (${kGun.name})` : ''}`, why,
     });
 
     // the killer
@@ -250,9 +336,16 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (others >= 1) awhy.push(`Won it while ${others} more enemy${others > 1 ? 'ies' : ''} had sight on them.`);
       if (multi >= 2) awhy.push(`Part of a ${multi}-kill burst.`);
       if (vi >= 0 && wasBlind) awhy.push('The victim was flashed: teamwork kill.');
+      const vGear = gear.get(k.victim), aGear = gear.get(k.killer);
+      if (vGear != null && r.econ?.[k.victim] && weaponClass(r.econ[k.victim].weapons) === 'awp') awhy.push('Took down the AWP.');
+      else if (vGear != null && vGear < 1000) awhy.push('The victim was on an eco, so the kill is worth less.');
+      if (aGear != null && vGear != null && aGear + 1500 < vGear) awhy.push(`Won it with ${money(aGear)} of gear against ${money(vGear)}.`);
+      const vGun = r.econ?.[k.victim] ? primaryGun(r.econ[k.victim].weapons) : undefined;
+      if (kGun && vGun && kGun.cls === 'pistol' && vGun.cls !== 'pistol') awhy.push(`Pistol (${kGun.name}) beat a ${vGun.name}.`);
+      if (kGun?.id === 'awp' && dk?.headshot === false) awhy.push('AWP one-shot to the body.');
       moves.push({
         t: k.t, player: k.killer, side: aSide, kind: 'kill', gain, grade: grade(gain, special),
-        title: `${name(k.killer)} killed ${name(k.victim)}${where(k.at)}`, why: awhy,
+        title: `${name(k.killer)} killed ${name(k.victim)}${withGun}${where(k.at)}`, why: awhy,
       });
     }
   });
@@ -297,3 +390,18 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+/** CT win chance at round time t, interpolated from the eval curve. */
+export function evalAt(curve: Review['curve'], t: number): number {
+  if (!curve.length) return 0.5;
+  if (t <= curve[0].t) return curve[0].ct;
+  for (let i = 1; i < curve.length; i++)
+    if (curve[i].t >= t) {
+      const a = curve[i - 1], b = curve[i];
+      return a.ct + ((b.ct - a.ct) * (t - a.t)) / (b.t - a.t || 1);
+    }
+  return curve[curve.length - 1].ct;
+}
+
+/** Moves that have happened by round time t (or all of them when spoilers are on). */
+export const movesUntil = (rv: Review, t: number, all: boolean) => (all ? rv.moves : rv.moves.filter(m => m.t <= t + 0.01));

@@ -2,6 +2,8 @@ import { simulate } from './combat';
 import type { TacticalEngine } from './predict';
 import type { BoardState } from './types';
 
+const CHUNK = 2; // rounds per slice (~20–30 ms)
+
 /** Aggregated outcome of many simulated rounds of the same setup. */
 export interface BatchStats {
   rounds: number;
@@ -81,12 +83,15 @@ function snapshot(board: BoardState, a: Acc): BatchStats {
 export function runBatch(
   engine: TacticalEngine, board: BoardState, end: number, rounds: number,
   onUpdate: (s: BatchStats, done: boolean) => void,
+  paused: () => boolean = () => false,
 ): () => void {
   let cancelled = false;
   const acc = newAcc();
   const chunk = () => {
     if (cancelled) return;
-    accumulate(engine, board, end, acc.done, Math.min(rounds, acc.done + 8), acc);
+    // small slices keep the UI at frame rate; wait entirely while a round is playing
+    if (paused()) { setTimeout(chunk, 250); return; }
+    accumulate(engine, board, end, acc.done, Math.min(rounds, acc.done + CHUNK), acc);
     onUpdate(snapshot(board, acc), acc.done >= rounds);
     if (acc.done < rounds) setTimeout(chunk, 0);
   };
@@ -101,6 +106,7 @@ export function runBatch(
 export function runUtilityImpact(
   engine: TacticalEngine, board: BoardState, end: number, rounds: number,
   onUpdate: (impact: UtilityImpact, done: boolean) => void,
+  paused: () => boolean = () => false,
 ): () => void {
   let cancelled = false;
   const items = board.utility.slice(0, 8);
@@ -110,8 +116,9 @@ export function runUtilityImpact(
   let acc = newAcc();
   const chunk = () => {
     if (cancelled || k >= items.length) return;
+    if (paused()) { setTimeout(chunk, 250); return; }
     const without = k < 0 ? board : { ...board, utility: board.utility.filter(x => x.id !== items[k].id) };
-    accumulate(engine, without, end, acc.done, Math.min(rounds, acc.done + 8), acc);
+    accumulate(engine, without, end, acc.done, Math.min(rounds, acc.done + CHUNK), acc);
     if (acc.done >= rounds) {
       const ctWin = (acc.ct + acc.draw * 0.5) / acc.done;
       if (k < 0) baseline = ctWin;

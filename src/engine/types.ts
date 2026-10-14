@@ -78,6 +78,8 @@ export interface Player {
   side: Side;
   pos: Vec2;
   weapon: Weapon;
+  /** Exact gun (id from engine/guns.ts). Undefined = the side's default for `weapon`. */
+  gun?: string;
   label: string;
   /** View direction in radians (radar space). Undefined = auto-aim toward the enemy's approach. */
   facing?: number;

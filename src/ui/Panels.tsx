@@ -1,10 +1,12 @@
-import { CTL_COLORS, CTL_LABEL, Ctl, type ControlMap } from '../engine/control';
+import type { ControlMap } from '../engine/control';
 import type { Analysis, TacticalEngine } from '../engine/predict';
 import { popAt } from '../engine/grid';
+import { ENTRY_COLOR, entryClock, entryReports } from '../engine/entries';
+import { GUN_GROUPS, GUNS, gunById, gunOf, gunRangeFactor, type Gun } from '../engine/guns';
 import { bakeRoute } from '../engine/timeline';
 import type { Simulation } from '../engine/combat';
 import type { BatchStats, UtilityImpact } from '../engine/batch';
-import type { KillMap } from '../engine/killmap';
+import type { Spot, SpotMap } from '../engine/spots';
 import { killColor } from './Board';
 import type { Econ } from '../engine/types';
 import { hasLayer, isAutoLayer, MAPS, presetsFor, roughNote, tPlaysFor } from '../map/catalog';
@@ -28,8 +30,8 @@ const TOOLS: { id: Tool; label: string; key: string }[] = [
 ];
 const OVERLAYS: { id: Overlay; label: string }[] = [
   { id: 'control', label: 'Map control (CT coverage)' },
-  { id: 'killmap', label: 'Kill map (CT position value)' },
-  { id: 'threat', label: 'Threat on chokepoints' },
+  { id: 'killmap', label: 'Best spots (selected CT)' },
+  { id: 'threat', label: 'Entry points (who holds what)' },
   { id: 'los', label: 'Sightline of selected' },
   { id: 'timing', label: 'Spawn timing race' },
   { id: 'callouts', label: 'Callouts' },
@@ -154,11 +156,18 @@ function Selection({ engine }: { engine: TacticalEngine }) {
   return (
     <section>
       <h3>Selected {p.side} {p.label}</h3>
-      <label className="field">Weapon
-        <select value={p.weapon} onChange={e => s.updatePlayer(p.id, { weapon: e.target.value as never })}>
-          <option value="rifle">Rifle</option><option value="awp">AWP</option><option value="smg">SMG</option><option value="pistol">Pistol</option>
+      <label className="field">Gun
+        <select value={gunOf(p).id} onChange={e => { const gun = gunById(e.target.value)!; s.updatePlayer(p.id, { gun: gun.id, weapon: gun.cls }); }}>
+          {GUN_GROUPS.map(gr => (
+            <optgroup key={gr.label} label={gr.label}>
+              {gr.ids.map(id => gunById(id)!).filter(gn => gn.side === 'both' || gn.side === p.side).map(gn => (
+                <option key={gn.id} value={gn.id}>{gn.name} · ${gn.price}</option>
+              ))}
+            </optgroup>
+          ))}
         </select>
       </label>
+      <GunCard gun={gunOf(p)} />
       {ready !== null && <p className="muted">In position at ~{ready.toFixed(1)}s from CT spawn.</p>}
       <RouteEditor player={p} engine={engine} />
       <div className="field">Facing · {p.facing === undefined ? 'auto (toward enemy approach)' : `${Math.round(((p.facing * 180) / Math.PI + 360) % 360)}°`}
@@ -176,14 +185,15 @@ function Selection({ engine }: { engine: TacticalEngine }) {
   );
 }
 
-export function AnalysisPanel({ analysis, engine, control, sim, killMap, batch, impact, stale }: {
+export function AnalysisPanel({ analysis, engine, control, sim, spots, batch, impact, stale }: {
   analysis: Analysis; engine: TacticalEngine; control: ControlMap | null; sim: Simulation | null;
-  killMap: KillMap | null; batch: { stats: BatchStats; done: boolean } | null;
+  spots: SpotMap | null; batch: { stats: BatchStats; done: boolean } | null;
   impact: { v: UtilityImpact; done: boolean } | null; stale: boolean;
 }) {
   const s = useStore();
   const ctx = s.board.context;
-  const chokes = [...analysis.chokes].sort((a, b) => b.threat - a.threat);
+  // entries ordered by how much of the T push is expected through them, then by threat
+  const entries = entryReports(engine, analysis, s.board).sort((a, b) => b.pressure - a.pressure || b.threat - a.threat);
   const names = new Map(engine.map.chokepoints.map(c => [c.id, c.name]));
   return (
     <aside className={`panel ${stale ? 'stale' : ''}`}>
@@ -209,7 +219,8 @@ export function AnalysisPanel({ analysis, engine, control, sim, killMap, batch, 
         {analysis.summary.map((l, i) => <p key={i}>{l}</p>)}
       </section>
 
-      <KillChances engine={engine} killMap={killMap} batch={batch} />
+      <SpotFinder spots={spots} />
+      <KillChances batch={batch} />
       <UtilityEval engine={engine} batch={batch} impact={impact} />
       {sim && <KillFeed sim={sim} engine={engine} />}
       {control && <MapControl control={control} time={s.time} />}
@@ -241,17 +252,18 @@ export function AnalysisPanel({ analysis, engine, control, sim, killMap, batch, 
         ))}
       </section>}
 
-      {chokes.length > 0 && <section>
-        <h3>Chokepoint vulnerability</h3>
-        {chokes.map(c => (
-          <div key={c.choke.id} className="choke">
-            <div className="choke-head">
-              <span className="sw" style={{ background: threatColor(c.threat) }} />
-              <b>{c.choke.name}</b>
-              <span className="muted">Ts ~{c.tArrival.min.toFixed(1)}s · {c.defenders.length} holding</span>
-              <span className="pct" style={{ color: threatColor(c.threat) }}>{Math.round(c.threat * 100)}</span>
+      {entries.length > 0 && <section>
+        <h3>Entries · who holds what</h3>
+        {entries.map(e => (
+          <div key={e.id} className="entry">
+            <div className="entry-head">
+              <span className="pill" style={{ background: ENTRY_COLOR[e.level] }}>{e.level.toUpperCase()}</span>
+              <b>{e.name}</b>
+              <span className="muted">{entryClock(e, s.time)}</span>
+              {e.pressure >= 0.05 && <span className="pct" title="Share of the T team expected through here">{Math.round(e.pressure * 100)}%</span>}
             </div>
-            {c.reasons.map((r, i) => <div key={i} className="reason">{r}</div>)}
+            <div className="entry-line" style={{ color: ENTRY_COLOR[e.level] }}>{e.headline}</div>
+            {e.details.map((d, i) => <div key={i} className="reason">{d}</div>)}
           </div>
         ))}
       </section>}
@@ -311,29 +323,20 @@ function UtilityEval({ engine, batch, impact }: {
   );
 }
 
-function KillChances({ engine, killMap, batch }: {
-  engine: TacticalEngine; killMap: KillMap | null; batch: { stats: BatchStats; done: boolean } | null;
-}) {
+function KillChances({ batch }: { batch: { stats: BatchStats; done: boolean } | null }) {
   const s = useStore();
   const players = s.board.players;
   const cts = players.filter(p => p.side === 'CT'), ts = players.filter(p => p.side === 'T');
-  const spot = (pos: { x: number; y: number }) => {
-    if (!killMap) return null;
-    const v = killMap.pKill[engine.grid.snap(pos)];
-    return Number.isNaN(v) ? null : v;
-  };
   const pct = (v: number) => `${Math.round(v * 100)}%`;
   const row = (p: typeof players[number]) => {
     const st = batch?.stats.players[p.id];
-    const sv = p.side === 'CT' ? spot(p.pos) : null;
     return (
       <tr key={p.id} className={s.selectedId === p.id ? 'sel' : ''} onClick={() => s.select(p.id)}>
-        <td><b className={p.side.toLowerCase()}>{p.side} {p.label}</b>{p.weapon === 'awp' ? <span className="muted"> AWP</span> : null}</td>
+        <td><b className={p.side.toLowerCase()}>{p.side} {p.label}</b> <span className="muted">{gunOf(p).short}</span></td>
         <td style={{ color: st ? killColor(st.pKill) : undefined }}>{st ? pct(st.pKill) : '–'}</td>
         <td>{st ? st.avgKills.toFixed(2) : '–'}</td>
         <td>{st ? pct(st.survive) : '–'}</td>
         <td className={st && st.flashed > 0.25 ? 'warn' : ''} title={st ? `Average utility damage taken: ${st.utilDamage.toFixed(0)} hp` : ''}>{st ? pct(st.flashed) : '–'}</td>
-        {killMap && <td style={{ color: sv !== null ? killColor(sv) : undefined }}>{sv !== null ? pct(sv) : '–'}</td>}
       </tr>
     );
   };
@@ -341,7 +344,7 @@ function KillChances({ engine, killMap, batch }: {
   return (
     <section>
       <h3>Kill chances {batch ? `· ${batch.stats.rounds}${batch.done ? '' : '/200'} rounds` : ''}</h3>
-      {!ts.length && <p className="muted">Place T players (or load a T play) to simulate fights. The kill map works without them using default T paths.</p>}
+      {!ts.length && <p className="muted">Place T players (or load a T play) to simulate fights.</p>}
       {!s.combat && ts.length > 0 && <p className="muted">Turn on Combat to simulate rounds.</p>}
       {batch && (
         <div className="stack result" title="Who has more players left (no bomb modelled)">
@@ -352,25 +355,62 @@ function KillChances({ engine, killMap, batch }: {
       )}
       {batch && <div className="stack-labels"><span className="ct">CT win {pct(batch.stats.ctWin)}</span><span>Even {pct(batch.stats.draw)}</span><span className="t">T win {pct(batch.stats.tWin)}</span></div>}
       <table className="kills">
-        <thead><tr><th /><th title="Chance to get at least one kill">Kill</th><th title="Average kills per round">Avg K</th><th title="Chance to survive the round">Alive</th><th title="Rounds in which this player gets blinded for 1 s or more">Flashed</th>{killMap && <th title="Kill map value at this spot">Spot</th>}</tr></thead>
+        <thead><tr><th /><th title="Chance to get at least one kill">Kill</th><th title="Average kills per round">Avg K</th><th title="Chance to survive the round">Alive</th><th title="Rounds in which this player gets blinded for 1 s or more">Flashed</th></tr></thead>
         <tbody>{cts.map(row)}{ts.map(row)}</tbody>
       </table>
-      {killMap && (
-        <>
-          <div className="row km">
-            <span className="muted grow">Kill map shows</span>
-            <select value={s.killMetric} onChange={e => s.setKillMetric(e.target.value as typeof s.killMetric)}>
-              <option value="pKill">Kill chance</option><option value="expKills">Expected kills</option><option value="survive">Survival</option>
-            </select>
+    </section>
+  );
+}
+
+/** Where should the selected CT stand: the top three spots in plain words, and their current one. */
+function SpotFinder({ spots }: { spots: SpotMap | null }) {
+  const s = useStore();
+  if (!s.overlays.killmap) return null;
+  const pl = spots && s.board.players.find(p => p.id === spots.playerId);
+  if (!spots || !pl) {
+    return (
+      <section>
+        <h3>Best spots</h3>
+        <p className="muted">Select a CT to find where they should stand. It checks the spots they can reach before the Ts arrive.</p>
+      </section>
+    );
+  }
+  const gun = gunOf(pl);
+  const explain = (sp: Spot) => [
+    `${Math.round(sp.firstDuel * 100)}% to win the first duel: ${sp.tAware ? 'the T is already checking this angle' : 'the T walks in looking elsewhere'}.`,
+    sp.trade > 0 ? `If you lose it, a teammate trades ${Math.round(sp.trade * 100)}% of the time.` : 'Nobody can trade you here.',
+    sp.angles > 1 ? `${sp.angles} Ts appear within 1.5 s: two angles at once.` : 'One angle at a time.',
+    `You're set by ${fmt(sp.setBy)}, first T around ${fmt(sp.firstContact)}.`,
+  ];
+  return (
+    <section>
+      <h3>Best spots · {pl.side} {pl.label} ({gun.name})</h3>
+      {spots.jobs.length > 0 && <p className="muted">Keeps <b>{spots.jobs.join(' + ')}</b> covered: only spots that still see it are suggested.</p>}
+      {spots.best.map((sp, i) => (
+        <div key={i} className="spot">
+          <div className="spot-head">
+            <span className="spot-rank">{i + 1}</span>
+            <b>{sp.where || 'Spot'}</b>
+            <span className="pct" style={{ color: killColor(sp.score / 100) }}>{sp.score}</span>
+            <button onClick={() => s.move(pl.id, sp.pos)}>Move here</button>
           </div>
-          <div className="gradient"><span>bad spot</span><span>good spot</span></div>
-          <p className="muted">
-            Every spot is scored for a CT holding there (aimed at the first angle a T appears from) against {killMap.source === 'players' ? 'the placed Ts and their routes' : 'Ts on the default paths from spawn'}.
-            Grey = no T ever comes into view. Hover the map for exact numbers.
-          </p>
-        </>
+          {explain(sp).map((l, j) => <div key={j} className="reason">{l}</div>)}
+        </div>
+      ))}
+      {!spots.best.length && <p className="muted">No reachable spot sees a T in time from here. Try another position or place Ts.</p>}
+      {spots.current && (
+        <div className="spot current">
+          <div className="spot-head">
+            <span className="spot-rank now">now</span>
+            <b>Current spot</b>
+            <span className="pct" style={{ color: killColor(spots.current.score / 100) }}>{spots.current.score}</span>
+            <span className="muted">{spots.currentRank ? `#${spots.currentRank} of ${spots.candidates}` : ''}</span>
+          </div>
+          {spots.current.note && <div className="reason warn-text">{spots.current.note}</div>}
+          {explain(spots.current).slice(0, 3).map((l, j) => <div key={j} className="reason">{l}</div>)}
+        </div>
       )}
-      {!killMap && <p className="muted">Turn on <b>Kill map</b> under Overlays to see which spots are strong or deadly for a CT.</p>}
+      <p className="muted">Scored against {spots.source === 'players' ? 'the Ts you placed and their routes' : 'Ts on the default paths from spawn'}. Score = first duel, tradeability, angles, minus hiding deep.</p>
     </section>
   );
 }
@@ -443,50 +483,51 @@ function RouteEditor({ player, engine }: { player: import('../engine/types').Pla
   );
 }
 
-const LEGEND = [Ctl.CtCross, Ctl.CtSeen, Ctl.CtZone, Ctl.Contested, Ctl.TSeen, Ctl.TZone, Ctl.TSide, Ctl.Denied];
-const rgba = (c: Ctl, boost = 1) => {
-  const v = CTL_COLORS[c];
-  return v ? `rgba(${v[0]},${v[1]},${v[2]},${Math.min(1, (v[3] / 255) * boost)})` : 'transparent';
-};
-
+/** Territory summary: who holds how much, the legend, and every named area with a CT-vs-T bar. */
 function MapControl({ control, time }: { control: ControlMap; time: number }) {
-  const { share } = control;
-  const parts = [
-    { label: 'CT', v: share.ct, color: rgba(Ctl.CtSeen, 2.2) },
-    { label: 'Contested', v: share.contested, color: rgba(Ctl.Contested, 2) },
-    { label: 'T', v: share.t, color: rgba(Ctl.TZone, 2) },
-    { label: 'Not reached', v: share.neutral, color: '#2a313b' },
-  ];
-  const order = [Ctl.TSeen, Ctl.TZone, Ctl.Contested, Ctl.TSide, Ctl.None, Ctl.CtZone, Ctl.CtSeen, Ctl.CtCross, Ctl.Denied];
-  const callouts = [...control.callouts].sort((a, b) => order.indexOf(a.cls) - order.indexOf(b.cls));
+  let ct = 0, tt = 0, mid = 0, n = 0;
+  for (let i = 0; i < control.owner.length; i++) {
+    const o = control.owner[i];
+    if (Number.isNaN(o)) continue;
+    n++;
+    if (o > 0.15) ct++; else if (o < -0.15) tt++; else mid++;
+  }
+  const pct = (v: number) => Math.round((v / Math.max(1, n)) * 100);
+  const zones = [...control.zones].sort((a, b) => (b.t - b.ct) - (a.t - a.ct));
+  const status = (z: ControlMap['zones'][number]) => {
+    if (z.ct >= 0.6) return z.watchers ? `CT watching (${z.watchers})` : 'CT hold';
+    if (z.t >= 0.6) return 'T hold';
+    if (z.ct + z.t < 0.3) return 'Contested';
+    if (z.tArrive > time && Number.isFinite(z.tArrive)) return `Ts arrive ${fmt(z.tArrive)}`;
+    return z.ct > z.t ? 'CT leaning' : 'T leaning';
+  };
   return (
     <section>
       <h3>Map control at {fmt(time)}</h3>
       <div className="stack">
-        {parts.map(p => p.v > 0.005 && <div key={p.label} style={{ width: `${p.v * 100}%`, background: p.color }} title={`${p.label} ${Math.round(p.v * 100)}%`} />)}
+        <div style={{ width: `${pct(ct)}%`, background: 'var(--ct)' }} title={`CT ${pct(ct)}%`} />
+        <div style={{ width: `${pct(mid)}%`, background: '#ffd640' }} title={`Contested ${pct(mid)}%`} />
+        <div style={{ width: `${pct(tt)}%`, background: 'var(--t)' }} title={`T ${pct(tt)}%`} />
       </div>
       <div className="stack-labels">
-        {parts.slice(0, 3).map(p => <span key={p.label}><i style={{ background: p.color }} />{p.label} {Math.round(p.v * 100)}%</span>)}
+        <span className="ct"><i style={{ background: 'var(--ct)' }} />CT {pct(ct)}%</span>
+        <span><i style={{ background: '#ffd640' }} />Contested {pct(mid)}%</span>
+        <span className="t"><i style={{ background: 'var(--t)' }} />T {pct(tt)}%</span>
       </div>
-      <div className="legend">
-        {LEGEND.map(c => <span key={c}><i style={{ background: rgba(c, 1.8) }} />{CTL_LABEL[c]}</span>)}
-      </div>
-      {callouts.length > 0 && (
-        <div className="callout-list">
-          {callouts.map(c => (
-            <div key={c.name} className="callout-row">
-              <i style={{ background: c.cls === Ctl.None ? '#2a313b' : rgba(c.cls, 2) }} />
-              <b>{c.name}</b>
-              <span className="muted">
-                {c.cls === Ctl.None
-                  ? `Ts free from ${fmt(c.tArrive)}`
-                  : c.watchers > 0 ? `${CTL_LABEL[c.cls]} (${c.watchers} CT${c.watchers > 1 ? 's' : ''})` : CTL_LABEL[c.cls]}
-              </span>
+      <p className="muted">Stronger colour = firmer hold · brighter = someone is watching it · <b style={{ color: '#ffd640' }}>yellow line</b> = the front.</p>
+      <div className="zones">
+        {zones.map(z => (
+          <div key={z.name} className="zone-row">
+            <b>{z.name}</b>
+            <div className="zone-bar" title={`CT ${Math.round(z.ct * 100)}% · contested ${Math.round(z.contested * 100)}% · T ${Math.round(z.t * 100)}%`}>
+              <div style={{ width: `${z.ct * 100}%`, background: 'var(--ct)' }} />
+              <div style={{ width: `${z.contested * 100}%`, background: '#ffd64088' }} />
+              <div style={{ width: `${z.t * 100}%`, background: 'var(--t)' }} />
             </div>
-          ))}
-        </div>
-      )}
-      <p className="muted">Press ▶ Play (or Space) to watch routes play out. Place T players to see their vision and the front line.</p>
+            <span className="muted">{status(z)}</span>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
@@ -588,6 +629,31 @@ function NewLineup({ engine }: { engine: TacticalEngine }) {
         <button onClick={() => s.saveLineup({ name: name || 'My line-up', type, side: lside, from: d.from!, to: d.to!, technique, notes })}>Save</button>
         <button onClick={() => useStore.setState({ draftLineup: null })}>Cancel</button>
       </div>
+    </div>
+  );
+}
+
+/** Stats of a gun as bars, relative to the best gun in each category. */
+export function GunCard({ gun }: { gun: Gun }) {
+  const max = (f: (x: Gun) => number) => Math.max(...GUNS.map(f));
+  const rows: [string, number, number, string][] = [
+    ['Kill speed', gun.killRate, max(x => x.killRate), `${gun.killRate.toFixed(1)}/s`],
+    ['Damage', Math.min(gun.damage, 120), 120, `${gun.damage}${gun.oneTap ? ` · one-tap ${gun.oneTap}` : ''}`],
+    ['Fire rate', gun.rpm, max(x => x.rpm), `${gun.rpm} rpm`],
+    ['Armour pen.', gun.armorPen, 100, `${gun.armorPen}%`],
+    ['Long range', gunRangeFactor(gun, 2500), 1, `${Math.round(gunRangeFactor(gun, 2500) * 100)}% at 2500u`],
+    ['Mobility', gun.speed - 140, 240 - 140, `${gun.speed} u/s`],
+  ];
+  return (
+    <div className="guncard">
+      <div className="gun-head"><b>{gun.name}</b><span className="muted">{gun.side === 'both' ? 'Both sides' : gun.side} · ${gun.price}</span></div>
+      {rows.map(([label, v, m, txt]) => (
+        <div key={label} className="gun-row">
+          <span>{label}</span>
+          <div className="gun-bar"><div style={{ width: `${Math.max(3, (v / m) * 100)}%` }} /></div>
+          <span className="muted">{txt}</span>
+        </div>
+      ))}
     </div>
   );
 }

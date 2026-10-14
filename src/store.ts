@@ -37,6 +37,8 @@ interface Store {
   customLineups: Lineup[];
   /** Demo review: parsed demo, round shown, and the board to restore afterwards. */
   review: { data: DemoData; round: number; prevBoard: BoardState; prevMap: string } | null;
+  /** Review shows the whole round at once instead of revealing it as time passes. */
+  reviewSpoilers: boolean;
   /** Short message shown over the board (e.g. why an action did nothing). */
   notice: string | null;
 
@@ -48,7 +50,7 @@ interface Store {
   addPlayer(side: Side, pos: Vec2): void;
   addUtility(type: UtilType, pos: Vec2): void;
   move(id: string, pos: Vec2): void;
-  updatePlayer(id: string, patch: Partial<Pick<Player, 'weapon' | 'facing'>>): void;
+  updatePlayer(id: string, patch: Partial<Pick<Player, 'weapon' | 'gun' | 'facing'>>): void;
   updateUtility(id: string, patch: Partial<Pick<Utility, 'throwAt'>>): void;
   remove(id: string): void;
   startRoute(playerId: string): void;
@@ -69,6 +71,7 @@ interface Store {
   startReview(data: DemoData): void;
   setReviewRound(n: number): void;
   exitReview(): void;
+  setReviewSpoilers(on: boolean): void;
   /** Auto-route a player to a destination (replaces their route, keeps leave time/mode). */
   routeTo(playerId: string, p: Vec2): void;
   setSpeed(x: number): void;
@@ -128,6 +131,7 @@ export const useStore = create<Store>((set, get) => {
     draftLineup: null,
     customLineups: loadCustomLineups(),
     review: null,
+    reviewSpoilers: false,
     notice: null,
 
     setTool: tool => {
@@ -227,6 +231,7 @@ export const useStore = create<Store>((set, get) => {
         tool: 'select',
       })),
     setReviewRound: n => set(s => (s.review ? { review: { ...s.review, round: n }, time: 0, playing: false, selectedId: null } : s)),
+    setReviewSpoilers: reviewSpoilers => set({ reviewSpoilers }),
     exitReview: () =>
       set(s => (s.review ? { board: s.review.prevBoard, mapId: s.review.prevMap, level: 0, review: null, time: 10, playing: false, selectedId: null } : s)),
     routeTo: (playerId, p) =>

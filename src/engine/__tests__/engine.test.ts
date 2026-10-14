@@ -289,3 +289,94 @@ describe('line-ups', () => {
     }
   });
 });
+
+describe('economy in the review', () => {
+  it('classifies buys and shifts the eval toward the better-equipped side', async () => {
+    const { evalState, teamEconomy, weaponClass, equipValue } = await import('../recap');
+    expect(weaponClass(['Glock-18', 'knife'])).toBe('pistol');
+    expect(weaponClass(['USP-S', 'AWP'])).toBe('awp');
+    expect(weaponClass(['MAC-10'])).toBe('smg');
+    expect(equipValue({ money: 0, equip: null, armor: 100, helmet: true, defuser: false, weapons: ['AK-47', 'Smoke Grenade'] })).toBe(2700 + 300 + 1000);
+
+    const base = { ct: 5, t: 5, ctHp: 500, tHp: 500, ctMap: 0.5, tMap: 0.5, planted: null, time: 5 };
+    const even = evalState({ ...base, ctEquip: 4500, tEquip: 4500 });
+    const ctEco = evalState({ ...base, ctEquip: 700, tEquip: 4600 });
+    const tEco = evalState({ ...base, ctEquip: 5000, tEquip: 800 });
+    console.log(`5v5 even buy ${(even * 100).toFixed(0)}% | CT eco vs T full ${(ctEco * 100).toFixed(0)}% | CT full vs T eco ${(tEco * 100).toFixed(0)}%`);
+    expect(Math.abs(even - 0.5)).toBeLessThan(0.02);
+    expect(ctEco).toBeLessThan(0.2);
+    expect(tEco).toBeGreaterThan(0.85);
+
+    const player = (side: 'CT' | 'T') => ({ side, x: [0], y: [0], z: [0], yaw: [0], hp: [100], alive: [1] });
+    const round: any = {
+      n: 5, winner: null, reason: '', duration: 1, plant: null, kills: [], util: [], blind: [],
+      frames: { t: [0], players: { a: player('CT'), b: player('CT'), c: player('T'), d: player('T') } },
+      econ: {
+        a: { money: 3500, equip: 850, armor: 0, helmet: false, defuser: false, weapons: ['USP-S'] },
+        b: { money: 3200, equip: 650, armor: 0, helmet: false, defuser: false, weapons: ['P250'] },
+        c: { money: 900, equip: 5400, armor: 100, helmet: true, defuser: false, weapons: ['AWP', 'Glock-18'] },
+        d: { money: 1200, equip: 4200, armor: 100, helmet: true, defuser: false, weapons: ['AK-47'] },
+      },
+    };
+    const econ = teamEconomy(round, 24);
+    console.log('buys:', econ.CT.buy, econ.CT.avgEquip, '|', econ.T.buy, econ.T.avgEquip);
+    expect(econ.CT.buy).toBe('Eco');
+    expect(econ.T.buy).toBe('Full buy');
+    expect(teamEconomy({ ...round, n: 13 }, 24).CT.buy).toBe('Pistol round');
+  });
+});
+
+describe('guns', () => {
+  it('maps demo / inventory names to guns and uses their stats', async () => {
+    const { gunFromName, primaryGun, gunOf, gunHazard } = await import('../guns');
+    expect(gunFromName('weapon_ak47')?.name).toBe('AK-47');
+    expect(gunFromName('m4a1_silencer')?.name).toBe('M4A1-S');
+    expect(gunFromName('weapon_m4a1')?.name).toBe('M4A4'); // CS2's internal name for the M4A4
+    expect(gunFromName('M4A1-S')?.name).toBe('M4A1-S');
+    expect(gunFromName('usp_silencer')?.name).toBe('USP-S');
+    expect(gunFromName('hkp2000')?.name).toBe('P2000');
+    expect(gunFromName('Desert Eagle')?.name).toBe('Desert Eagle');
+    expect(gunFromName('knife_t')).toBeUndefined();
+    expect(primaryGun(['Glock-18', 'AWP', 'Flashbang'])?.id).toBe('awp');
+    expect(gunOf({ side: 'CT', weapon: 'rifle' }).id).toBe('m4a1s');
+    const ak = gunFromName('ak47')!, mp9 = gunFromName('mp9')!;
+    expect(gunHazard(mp9, 300)).toBeGreaterThan(gunHazard(mp9, 2500) * 2); // SMGs fall off with range
+    expect(gunHazard(ak, 2500)).toBeGreaterThan(gunHazard(mp9, 2500));
+  });
+});
+
+describe('territory map control', () => {
+  it('mid open → Top Mid is T ground at 0:15; aggro mid → CTs own much more of Mid', async () => {
+    const { computeControl } = await import('../control');
+    const e = getEngine('de_mirage');
+    const zone = (c: any, name: string) => c.zones.find((z: any) => z.name === name);
+    const open = computeControl(e, board('de_mirage', 'Stack A, Mid open'), 15);
+    const aggro = computeControl(e, board('de_mirage', 'Aggro Mid'), 15);
+    const fmtZ = (z: any) => `${z.name} CT ${Math.round(z.ct * 100)} / T ${Math.round(z.t * 100)}`;
+    console.log('open :', ['Top Mid', 'Mid', 'Catwalk', 'Jungle'].map(n => fmtZ(zone(open, n))).join(' | '), '| front cells', open.front.reduce((a: number, b: number) => a + b, 0));
+    console.log('aggro:', ['Top Mid', 'Mid', 'Catwalk', 'Jungle'].map(n => fmtZ(zone(aggro, n))).join(' | '));
+    expect(zone(open, 'Top Mid').t).toBeGreaterThan(zone(open, 'Top Mid').ct);
+    expect(zone(aggro, 'Mid').ct).toBeGreaterThan(zone(open, 'Mid').ct * 2);
+    expect(open.front.reduce((a: number, b: number) => a + b, 0)).toBeGreaterThan(0);
+  });
+});
+
+describe('spot finder', () => {
+  it('ranks reachable holds for a CT and explains them', async () => {
+    const { computeSpots } = await import('../spots');
+    const { tPlaysFor } = await import('../../map/catalog');
+    const e = getEngine('de_mirage');
+    const b = board('de_mirage', 'Default 2-1-2');
+    b.players = [...b.players, ...tPlaysFor('de_mirage')['A execute']()];
+    for (const who of [0, 1]) {
+      const pl = b.players[who];
+      const t0 = performance.now();
+      const jobs = e.analyze(b, 200).chokes.filter(c => c.defenders.some(d => d.playerId === pl.id)).map(c => ({ name: c.choke.name, portal: c.choke.portal }));
+      const sp = computeSpots(e, b, null, pl, jobs);
+      console.log(`CT ${who + 1} @${pl.pos.x},${pl.pos.y} jobs [${sp.jobs.join(', ')}]: ${sp.candidates} spots in ${(performance.now() - t0).toFixed(0)} ms; current #${sp.currentRank} score ${sp.current?.score}`);
+      for (const s of sp.best) console.log(`   ${s.score} @${Math.round(s.pos.x)},${Math.round(s.pos.y)} ${s.where}: duel ${Math.round(s.firstDuel * 100)}% trade ${Math.round(s.trade * 100)}% angles ${s.angles} contact ${s.firstContact.toFixed(1)}s set ${s.setBy.toFixed(1)}s`);
+      expect(sp.best.length).toBeGreaterThan(0);
+      expect(sp.best[0].score).toBeGreaterThanOrEqual(sp.current?.score ?? 0);
+    }
+  });
+});

@@ -1,3 +1,4 @@
+import { gunOf } from './guns';
 import type { TacticalEngine } from './predict';
 import type { Player, Vec2 } from './types';
 
@@ -25,10 +26,11 @@ const cache = new Map<string, BakedRoute | null>();
 export function bakeRoute(engine: TacticalEngine, p: Player): BakedRoute | null {
   const r = p.route;
   if (!r || !r.pts.length) return null;
-  const key = `${engine.map.id}|${engine.map.radarImage}|${p.side}|${p.weapon}|${p.pos.x},${p.pos.y}|${JSON.stringify(r)}`;
+  const key = `${engine.map.id}|${engine.map.radarImage}|${p.side}|${p.weapon}|${p.gun ?? ''}|${p.pos.x},${p.pos.y}|${JSON.stringify(r)}`;
   if (cache.has(key)) return cache.get(key)!;
 
-  const secPerPx = engine.secPerPx(p.side, p.weapon) / (r.mode === 'walk' ? WALK_FACTOR : 1);
+  // movement speed depends on the gun in hand (AWP 200 u/s, knife-out pistols 240…)
+  const secPerPx = (engine.map.radar.scale * engine.map.timingScale) / gunOf(p).speed / (r.mode === 'walk' ? WALK_FACTOR : 1);
   const pts: Vec2[] = [p.pos];
   let unreachable = false;
   for (const w of r.pts) {

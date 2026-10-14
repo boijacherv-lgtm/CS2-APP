@@ -24,6 +24,14 @@ const REACTION = 0.4; // matches the engine's spawn reaction delay
 
 export interface ControlMap {
   cls: Uint8Array;
+  /** Territory per cell: +1 firm CT … 0 contested … −1 firm T (NaN off the floor). */
+  owner: Float32Array;
+  /** Cells on the front line between CT and T ground. */
+  front: Uint8Array;
+  /** Cells someone is watching (1 = CT, 2 = T, 3 = both). */
+  watched: Uint8Array;
+  /** Ownership of each named area: share of its floor held by each side. */
+  zones: { name: string; pos: Vec2; ct: number; t: number; contested: number; tArrive: number; watchers: number }[];
   /** Fraction of walkable floor per bucket. */
   share: { ct: number; contested: number; t: number; neutral: number };
   /** Status of each named callout. */
@@ -106,6 +114,9 @@ export function computeControl(engine: TacticalEngine, board: BoardState, t: num
     : new Float64Array(n).fill(Infinity);
 
   const cls = new Uint8Array(n);
+  const owner = new Float32Array(n).fill(NaN);
+  const front = new Uint8Array(n);
+  const watched = new Uint8Array(n);
   const tSeen = new Float64Array(n).fill(Infinity);
   const count = new Array(9).fill(0);
   let walkable = 0;
@@ -132,6 +143,21 @@ export function computeControl(engine: TacticalEngine, board: BoardState, t: num
     else c = Ctl.TZone;
     cls[i] = c;
     count[c]++;
+    owner[i] = ownership(c, seen[i], seenT[i], ct, tt, t, tMode);
+    watched[i] = (seen[i] ? 1 : 0) | (seenT[i] ? 2 : 0);
+  }
+  // Front line: floor cells whose neighbour belongs to the other side (or open fights).
+  for (let i = 0; i < n; i++) {
+    if (!g.walk[i]) continue;
+    if (watched[i] === 3) { front[i] = 1; continue; }
+    const o = owner[i];
+    if (Math.abs(o) < FRONT_MIN) continue;
+    const x = i % g.w, y = (i / g.w) | 0;
+    for (const [dx, dy] of [[1, 0], [0, 1]] as const) {
+      const j = (y + dy) * g.w + x + dx;
+      if (x + dx >= g.w || y + dy >= g.h || !g.walk[j]) continue;
+      if (Math.abs(owner[j]) >= FRONT_MIN && Math.sign(owner[j]) !== Math.sign(o)) { front[i] = 1; front[j] = 1; }
+    }
   }
   const w = Math.max(1, walkable);
   const share = {
@@ -148,7 +174,46 @@ export function computeControl(engine: TacticalEngine, board: BoardState, t: num
       return { name: c.name, cls: i >= 0 ? (cls[i] as Ctl) : Ctl.None, tArrive: i >= 0 ? tSeen[i] : Infinity, watchers: i >= 0 ? seen[i] : 0 };
     });
 
-  return { cls, share, callouts, live };
+  // Areas: every floor cell belongs to its nearest callout (within reach); share held by each side.
+  const named = engine.map.callouts.filter(c => !/spawn/i.test(c.name));
+  const acc = named.map(() => ({ ct: 0, t: 0, mid: 0, n: 0 }));
+  if (named.length)
+    for (let i = 0; i < n; i++) {
+      if (!g.walk[i]) continue;
+      const x = ((i % g.w) + 0.5) * CELL, y = (((i / g.w) | 0) + 0.5) * CELL;
+      let best = -1, bd = ZONE_REACH_PX * ZONE_REACH_PX;
+      named.forEach((c, k) => { const d = (c.pos.x - x) ** 2 + (c.pos.y - y) ** 2; if (d < bd) { bd = d; best = k; } });
+      if (best < 0) continue;
+      const a = acc[best];
+      a.n++;
+      if (owner[i] > FRONT_MIN) a.ct++; else if (owner[i] < -FRONT_MIN) a.t++; else a.mid++;
+    }
+  const zones = named.map((c, k) => {
+    const a = acc[k], m = Math.max(1, a.n);
+    const i = g.snap(c.pos);
+    return { name: c.name, pos: c.pos, ct: a.ct / m, t: a.t / m, contested: a.mid / m, tArrive: i >= 0 ? tSeen[i] : Infinity, watchers: i >= 0 ? seen[i] : 0 };
+  });
+
+  return { cls, owner, front, watched, zones, share, callouts, live };
+}
+
+const FRONT_MIN = 0.15;
+const ZONE_REACH_PX = 120;
+
+/**
+ * Territory value for one cell. Eyes on a spot decide it outright; otherwise whoever gets there
+ * first owns it, more firmly the bigger the time gap. Ground Ts can't reach yet is CT-leaning but faint.
+ */
+function ownership(c: Ctl, ctEyes: number, tEyes: number, ct: number, tt: number, t: number, tMode: boolean): number {
+  if (c === Ctl.Denied) return 0;
+  if (ctEyes && tEyes) return 0;
+  if (ctEyes) return Math.min(1, 0.7 + 0.15 * ctEyes);
+  if (tEyes) return -Math.min(1, 0.7 + 0.15 * tEyes);
+  if (c === Ctl.TZone) return -0.9;
+  if (!Number.isFinite(tt)) return 0.9;
+  const lead = Math.tanh((tt - ct) / 3); // + = CTs get there first
+  if (!tMode && tt > t) return lead > 0 ? lead * 0.85 : lead * 0.35; // Ts not there yet: only a threat
+  return lead * 0.9;
 }
 
 function stampDisc(g: TacticalEngine['grid'], out: Uint8Array, c: Vec2, r: number) {

@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { runBatch, runUtilityImpact, type BatchStats, type UtilityImpact } from './engine/batch';
 import { simulate } from './engine/combat';
-import { computeKillMap } from './engine/killmap';
+import { computeSpots } from './engine/spots';
 import { timelineEnd } from './engine/timeline';
 import { computeControl } from './engine/control';
 import { buildReplay, reviewRound } from './engine/recap';
@@ -34,6 +34,10 @@ export function App() {
   const time = useStore(s => s.time);
   const showControl = useStore(s => s.overlays.control);
   const deferredTime = useDeferredValue(time);
+  // While playing, a deferred value never settles (time changes every frame), so map control
+  // would freeze until Stop. Step it 4× a second instead; when paused, follow the slider exactly.
+  const playingNow = useStore(s => s.playing);
+  const controlTime = playingNow ? Math.floor(time * 4) / 4 : deferredTime;
   const combat = useStore(s => s.combat);
   const seed = useStore(s => s.seed);
   const simEnd = useMemo(() => Math.max(60, Math.ceil(timelineEnd(engine, deferred.players))), [engine, deferred.players]);
@@ -43,18 +47,25 @@ export function App() {
   );
   const sim = replay?.sim ?? simulated;
   const control = useMemo(
-    () => (showControl ? computeControl(engine, deferred, deferredTime, sim) : null),
-    [engine, deferred, deferredTime, showControl, sim],
+    () => (showControl ? computeControl(engine, deferred, controlTime, sim) : null),
+    [engine, deferred, controlTime, showControl, sim],
   );
 
   // Kill map: scored for the selected CT's weapon (rifle otherwise).
-  const showKillMap = useStore(s => s.overlays.killmap);
+  // Spot finder for the selected CT: where should they stand, keeping the entry they hold covered.
+  const showSpots = useStore(s => s.overlays.killmap);
   const selectedId = useStore(s => s.selectedId);
-  const ctWeapon = deferred.players.find(p => p.id === selectedId && p.side === 'CT')?.weapon ?? 'rifle';
-  const killMap = useMemo(
-    () => (showKillMap ? computeKillMap(engine, deferred, sim, ctWeapon) : null),
-    [engine, deferred, sim, ctWeapon, showKillMap],
-  );
+  const spots = useMemo(() => {
+    const pl = deferred.players.find(p => p.id === selectedId && p.side === 'CT');
+    if (!showSpots || review || !pl) return null;
+    // the entries this player covers from where they stand (sightline, whatever way they face)
+    const sees = (portal: [{ x: number; y: number }, { x: number; y: number }]) => [0.1, 0.3, 0.5, 0.7, 0.9]
+      .map(f => ({ x: portal[0].x + (portal[1].x - portal[0].x) * f, y: portal[0].y + (portal[1].y - portal[0].y) * f }))
+      .filter(q => Math.hypot(q.x - pl.pos.x, q.y - pl.pos.y) < 1000 && engine.grid.lineOfSight(pl.pos, q)).length >= 2;
+    const jobs = engine.map.chokepoints.filter(c => sees(c.portal)).map(c => ({ name: c.name, portal: c.portal }));
+    return computeSpots(engine, deferred, simulated, pl, jobs);
+  }, [engine, deferred, simulated, selectedId, showSpots, review]);
+
 
   // Many rounds of the same setup, in the background, for per-player kill chances.
   const [batch, setBatch] = useState<{ stats: BatchStats; done: boolean } | null>(null);
@@ -63,7 +74,7 @@ export function App() {
     if (review || !combat || !deferred.players.some(p => p.side === 'T') || !deferred.players.some(p => p.side === 'CT')) return;
     let cancel = () => {};
     const timer = setTimeout(() => {
-      cancel = runBatch(engine, deferred, simEnd, 200, (stats, done) => setBatch({ stats, done }));
+      cancel = runBatch(engine, deferred, simEnd, 200, (stats, done) => setBatch({ stats, done }), () => useStore.getState().playing);
     }, 250);
     return () => { clearTimeout(timer); cancel(); };
   }, [engine, deferred, simEnd, combat, review]);
@@ -74,7 +85,7 @@ export function App() {
   useEffect(() => {
     setImpact(null);
     if (review || !batchDone || !deferred.utility.length) return;
-    return runUtilityImpact(engine, deferred, simEnd, 100, (v, done) => setImpact({ v, done }));
+    return runUtilityImpact(engine, deferred, simEnd, 100, (v, done) => setImpact({ v, done }), () => useStore.getState().playing);
   }, [engine, deferred, simEnd, batchDone, review]);
 
   // Playback: advance round time along the routes.
@@ -105,6 +116,11 @@ export function App() {
         st.setPlaying(!st.playing);
         return;
       }
+      if (e.key.toLowerCase() === 'r' && useStore.getState().review) {
+        const st = useStore.getState();
+        st.setReviewSpoilers(!st.reviewSpoilers);
+        return;
+      }
       const tool = KEYS[e.key.toLowerCase()];
       if (tool) useStore.getState().setTool(tool);
     };
@@ -115,10 +131,10 @@ export function App() {
   return (
     <div className="app">
       <Toolbar engine={engine} timelineEnd={end} />
-      <Board key={`${mapId}:${level}`} analysis={analysis} engine={engine} control={control} sim={sim} killMap={killMap} batch={batch?.stats ?? null} />
+      <Board key={`${mapId}:${level}`} analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch?.stats ?? null} recap={recap} />
       {recap && replay
         ? <RecapPanel recap={recap} replay={replay} engine={engine} control={control} />
-        : <AnalysisPanel analysis={analysis} engine={engine} control={control} sim={sim} killMap={killMap} batch={batch} impact={impact} stale={deferred !== board} />}
+        : <AnalysisPanel analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch} impact={impact} stale={deferred !== board} />}
     </div>
   );
 }

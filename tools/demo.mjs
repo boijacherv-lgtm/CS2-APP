@@ -39,6 +39,27 @@ export function parseDemo(path) {
     ? parseTicks(path, ['X', 'Y', 'Z', 'yaw', 'health', 'is_alive', 'team_num'], wanted) ?? []
     : [];
 
+  // Economy, read a few seconds into each round (after most buys). Each field is parsed on its own
+  // so a field this parser version doesn't know can't break the whole demo.
+  const econTicks = rounds.map(r => Math.min(r.end, r.start + 5 * TICKRATE));
+  const econ = new Map(); // `${tick}|${steamid}` -> { ...fields }
+  const ECON_FIELDS = {
+    money: ['balance'], equip: ['current_equip_value', 'round_start_equip_value'], armor: ['armor_value'],
+    helmet: ['has_helmet'], defuser: ['has_defuser'], weapons: ['inventory'], active: ['active_weapon_name'],
+  };
+  for (const [key, candidates] of Object.entries(ECON_FIELDS))
+    for (const prop of candidates) {
+      const rows = econTicks.length ? safe(() => parseTicks(path, [prop], econTicks)) : null;
+      if (!rows?.length) continue;
+      for (const row of rows) {
+        const k = `${num(row.tick)}|${sid(pick(row, 'steamid', 'player_steamid'))}`;
+        const e = econ.get(k) ?? {};
+        if (e[key] === undefined) e[key] = row[prop];
+        econ.set(k, e);
+      }
+      break; // first candidate that works
+    }
+
   const deaths = parseEvent(path, 'player_death', ['X', 'Y', 'team_num'], []) ?? [];
   const blinds = safe(() => parseEvent(path, 'player_blind', ['team_num'], [])) ?? [];
   const nades = safe(() => parseEvents(path, ['flashbang_detonate', 'hegrenade_detonate', 'smokegrenade_detonate', 'inferno_startburn'])) ?? [];
@@ -90,10 +111,22 @@ export function parseDemo(path) {
       dur: num(pick(b, 'blind_duration')),
     }));
     const plant = plants.find(inRound);
+    const roundEcon = {};
+    for (const id of Object.keys(frames.players)) {
+      const e = econ.get(`${econTicks[idx]}|${id}`);
+      if (!e) continue;
+      const weapons = Array.isArray(e.weapons) ? e.weapons.map(String) : e.active ? [String(e.active)] : [];
+      roundEcon[id] = {
+        money: Number.isFinite(num(e.money)) ? num(e.money) : null,
+        equip: Number.isFinite(num(e.equip)) ? num(e.equip) : null,
+        armor: Number.isFinite(num(e.armor)) ? num(e.armor) : 0,
+        helmet: !!e.helmet, defuser: !!e.defuser, weapons,
+      };
+    }
     return {
       n: idx + 1, winner: r.winner, reason: r.reason, duration: tOf(r.end),
       plant: plant !== undefined ? tOf(plant) : null,
-      frames, kills, util, blind,
+      frames, kills, util, blind, econ: roundEcon,
     };
   });
   return { map, tickrate: TICKRATE, names, rounds: out.filter(r => r.frames.t.length > 4) };

@@ -24,7 +24,7 @@ export interface KillMap {
   tracks: number;
 }
 
-interface Track { samples: { t: number; pos: Vec2; heading: number }[]; weapon: Weapon }
+export interface Track { samples: { t: number; pos: Vec2; heading: number }[]; weapon: Weapon }
 
 const SAMPLE_DT = 0.5; // seconds between vision casts along a T path
 const RAYS = 900; // per full-circle cast
@@ -36,28 +36,7 @@ export function computeKillMap(engine: TacticalEngine, board: BoardState, sim: S
   const n = g.w * g.h;
   const { tracks, source } = tTracks(engine, board, sim);
 
-  // 1. First sighting of each track from every cell.
-  const first = tracks.map(() => new Float32Array(n).fill(Infinity));
-  const aware = tracks.map(() => new Uint8Array(n));
-  const distU = tracks.map(() => new Float32Array(n));
-  const tPos = tracks.map(() => new Float32Array(n * 2)); // where the T was when first seen
-  tracks.forEach((tr, k) => {
-    let last: Vec2 | null = null;
-    for (const smp of tr.samples) {
-      if (last && Math.hypot(smp.pos.x - last.x, smp.pos.y - last.y) < 10 && smp !== tr.samples[tr.samples.length - 1]) continue;
-      last = smp.pos;
-      const smokes = activeSmokes(board.utility, smp.t, engine.map.radar.scale);
-      g.castVision(smp.pos, 0, Math.PI * 2, smokes, i => {
-        if (first[k][i] !== Infinity) return;
-        first[k][i] = smp.t;
-        const c = { x: ((i % g.w) + 0.5) * CELL, y: (((i / g.w) | 0) + 0.5) * CELL };
-        aware[k][i] = inFov(smp.pos, smp.heading, c, FOV) ? 1 : 0;
-        distU[k][i] = Math.hypot(c.x - smp.pos.x, c.y - smp.pos.y) * engine.map.radar.scale;
-        tPos[k][i * 2] = smp.pos.x;
-        tPos[k][i * 2 + 1] = smp.pos.y;
-      }, MAX_RANGE_PX, RAYS);
-    }
-  });
+  const { first, aware, distU, tPos } = sweepFirstSight(engine, board, tracks);
 
   // 2. Resolve encounters per cell; grenades and flashes tilt each duel.
   const util = board.utility.filter(u => u.type !== 'smoke');
@@ -94,7 +73,36 @@ export function computeKillMap(engine: TacticalEngine, board: BoardState, sim: S
 }
 
 /** T movement to test positions against: placed Ts (cut at their simulated death), or default paths. */
-function tTracks(engine: TacticalEngine, board: BoardState, sim: Simulation | null): { tracks: Track[]; source: KillMap['source'] } {
+/** When each T track is first seen from every cell, whether that T is looking, and from where. */
+export function sweepFirstSight(engine: TacticalEngine, board: BoardState, tracks: Track[]) {
+  const g = engine.grid;
+  const n = g.w * g.h;
+  const first = tracks.map(() => new Float32Array(n).fill(Infinity));
+  const aware = tracks.map(() => new Uint8Array(n));
+  const distU = tracks.map(() => new Float32Array(n));
+  const tPos = tracks.map(() => new Float32Array(n * 2)); // where the T was when first seen
+  tracks.forEach((tr, k) => {
+    let last: Vec2 | null = null;
+    for (const smp of tr.samples) {
+      if (last && Math.hypot(smp.pos.x - last.x, smp.pos.y - last.y) < 10 && smp !== tr.samples[tr.samples.length - 1]) continue;
+      last = smp.pos;
+      const smokes = activeSmokes(board.utility, smp.t, engine.map.radar.scale);
+      g.castVision(smp.pos, 0, Math.PI * 2, smokes, i => {
+        if (first[k][i] !== Infinity) return;
+        first[k][i] = smp.t;
+        const c = { x: ((i % g.w) + 0.5) * CELL, y: (((i / g.w) | 0) + 0.5) * CELL };
+        aware[k][i] = inFov(smp.pos, smp.heading, c, FOV) ? 1 : 0;
+        distU[k][i] = Math.hypot(c.x - smp.pos.x, c.y - smp.pos.y) * engine.map.radar.scale;
+        tPos[k][i * 2] = smp.pos.x;
+        tPos[k][i * 2 + 1] = smp.pos.y;
+      }, MAX_RANGE_PX, RAYS);
+    }
+  });
+
+  return { first, aware, distU, tPos };
+}
+
+export function tTracks(engine: TacticalEngine, board: BoardState, sim: Simulation | null): { tracks: Track[]; source: KillMap['source'] } {
   const ts = board.players.filter(p => p.side === 'T');
   const tracks: Track[] = [];
   if (ts.length) {

@@ -1,5 +1,6 @@
 import { activeSmokes, MOLLY_DURATION, popAt } from './grid';
 import { FOV, inFov, type TacticalEngine } from './predict';
+import { gunHazard, gunOf } from './guns';
 import { mulberry32 } from './rng';
 import { bakeRoute, type BakedRoute } from './timeline';
 import type { BoardState, Player, Vec2, Weapon } from './types';
@@ -189,11 +190,11 @@ export function simulate(engine: TacticalEngine, board: BoardState, end: number,
       const j = targets.reduce((best, c) => (dist(a.pos, agents[c].pos) < dist(a.pos, agents[best].pos) ? c : best));
       const b = agents[j];
       const d = dist(a.pos, b.pos) * pxToUnits;
-      const range = rangeFactor(a.p.weapon, d);
+      const gun = gunOf(a.p);
       // hurt players go down to fewer bullets; blind ones can't dodge or fight back
       const hurt = b.hp <= 30 ? 2 : b.hp <= 70 ? 1.4 : 1;
       const blindTarget = t < b.blindUntil ? 1.3 : 1;
-      const h = HAZARD[a.p.weapon] * range * (a.moving ? 0.35 : 1) * (b.moving ? 0.85 : 1) * hurt * blindTarget;
+      const h = gunHazard(gun, d) * (a.moving ? 0.35 : 1) * (b.moving ? 0.85 : 1) * hurt * blindTarget;
       if (rng() < 1 - Math.exp(-h * SIM_DT)) kill(j, t, a.p.id, 'gun');
     }
 
@@ -215,7 +216,7 @@ export function simulate(engine: TacticalEngine, board: BoardState, end: number,
         const fire = !a.moving && !engaged && mollies.find(m => t >= m.from && t <= m.to && dist(a.pos, m.pos) * pxToUnits <= MOLLY_R_U);
         if (fire) {
           const ang = Math.atan2(a.pos.y - fire.pos.y, a.pos.x - fire.pos.x) || 0;
-          const step = SIM_DT / engine.secPerPx(a.p.side, a.p.weapon);
+          const step = SIM_DT * (gunOf(a.p).speed / (engine.map.radar.scale * engine.map.timingScale));
           const next = { x: a.pos.x + Math.cos(ang) * step, y: a.pos.y + Math.sin(ang) * step };
           if (g.isWalkable(next)) { a.pos = next; a.moving = true; }
         }
