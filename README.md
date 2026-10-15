@@ -25,7 +25,10 @@ Requires Node 18+. The project was developed on macOS (Apple Silicon) and also r
 Every push to `main` publishes the site to GitHub Pages (`.github/workflows/pages.yml`: tests, then `VITE_ONLINE=1 npm run build`).
 The online build has **no server**, so it offers Tactical, and Review / Match report of matches saved as `.json`
 (**Save .json** in the desktop version). Reading `.dem` files, Log in with Steam and the Steam match list need the dev
-server and stay in the desktop version (`npm run dev`). `src/env.ts` (`ONLINE`) switches those parts off.
+server: on the website **Log in with Steam** and **Your matches** run through the Cloudflare Worker in `worker/` (see
+`worker/README.md`; the site uses it once the repo variable `API_URL` is set), and reading `.dem` files stays in the
+desktop version (`npm run dev`). `src/env.ts` (`ONLINE`, `API_URL`) switches those parts; `src/ui/steamApi.ts` talks to
+whichever backend the build has.
 
 ## Features
 

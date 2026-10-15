@@ -4,6 +4,8 @@ import { MAPS } from '../map/catalog';
 import { useStore } from '../store';
 import type { SteamMatch, SteamStatus } from '../../tools/steam.mjs';
 import { SteamLoginButton } from './SteamLogin';
+import { steamFetch, steamSignOut } from './steamApi';
+import { ONLINE } from '../env';
 
 const SYNC_EVERY = 5 * 60 * 1000; // new games show up by themselves
 
@@ -26,7 +28,7 @@ export function SteamMatches() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch('/api/steam/status');
+      const res = await steamFetch('/status');
       if (!res.ok) throw new Error();
       setSt(await res.json());
       setOffline(false);
@@ -34,7 +36,7 @@ export function SteamMatches() {
   }, []);
 
   const post = useCallback(async <T,>(route: string, body?: unknown): Promise<T> => {
-    const res = await fetch(`/api/steam/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) });
+    const res = await steamFetch(`/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) });
     const out = await res.json();
     if (!res.ok) throw new Error(out.error ?? res.statusText);
     return out;
@@ -125,7 +127,8 @@ export function SteamMatches() {
               : loggedIn ? <><b>Only the demos you've already loaded are shown.</b> Do steps 1–2 above to list all your matches. </>
               : 'Demos you have loaded. '}
             {!loggedIn && 'Log in with Steam to see your score in each. '}
-            {ready && (st.replays.length
+            {ready && ONLINE && <>After <b>Download in CS2</b>, open the demo in the desktop version (or save it there as .json and open that here). </>}
+            {ready && !ONLINE && (st.replays.length
               ? <>Demos downloaded with <b>Download in CS2</b> are imported automatically.</>
               : <>CS2's replays folder wasn't found on this computer: drop downloaded demos in the box above (or set the folder under Settings).</>)}
           </p>
@@ -186,7 +189,7 @@ function ValveSetup({ st, post, first, onDone }: { st: SteamStatus; post: <T>(ro
       if (r.steamId && r.apiKey && r.authCode && r.knownCode) onDone();
     } catch (x) { setErr(errText(x)); } finally { setBusy(false); }
   };
-  const signOut = async () => { try { await post('signout'); onDone(); } catch (x) { setErr(errText(x)); } };
+  const signOut = async () => { try { await steamSignOut(); onDone(); } catch (x) { setErr(errText(x)); } };
   const forget = async () => { try { await post('forget'); onDone(); } catch (x) { setErr(errText(x)); } };
   const row = (k: keyof typeof f, n: string, label: string, ok: boolean, placeholder: string, help: React.ReactNode, secret = false) => (
     <label className="steam-field">
@@ -210,12 +213,13 @@ function ValveSetup({ st, post, first, onDone }: { st: SteamStatus; post: <T>(ro
           <a className="btn" href="https://help.steampowered.com/en/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noreferrer">Open Steam Support (CS2 codes)</a>
           <span className="muted">create the code if asked, then select the whole page (Ctrl/Cmd+A), copy it, paste below</span>
         </div>
-        <div className={`step ${c.apiKey ? 'done' : ''}`}>
+        {/* the website uses its own Web API key (kept in the Worker); only the desktop version needs yours */}
+        {!ONLINE && <div className={`step ${c.apiKey ? 'done' : ''}`}>
           <b>{c.apiKey ? '✓' : '2.'}</b>
           <a className="btn" href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noreferrer">Open your API key page</a>
           <span className="muted">no key yet? register one with domain <code>localhost</code>; then copy the whole page and paste below</span>
-        </div>
-        <textarea value={paste} placeholder="Paste here: the app picks out your authentication code, match codes and API key (CS2 share links work too)"
+        </div>}
+        <textarea value={paste} placeholder={ONLINE ? 'Paste here: the site picks out your authentication code and match codes (CS2 share links work too)' : 'Paste here: the app picks out your authentication code, match codes and API key (CS2 share links work too)'}
           onChange={e => setPaste(e.target.value)} onPaste={e => { e.preventDefault(); submitPaste(e.clipboardData.getData('text')); }} rows={3} spellCheck={false} />
         {found && <p className="muted">{found}</p>}
       </div>

@@ -1,6 +1,7 @@
 # Publishes the website (tsakhstvo.xyz) to GitHub Pages on every push to main.
 # The online build has no server: Tactical, Review/Match report of saved .json matches.
-# Reading .dem files, Log in with Steam and the Steam match list stay in the desktop version (npm run dev).
+# Log in with Steam and the Steam match list come from the Cloudflare Worker (worker/) once API_URL is set.
+# Reading .dem files stays in the desktop version (npm run dev).
 name: Deploy website
 
 on:
@@ -31,6 +32,9 @@ jobs:
       - run: npm run build
         env:
           VITE_ONLINE: '1'
+          # the Cloudflare Worker's address (repo Settings → Secrets and variables → Actions → Variables → API_URL);
+          # empty = Log in with Steam / Your matches stay hidden on the site
+          VITE_API_URL: ${{ vars.API_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

@@ -53,3 +53,21 @@ describe('smart paste', async () => {
     expect(extractFromText('nothing to see here')).toEqual({ authCode: null, apiKey: null, codes: [] });
   });
 });
+
+describe('shared share-code module (website + Cloudflare Worker)', async () => {
+  const shared = await import('../sharecode');
+  const local = await import('../../../tools/steam.mjs');
+  it('decodes and extracts exactly like the local server', () => {
+    const code = 'CSGO-xeFV2-JUoTt-7CeOk-jsBv5-KzBND';
+    expect(shared.decodeShareCode(code)).toEqual(local.decodeShareCode(code));
+    const page = 'code: AB12-CD34E-FG56 match: CSGO-xeFV2-JUoTt-7CeOk-jsBv5-KzBND key 0123456789ABCDEF0123456789ABCDEF';
+    expect(shared.extractFromText(page)).toEqual(local.extractFromText(page));
+    expect(shared.downloadLink(code)).toBe(local.downloadLink(code));
+  });
+  it("builds Steam's OpenID login link back to the website", () => {
+    const u = new URL(shared.openIdLoginUrl('https://tsakhstvo.xyz/?back=%23%2Fcs2%2Freview', 'https://tsakhstvo.xyz'));
+    expect(u.origin + u.pathname).toBe('https://steamcommunity.com/openid/login');
+    expect(u.searchParams.get('openid.return_to')).toBe('https://tsakhstvo.xyz/?back=%23%2Fcs2%2Freview');
+    expect(u.searchParams.get('openid.realm')).toBe('https://tsakhstvo.xyz');
+  });
+});

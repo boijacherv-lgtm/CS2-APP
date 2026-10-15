@@ -1,0 +1,18 @@
+# Stratboard API (Log in with Steam + your matches) for the website. See worker/README.md.
+name = "stratboard-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[vars]
+# the website(s) allowed to call this API
+SITE_ORIGINS = "https://tsakhstvo.xyz,https://www.tsakhstvo.xyz"
+# where Steam sends the browser back after logging in
+RETURN_TO = "https://tsakhstvo.xyz/"
+
+# Logins, codes and match lists. Create it once with:  npx wrangler kv namespace create SB
+# and paste the id it prints here.
+[[kv_namespaces]]
+binding = "SB"
+id = "18d250c7684140f2944fd2a4be8e3e03"
+
+# Secret (never in this file):  npx wrangler secret put STEAM_API_KEY

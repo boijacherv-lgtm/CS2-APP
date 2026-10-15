@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ONLINE } from '../env';
+import { STEAM_AVAILABLE } from '../env';
+import { steamFetch, steamLoginHref, steamSignOut } from './steamApi';
 
 /**
  * "Log in with Steam", the way Leetify / FACEIT do it: Steam OpenID. The browser goes to Steam's own
  * login page (QR code with Steam Guard there) and comes back with a signed SteamID; the app never sees a
- * password, token or session. The dev server handles /api/steam/openid/* (tools/steam.mjs).
+ * password, token or session. Locally the dev server checks it (tools/steam.mjs); on the website the
+ * Cloudflare Worker does (worker/).
  */
 
 type Me = { steamId: string; name: string | null; avatar: string | null } | null;
@@ -25,7 +27,7 @@ export function SteamLogo({ size = 18 }: { size?: number }) {
 export function SteamLoginButton({ compact }: { compact?: boolean }) {
   const back = typeof location !== 'undefined' && location.hash.startsWith('#/') ? location.hash.split('?')[0] : '#/cs2/review';
   return (
-    <a className={`steam-login ${compact ? 'compact' : ''}`} href={`/api/steam/openid/start?back=${encodeURIComponent(back)}`}
+    <a className={`steam-login ${compact ? 'compact' : ''}`} href={steamLoginHref(back)}
       title="Opens Steam's own login page; you can scan its QR code with the Steam app. The app only receives your SteamID.">
       <SteamLogo /> Log in with Steam
     </a>
@@ -37,13 +39,13 @@ export function SteamAccount() {
   const [me, setMe] = useState<Me | undefined>(undefined); // undefined = unknown / no server
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/steam/me');
+      const res = await steamFetch('/me');
       if (!res.ok) throw new Error();
       setMe((await res.json()).me);
     } catch { setMe(undefined); }
   }, []);
   useEffect(() => {
-    if (ONLINE) return; // no server on the public site
+    if (!STEAM_AVAILABLE) return; // website built without the Worker
     load();
     const t = setInterval(load, 30000);
     window.addEventListener('focus', load);
@@ -52,7 +54,7 @@ export function SteamAccount() {
 
   if (me === undefined) return null;
   if (!me) return <SteamLoginButton compact />;
-  const signOut = async () => { await fetch('/api/steam/signout', { method: 'POST' }); load(); };
+  const signOut = async () => { await steamSignOut(); load(); };
   return (
     <div className="steam-me">
       {me.avatar && <img src={me.avatar} alt="" width={26} height={26} />}
