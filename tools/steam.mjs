@@ -1,16 +1,17 @@
 // Your CS2 matches, without any Steam sign-in. Runs in the Vite dev server.
 //
-//   Match list   Paste your Steam profile link. The app reads your recent matches (map, date, score,
-//                share code) from Leetify's public API: no key, no login. Needs a Leetify account with
-//                match tracking (Leetify does the Valve side). Fallback: Valve's own match-history Web
-//                API (GetNextMatchSharingCode) with your Web API key + game authentication code.
+//   Who you are  "Log in with Steam" (Steam OpenID, below) or a pasted profile link → your SteamID.
+//   Match list   Valve's own match-history Web API (GetNextMatchSharingCode) with your Web API key + game
+//                authentication code + one share code, entered once. New matches appear by themselves.
 //   Demo         "Download in CS2" opens Valve's own steam:// link, so CS2 itself downloads the demo into
 //                its replays folder. The app watches that folder and imports new demos by itself; you
 //                can still drop a .dem in by hand. Demos are matched to the list by outcome id (it's in
 //                the file name: match730_<outcome id>_…).
 //
-// IMPORTANT: never add Steam login automation here (steam-session / steam-user / QR or password logins).
-// Steam flagged exactly that as malicious on the owner's account. Public and official APIs only.
+// IMPORTANT: never add Steam login automation here (steam-session / steam-user / the app logging in with a
+// QR code or password). Steam flagged exactly that as malicious on the owner's account. Public and official
+// APIs only. "Sign in through Steam" (OpenID) is fine: the user logs in on Steam's own page in their browser
+// and the app only receives a signed SteamID.
 //
 // Settings and cache live in cs2-tactics/.steam-cache/ (git-ignored). Secrets never go back to the page.
 import fs from 'node:fs';
@@ -22,10 +23,10 @@ import { parseDemo } from './demo.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = path.join(ROOT, '.steam-cache');
 const SETTINGS = path.join(CACHE, 'settings.json');
-const STORE = path.join(CACHE, 'matches.json');
+/** Each Steam account has its own match list (log out and back in: it's all still there). */
+const storeFile = steamId => path.join(CACHE, steamId ? `matches-${steamId}.json` : 'matches.json');
 const PARSED = path.join(CACHE, 'parsed');
 const STEAM_API = 'https://api.steampowered.com';
-const LEETIFY_API = 'https://api-public.cs-prod.leetify.com';
 
 const read = (f, fallback) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return fallback; } };
 const write = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 1), { mode: 0o600 }); };
@@ -63,7 +64,28 @@ export const outcomeFromFileName = name => name.match(/match730_0*(\d+)_/)?.[1] 
 
 // ---- settings ---------------------------------------------------------------------------------------------
 
-function settings() { return read(SETTINGS, {}); }
+// Settings: shared bits (Web API key, replays folder, who is logged in) + per Steam account codes. The
+// authentication code and match code belong to one account; the API key works for everyone's history.
+const PER_ACCOUNT = ['authCode', 'knownCode'];
+function settings() {
+  const raw = read(SETTINGS, {});
+  // older layout: codes at the top level and a single matches.json → move them under the account
+  if (raw.steamId && PER_ACCOUNT.some(k => raw[k])) {
+    raw.accounts = { ...raw.accounts, [raw.steamId]: { ...raw.accounts?.[raw.steamId], ...Object.fromEntries(PER_ACCOUNT.filter(k => raw[k]).map(k => [k, raw[k]])) } };
+    for (const k of PER_ACCOUNT) delete raw[k];
+    write(SETTINGS, raw);
+  }
+  if (raw.steamId && fs.existsSync(storeFile(null)) && !fs.existsSync(storeFile(raw.steamId))) fs.renameSync(storeFile(null), storeFile(raw.steamId));
+  return { ...raw, ...(raw.steamId ? raw.accounts?.[raw.steamId] : {}) };
+}
+/** Writes the merged view back: per-account fields go under accounts[steamId]. */
+function writeSettings(s) {
+  const raw = read(SETTINGS, {});
+  const out = { steamId: s.steamId, apiKey: s.apiKey, replaysDir: s.replaysDir, accounts: { ...raw.accounts } };
+  if (s.steamId) out.accounts[s.steamId] = Object.fromEntries(PER_ACCOUNT.filter(k => s[k]).map(k => [k, s[k]]));
+  for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
+  write(SETTINGS, out);
+}
 
 function configured(s = settings()) {
   return {
@@ -88,39 +110,149 @@ export async function resolveProfile(input) {
   return sid;
 }
 
+/**
+ * Smart paste: finds the authentication code, Web API key and any share codes in text copied from Steam's
+ * pages (Steam Support → CS2 → authentication code, steamcommunity.com/dev/apikey, CS2 share links).
+ */
+export function extractFromText(text) {
+  const t = String(text ?? '');
+  const valid = c => { try { decodeShareCode(c); return true; } catch { return false; } };
+  const codes = [...new Set([...t.matchAll(/CSGO(?:-[A-Za-z0-9]{5}){5}/g)].map(m => m[0]))].filter(valid);
+  const authCode = [...t.matchAll(/(?<![A-Za-z0-9-])([A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4})(?![A-Za-z0-9-])/g)].map(m => m[1]).find(c => !c.startsWith('CSGO')) ?? null;
+  const apiKey = t.match(/(?<![0-9A-Fa-f])([0-9A-F]{32})(?![0-9A-Fa-f])/)?.[1] ?? null;
+  return { authCode, apiKey, codes };
+}
+
+/** Oldest first: CS2 match ids grow over time. */
+const byAge = codes => [...codes].sort((a, b) => (BigInt(decodeShareCode(a).matchId) < BigInt(decodeShareCode(b).matchId) ? -1 : 1));
+
 /** Saves the fields that were filled in (blank fields keep their saved value). */
 export async function saveSettings(input) {
   const s = settings();
   const clean = v => (typeof v === 'string' ? v.trim() : '');
-  const profile = clean(input.profile ?? input.steamId), key = clean(input.apiKey), auth = clean(input.authCode), code = clean(input.knownCode);
+  const pasted = input.paste ? extractFromText(input.paste) : null;
+  if (pasted && !pasted.authCode && !pasted.apiKey && !pasted.codes.length) throw new Error('Nothing useful found in that text: copy the whole Steam page (Ctrl/Cmd+A, then Ctrl/Cmd+C) and paste it again.');
+  const profile = clean(input.profile ?? input.steamId);
+  const key = clean(input.apiKey) || pasted?.apiKey || '', auth = clean(input.authCode) || pasted?.authCode || '';
+  // several share codes: the oldest is where Valve starts walking; all of them go on the list right away
+  const pastedCodes = pasted?.codes.length ? byAge(pasted.codes) : [];
+  let code = clean(input.knownCode) || '';
+  if (!code && pastedCodes.length) {
+    const oldest = pastedCodes[0];
+    code = !s.knownCode || BigInt(decodeShareCode(oldest).matchId) < BigInt(decodeShareCode(s.knownCode).matchId) ? oldest : s.knownCode;
+  }
+  if (pastedCodes.length) {
+    const st = read(storeFile(s.steamId), { lastCode: null, matches: [] });
+    const have = new Set(st.matches.map(m => m.code));
+    const t0 = Date.now();
+    pastedCodes.forEach((c, i) => { if (!have.has(c)) st.matches.push({ code: c, ...decodeShareCode(c), source: 'matchmaking', foundAt: t0 - (pastedCodes.length - i) }); });
+    write(storeFile(s.steamId), st);
+  }
   const dir = clean(input.replaysDir);
   if (profile) {
     const id = await resolveProfile(profile);
-    if (id !== s.steamId) { fs.rmSync(STORE, { force: true }); leetifyCache = null; } // someone else's list
+    if (id !== s.steamId) {
+      // another account: its own codes (if it set them up before), never the previous account's
+      const acc = read(SETTINGS, {}).accounts?.[id] ?? {};
+      for (const k of PER_ACCOUNT) s[k] = acc[k];
+    }
     s.steamId = id;
   }
   if (key) { if (!/^[0-9A-F]{32}$/i.test(key)) throw new Error('The Web API key is 32 letters and digits.'); s.apiKey = key; }
   if (auth) { if (!/^[A-Z0-9]{4}-[A-Z0-9]{5}-[A-Z0-9]{4}$/i.test(auth)) throw new Error('The authentication code looks like AAAA-AAAAA-AAAA.'); s.authCode = auth.toUpperCase(); }
   if (code) {
     if (!SHARE_CODE.test(code)) throw new Error('The share code looks like CSGO-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx.');
-    if (code !== s.knownCode) { const st = read(STORE, null); if (st) { st.lastCode = null; write(STORE, st); } }
+    if (code !== s.knownCode) { const st = read(storeFile(s.steamId), null); if (st) { st.lastCode = null; write(storeFile(s.steamId), st); } }
     s.knownCode = code;
   }
   if (dir) { if (!fs.existsSync(dir)) throw new Error('That folder does not exist.'); s.replaysDir = dir; }
-  write(SETTINGS, s);
-  return configured(s);
+  writeSettings(s);
+  return pasted ? { ...configured(s), found: { authCode: !!pasted.authCode, apiKey: !!pasted.apiKey, codes: pasted.codes.length } } : configured(s);
 }
 
-/** Forgets the settings and the match list (parsed demos stay). */
+/** Forgets everything saved: every account's codes and match list, the key (parsed demos stay). */
 export function forget() {
   fs.rmSync(SETTINGS, { force: true });
-  fs.rmSync(STORE, { force: true });
-  leetifyCache = null;
+  for (const f of fs.existsSync(CACHE) ? fs.readdirSync(CACHE) : []) if (/^matches(-\d+)?\.json$/.test(f)) fs.rmSync(path.join(CACHE, f), { force: true });
+}
+
+// ---- "Sign in through Steam" (Steam OpenID 2.0) ------------------------------------------------------------
+//
+// The same button Leetify / FACEIT / csstats use. The browser goes to Steam's own login page (where you can
+// scan Steam's QR code with Steam Guard); Steam sends back a signed "this is SteamID 7656…". We verify that
+// signature with Steam and keep only the SteamID. No password, token, cookie or session ever reaches the app.
+
+const OPENID = 'https://steamcommunity.com/openid/login';
+const OPENID_NS = 'http://specs.openid.net/auth/2.0';
+
+/** Where to send the browser: Steam's login page, coming back to <origin>/api/steam/openid/return. */
+export function openIdStartUrl(origin, back = '#/cs2/review') {
+  const q = new URLSearchParams({
+    'openid.ns': OPENID_NS,
+    'openid.mode': 'checkid_setup',
+    'openid.return_to': `${origin}/api/steam/openid/return?back=${encodeURIComponent(safeBack(back))}`,
+    'openid.realm': origin,
+    'openid.identity': `${OPENID_NS}/identifier_select`,
+    'openid.claimed_id': `${OPENID_NS}/identifier_select`,
+  });
+  return `${OPENID}?${q}`;
+}
+
+/** Only in-app pages (#/…) to go back to after signing in. */
+export const safeBack = back => (/^#\/[\w/-]*$/.test(back ?? '') ? back : '#/cs2/review');
+
+/** Log out: the app forgets who is here. Your codes and match list stay saved for when you log in again. */
+export function signOut() {
+  const raw = read(SETTINGS, {});
+  delete raw.steamId;
+  write(SETTINGS, raw);
+  profileCache = null;
+}
+
+/** Your public Steam name and avatar (public profile page, no login). */
+let profileCache = null;
+async function publicProfile(steamId) {
+  if (profileCache?.steamId === steamId && Date.now() - profileCache.at < 3600e3) return profileCache.value;
+  try {
+    const xml = await (await fetch(`https://steamcommunity.com/profiles/${steamId}/?xml=1`)).text();
+    const tag = t => xml.match(new RegExp(`<${t}><!\\[CDATA\\[(.*?)\\]\\]></${t}>`))?.[1] ?? xml.match(new RegExp(`<${t}>(.*?)</${t}>`))?.[1] ?? null;
+    const value = { name: tag('steamID'), avatar: tag('avatarMedium') };
+    profileCache = { steamId, at: Date.now(), value };
+    return value;
+  } catch { return { name: null, avatar: null }; }
+}
+export async function me() {
+  const id = settings().steamId;
+  if (!id) return null;
+  return { steamId: id, ...(await publicProfile(id)) };
+}
+
+const usedNonces = new Set();
+/** Checks Steam's answer with Steam itself, then saves the SteamID as your profile. */
+export async function openIdVerify(origin, query) {
+  const p = Object.fromEntries([...new URLSearchParams(query)].filter(([k]) => k.startsWith('openid.')));
+  if (p['openid.mode'] !== 'id_res') throw new Error('Steam sign-in was cancelled.');
+  if (p['openid.op_endpoint'] !== OPENID) throw new Error('That answer did not come from Steam.');
+  if (!(p['openid.return_to'] ?? '').startsWith(`${origin}/api/steam/openid/return`)) throw new Error('That answer was meant for another site.');
+  const steamId = p['openid.claimed_id']?.match(/^https:\/\/steamcommunity\.com\/openid\/id\/(7656\d{13})$/)?.[1];
+  if (!steamId || p['openid.identity'] !== p['openid.claimed_id']) throw new Error('Steam did not say which account signed in.');
+  const nonce = p['openid.response_nonce'];
+  if (!nonce || usedNonces.has(nonce)) throw new Error('This sign-in was already used; please sign in again.');
+  // ask Steam whether it really signed this (otherwise anyone could forge the return URL)
+  const res = await fetch(OPENID, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ ...p, 'openid.mode': 'check_authentication' }),
+  });
+  if (!/is_valid\s*:\s*true/.test(await res.text())) throw new Error('Steam did not confirm the sign-in.');
+  usedNonces.add(nonce);
+  await saveSettings({ profile: steamId });
+  return steamId;
 }
 
 // ---- match list ----------------------------------------------------------------------------------------------
 
-const store = () => read(STORE, { lastCode: null, matches: [], source: null, note: null });
+const store = () => read(storeFile(settings().steamId), { lastCode: null, matches: [], source: null, note: null });
 /** Adds or updates matches by share code; keeps the newest first. */
 function merge(st, items) {
   const byCode = new Map(st.matches.map(m => [m.code, m]));
@@ -134,76 +266,29 @@ export function sync() {
   return syncing;
 }
 
-let leetifyCache = null; // { at, steamId, result } — Leetify is asked at most once a minute
 async function doSync() {
   const s = settings();
   const c = configured(s);
-  if (!c.steamId) throw new Error('Paste your Steam profile link first.');
+  if (!c.steamId) throw new Error('Log in with Steam first.');
   const st = store();
   const before = st.matches.length;
-  const notes = [];
-
-  // 1. Leetify (no key, no login)
-  let lt = leetifyCache?.steamId === s.steamId && Date.now() - leetifyCache.at < 60000 ? leetifyCache.result : null;
-  if (!lt) {
-    lt = await fromLeetify(s.steamId).catch(e => ({ error: msg(e) }));
-    leetifyCache = { at: Date.now(), steamId: s.steamId, result: lt };
-  }
-  if (lt.matches) {
-    // Leetify's list is the truth for what it covers; keep only what it can't see (Valve-only share
-    // codes without details, and matches whose demo is already imported)
-    const fresh = new Set(lt.matches.map(m => m.code));
-    st.matches = st.matches.filter(m => fresh.has(m.code)
-      || (SHARE_CODE.test(m.code) && (!m.time || (m.outcomeId && fs.existsSync(path.join(PARSED, `${m.outcomeId}.json`))))));
-    merge(st, lt.matches);
-    st.source = 'leetify';
-  }
-  else notes.push(lt.error);
-
-  // 2. Valve's own API, if set up
+  st.note = null;
   if (valveReady(c)) {
-    try { merge(st, await fromValve(s, st)); if (!lt.matches) st.source = 'valve'; }
-    catch (e) { notes.push(msg(e)); }
-  }
-  st.note = notes.filter(Boolean).join(' ') || null;
-  write(STORE, st);
+    try { merge(st, await fromValve(s, st)); st.source = 'valve'; }
+    catch (e) { st.note = msg(e); }
+  } else st.note = 'Add your game authentication code, one share code and your Web API key (once) to list your matches.';
+  write(storeFile(s.steamId), st);
   importDemos(); // pick up any demo that is already in the replays folder
   return { added: st.matches.length - before, note: st.note, source: st.source };
-}
-
-/** Recent matches from Leetify's public API (last ~100). */
-async function fromLeetify(steamId) {
-  const res = await fetch(`${LEETIFY_API}/v3/profile/matches?steam64_id=${steamId}`);
-  if (res.status === 404) throw new Error('Your account isn\'t on Leetify yet: sign up at leetify.com (Sign in through Steam) and turn on match tracking, or use the Valve setup under Advanced.');
-  if (res.status === 429) throw new Error('Leetify asked us to slow down; the list updates again in a minute.');
-  if (!res.ok) throw new Error(`Leetify answered ${res.status}.`);
-  const list = await res.json();
-  if (!Array.isArray(list)) throw new Error('Leetify sent an unexpected answer.');
-  return {
-    matches: list.map(m => {
-      const me = m.stats?.find(p => p.steam64_id === steamId);
-      const score = side => m.team_scores?.find(t => t.team_number === side)?.score;
-      const mine = me ? score(me.initial_team_number) : null, theirs = me ? score(me.initial_team_number === 2 ? 3 : 2) : null;
-      const code = String(m.data_source).startsWith('matchmaking') && SHARE_CODE.test(m.data_source_match_id ?? '') ? m.data_source_match_id : null;
-      return {
-        code: code ?? `${m.data_source}:${m.data_source_match_id ?? m.id}`,
-        ...(code ? decodeShareCode(code) : {}),
-        source: m.data_source, // matchmaking, faceit, …
-        time: m.finished_at ? Date.parse(m.finished_at) : null,
-        map: m.map_name ?? null,
-        scores: mine != null && theirs != null ? [mine, theirs] : null,
-        result: mine == null || theirs == null ? null : mine > theirs ? 'win' : mine < theirs ? 'loss' : 'tie',
-        kd: me ? [me.total_kills, me.total_deaths] : null,
-      };
-    }),
-  };
 }
 
 /** Share codes from Valve's match-history API (no details: map and score show once the demo is in). */
 async function fromValve(s, st) {
   const out = [];
   const known = new Set(st.matches.map(m => m.code));
-  const add = code => { if (!known.has(code)) { known.add(code); out.push({ code, ...decodeShareCode(code), source: 'matchmaking', foundAt: Date.now() }); } };
+  // Valve walks forward in time, so each later code is a newer match: order them by when they were found
+  const t0 = Date.now();
+  const add = code => { if (!known.has(code)) { known.add(code); out.push({ code, ...decodeShareCode(code), source: 'matchmaking', foundAt: t0 + out.length }); } };
   add(s.knownCode);
   let code = st.lastCode ?? s.knownCode;
   for (let i = 0; i < 100; i++) {
@@ -317,12 +402,31 @@ function summary(outcomeId, steamId) {
     const d = JSON.parse(fs.readFileSync(f, 'utf8'));
     const played = d.rounds.filter(r => r.winner && r.frames.players[steamId]);
     const won = played.filter(r => r.frames.players[steamId].side === r.winner).length, lost = played.length - won;
-    const value = { map: d.map, scores: played.length ? [won, lost] : null, result: !played.length ? null : won > lost ? 'win' : won < lost ? 'loss' : 'tie' };
+    const kills = d.rounds.reduce((a, r) => a + r.kills.filter(k => k.attacker === steamId && k.victim !== steamId).length, 0);
+    const deaths = d.rounds.reduce((a, r) => a + r.kills.filter(k => k.victim === steamId).length, 0);
+    const value = {
+      map: d.map, scores: played.length ? [won, lost] : null, result: !played.length ? null : won > lost ? 'win' : won < lost ? 'loss' : 'tie',
+      kd: played.length ? [kills, deaths] : null, rounds: d.rounds.length,
+    };
     summaries.set(outcomeId, { mtime, steamId, value });
     return value;
   } catch { return null; }
 }
 const summaries = new Map();
+
+/** Demos you've loaded that the match list doesn't know about (older games, a friend's demo, …): always listed. */
+function loadedOnly(st, steamId) {
+  const listed = new Set(st.matches.map(m => m.outcomeId).filter(Boolean));
+  let files = [];
+  try { files = fs.readdirSync(PARSED).filter(f => /^\d+\.json$/.test(f)); } catch { return []; }
+  return files.map(f => f.slice(0, -5)).filter(id => !listed.has(id)).map(id => {
+    const sum = summary(id, steamId);
+    return {
+      code: `loaded:${id}`, outcomeId: id, source: 'loaded', time: null, foundAt: null, loadedAt: fs.statSync(path.join(PARSED, `${id}.json`)).mtimeMs,
+      map: sum?.map ?? null, scores: sum?.scores ?? null, result: sum?.result ?? null, kd: sum?.kd ?? null, download: null, parsed: true,
+    };
+  });
+}
 
 // ---- status for the UI (never includes the key or the auth code) ------------------------------------------------------
 
@@ -338,14 +442,14 @@ export function status() {
     syncing: !!syncing,
     replays: replayDirs(),
     importing: { file: importing.file, error: importing.error },
-    matches: st.matches.map(m => {
+    matches: [...st.matches.map(m => {
       const parsed = m.outcomeId ? fs.existsSync(path.join(PARSED, `${m.outcomeId}.json`)) : false;
       const sum = parsed && (!m.map || !m.scores) ? summary(m.outcomeId, s.steamId) : null;
       return {
-        code: m.code, outcomeId: m.outcomeId ?? null, source: m.source ?? 'matchmaking', time: m.time ?? null,
-        map: m.map ?? sum?.map ?? null, scores: m.scores ?? sum?.scores ?? null, result: m.result ?? sum?.result ?? null, kd: m.kd ?? null,
+        code: m.code, outcomeId: m.outcomeId ?? null, source: m.source ?? 'matchmaking', time: m.time ?? null, loadedAt: null, foundAt: m.foundAt ?? null,
+        map: m.map ?? sum?.map ?? null, scores: m.scores ?? sum?.scores ?? null, result: m.result ?? sum?.result ?? null, kd: m.kd ?? sum?.kd ?? null,
         download: m.outcomeId ? downloadLink(m.code) : null, parsed,
       };
-    }),
+    }), ...loadedOnly(st, s.steamId)].sort((a, b) => (b.time ?? b.foundAt ?? b.loadedAt ?? 0) - (a.time ?? a.foundAt ?? a.loadedAt ?? 0)),
   };
 }

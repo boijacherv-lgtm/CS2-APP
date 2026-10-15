@@ -3,6 +3,7 @@ import { App as Cs2App } from '../App';
 import type { RoundSummary } from '../engine/match';
 import type { MatchWorkerIn, MatchWorkerOut } from '../engine/match.worker';
 import { MatchReportPage } from '../ui/Report';
+import { SteamAccount } from '../ui/SteamLogin';
 import { useStore } from '../store';
 import { APP_NAME, APP_TAGLINE, LogoMark } from './Logo';
 import { navigate, routeHref, useRoute, type Route } from './router';
@@ -82,6 +83,7 @@ function NavBar({ route }: { route: Route }) {
           </button>
         </div>
       )}
+      <div className={`steam-slot ${route.page === 'cs2' ? '' : 'push'}`}><SteamAccount /></div>
     </header>
   );
 }

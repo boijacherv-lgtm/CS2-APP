@@ -335,3 +335,22 @@ a.btn:hover { border-color: #45505e; }
     scroll-behavior: auto !important;
   }
 }
+/* Log in with Steam (OpenID), Leetify-style black button; account chip in the nav bar */
+.steam-login { display: inline-flex; align-items: center; justify-content: center; gap: 9px; background: #000; color: #fff; border: 1px solid #000;
+  border-radius: 6px; padding: 10px 18px; font-weight: 700; text-decoration: none; min-width: 260px;
+  transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out); }
+.steam-login:hover { background: #111; border-color: #3a4656; }
+.steam-login.compact { min-width: 0; padding: 6px 12px; font-size: 12px; }
+.steam-slot { margin-left: 12px; display: flex; align-items: center; }
+.steam-slot.push { margin-left: auto; }
+.steam-me { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.steam-me img { border-radius: 4px; }
+.steam-me a { color: var(--text); text-decoration: none; font-weight: 700; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.steam-me button { padding: 3px 8px; font-size: 11px; }
+.steam-paste { display: flex; flex-direction: column; gap: 8px; }
+.steam-paste .step { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.steam-paste .step b { width: 18px; }
+.steam-paste .step.done b { color: #22c55e; }
+.steam-paste textarea { background: var(--panel2); border: 1px dashed #3a4656; border-radius: 8px; padding: 8px 10px; color: var(--text); font: inherit; resize: vertical; }
+.steam-paste textarea:focus { outline: none; border-color: var(--accent); }
+button.linkish { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; align-self: flex-start; font-size: 12px; }

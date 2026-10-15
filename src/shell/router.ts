@@ -5,7 +5,7 @@ export type Cs2Mode = 'tactical' | 'review' | 'report';
 export type Route = { page: 'home' } | { page: 'cs2'; mode: Cs2Mode };
 
 export function parseRoute(hash: string): Route {
-  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  const parts = hash.replace(/^#\/?/, '').split('?')[0].split('/').filter(Boolean); // ?… carries messages (e.g. Steam sign-in)
   if (parts[0] === 'cs2') return { page: 'cs2', mode: parts[1] === 'review' || parts[1] === 'report' ? parts[1] : 'tactical' };
   return { page: 'home' };
 }

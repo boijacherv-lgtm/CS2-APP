@@ -37,7 +37,7 @@ function demoApi(): Plugin {
   };
 }
 
-/** Your matches (tools/steam.mjs): Leetify public API by profile link, or Valve's match-history API; no Steam sign-in. */
+/** Your matches (tools/steam.mjs): Log in with Steam (OpenID) + Valve's match-history API; the app never signs in to Steam. */
 function steamApi(): Plugin {
   const send = (res: import('node:http').ServerResponse, code: number, body: unknown) => {
     res.statusCode = code;
@@ -58,16 +58,32 @@ function steamApi(): Plugin {
           const steam = await import('./tools/steam.mjs');
           const route = (req.url ?? '/').split('?')[0];
           if (req.method === 'GET' && route === '/status') return send(res, 200, steam.status());
+          if (req.method === 'GET' && route === '/me') return send(res, 200, { me: await steam.me() });
+          // "Sign in through Steam" (OpenID): Steam's own login page, back here with a signed SteamID
+          if (req.method === 'GET' && route.startsWith('/openid/')) {
+            const host = req.headers.host ?? '';
+            if (!/^[\w.-]+(:\d+)?$|^\[[\da-f:]+\](:\d+)?$/i.test(host)) return send(res, 400, { error: 'bad host' });
+            const origin = `http://${host}`;
+            const redirect = (to: string) => { res.statusCode = 302; res.setHeader('Location', to); res.end(); };
+            const query = new URLSearchParams((req.url ?? '').split('?')[1] ?? '');
+            const back = steam.safeBack(query.get('back') ?? undefined);
+            if (route === '/openid/start') return redirect(steam.openIdStartUrl(origin, back));
+            if (route === '/openid/return') {
+              try { await steam.openIdVerify(origin, (req.url ?? '').split('?')[1] ?? ''); return redirect(`/${back}`); }
+              catch (e) { return redirect(`/#/cs2/review?steam_error=${encodeURIComponent(e instanceof Error ? e.message : String(e))}`); }
+            }
+          }
           if (req.method !== 'POST') return send(res, 405, { error: 'POST only' });
           const body = await readJson(req);
           if (route === '/settings') {
             // a profile link isn't secret; the Web API key, auth code and folder are only accepted from this
             // computer (they'd cross the LAN as plain HTTP)
-            const secret = ['apiKey', 'authCode', 'knownCode', 'replaysDir'].some(k => body[k]);
+            const secret = ['apiKey', 'authCode', 'knownCode', 'replaysDir', 'paste'].some(k => body[k]);
             if (secret && !isLocal(req)) return send(res, 403, { error: 'These settings can only be changed on the computer running the app.' });
             return send(res, 200, await steam.saveSettings(body));
           }
           if (route === '/forget') { if (!isLocal(req)) return send(res, 403, { error: 'Only on this computer.' }); steam.forget(); return send(res, 200, { ok: true }); }
+          if (route === '/signout') { steam.signOut(); return send(res, 200, { ok: true }); }
           if (route === '/sync') return send(res, 200, await steam.sync());
           if (route === '/load') return send(res, 200, steam.loadParsed(String(body.outcomeId ?? '')));
           return send(res, 404, { error: 'unknown endpoint' });
