@@ -45,7 +45,7 @@ The website reads `.dem` files with a WebAssembly build of the same parser (Laih
 1. **Review** tab → drop a `.dem` (or a saved `.json`). FACEIT/HLTV demos work too (unzip first). On the website it's read in your browser in about 10–25 seconds.
 2. Press **▶ Play**. The win-chance bar, the graph and the grades reveal themselves as the round plays, like a chess review. **⏭ Reveal all** (or R) shows everything at once.
 3. **◀ ▶** (or ← →) jump between key moments: kills and graded grenades, across rounds.
-4. The top bar shows who's alive, health, the score and the bomb timer. The bomb is on the map too: next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded. Click any move in the list to jump there.
+4. The top bar shows who's alive, health, the score and the bomb timer. Every shot is drawn (muzzle flash and a tracer to whoever it hit, or toward the wall it hit), and every hit flashes red with the damage (HS for headshots). The bomb is on the map too: next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded. Click any move in the list to jump there.
 
 ### Your CS2 demo folder (website, Chrome / Edge)
 1. **Review** tab → **Choose your Steam folder** → pick the Steam folder where CS2 is installed (e.g. `C:\Program Files (x86)\Steam` or `D:\SteamLibrary`; any folder on the way to `…\csgo\replays` works). The site finds the demos inside it. (A website can't search your disk by itself; the desktop version does.)

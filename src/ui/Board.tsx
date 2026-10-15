@@ -11,6 +11,7 @@ import type { SpotMap } from '../engine/spots';
 import { bombAt, evalAt, GRADE_INFO, isMarked, TAG_INFO, type Review } from '../engine/recap';
 import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
+import { Gunfire } from './Shots';
 import { MomentNav } from './Recap';
 import { LayersBar } from './Layers';
 import { PlaybackBar, RoundHud, scoreBefore } from './Playback';
@@ -495,6 +496,10 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             const at = worldToRadar(b, engine.map.radar);
             return <BombOnMap at={at} k={k} state={b.kind} age={s.time - b.since} planted={b.plantedAt === null ? null : s.time - b.plantedAt} />;
           })()}
+          {recap && sim && s.review && (
+            <Gunfire round={s.review.data.rounds[s.review.round]} sim={sim} engine={engine} t={s.time} k={k}
+              sideOf={id => s.board.players.find(q => q.id === id)?.side ?? 'CT'} />
+          )}
           {sim && sim.kills.filter(kv => kv.killer && s.time >= kv.t && s.time - kv.t < 1.5).map((kv, i) => {
             const killer = sim.ids.indexOf(kv.killer);
             const step = Math.min(sim.steps - 1, Math.floor(kv.t / 0.1));
