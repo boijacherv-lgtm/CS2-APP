@@ -20,7 +20,13 @@ const V = 2;
 const DEMO = (name: string) => `demo${V}:${name}`, SUM = (name: string) => `sum${V}:${name}`;
 
 interface DemoFile { name: string; size: number; modified: number; handle: FileSystemFileHandle }
-interface Summary { map: string; rounds: number; score: [number, number] | null; result: 'win' | 'loss' | 'tie' | null; kd: [number, number] | null }
+interface Summary {
+  map: string; rounds: number;
+  /** yours first when you played in it, otherwise the winner first */
+  score: [number, number] | null; result: 'win' | 'loss' | 'tie' | null; kd: [number, number] | null;
+  /** whose view the score is from (summaries made before you logged in are redone once you are) */
+  checkedFor?: string | null;
+}
 
 // File System Access API (Chrome / Edge); not in TypeScript's DOM types yet
 type DirHandle = FileSystemDirectoryHandle & {
@@ -55,17 +61,27 @@ async function findReplays(picked: DirHandle): Promise<DirHandle | null> {
   return null;
 }
 
-/** Map, score from your side, result and K/D (needs your SteamID; map and rounds only without it). */
+/** Map, final score (from your team's side if you played in it, with W/L and your K/D). */
 function summarize(d: DemoData, steamId: string | null): Summary {
-  const played = steamId ? d.rounds.filter(r => r.winner && r.frames.players[steamId]) : [];
-  const won = played.filter(r => r.frames.players[steamId!].side === r.winner).length, lost = played.length - won;
-  const kills = steamId ? d.rounds.reduce((a, r) => a + r.kills.filter(k => k.attacker === steamId && k.victim !== steamId).length, 0) : 0;
-  const deaths = steamId ? d.rounds.reduce((a, r) => a + r.kills.filter(k => k.victim === steamId).length, 0) : 0;
+  // follow the teams across halftime by their players: team A started on CT
+  const r0 = d.rounds[0];
+  const teamA = new Set(r0 ? Object.keys(r0.frames.players).filter(id => r0.frames.players[id].side === 'CT') : []);
+  let a = 0, b = 0;
+  for (const r of d.rounds) {
+    if (!r.winner) continue;
+    const ref = Object.keys(r.frames.players).find(id => teamA.has(id));
+    const aSide = ref ? r.frames.players[ref].side : 'CT';
+    if (r.winner === aSide) a++; else b++;
+  }
+  const played = !!steamId && d.rounds.some(r => r.frames.players[steamId]);
+  if (!played) return { map: d.map, rounds: d.rounds.length, score: a + b ? [Math.max(a, b), Math.min(a, b)] : null, result: null, kd: null, checkedFor: steamId };
+  const mine: [number, number] = teamA.has(steamId!) ? [a, b] : [b, a];
+  const kills = d.rounds.reduce((n, r) => n + r.kills.filter(k => k.attacker === steamId && k.victim !== steamId).length, 0);
+  const deaths = d.rounds.reduce((n, r) => n + r.kills.filter(k => k.victim === steamId).length, 0);
   return {
-    map: d.map, rounds: d.rounds.length,
-    score: played.length ? [won, lost] : null,
-    result: !played.length ? null : won > lost ? 'win' : won < lost ? 'loss' : 'tie',
-    kd: played.length ? [kills, deaths] : null,
+    map: d.map, rounds: d.rounds.length, score: mine,
+    result: mine[0] > mine[1] ? 'win' : mine[0] < mine[1] ? 'loss' : 'tie',
+    kd: [kills, deaths], checkedFor: steamId,
   };
 }
 
@@ -106,14 +122,23 @@ export function DemoFolder() {
         out.push({ name: h.name, size: f.size, modified: f.lastModified, handle: h as FileSystemFileHandle });
       }
       out.sort((a, b) => b.modified - a.modified);
-      setFiles(out);
       const known: Record<string, Summary> = {};
-      for (const f of out.slice(0, SHOW)) { const s = await getItem<Summary>(SUM(f.name)); if (s) known[f.name] = s; }
+      for (const f of out.slice(0, SHOW)) {
+        let s = await getItem<Summary>(SUM(f.name));
+        // made before we knew who you are (or by an older version): redo it from the saved game
+        if (s && (s.checkedFor === undefined || (steamId && s.checkedFor !== steamId))) {
+          const blob = await getItem<Blob>(DEMO(f.name));
+          if (blob) { s = summarize(await gunzipJson<DemoData>(blob), steamId); await setItem(SUM(f.name), s); }
+        }
+        if (s) known[f.name] = s;
+      }
+      // together, so the auto-reader never sees a saved game without its summary (and reads it again)
       setSums(prev => ({ ...prev, ...known }));
+      setFiles(out);
     } catch (e) {
       setMsg(`Couldn't read the folder: ${e instanceof Error ? e.message : String(e)}`);
     }
-  }, [dir, perm]);
+  }, [dir, perm, steamId]);
 
   useEffect(() => {
     scan();
@@ -221,7 +246,7 @@ export function DemoFolder() {
                   <tr key={f.name}>
                     <td>{new Date(f.modified).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</td>
                     <td>{s ? MAPS.find(m => m.id === s.map)?.name ?? s.map : <span className="muted">{(f.size / 1e6).toFixed(0)} MB</span>}</td>
-                    <td className={s?.result ?? ''}>{s?.score ? `${s.score[0]}–${s.score[1]} ${s.result?.toUpperCase() ?? ''}` : s ? `${s.rounds} rounds` : ''}</td>
+                    <td className={s?.result ?? ''}>{s?.score ? `${s.score[0]}–${s.score[1]}${s.result ? ` ${s.result.toUpperCase()}` : ''}` : s ? `${s.rounds} rounds` : ''}</td>
                     <td className="muted">{s?.kd ? `${s.kd[0]}/${s.kd[1]}` : ''}</td>
                     <td>
                       {s ? <button onClick={() => open(f)}>Review</button>
