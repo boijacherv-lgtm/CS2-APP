@@ -1,4 +1,4 @@
-import { Circle, Group, Line, Text } from 'react-konva';
+import { Circle, Group, Line } from 'react-konva';
 import { simStateAt, type Simulation } from '../engine/combat';
 import type { TacticalEngine } from '../engine/predict';
 import type { DemoRound } from '../engine/recap';
@@ -6,12 +6,11 @@ import type { Vec2 } from '../engine/types';
 
 /**
  * Gunfire in a replay: every bullet from the demo as a muzzle flash and a tracer (to the player it hit, or along
- * where the shooter was looking until it reaches a wall), and every hit as a red flash with the damage floating up.
+ * where the shooter was looking until it reaches a wall).
  */
 
 const TRACER_SECS = 0.2;
 const FLASH_SECS = 0.08;
-const DAMAGE_SECS = 0.9;
 const HIT_MATCH = 0.06; // a hit this close to a shot (same shooter) is that bullet
 const MAX_RANGE = 700; // radar px
 
@@ -28,7 +27,6 @@ export function Gunfire({ round, sim, engine, t, k, sideOf }: {
 }) {
   const shots = (round.shots ?? []).filter(s => s.t <= t && t - s.t < TRACER_SECS);
   const hits = round.hits ?? [];
-  const recentHits = hits.filter(h => h.t <= t && t - h.t < DAMAGE_SECS);
   return (
     <Group listening={false}>
       {shots.map((s, i) => {
@@ -60,19 +58,6 @@ export function Gunfire({ round, sim, engine, t, k, sideOf }: {
                 <Circle x={muzzle.x} y={muzzle.y} radius={2.5 * k} fill="#fff" />
               </>
             )}
-          </Group>
-        );
-      })}
-      {recentHits.map((h, i) => {
-        const v = simStateAt(sim, h.victim, t); // the number follows them
-        if (!v) return null;
-        const age = (t - h.t) / DAMAGE_SECS;
-        return (
-          <Group key={`hit-${h.t}-${h.victim}-${i}`} x={v.pos.x} y={v.pos.y}>
-            {age < 0.3 && <Circle radius={(12 + 12 * age) * k} stroke="#ff3b30" strokeWidth={3 * k} opacity={1 - age / 0.3} />}
-            {age < 0.15 && <Circle radius={11 * k} fill="#ff3b30" opacity={0.45 * (1 - age / 0.15)} />}
-            <Text x={8 * k} y={(-22 - 18 * age) * k} text={`-${h.dmg}${h.head ? ' HS' : ''}`} fontSize={(h.head ? 14 : 12) * k} fontStyle="bold"
-              fill={h.head ? '#ff4136' : '#ff8a80'} stroke="#000" strokeWidth={3} fillAfterStrokeEnabled opacity={age < 0.7 ? 1 : (1 - age) / 0.3} />
           </Group>
         );
       })}

@@ -26,7 +26,7 @@ You place CTs and Ts on Valve's real radar, give them routes, grenades and line-
 | Log in with Steam + your match list | ✅ | ✅ |
 | Open a raw `.dem` demo | ✅ read in your browser (~10–25 s), nothing uploaded | ✅ |
 | Demos from **Download in CS2** import by themselves | ❌ | ✅ (watches CS2's replays folder) |
-| Review & Match report | ✅ | ✅ |
+| Review & Match recap | ✅ | ✅ |
 | Grenade flight paths in Review | ❌ (grenades show where/when they popped) | ✅ |
 
 The website reads `.dem` files with a WebAssembly build of the same parser (LaihoE/demoparser), so nothing is uploaded; grenades fly straight from where they were thrown to where they went off (the desktop version shows the exact path, bounces included). **Save .json** still lets you share an already-read match.
@@ -45,15 +45,15 @@ The website reads `.dem` files with a WebAssembly build of the same parser (Laih
 1. **Review** tab → drop a `.dem` (or a saved `.json`). FACEIT/HLTV demos work too (unzip first). On the website it's read in your browser in about 10–25 seconds.
 2. Press **▶ Play**. The win-chance bar, the graph and the grades reveal themselves as the round plays, like a chess review. **⏭ Reveal all** (or R) shows everything at once.
 3. **◀ ▶** (or ← →) jump between key moments: kills and graded grenades, across rounds.
-4. The top bar shows who's alive, health, the score and the bomb timer. Every shot is drawn (muzzle flash and a tracer to whoever it hit, or toward the wall it hit), and every hit flashes red with the damage (HS for headshots). The bomb is on the map too: next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded. Click any move in the list to jump there.
+4. The top bar shows who's alive, health, the score and the bomb timer. Every shot is drawn (muzzle flash and a tracer to whoever it hit, or toward the wall it hit). The bomb is on the map too: next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded. Each graded move pops out in a window next to the player, joined to them by a line, with every comment on it. Click any move in the list to jump there.
 
 ### Your CS2 demo folder (website, Chrome / Edge)
 1. **Review** tab → **Choose your Steam folder** → pick the Steam folder where CS2 is installed (e.g. `C:\Program Files (x86)\Steam` or `D:\SteamLibrary`; any folder on the way to `…\csgo\replays` works). The site finds the demos inside it. (A website can't search your disk by itself; the desktop version does.)
 2. Your demos are listed newest first. The 5 newest are read by themselves, one at a time, in your browser (nothing is uploaded) and kept in this browser; older ones have a **Read** button. Logged in with Steam, each row also shows your score, result and K/D.
 3. Any demo CS2 downloads appears within seconds. After a browser restart, click **Reconnect** once (the browser asks for folder access again each visit).
 
-### Match report
-**Match report** tab: every player's estimated rating for this game, match grade, K/D, ADR, KAST, openings, clutches, utility, whiffs, upsets and role. Click a player to highlight their grade in every round; click a grade to watch that round.
+### Match recap
+**Match recap** tab. On top, the **coach**: for you (when logged in with Steam) or any player you pick, the 2–4 things to work on, with the rounds to watch (R5, R12… open that round), and what went well. Below: every player's estimated rating for this game, match grade, K/D, ADR, KAST, openings, clutches, utility, whiffs, upsets and role. Click a player to highlight their grade in every round; click a grade to watch that round.
 
 ### Your matches (automatic match list)
 1. **Log in with Steam** (top right). Steam's own page opens; scan the QR code with the Steam app (Steam Guard) and approve.
@@ -121,7 +121,7 @@ Update the Worker after changing `worker/src`: `cd worker && npx wrangler deploy
 | **Line-ups** | Starter library (Mirage, Dust II) and custom line-ups saved in the browser. "Use" makes the selected player walk to the spot and throw it. |
 | **Match review** | Load a `.dem` file. Rounds replay live like a chess game review (eval bar, graph and grades revealed as the round plays; ⏭ Reveal all / R; ◀ ▶ or ← → step through key moments like chess moves, across rounds). Kills and every grenade get a chess grade (Brilliant !! … Blunder ??; deaths aren't marked, but their win-chance loss still counts toward impact and grades) plus context tags (OPENING, TRADE, ISOLATED, CLUTCH, FLASH ASSIST, WASTED…); each player gets a round letter grade (S+ … F) and an inferred role (Entry, Lurk, Support, AWPer, Anchor, Rotator, Rifler). Players' Premier ratings (read from the demo) shape the eval and the duel grades (UPSET), and missed sprays are tagged WHIFF. Grades are weighed by each team's economy (eco / force / full buy) and the guns used. |
 | **Your matches** | Review start page: **Log in with Steam** (nav bar too; Steam OpenID like Leetify/FACEIT: Steam's own login page, QR with Steam Guard there; the app only receives a signed SteamID). Then, once, smart paste of the Steam Support page (game authentication code + latest share code; desktop also the user's own Web API key; the website uses its own, in the Worker) → Valve's match-history API (`GetNextMatchSharingCode`) lists new matches by itself every 5 minutes. **Download in CS2** uses Valve's `steam://…+csgo_download_match` link; on desktop the dev server watches CS2's replays folder (all Steam libraries) and imports the demo by itself. Every demo loaded on desktop is listed too. Codes and lists are per Steam account. |
-| **Match report** | `#/cs2/report`: all rounds graded in a Web Worker; per player an estimated rating for the game (chess-style performance rating from duels vs real opponent ratings + round impact), match grade, K/D/ADR/KAST/HS%, openings, clutches, utility, whiffs, upsets, roles, and a grid of round grades (click → that round in Review) |
+| **Match recap** | `#/cs2/report`: the built-in coach (`src/engine/coach.ts`: match → feature numbers → compared with a CoachModel of what's normal → "work on" / "keep doing" notes with example rounds; `trainCoach()` refits the model to more games), then all rounds graded in a Web Worker; per player an estimated rating for the game (chess-style performance rating from duels vs real opponent ratings + round impact), match grade, K/D/ADR/KAST/HS%, openings, clutches, utility, whiffs, upsets, roles, and a grid of round grades (click → that round in Review) |
 
 ---
 

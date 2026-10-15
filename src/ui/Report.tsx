@@ -1,23 +1,32 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { coach, type CoachNote } from '../engine/coach';
 import { buildMatchReport, IMPACT_PER_POINT, type PlayerReport } from '../engine/match';
 import { LETTER_COLOR, RATING_SCALE, type Letter } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { navigate } from '../shell/router';
 import { useStore } from '../store';
 import { ReviewStart } from './Recap';
+import { steamFetch } from './steamApi';
 
 /**
- * Match report: every player's estimated rating for this game, match grade, stats, and their grade
- * in every round. Rounds are graded in a worker (Shell → useMatchGrader) and fill in as they finish.
- * Layout is deliberately plain; styling is up to the design pass.
+ * Match recap: the coach's notes for a player (what to work on, what went well, rounds to watch), then every
+ * player's estimated rating for this game, match grade, stats, and their grade in every round. Rounds are graded in
+ * a worker (Shell → useMatchGrader) and everything fills in as they finish.
  */
 export function MatchReportPage() {
   const report = useStore(s => s.report);
   const view = useMemo(() => (report ? buildMatchReport(report.data, report.rounds) : null), [report]);
-  // clicking a player highlights their round grades (click again to clear)
+  // clicking a player highlights their round grades and shows their coaching (click again to clear the highlight)
   const [picked, setPicked] = useState<string | null>(null);
   const pick = (id: string) => setPicked(p => (p === id ? null : id));
+  // you, if you're logged in with Steam and played in this match
+  const [me, setMe] = useState<string | null>(null);
+  useEffect(() => {
+    steamFetch('/me').then(r => (r.ok ? r.json() : null)).then(j => setMe(j?.me?.steamId ?? null)).catch(() => {});
+  }, []);
+  const [coached, setCoached] = useState<string | null>(null);
   if (!report || !view) return <div className="app single"><ReviewStart /></div>;
+  const coachId = [coached, picked, me].find(id => id && view.players.some(p => p.id === id)) ?? view.players[0]?.id;
 
   const data = report.data;
   const mapName = MAPS.find(m => m.id === data.map)?.name ?? data.map;
@@ -38,6 +47,11 @@ export function MatchReportPage() {
         </p>
         {!report.done && <div className="report-progress"><i style={{ width: `${(view.graded / view.total) * 100}%` }} /></div>}
       </header>
+
+      {coachId && (
+        <CoachPanel players={view.players} id={coachId} me={me} done={report.done}
+          onPlayer={id => { setCoached(id); setPicked(id); }} onRound={openRound} />
+      )}
 
       {([0, 1] as const).map(t => (
         <section key={t} className="report-team">
@@ -111,6 +125,53 @@ export function MatchReportPage() {
           beating a higher-rated player counts for more (UPSET), losing to a lower-rated one costs more.
         </p>
       </section>
+    </div>
+  );
+}
+
+/** The coach's notes for one player. */
+function CoachPanel({ players, id, me, done, onPlayer, onRound }: {
+  players: PlayerReport[]; id: string; me: string | null; done: boolean; onPlayer: (id: string) => void; onRound: (i: number) => void;
+}) {
+  const p = players.find(x => x.id === id)!;
+  const c = useMemo(() => coach(p), [p]);
+  const side = (v: number | null) => (v === null ? '–' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
+  return (
+    <section className="coach">
+      <div className="coach-head">
+        <h2>Coach</h2>
+        <select value={id} onChange={e => onPlayer(e.target.value)} title="Whose game to coach">
+          {players.map(x => <option key={x.id} value={x.id}>{x.name}{x.id === me ? ' (you)' : ''}</option>)}
+        </select>
+        <span className="muted">{p.roles[0]?.role ?? ''} · CT {side(c.sides.CT)} · T {side(c.sides.T)} win chance a round</span>
+      </div>
+      <p className="coach-summary">{c.summary}{!done && <span className="muted"> (updates while rounds are graded)</span>}</p>
+      <div className="coach-cols">
+        <div>
+          <h3>Work on</h3>
+          {c.improve.length ? c.improve.map(n => <NoteCard key={n.title} n={n} onRound={onRound} />) : <p className="muted">Nothing stands out.</p>}
+        </div>
+        <div>
+          <h3>Keep doing</h3>
+          {c.strengths.length ? c.strengths.map(n => <NoteCard key={n.title} n={n} onRound={onRound} />) : <p className="muted">No clear strengths this game.</p>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function NoteCard({ n, onRound }: { n: CoachNote; onRound: (i: number) => void }) {
+  return (
+    <div className={`coach-note ${n.kind}`}>
+      <b>{n.title}</b>
+      <p>{n.detail}</p>
+      {n.rounds.length > 0 && (
+        <div className="coach-rounds">
+          <span className="muted">Watch:</span>
+          {n.rounds.slice(0, 8).map(i => <button key={i} onClick={() => onRound(i)} title="Open this round in Review">R{i + 1}</button>)}
+          {n.rounds.length > 8 && <span className="muted">+{n.rounds.length - 8}</span>}
+        </div>
+      )}
     </div>
   );
 }

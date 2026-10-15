@@ -587,7 +587,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           {s.reviewSpoilers ? '◀ Live' : '⏭ Reveal all'}
         </button>
       )}
-      {recap && <MoveBanner recap={recap} time={s.time} />}
+      {recap && sim && <MoveCallout recap={recap} sim={sim} time={s.time} view={view} size={size} names={s.review?.data.names ?? {}} />}
       {recap && <MomentNav recap={recap} />}
       <div className={`hint ${s.notice ? 'notice' : aiming || carry || s.draftRoute ? 'carry' : ''}`} style={recap ? { display: 'none' } : undefined}>
         {s.notice ?? (aiming ? 'Move the mouse to aim · click to set the direction · Esc cancels'
@@ -697,19 +697,60 @@ function EvalBar({ ct }: { ct: number }) {
   );
 }
 
-/** The latest graded move, announced over the board as it happens. */
-function MoveBanner({ recap, time }: { recap: Review; time: number }) {
+const CALLOUT_W = 270;
+
+/**
+ * The latest graded move as a window that pops out next to the player, joined to them by a line, with every comment
+ * on the move. It sits on the emptier side of the player and stays inside the board.
+ */
+function MoveCallout({ recap, sim, time, view, size, names }: {
+  recap: Review; sim: Simulation; time: number; view: { scale: number; x: number; y: number }; size: { w: number; h: number }; names: Record<string, string>;
+}) {
   const m = [...recap.moves].reverse().find(x => isMarked(x) && time >= x.t && time - x.t < BADGE_SECS);
-  if (!m) return null;
+  const st = m && simStateAt(sim, m.player, time);
+  if (!m || !st) return null;
   const g = GRADE_INFO[m.grade];
+  const px = view.x + st.pos.x * view.scale, py = view.y + st.pos.y * view.scale;
+  // beside the player when the board is wide enough (on the side with more room), otherwise above or below them
+  const gap = 60;
+  const fitsRight = px + gap + CALLOUT_W <= size.w - 8, fitsLeft = px - gap - CALLOUT_W >= 8;
+  const side = fitsRight && (px < size.w * 0.55 || !fitsLeft) ? 'right' : fitsLeft ? 'left' : null;
+  let left: number, pos: React.CSSProperties, ax: number, ay: number;
+  if (side) {
+    left = side === 'right' ? px + gap : px - gap - CALLOUT_W;
+    const top = Math.max(56, Math.min(size.h - 240, py - 110));
+    pos = { top };
+    ax = side === 'right' ? left : left + CALLOUT_W; ay = top + 22;
+  } else {
+    left = Math.max(8, Math.min(size.w - CALLOUT_W - 8, px - CALLOUT_W / 2));
+    const above = py > 280; // the window grows up from just above the player
+    pos = above ? { bottom: size.h - (py - gap) } : { top: py + gap };
+    ax = Math.max(left + 24, Math.min(left + CALLOUT_W - 24, px)); ay = above ? py - gap : py + gap;
+  }
+  const d = Math.hypot(ax - px, ay - py) || 1, r = 14;
+  const sx = px + ((ax - px) / d) * r, sy = py + ((ay - py) / d) * r;
   return (
-    <div className="move-banner" key={`${m.t}-${m.player}-${m.kind}`} style={{ borderColor: g.color }}>
-      <span className="badge" style={{ background: g.color }}>{g.mark}</span>
-      <b>{g.label}</b>
-      <span>{m.title}</span>
-      {m.tags.slice(0, 3).map(t => <span key={t} className="tag" style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }}>{t}</span>)}
-      <b style={{ color: m.gain >= 0 ? '#7fbf4d' : '#e5483a' }}>{m.gain >= 0 ? '+' : '−'}{Math.abs(Math.round(m.gain * 100))}%</b>
-    </div>
+    <>
+      <svg className="callout-line" width={size.w} height={size.h} key={`l-${m.t}-${m.player}-${m.kind}`}>
+        <line x1={sx} y1={sy} x2={ax} y2={ay} stroke={g.color} strokeWidth={2} />
+        <circle cx={sx} cy={sy} r={3.5} fill={g.color} />
+      </svg>
+      <div className="callout" key={`c-${m.t}-${m.player}-${m.kind}`} style={{ left, ...pos, width: CALLOUT_W, borderColor: g.color }}>
+        <div className="callout-head">
+          <span className="badge" style={{ background: g.color }}>{g.mark}</span>
+          <b style={{ color: g.color }}>{g.label}</b>
+          <span className="muted">{names[m.player] ?? ''}</span>
+          <b className="callout-gain" style={{ color: m.gain >= 0 ? '#7fbf4d' : '#e5483a' }}>{m.gain >= 0 ? '+' : '−'}{Math.abs(Math.round(m.gain * 100))}%</b>
+        </div>
+        <div className="callout-title">{m.title}</div>
+        {m.tags.length > 0 && (
+          <div className="callout-tags">
+            {m.tags.map(t => <span key={t} className="tag" title={TAG_INFO[t].tip} style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }}>{t}</span>)}
+          </div>
+        )}
+        {m.why.length > 0 && <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+      </div>
+    </>
   );
 }
 

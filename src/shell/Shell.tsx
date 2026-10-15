@@ -81,8 +81,8 @@ function NavBar({ route }: { route: Route }) {
             <span className="mode-ico">▶</span> Review{loaded ? <i className="dot-live" title="A match is loaded" /> : null}
           </button>
           <button role="tab" aria-selected={route.mode === 'report'} className={route.mode === 'report' ? 'on' : ''}
-            onClick={() => navigate({ page: 'cs2', mode: 'report' })} title="Every player's grades and estimated rating for the match">
-            <span className="mode-ico">★</span> Match report
+            onClick={() => navigate({ page: 'cs2', mode: 'report' })} title="The coach's notes, every player's grades and estimated rating for the match">
+            <span className="mode-ico">★</span> Match recap
           </button>
         </div>
       )}
