@@ -4,6 +4,7 @@ import type { TacticalEngine } from '../engine/predict';
 import { equipValue, evalAt, GRADE_INFO, isMarked, moments, type Moment, LETTER_COLOR, letterGrade, movesUntil, TAG_INFO, teamEconomy, type DemoData, type Grade, type Move, type Replay, type Review, type Tag } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { gunFromName, primaryGun } from '../engine/guns';
+import { Fold } from './Fold';
 import { useStore } from '../store';
 import { SteamMatches } from './SteamMatches';
 
@@ -114,10 +115,6 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   const tp = recap.turningPoint && (all || recap.turningPoint.t <= s.time) ? recap.turningPoint : null;
   const ct = evalAt(recap.curve, s.time);
 
-  // keep the newest move in view while the round plays
-  const listEnd = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (!all) listEnd.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [seen.length, all]);
-
   return (
     <aside className="panel">
       <section>
@@ -181,21 +178,23 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
         <p className="muted">Click a player to see only their moves.{finished ? ' Hover a role to see why.' : ' Roles show when the round ends.'}</p>
       </section>
 
-      <section>
+      {/* A quiet history: new moves are added at the top, nothing scrolls or flashes, and it can be collapsed. */}
+      <Fold id="moves" title="Moves" aside={moves.length ? `${moves.length}` : undefined}>
         <div className="row km">
-          <h3 className="grow" style={{ margin: 0 }}>Moves</h3>
           <select value={filter.length > 4 ? 'key' : filter} onChange={e => setFilter(e.target.value)}>
             <option value="key">Key moves</option><option value="util">Grenades</option><option value="all">Everything</option>
           </select>
         </div>
-        {moves.map((m, i) => (
-          <div key={`${m.t}-${m.player}-${m.kind}`} className={`move past ${m === latest && !all ? 'fresh' : ''}`} onClick={() => jump(m.t)}>
-            <MoveRow m={m} />
-          </div>
-        ))}
-        {!moves.length && <p className="muted">{all ? 'No moves for this filter.' : 'Nothing has happened yet. Press ▶ Play.'}</p>}
-        <div ref={listEnd} />
-      </section>
+        <div className="move-list">
+          {[...moves].reverse().map(m => (
+            <div key={`${m.t}-${m.player}-${m.kind}`} className="move past" onClick={() => jump(m.t)}>
+              <MoveRow m={m} />
+            </div>
+          ))}
+          {!moves.length && <p className="muted">{all ? 'No moves for this filter.' : 'Nothing has happened yet. Press ▶ Play.'}</p>}
+        </div>
+        {moves.length > 0 && <p className="muted">Newest first. Click a move to jump to it.</p>}
+      </Fold>
 
       {control && (
         <p className="muted foot">

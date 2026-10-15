@@ -12,6 +12,8 @@ import { evalAt, GRADE_INFO, isMarked, TAG_INFO, type Review } from '../engine/r
 import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
 import { MomentNav } from './Recap';
+import { LayersBar } from './Layers';
+import { PlaybackBar, RoundHud } from './Playback';
 import { FOV as VISION_FOV } from '../engine/predict';
 import { ENTRY_COLOR, entryClock, entryReports } from '../engine/entries';
 import { BUILTIN_LINEUPS } from '../map/lineups';
@@ -28,8 +30,8 @@ const ERASE = '#ff4d4d';
 const FOV_DEG = (FOV * 180) / Math.PI;
 const deg = (r: number) => (r * 180) / Math.PI;
 
-export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
-  analysis: Analysis; engine: TacticalEngine; control: ControlMap | null; sim: Simulation | null; spots: SpotMap | null; batch: BatchStats | null;
+export function Board({ analysis, engine, control, sim, spots, batch, recap, timelineEnd }: {
+  timelineEnd: number; analysis: Analysis; engine: TacticalEngine; control: ControlMap | null; sim: Simulation | null; spots: SpotMap | null; batch: BatchStats | null;
   recap?: Review | null;
 }) {
   const MAP = engine.map;
@@ -317,7 +319,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
         <Layer listening={s.tool !== 'select'}>
           <Rect x={-2000} y={-2000} width={5000} height={5000} fill={COLORS.bg} name="floor" />
           {radarImg && <KImage image={radarImg} width={1024} height={1024} name="floor" />}
-          {controlImg && <KImage image={controlImg} width={1024} height={1024} listening={false} />}
+          {controlImg && <KImage image={controlImg} width={1024} height={1024} opacity={0.75} listening={false} />}
           {spotImg && <KImage image={spotImg} width={1024} height={1024} listening={false} />}
           {walkImg && <KImage image={walkImg} width={1024} height={1024} imageSmoothingEnabled={false} opacity={0.6} listening={false} />}
           {timingImg && <KImage image={timingImg} width={1024} height={1024} imageSmoothingEnabled={false} opacity={0.75} listening={false} />}
@@ -326,7 +328,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
         <Layer listening={false}>
           {s.overlays.callouts && MAP.callouts.map(c => (
             <Text key={c.name} text={c.name} x={c.pos.x - 60} y={c.pos.y - (c.size ?? 10) / 2} width={120} align="center"
-              fontSize={c.size ?? 10} fill="#fff" stroke="#000" strokeWidth={2.5} fillAfterStrokeEnabled fontStyle="bold" opacity={0.85} />
+              fontSize={c.size ?? 10} fill="#fff" stroke="#000" strokeWidth={2.5} fillAfterStrokeEnabled fontStyle="bold" opacity={0.6} />
           ))}
           {visionLayer && visionLayer.cones.map(v => (
             <Line key={`vis-${v.id}`} points={v.poly} closed fill={v.side === 'CT' ? 'rgba(78,163,255,0.13)' : 'rgba(232,163,60,0.13)'}
@@ -344,13 +346,13 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
             return (
               <Group key={e.id} listening={false}>
                 <Line points={[a.x, a.y, b.x, b.y]} stroke={col} strokeWidth={3.5 * k} lineCap="round" opacity={0.95} />
-                <Group x={e.center.x + 6 * k} y={e.center.y + 6 * k} scaleX={k * 0.75} scaleY={k * 0.75}>
+                {s.overlays.entryCards && <Group x={e.center.x + 6 * k} y={e.center.y + 6 * k} scaleX={k * 0.75} scaleY={k * 0.75}>
                   <Rect width={w} height={pressure ? 39 : 28} cornerRadius={4} fill="#0b0e12" opacity={0.86} stroke={col} strokeWidth={1.2} />
                   <Rect width={3} height={pressure ? 39 : 28} cornerRadius={[4, 0, 0, 4]} fill={col} />
                   <Text x={7} y={4} width={w - 10} text={`${e.name} · ${entryClock(e, s.time)}`} fontSize={9.5} fontStyle="bold" fill="#fff" wrap="none" ellipsis />
                   <Text x={7} y={16} width={w - 10} text={e.headline} fontSize={8} fill={col} wrap="none" ellipsis />
                   {pressure && <Text x={7} y={27} width={w - 10} text={pressure.slice(3)} fontSize={8} fill="#c8ced8" wrap="none" ellipsis />}
-                </Group>
+                </Group>}
               </Group>
             );
           })}
@@ -470,9 +472,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
                   stroke={s.selectedId === p.id ? '#fff' : '#000a'} strokeWidth={s.selectedId === p.id ? 2.5 : 1.5} />
                 <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />
                 {s.mode === 'review' && s.review && <Text text={s.review.data.names[p.id] ?? ''} fontSize={7} fill="#c8ced8" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled width={60} x={-30} y={21} align="center" fontStyle="bold" listening={false} />}
-                <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? '#ffd23f' : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
-                  width={40} x={-20} y={13} align="center" fontStyle="bold" listening={false} />
-                {batch?.players[p.id] && (
+                {s.overlays.playerInfo && <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? '#ffd23f' : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
+                  width={40} x={-20} y={13} align="center" fontStyle="bold" listening={false} />}
+                {s.overlays.playerInfo && batch?.players[p.id] && (
                   <Text text={`${Math.round(batch.players[p.id].pKill * 100)}% K`} fontSize={8} fontStyle="bold" width={40} x={-20} y={s.mode === 'review' ? 29 : 21} align="center"
                     fill={killColor(batch.players[p.id].pKill)} stroke="#000" strokeWidth={2.2} fillAfterStrokeEnabled />
                 )}
@@ -547,6 +549,11 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
         </Layer>
       </Stage>
       <Coords stageRef={stageRef} engine={engine} spots={spots} />
+      <LayersBar />
+      <RoundHud
+        ctAlive={s.board.players.filter(p => p.side === 'CT' && live.get(p.id)?.alive !== false).length}
+        tAlive={s.board.players.filter(p => p.side === 'T' && live.get(p.id)?.alive !== false).length} />
+      <PlaybackBar end={timelineEnd} />
       <div className="zoom">
         <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>
         <button onClick={() => zoomAt(0.8)} title="Zoom out">−</button>

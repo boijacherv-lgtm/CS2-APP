@@ -134,6 +134,8 @@ export function App() {
         stepMoment(recap, e.key === 'ArrowRight' ? 1 : -1);
         return;
       }
+      const view = ({ '1': 'clean', '2': 'standard', '3': 'full' } as const)[e.key as '1' | '2' | '3'];
+      if (view) { useStore.getState().setView(view); return; }
       const tool = KEYS[e.key.toLowerCase()];
       if (tool) useStore.getState().setTool(tool);
     };
@@ -146,8 +148,8 @@ export function App() {
 
   return (
     <div className="app">
-      <Toolbar engine={engine} timelineEnd={end} />
-      <Board key={`${mapId}:${level}`} analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch?.stats ?? null} recap={recap} />
+      <Toolbar engine={engine} />
+      <Board key={`${mapId}:${level}`} timelineEnd={end} analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch?.stats ?? null} recap={recap} />
       {recap && replay
         ? <RecapPanel recap={recap} replay={replay} engine={engine} control={control} />
         : <AnalysisPanel analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch} impact={impact} stale={deferred !== board} />}

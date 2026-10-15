@@ -82,6 +82,10 @@ src/
     Panels.tsx       left toolbar + right analysis panel
     Recap.tsx        demo loader + review panel (eval graph, moves, player grades)
     Report.tsx       match report page (plain layout, design pass pending)
+    Fold.tsx         collapsible panel sections (open/closed state remembered per section)
+    Layers.tsx       board layer control: Clean / Standard / Full presets (keys 1 2 3) + per-layer list
+    Playback.tsx     on-board round clock (alive counts) and playback bar (play, speed, slider, combat)
+    SteamLogin.tsx   Log in with Steam (OpenID) button + nav-bar account chip
     Nades.tsx        grenade visuals: smoke clouds, fire, flash burst, HE ring, flight arcs, countdowns (time-driven)
   store.ts           zustand store: board per map level, tools, overlays, time/playback, mode ('tactical' | 'review'),
                      the loaded match, and the tactical board parked while Review shows a match
