@@ -36,6 +36,11 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: wasm-pack
+      - name: Show Rust panic messages (instead of a bare "unreachable")
+        working-directory: demoparser/src/wasm
+        run: |
+          cargo add console_error_panic_hook@0.1
+          printf '\n#[wasm_bindgen(start)]\npub fn __stratboard_start() { console_error_panic_hook::set_once(); }\n' >> src/lib.rs
       - name: Build (browser + Node)
         run: |
           set -o pipefail
