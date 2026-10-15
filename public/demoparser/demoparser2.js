@@ -386,6 +386,14 @@ function __wbg_get_imports() {
         const ret = arg0.node;
         return ret;
     };
+    imports.wbg.__wbg_now_2c95c9de01293173 = function(arg0) {
+        const ret = arg0.now();
+        return ret;
+    };
+    imports.wbg.__wbg_performance_7a3ffd0b17f663ad = function(arg0) {
+        const ret = arg0.performance;
+        return ret;
+    };
     imports.wbg.__wbg_process_5c1d670bc53614b8 = function(arg0) {
         const ret = arg0.process;
         return ret;

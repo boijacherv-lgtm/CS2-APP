@@ -373,6 +373,16 @@ module.exports.__wbg_node_02999533c4ea02e3 = function(arg0) {
     return ret;
 };
 
+module.exports.__wbg_now_2c95c9de01293173 = function(arg0) {
+    const ret = arg0.now();
+    return ret;
+};
+
+module.exports.__wbg_performance_7a3ffd0b17f663ad = function(arg0) {
+    const ret = arg0.performance;
+    return ret;
+};
+
 module.exports.__wbg_process_5c1d670bc53614b8 = function(arg0) {
     const ret = arg0.process;
     return ret;
