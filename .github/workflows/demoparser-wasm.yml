@@ -25,6 +25,8 @@ jobs:
           repository: LaihoE/demoparser
           ref: ${{ env.PARSER_REV }}
           path: demoparser
+      - name: protoc (the parser generates code from Steam's .proto files)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq protobuf-compiler && protoc --version
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -36,8 +38,11 @@ jobs:
           tool: wasm-pack
       - name: Build (browser + Node)
         run: |
-          wasm-pack build demoparser/src/wasm --release --target web    --out-dir "$GITHUB_WORKSPACE/public/demoparser"  --out-name demoparser2
-          wasm-pack build demoparser/src/wasm --release --target nodejs --out-dir "$GITHUB_WORKSPACE/tools/demoparser-node" --out-name demoparser2
+          set -o pipefail
+          # on failure, the last lines of the log become annotations (readable without signing in)
+          build() { wasm-pack build demoparser/src/wasm --release "$@" 2>&1 | tee -a build.log || { tail -n 25 build.log | sed 's/^/::error::/'; exit 1; }; }
+          build --target web    --out-dir "$GITHUB_WORKSPACE/public/demoparser"     --out-name demoparser2
+          build --target nodejs --out-dir "$GITHUB_WORKSPACE/tools/demoparser-node" --out-name demoparser2
           for d in public/demoparser tools/demoparser-node; do
             rm -f "$d/.gitignore" "$d/README.md"
             echo "LaihoE/demoparser@${PARSER_REV} (MIT), built $(date -u +%F) by .github/workflows/demoparser-wasm.yml" > "$d/VERSION"
