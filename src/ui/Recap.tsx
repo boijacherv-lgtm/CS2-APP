@@ -22,7 +22,7 @@ function useDemoLoader() {
       if (file.name.endsWith('.json')) data = JSON.parse(await file.text());
       else {
         setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB)… big demos take a few seconds.`);
-        const res = await fetch('/api/demo', { method: 'POST', body: file });
+        const res = await fetch(`/api/demo?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? res.statusText);
         data = body;

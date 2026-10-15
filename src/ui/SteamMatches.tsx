@@ -4,10 +4,13 @@ import { MAPS } from '../map/catalog';
 import { useStore } from '../store';
 import type { SteamMatch, SteamStatus } from '../../tools/steam.mjs';
 
+const SYNC_EVERY = 5 * 60 * 1000; // new games show up by themselves
+
 /**
- * "Your matches from Steam" on the review start page: sign in to Steam once (QR in the Steam mobile
- * app, or login + Steam Guard), then your recent matchmaking games are listed with one click to
- * download and review. The dev server does the Steam side (tools/steam.mjs).
+ * "Your matches" on the review start page. Paste your Steam profile link once; the list fills itself
+ * from Leetify's public API (or Valve's match-history API under Advanced) and refreshes every few
+ * minutes. "Download in CS2" uses Valve's own link; the dev server watches CS2's replays folder and
+ * imports the demo by itself, then the row turns into "Review". No Steam sign-in anywhere.
  * Layout is plain on purpose; styling is up to the design pass.
  */
 export function SteamMatches() {
@@ -15,9 +18,9 @@ export function SteamMatches() {
   const [st, setSt] = useState<SteamStatus | null>(null);
   const [offline, setOffline] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [usePassword, setUsePassword] = useState(false);
-  const synced = useRef(false);
+  const [advanced, setAdvanced] = useState(false);
+  const [profile, setProfile] = useState('');
+  const [waiting, setWaiting] = useState<Set<string>>(new Set()); // clicked "Download in CS2"
 
   const refresh = useCallback(async () => {
     try {
@@ -35,42 +38,40 @@ export function SteamMatches() {
     return out;
   }, []);
 
-  const act = useCallback(async (route: string, body?: unknown) => {
-    setMsg(null);
-    try { await post(route, body); } catch (e) { setMsg(errText(e)); }
-    refresh();
-  }, [post, refresh]);
-
-  const sync = useCallback(async () => {
-    setMsg('Checking Steam for new matches…');
+  const sync = useCallback(async (quiet = false) => {
+    if (!quiet) setMsg('Looking for your matches…');
     try {
-      const r = await post<{ found: number; diag: string[] }>('sync');
-      setMsg(r.found ? null : `No matches found on your Steam match history pages (${r.diag.join(' · ') || 'no answer'}).`);
-    } catch (e) { setMsg(errText(e)); }
+      const r = await post<{ added: number; note: string | null }>('sync');
+      if (!quiet) setMsg(r.added ? `${r.added} new match${r.added > 1 ? 'es' : ''}.` : null);
+    } catch (e) { if (!quiet) setMsg(errText(e)); }
     refresh();
   }, [post, refresh]);
 
-  useEffect(() => { refresh(); }, [refresh]);
-  // poll fast while signing in (waiting for the QR scan / approval), slowly otherwise
-  const signingIn = !!st && st.login.state !== 'idle' && st.login.state !== 'error';
+  const hasProfile = !!st?.configured.steamId;
+  // status every few seconds (imports land by themselves), match list every few minutes
+  useEffect(() => { refresh(); const t = setInterval(refresh, 4000); return () => clearInterval(t); }, [refresh]);
+  const started = useRef(false);
   useEffect(() => {
-    const t = setInterval(refresh, signingIn || st?.syncing ? 1500 : 30000);
+    if (!hasProfile) return;
+    if (!started.current) { started.current = true; sync(); }
+    const t = setInterval(() => sync(true), SYNC_EVERY);
     return () => clearInterval(t);
-  }, [refresh, signingIn, st?.syncing]);
-  // look for new games once per visit when signed in
-  const signedIn = !!st?.account;
-  useEffect(() => { if (signedIn && !synced.current) { synced.current = true; sync(); } }, [signedIn, sync]);
+  }, [hasProfile, sync]);
+
+  const saveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+    try { await post('settings', { profile }); setProfile(''); started.current = false; await sync(); }
+    catch (x) { setMsg(errText(x)); }
+    refresh();
+  };
 
   const open = async (m: SteamMatch) => {
-    setLoadingId(m.id);
-    setMsg(m.demo === 'ready' ? 'Opening…' : 'Downloading the demo from Valve and reading it… (about a minute the first time, instant after)');
     try {
-      const data = await post<DemoData>('load', { id: m.id });
+      const data = await post<DemoData>('load', { outcomeId: m.outcomeId });
       if (!MAPS.some(x => x.id === data.map)) throw new Error(`${data.map} isn't one of the supported maps.`);
-      setMsg(null);
       startReview(data);
-    } catch (e) { setMsg(errText(e)); refresh(); }
-    finally { setLoadingId(null); }
+    } catch (e) { setMsg(errText(e)); }
   };
 
   if (offline || !st) return null; // static build without the dev server: only manual demos
@@ -78,94 +79,108 @@ export function SteamMatches() {
   return (
     <section className="steam">
       <div className="steam-head">
-        <h2>Your matches from Steam</h2>
-        {signedIn && <>
-          <span className="muted">Signed in{st.account?.name ? ` as ${st.account.name}` : ''}</span>
-          <button onClick={sync} disabled={st.syncing}>{st.syncing ? 'Checking…' : 'Check for new matches'}</button>
-          <button onClick={() => act('signout')} title="Forget the Steam sign-in on this computer">Sign out</button>
-        </>}
+        <h2>Your matches</h2>
+        {hasProfile && <button onClick={() => sync()} disabled={st.syncing}>{st.syncing ? 'Checking…' : 'Refresh'}</button>}
+        <button onClick={() => setAdvanced(!advanced)}>{advanced ? 'Close settings' : hasProfile ? 'Settings' : 'Advanced'}</button>
       </div>
 
-      {!signedIn && <SignIn st={st} usePassword={usePassword} setUsePassword={setUsePassword} act={act} />}
+      {!hasProfile && (
+        <form className="steam-profile" onSubmit={saveProfile}>
+          <p>Paste your Steam profile link and your recent matches show up here by themselves. No Steam sign-in, no password.</p>
+          <div className="row">
+            <input value={profile} onChange={e => setProfile(e.target.value)} placeholder="https://steamcommunity.com/id/yourname" spellCheck={false} />
+            <button type="submit" className="primary" disabled={!profile.trim()}>Show my matches</button>
+          </div>
+          <p className="muted">Match lists come from <a href="https://leetify.com" target="_blank" rel="noreferrer">Leetify</a>'s public data, so you need a free Leetify account with match tracking on (Sign in through Steam on their site). No Leetify? Use the Valve setup under Advanced.</p>
+        </form>
+      )}
+
+      {advanced && <Advanced st={st} post={post} onDone={() => { setAdvanced(false); started.current = false; refresh(); }} />}
 
       {msg && <p className="muted">{msg}</p>}
+      {hasProfile && st.note && <p className="warn-text">{st.note}</p>}
+      {st.importing.file && <p className="muted">Importing {st.importing.file} from CS2's replays folder…</p>}
+      {st.importing.error && <p className="warn-text">Couldn't import {st.importing.error}</p>}
 
-      {signedIn && st.matches.length > 0 && (
-        <table className="steam-list">
-          <tbody>
-            {st.matches.map(m => (
-              <tr key={m.id}>
-                <td>{m.time ? new Date(m.time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : ''}</td>
-                <td className="muted">{m.mode}</td>
-                <td>{MAPS.find(x => x.id === m.map)?.name ?? m.mapName ?? ''}</td>
-                <td className={m.result ?? ''}>{m.scores.length === 2 ? `${m.scores[0]}–${m.scores[1]}` : ''} {m.result ? m.result.toUpperCase() : ''}</td>
-                <td>
-                  {m.demo === 'ready'
-                    ? <button disabled={!!loadingId} onClick={() => open(m)}>{loadingId === m.id ? 'Opening…' : 'Review'}</button>
-                    : m.hasDemo && m.demo !== 'expired'
-                      ? <button disabled={!!loadingId} onClick={() => open(m)}>{loadingId === m.id ? 'Loading…' : 'Download & review'}</button>
-                      : <span className="muted" title="Valve keeps demos for about a month">demo expired</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {hasProfile && st.matches.length > 0 && (
+        <>
+          <p className="muted">
+            {st.source === 'leetify' ? 'From Leetify' : 'From Valve'} · updates every few minutes.{' '}
+            {st.replays.length
+              ? <>Demos downloaded with <b>Download in CS2</b> are imported automatically.</>
+              : <>CS2's replays folder wasn't found on this computer: drop downloaded demos in the box above (or set the folder under Settings).</>}
+          </p>
+          <table className="steam-list">
+            <tbody>
+              {st.matches.map(m => (
+                <tr key={m.code}>
+                  <td>{m.time ? new Date(m.time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : ''}</td>
+                  <td className="muted">{m.source.startsWith('matchmaking') ? '' : m.source}</td>
+                  <td>{m.map ? MAPS.find(x => x.id === m.map)?.name ?? m.map : <span className="muted">not loaded yet</span>}</td>
+                  <td className={m.result ?? ''}>{m.scores ? `${m.scores[0]}–${m.scores[1]}` : ''} {m.result ? m.result.toUpperCase() : ''}</td>
+                  <td className="muted">{m.kd ? `${m.kd[0]}/${m.kd[1]}` : ''}</td>
+                  <td>
+                    {m.parsed
+                      ? <button onClick={() => open(m)}>Review</button>
+                      : m.download
+                        ? <a className="btn" href={m.download} onClick={() => setWaiting(new Set(waiting).add(m.code))}
+                            title="Opens CS2, which downloads the demo; the app imports it by itself">
+                            {waiting.has(m.code) ? 'Downloading in CS2…' : 'Download in CS2'}
+                          </a>
+                        : <span className="muted" title="Not a Valve matchmaking game: get the demo from that platform and drop it above">no Valve demo</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </section>
   );
 }
 
-function SignIn({ st, usePassword, setUsePassword, act }: {
-  st: SteamStatus; usePassword: boolean; setUsePassword: (v: boolean) => void; act: (route: string, body?: unknown) => Promise<void>;
-}) {
-  const [user, setUser] = useState('');
-  const [pass, setPass] = useState('');
-  const [code, setCode] = useState('');
-  const l = st.login;
-
-  if (l.state === 'qr' || l.state === 'scanned') return (
-    <div className="steam-signin">
-      {l.qr && <img src={l.qr} alt="Steam sign-in QR code" width={200} height={200} />}
-      <div>
-        <p>{l.state === 'scanned' ? 'Scanned. Tap Approve in the Steam app.' : 'Open the Steam app on your phone → Steam Guard → scan this code, then approve.'}</p>
-        <p className="muted">The app only reads your match history. It can't play, trade or change anything.</p>
-        <button onClick={() => act('cancel')}>Cancel</button>
-      </div>
-    </div>
+/** Profile, Valve's own match-history setup (fallback without Leetify) and the CS2 replays folder. */
+function Advanced({ st, post, onDone }: { st: SteamStatus; post: <T>(route: string, body?: unknown) => Promise<T>; onDone: () => void }) {
+  const c = st.configured;
+  const [f, setF] = useState({ profile: '', apiKey: '', authCode: '', knownCode: '', replaysDir: '' });
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setErr(null);
+    try { await post('settings', f); onDone(); } catch (x) { setErr(errText(x)); } finally { setBusy(false); }
+  };
+  const forget = async () => { try { await post('forget'); onDone(); } catch (x) { setErr(errText(x)); } };
+  const row = (k: keyof typeof f, label: string, ok: boolean, placeholder: string, help: React.ReactNode, secret = false) => (
+    <label className="steam-field">
+      <span>{ok ? '✓' : '○'} {label}</span>
+      <input value={f[k]} onChange={set(k)} placeholder={ok ? 'saved (leave empty to keep)' : placeholder} type={secret ? 'password' : 'text'} autoComplete="off" spellCheck={false} />
+      <small className="muted">{help}</small>
+    </label>
   );
-
-  if (l.state === 'guard' && l.guard) return (
-    <form className="steam-signin col" onSubmit={e => { e.preventDefault(); act('guard', { code }); setCode(''); }}>
-      {l.guard.approve && <p>Approve the sign-in in your Steam mobile app{l.guard.code ? ', or enter the code:' : '.'}</p>}
-      {!l.guard.approve && l.guard.code && <p>Enter the Steam Guard code from your {l.guard.code}:</p>}
-      {l.guard.code && <div className="row">
-        <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="CODE" maxLength={8} autoComplete="one-time-code" autoFocus />
-        <button type="submit" disabled={code.length < 5}>Sign in</button>
-      </div>}
-      <button type="button" onClick={() => act('cancel')}>Cancel</button>
-    </form>
-  );
-
   return (
-    <div className="steam-signin col">
-      <p>Sign in to Steam once and your recent Premier, Competitive and Wingman matches show up here, ready to review.</p>
-      <div className="row">
-        <button className="primary" onClick={() => act('login/qr')}>Sign in with the Steam app (QR code)</button>
-        <button onClick={() => setUsePassword(!usePassword)}>{usePassword ? 'Hide' : 'Use login and password'}</button>
-      </div>
-      {usePassword && (
-        <form className="row" onSubmit={e => { e.preventDefault(); act('login/password', { user, pass }); setPass(''); }}>
-          <input value={user} onChange={e => setUser(e.target.value)} placeholder="Steam login" autoComplete="username" />
-          <input value={pass} onChange={e => setPass(e.target.value)} placeholder="Password" type="password" autoComplete="current-password" />
-          <button type="submit" disabled={!user || !pass}>Sign in</button>
-        </form>
-      )}
+    <form className="steam-setup" onSubmit={save}>
+      {row('profile', 'Steam profile', c.steamId, 'https://steamcommunity.com/id/…', <>Your profile link or SteamID64.</>)}
       <p className="muted">
-        Your password goes straight to Steam and is never stored; this computer keeps only Steam's sign-in token
-        (in <code>.steam-cache/</code>, never uploaded). It's a web sign-in, so it won't log you out of CS2.
+        <b>Without Leetify:</b> Valve's own match-history API (the one Leetify uses) works with these three, entered once.
+        They stay on this computer (<code>.steam-cache/</code>, never uploaded) and are never shown again.
       </p>
-      {l.state === 'error' && l.error && <p className="warn-text">{l.error}</p>}
-    </div>
+      {row('apiKey', 'Steam Web API key', c.apiKey, '32 letters and digits',
+        <>Create it yourself at <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noreferrer">steamcommunity.com/dev/apikey</a> (domain: <code>localhost</code>). Never give this key to any website.</>, true)}
+      {row('authCode', 'Game authentication code', c.authCode, 'AAAA-AAAAA-AAAA',
+        <>Steam Support → CS2 → <a href="https://help.steampowered.com/en/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noreferrer">manage your game authentication code</a>.</>, true)}
+      {row('knownCode', 'Share code of one recent match', c.knownCode, 'CSGO-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx',
+        <>CS2 → Watch → Your Matches → a match → copy the share link.</>)}
+      {row('replaysDir', 'CS2 replays folder', c.replays || st.replays.length > 0, 'found automatically',
+        st.replays.length ? <>Watching: <code>{st.replays.join(' · ')}</code></> : <>Not found automatically. Usually <code>…/steamapps/common/Counter-Strike Global Offensive/game/csgo/replays</code>.</>)}
+      <div className="row">
+        <button type="submit" className="primary" disabled={busy || !Object.values(f).some(Boolean)}>Save</button>
+        <button type="button" onClick={onDone}>Close</button>
+        {(c.steamId || c.apiKey || c.authCode) && <button type="button" onClick={forget} title="Delete the saved settings and match list from this computer">Forget all</button>}
+      </div>
+      {err && <p className="warn-text">{err}</p>}
+    </form>
   );
 }
 

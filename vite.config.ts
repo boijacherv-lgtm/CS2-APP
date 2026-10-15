@@ -11,6 +11,7 @@ function demoApi(): Plugin {
     configureServer(server) {
       server.middlewares.use('/api/demo', (req, res) => {
         if (req.method !== 'POST') { res.statusCode = 405; return res.end(); }
+        const fileName = new URL(req.url ?? '/', 'http://x').searchParams.get('name');
         const tmp = path.join(os.tmpdir(), `cs2-demo-${Date.now()}.dem`);
         const out = fs.createWriteStream(tmp);
         req.pipe(out);
@@ -20,6 +21,8 @@ function demoApi(): Plugin {
             const t0 = Date.now();
             const data = parseDemo(tmp);
             server.config.logger.info(`[demo] ${data.map}: ${data.rounds.length} rounds parsed in ${Date.now() - t0} ms`);
+            // a Valve matchmaking demo (match730_<outcome id>_…) is kept so the Steam match list can reopen it
+            (await import('./tools/steam.mjs')).rememberParsed(fileName, data);
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify(data));
           } catch (e) {
@@ -34,7 +37,7 @@ function demoApi(): Plugin {
   };
 }
 
-/** Your matches from Steam (tools/steam.mjs): sign-in (QR / password + Steam Guard), match history, load a match. */
+/** Your matches (tools/steam.mjs): Leetify public API by profile link, or Valve's match-history API; no Steam sign-in. */
 function steamApi(): Plugin {
   const send = (res: import('node:http').ServerResponse, code: number, body: unknown) => {
     res.statusCode = code;
@@ -57,23 +60,16 @@ function steamApi(): Plugin {
           if (req.method === 'GET' && route === '/status') return send(res, 200, steam.status());
           if (req.method !== 'POST') return send(res, 405, { error: 'POST only' });
           const body = await readJson(req);
+          if (route === '/settings') {
+            // a profile link isn't secret; the Web API key, auth code and folder are only accepted from this
+            // computer (they'd cross the LAN as plain HTTP)
+            const secret = ['apiKey', 'authCode', 'knownCode', 'replaysDir'].some(k => body[k]);
+            if (secret && !isLocal(req)) return send(res, 403, { error: 'These settings can only be changed on the computer running the app.' });
+            return send(res, 200, await steam.saveSettings(body));
+          }
+          if (route === '/forget') { if (!isLocal(req)) return send(res, 403, { error: 'Only on this computer.' }); steam.forget(); return send(res, 200, { ok: true }); }
           if (route === '/sync') return send(res, 200, await steam.sync());
-          if (route === '/login/qr') { await steam.startQr(); return send(res, 200, { ok: true }); }
-          if (route === '/login/password') {
-            // a password over plain HTTP from another device would cross the network unencrypted
-            if (!isLocal(req)) return send(res, 403, { error: 'Password sign-in only works on this computer. Use the QR code from other devices.' });
-            await steam.startPassword(String(body.user ?? ''), String(body.pass ?? ''));
-            return send(res, 200, { ok: true });
-          }
-          if (route === '/guard') { await steam.submitGuard(String(body.code ?? '')); return send(res, 200, { ok: true }); }
-          if (route === '/cancel') { steam.cancelLogin(); return send(res, 200, { ok: true }); }
-          if (route === '/signout') { steam.signOut(); return send(res, 200, { ok: true }); }
-          if (route === '/load') {
-            const t0 = Date.now();
-            const data = await steam.loadMatch(String(body.id ?? ''));
-            server.config.logger.info(`[steam] ${data.map}: ${data.rounds.length} rounds ready in ${Date.now() - t0} ms`);
-            return send(res, 200, data);
-          }
+          if (route === '/load') return send(res, 200, steam.loadParsed(String(body.outcomeId ?? '')));
           return send(res, 404, { error: 'unknown endpoint' });
         } catch (e) {
           return send(res, 500, { error: e instanceof Error ? e.message : String(e) });

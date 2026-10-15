@@ -35,7 +35,7 @@ Requires Node 18+. The project was developed on macOS (Apple Silicon) and also r
 | **Tactical layers** | Hand-made for **Mirage** and **Nuke** (A on the upper level, B on the lower level); generated from geometry for the other maps (Vertigo is marked rough). |
 | **Line-ups** | Starter library (Mirage, Dust II) and custom line-ups saved in the browser. "Use" makes the selected player walk to the spot and throw it. |
 | **Match review** | Load a `.dem` file. Rounds replay live like a chess game review (eval bar, graph and grades revealed as the round plays; ⏭ Reveal all / R; ◀ ▶ or ← → step through key moments like chess moves, across rounds). Kills and every grenade get a chess grade (Brilliant !! … Blunder ??; deaths aren't marked, but their win-chance loss still counts toward impact and grades) plus context tags (OPENING, TRADE, ISOLATED, CLUTCH, FLASH ASSIST, WASTED…); each player gets a round letter grade (S+ … F) and an inferred role (Entry, Lurk, Support, AWPer, Anchor, Rotator, Rifler). Players' Premier ratings (read from the demo) shape the eval and the duel grades (UPSET), and missed sprays are tagged WHIFF. |
-| **Steam matches** | Review start page: sign in to Steam once (QR in the Steam mobile app, or login + Steam Guard) and your recent Premier / Competitive / Wingman matches are listed from your Personal Game Data pages; one click downloads the demo from Valve, unpacks and reviews it. Manual `.dem` upload still works. |
+| **Your matches** | Review start page: paste your Steam profile link and your recent matches (map, date, score, K/D) appear from Leetify's public API and refresh every 5 minutes; no key, no login (needs a Leetify account with match tracking). Fallback under Advanced: Valve's match-history Web API with your own key + auth code + one share code. **Download in CS2** uses Valve's `steam://…+csgo_download_match` link; the dev server watches CS2's replays folder (all Steam libraries, via libraryfolders.vdf) and imports the demo by itself. Manual `.dem` drop still works. |
 | **Match report** | `#/cs2/report`: all rounds graded in a Web Worker; per player an estimated rating for the game (chess-style performance rating from duels vs real opponent ratings + round impact), match grade, K/D/ADR/KAST/HS%, openings, clutches, utility, whiffs, upsets, roles, and a grid of round grades (click → that round in Review), weighed by each team's economy (eco / force / full buy) and the guns used. Demos are parsed locally by the dev server. |
 
 ---
@@ -89,8 +89,8 @@ src/
 tools/
   build-maps.mjs     radar PNG → grid (alpha = floor; small grey shapes = props/walls; dark lines = walls on Nuke/Vertigo)
   demo.mjs           .dem → per-round JSON (uses @laihoe/demoparser2, Node only)
-  steam.mjs          your matches from Steam: web sign-in (steam-session, QR or password + Steam Guard), match history from steamcommunity.com/…/gcpd/730 (parseMatches), download + unbz2 + parse, cache in .steam-cache/
-vite.config.ts       dev-server plugins: POST /api/demo parses a demo locally; /api/steam/* (status, login/qr, login/password (localhost only), guard, cancel, signout, sync, load)
+  steam.mjs          your matches: Leetify public API (by SteamID) + Valve match-history Web API, profile link → SteamID (public profile XML), share-code decoding, CS2 download links, replays-folder auto-import, parsed demos keyed by outcome id (.steam-cache/)
+vite.config.ts       dev-server plugins: POST /api/demo parses a demo locally; /api/steam/* (status, settings (profile from anywhere; key/auth code/folder localhost only), forget, sync, load); POST /api/demo?name= keeps Valve demos for the match list
 public/maps/         Valve radars + overview .txt (pos_x/pos_y/scale, spawns, bomb markers)
 ```
 
@@ -116,8 +116,8 @@ public/maps/         Valve radars + overview .txt (pos_x/pos_y/scale, spawns, bo
 - When driving the running app from browser JS after hot reloads, the store module URL may carry `?t=…`; import that exact URL (see `performance.getEntriesByType('resource')`), or you'll get a second store instance.
 
 ### Gotchas
-- **Steam secrets:** `.steam-cache/` (Steam login token, account id, match list, parsed demos) is git-ignored. Never commit it, never log it, and never return tokens or cookies from `/api/steam/status`. The user signs in themselves in the UI; password sign-in is refused from non-localhost requests (plain HTTP over the LAN), QR works from anywhere.
-- The sign-in is a WebBrowser-platform session (not a Steam client login), so it never kicks the user out of CS2. Match history comes from scraping the Personal Game Data pages; if Steam changes that HTML, fix `parseMatches` (tested in `src/engine/__tests__/steam.test.ts`). Valve deletes demos after about a month (no download link → "demo expired").
+- **Steam: official route only.** An earlier version signed in to Steam with steam-session (posing as the mobile app) and Steam flagged that login as malicious. **Never add any Steam sign-in / login automation again** (steam-session, steam-user, QR or password logins, scraping logged-in pages). Use only public/official APIs (Leetify public API, Valve's Web API with the user's own key, public profile XML) and Valve's steam:// links for downloads.
+- `.steam-cache/` (settings with the user's Web API key and auth code, match list, parsed demos) is git-ignored. Never commit or log it, and never return the key or auth code from `/api/steam/status`; `/settings` is refused from non-localhost requests.
 
 ### Status and open work
 - **Demo review works on the user's real demos.** The newer fields (economy: `balance`, `current_equip_value`, `inventory`, `armor_value`…; gun names in kills) are each parsed defensively in `tools/demo.mjs`. If the Economy table or gun names come out empty, check those names against the parser output.
