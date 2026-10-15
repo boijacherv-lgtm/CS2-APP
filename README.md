@@ -20,6 +20,13 @@ npm run build:maps   # regenerate src/map/generated/maps.json from public/maps/*
 
 Requires Node 18+. The project was developed on macOS (Apple Silicon) and also runs on Windows.
 
+## Website (tsakhstvo.xyz)
+
+Every push to `main` publishes the site to GitHub Pages (`.github/workflows/pages.yml`: tests, then `VITE_ONLINE=1 npm run build`).
+The online build has **no server**, so it offers Tactical, and Review / Match report of matches saved as `.json`
+(**Save .json** in the desktop version). Reading `.dem` files, Log in with Steam and the Steam match list need the dev
+server and stay in the desktop version (`npm run dev`). `src/env.ts` (`ONLINE`) switches those parts off.
+
 ## Features
 
 | Area | What it does |

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { ONLINE } from '../env';
 
 /**
  * "Log in with Steam", the way Leetify / FACEIT do it: Steam OpenID. The browser goes to Steam's own
@@ -42,6 +43,7 @@ export function SteamAccount() {
     } catch { setMe(undefined); }
   }, []);
   useEffect(() => {
+    if (ONLINE) return; // no server on the public site
     load();
     const t = setInterval(load, 30000);
     window.addEventListener('focus', load);
