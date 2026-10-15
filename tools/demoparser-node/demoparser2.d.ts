@@ -11,3 +11,4 @@ export function parseTicks(file: Uint8Array, wanted_props?: any[] | null, wanted
  */
 export function parseGrenades(file: Uint8Array, extra?: any[] | null, grenades?: boolean | null): any;
 export function parseHeader(file: Uint8Array): any;
+export function __stratboard_start(): void;

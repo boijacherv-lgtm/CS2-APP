@@ -11,11 +11,13 @@ export function parseTicks(file: Uint8Array, wanted_props?: any[] | null, wanted
  */
 export function parseGrenades(file: Uint8Array, extra?: any[] | null, grenades?: boolean | null): any;
 export function parseHeader(file: Uint8Array): any;
+export function __stratboard_start(): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
+  readonly __stratboard_start: () => void;
   readonly listGameEvents: (a: number, b: number) => [number, number, number];
   readonly listUpdatedFields: (a: number, b: number) => [number, number, number];
   readonly parseEvent: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number];
@@ -28,6 +30,7 @@ export interface InitOutput {
   readonly __wbindgen_exn_store: (a: number) => void;
   readonly __externref_table_alloc: () => number;
   readonly __wbindgen_export_4: WebAssembly.Table;
+  readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __externref_table_dealloc: (a: number) => void;
   readonly __wbindgen_start: () => void;
 }
