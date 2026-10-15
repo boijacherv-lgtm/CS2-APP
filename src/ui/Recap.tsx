@@ -5,6 +5,7 @@ import { equipValue, evalAt, GRADE_INFO, isMarked, moments, type Moment, LETTER_
 import { MAPS } from '../map/catalog';
 import { gunFromName, primaryGun } from '../engine/guns';
 import { useStore } from '../store';
+import { SteamMatches } from './SteamMatches';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
@@ -81,6 +82,7 @@ export function ReviewStart() {
         <div><b>2. Drop it in</b><span>It's read on this computer only; nothing is uploaded anywhere.</span></div>
         <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar, and every kill, death and flash is graded from Brilliant !! to Blunder ??.</span></div>
       </div>
+      <SteamMatches />
     </div>
   );
 }
