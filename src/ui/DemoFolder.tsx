@@ -1,0 +1,209 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { DemoData } from '../engine/recap';
+import { MAPS } from '../map/catalog';
+import { useStore } from '../store';
+import { delItem, getItem, gunzipJson, gzipJson, setItem } from './localStore';
+import { DEMO_PASSES, readDemoInBrowser } from './readDemo';
+import { steamFetch } from './steamApi';
+
+/**
+ * Website: "Your CS2 demo folder". You pick CS2's replays folder once (Chrome / Edge remember it); the page lists your
+ * recent demos, reads the newest ones by itself in the background (in the browser, nothing uploaded), keeps the
+ * results in this browser, and picks up new demos a few seconds after CS2 downloads them. No bot, no server.
+ */
+
+const AUTO_READ = 5; // newest demos read automatically; older ones on click
+const RESCAN_MS = 8000;
+const SHOW = 20;
+
+interface DemoFile { name: string; size: number; modified: number; handle: FileSystemFileHandle }
+interface Summary { map: string; rounds: number; score: [number, number] | null; result: 'win' | 'loss' | 'tie' | null; kd: [number, number] | null }
+
+// File System Access API (Chrome / Edge); not in TypeScript's DOM types yet
+type DirHandle = FileSystemDirectoryHandle & {
+  queryPermission(o: { mode: 'read' }): Promise<PermissionState>;
+  requestPermission(o: { mode: 'read' }): Promise<PermissionState>;
+  values(): AsyncIterable<FileSystemHandle>;
+};
+const supported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+
+/** Map, score from your side, result and K/D (needs your SteamID; map and rounds only without it). */
+function summarize(d: DemoData, steamId: string | null): Summary {
+  const played = steamId ? d.rounds.filter(r => r.winner && r.frames.players[steamId]) : [];
+  const won = played.filter(r => r.frames.players[steamId!].side === r.winner).length, lost = played.length - won;
+  const kills = steamId ? d.rounds.reduce((a, r) => a + r.kills.filter(k => k.attacker === steamId && k.victim !== steamId).length, 0) : 0;
+  const deaths = steamId ? d.rounds.reduce((a, r) => a + r.kills.filter(k => k.victim === steamId).length, 0) : 0;
+  return {
+    map: d.map, rounds: d.rounds.length,
+    score: played.length ? [won, lost] : null,
+    result: !played.length ? null : won > lost ? 'win' : won < lost ? 'loss' : 'tie',
+    kd: played.length ? [kills, deaths] : null,
+  };
+}
+
+export function DemoFolder() {
+  const startReview = useStore(s => s.startReview);
+  const [dir, setDir] = useState<DirHandle | null>(null);
+  const [perm, setPerm] = useState<PermissionState | null>(null);
+  const [files, setFiles] = useState<DemoFile[]>([]);
+  const [sums, setSums] = useState<Record<string, Summary>>({});
+  const [reading, setReading] = useState<{ name: string; pass: number } | null>(null);
+  const [failed, setFailed] = useState<Record<string, string>>({});
+  const [msg, setMsg] = useState<string | null>(null);
+  const [steamId, setSteamId] = useState<string | null>(null);
+  const busy = useRef(false);
+
+  // who you are (for your score in each demo), if you're logged in with Steam
+  useEffect(() => {
+    steamFetch('/me').then(r => (r.ok ? r.json() : null)).then(j => setSteamId(j?.me?.steamId ?? null)).catch(() => {});
+  }, []);
+
+  // the folder you connected last time
+  useEffect(() => {
+    if (!supported) return;
+    getItem<DirHandle>('replaysDir').then(async h => {
+      if (!h) return;
+      setDir(h);
+      setPerm(await h.queryPermission({ mode: 'read' }).catch(() => 'prompt' as PermissionState));
+    });
+  }, []);
+
+  const scan = useCallback(async () => {
+    if (!dir || perm !== 'granted') return;
+    try {
+      const out: DemoFile[] = [];
+      for await (const h of dir.values()) {
+        if (h.kind !== 'file' || !/\.dem$/i.test(h.name)) continue;
+        const f = await (h as FileSystemFileHandle).getFile();
+        out.push({ name: h.name, size: f.size, modified: f.lastModified, handle: h as FileSystemFileHandle });
+      }
+      out.sort((a, b) => b.modified - a.modified);
+      setFiles(out);
+      const known: Record<string, Summary> = {};
+      for (const f of out.slice(0, SHOW)) { const s = await getItem<Summary>(`sum:${f.name}`); if (s) known[f.name] = s; }
+      setSums(prev => ({ ...prev, ...known }));
+    } catch (e) {
+      setMsg(`Couldn't read the folder: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, [dir, perm]);
+
+  useEffect(() => {
+    scan();
+    if (perm !== 'granted') return;
+    const t = setInterval(() => { if (document.visibilityState === 'visible') scan(); }, RESCAN_MS);
+    return () => clearInterval(t);
+  }, [scan, perm]);
+
+  /** Reads one demo in the browser and keeps the result here. */
+  const read = useCallback(async (f: DemoFile) => {
+    if (busy.current) return;
+    busy.current = true;
+    setReading({ name: f.name, pass: 0 });
+    try {
+      const file = await f.handle.getFile();
+      // a demo CS2 is still writing keeps growing: wait until it's finished
+      if (Date.now() - file.lastModified < 5000) throw new Error('still downloading');
+      const data = await readDemoInBrowser(file, pass => setReading({ name: f.name, pass }));
+      if (!MAPS.some(m => m.id === data.map)) throw new Error(`${data.map} isn't one of the supported maps`);
+      await setItem(`demo:${f.name}`, await gzipJson(data));
+      const s = summarize(data, steamId);
+      await setItem(`sum:${f.name}`, s);
+      setSums(prev => ({ ...prev, [f.name]: s }));
+    } catch (e) {
+      const why = e instanceof Error ? e.message : String(e);
+      if (why !== 'still downloading') setFailed(prev => ({ ...prev, [f.name]: why }));
+    } finally {
+      busy.current = false;
+      setReading(null);
+    }
+  }, [steamId]);
+
+  // read the newest demos by themselves, one at a time
+  useEffect(() => {
+    if (reading || busy.current) return;
+    const next = files.slice(0, AUTO_READ).find(f => !sums[f.name] && !failed[f.name]);
+    if (next) read(next);
+  }, [files, sums, failed, reading, read]);
+
+  const open = async (f: DemoFile) => {
+    const blob = await getItem<Blob>(`demo:${f.name}`);
+    if (!blob) return read(f);
+    startReview(await gunzipJson<DemoData>(blob));
+  };
+
+  const connect = async () => {
+    setMsg(null);
+    try {
+      const h = await (window as unknown as { showDirectoryPicker(o: object): Promise<DirHandle> }).showDirectoryPicker({ id: 'cs2-replays', mode: 'read' });
+      await setItem('replaysDir', h);
+      setDir(h);
+      setPerm('granted');
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setMsg(`Couldn't open that folder: ${(e as Error).message}`);
+    }
+  };
+  const reconnect = async () => { if (dir) setPerm(await dir.requestPermission({ mode: 'read' })); };
+  const disconnect = async () => { await delItem('replaysDir'); setDir(null); setPerm(null); setFiles([]); };
+
+  if (!supported) {
+    return (
+      <section className="steam">
+        <div className="steam-head"><h2>Your CS2 demo folder</h2></div>
+        <p className="muted">Open this page in <b>Chrome</b> or <b>Edge</b> to connect CS2's demo folder (this browser can't). You can still drop demos into the box above.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="steam">
+      <div className="steam-head">
+        <h2>Your CS2 demo folder</h2>
+        {dir && perm === 'granted' && <button onClick={() => scan()}>Refresh</button>}
+        {dir && <button onClick={disconnect} title="Forget the folder (the games already read stay)">Disconnect</button>}
+      </div>
+
+      {!dir && (
+        <div className="steam-profile">
+          <p>Connect CS2's demo folder once and your downloaded games show up here by themselves, read and ready to review. Nothing is uploaded.</p>
+          <div className="row"><button className="primary" onClick={connect}>Choose CS2's demo folder</button></div>
+          <p className="muted">
+            It's <code>…\steamapps\common\Counter-Strike Global Offensive\game\csgo\replays</code> in your Steam library
+            (e.g. <code>C:\Program Files (x86)\Steam\…</code> or <code>E:\SteamLibrary\…</code>). CS2 saves a demo there when you press
+            Download in Watch → Your Matches (or <b>Download in CS2</b> below).
+          </p>
+        </div>
+      )}
+      {dir && perm !== 'granted' && (
+        <div className="row"><button className="primary" onClick={reconnect}>Reconnect "{dir.name}"</button><span className="muted">the browser asks once per visit</span></div>
+      )}
+      {msg && <p className="warn-text">{msg}</p>}
+      {reading && <p className="muted">Reading {reading.name}… step {reading.pass} of ~{DEMO_PASSES}</p>}
+
+      {dir && perm === 'granted' && (files.length === 0
+        ? <p className="muted">No demos in "{dir.name}" yet. Download one in CS2 and it appears here.</p>
+        : (
+          <table className="steam-list">
+            <tbody>
+              {files.slice(0, SHOW).map(f => {
+                const s = sums[f.name];
+                return (
+                  <tr key={f.name}>
+                    <td>{new Date(f.modified).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                    <td>{s ? MAPS.find(m => m.id === s.map)?.name ?? s.map : <span className="muted">{(f.size / 1e6).toFixed(0)} MB</span>}</td>
+                    <td className={s?.result ?? ''}>{s?.score ? `${s.score[0]}–${s.score[1]} ${s.result?.toUpperCase() ?? ''}` : s ? `${s.rounds} rounds` : ''}</td>
+                    <td className="muted">{s?.kd ? `${s.kd[0]}/${s.kd[1]}` : ''}</td>
+                    <td>
+                      {s ? <button onClick={() => open(f)}>Review</button>
+                        : reading?.name === f.name ? <span className="muted">reading…</span>
+                        : failed[f.name] ? <span className="warn-text" title={failed[f.name]}>couldn't read</span>
+                        : <button onClick={() => read(f)} disabled={!!reading}>Read</button>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ))}
+    </section>
+  );
+}

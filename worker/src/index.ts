@@ -7,7 +7,7 @@
  *   Your matches       Valve's official match-history Web API (GetNextMatchSharingCode) with the site's own
  *                      Web API key (secret STEAM_API_KEY) + each user's game authentication code and one
  *                      share code, which they paste once. Stored per SteamID in KV.
- *   Demos              The Stratboard server (server/, on an Oracle Cloud VM) asks /internal/* which matches are
+ *   Demos              The Stratboard server (server/, on an always-on machine) asks /internal/* which matches are
  *                      new, fetches each demo with its own *bot* Steam account, parses it and sends back the
  *                      result (gzipped JSON in KV, served at /demo/:outcomeId). Guarded by secret SERVER_TOKEN.
  *

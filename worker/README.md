@@ -28,10 +28,10 @@ Then tell the website where the Worker is: GitHub → repo **CS2-APP** → Setti
 
 ## Demo bot (server/)
 
-The Oracle server (see [../server/README.md](../server/README.md)) uses the `/internal/*` routes with a shared secret:
+The demo bot (see [../server/README.md](../server/README.md)) uses the `/internal/*` routes with a shared secret:
 
 ```bash
-npx wrangler secret put SERVER_TOKEN   # paste the token printed by server/deploy/setup.sh
+npx wrangler secret put SERVER_TOKEN   # paste the SERVER_TOKEN from server/.env
 ```
 
 ## Updating

@@ -7,29 +7,12 @@ import { gunFromName, primaryGun } from '../engine/guns';
 import { Fold } from './Fold';
 import { useStore } from '../store';
 import { SteamMatches } from './SteamMatches';
+import { DemoFolder } from './DemoFolder';
 import { ONLINE, STEAM_AVAILABLE } from '../env';
-import type { DemoWorkerOut } from './demoWorker';
+import { DEMO_PASSES, readDemoInBrowser } from './readDemo';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
-
-/** How many full passes over the demo tools/demo-core.mjs makes (for the progress text). */
-const DEMO_PASSES = 20;
-
-/** Website: parse the demo in a Web Worker with the WebAssembly parser (src/ui/demoWorker.ts). */
-function readDemoInBrowser(file: File, onProgress: (pass: number) => void): Promise<DemoData> {
-  return new Promise((resolve, reject) => {
-    const w = new Worker(new URL('./demoWorker.ts', import.meta.url), { type: 'module' });
-    w.onmessage = (e: MessageEvent<DemoWorkerOut>) => {
-      const m = e.data;
-      if ('progress' in m) return onProgress(m.progress);
-      w.terminate();
-      if ('error' in m) reject(new Error(m.error)); else resolve(m.data as DemoData);
-    };
-    w.onerror = e => { w.terminate(); reject(new Error(e.message || 'The demo reader crashed (the demo may be too big for this browser).')); };
-    w.postMessage({ file });
-  });
-}
 
 /** Reads a .dem (desktop: the dev server; website: in the browser) or a previously saved .json into a review. */
 function useDemoLoader() {
@@ -107,6 +90,7 @@ export function ReviewStart() {
         <div><b>2. Drop it in</b><span>{ONLINE ? "It's read right here in your browser; nothing is uploaded." : "It's read on this computer only; nothing is uploaded anywhere."}</span></div>
         <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar, and every kill, death and flash is graded from Brilliant !! to Blunder ??.</span></div>
       </div>
+      {ONLINE && <DemoFolder />}
       {STEAM_AVAILABLE && <SteamMatches />}
     </div>
   );

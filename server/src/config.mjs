@@ -1,4 +1,4 @@
-// Settings come from server/.env (made by deploy/setup.sh; never committed):
+// Settings come from server/.env (you make it; never committed):
 //   WORKER_URL=https://stratboard-api.stratboard.workers.dev
 //   SERVER_TOKEN=…   (same value as the Worker's SERVER_TOKEN secret)
 import fs from 'node:fs';

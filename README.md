@@ -47,6 +47,11 @@ The website reads `.dem` files with a WebAssembly build of the same parser (Laih
 3. **◀ ▶** (or ← →) jump between key moments: kills and graded grenades, across rounds.
 4. The top bar shows who's alive, health, the score and the bomb timer. Click any move in the list to jump there.
 
+### Your CS2 demo folder (website, Chrome / Edge)
+1. **Review** tab → **Choose CS2's demo folder** → pick `…\steamapps\common\Counter-Strike Global Offensive\game\csgo\replays` in your Steam library.
+2. Your demos are listed newest first. The 5 newest are read by themselves, one at a time, in your browser (nothing is uploaded) and kept in this browser; older ones have a **Read** button. Logged in with Steam, each row also shows your score, result and K/D.
+3. Any demo CS2 downloads appears within seconds. After a browser restart, click **Reconnect** once (the browser asks for folder access again each visit).
+
 ### Match report
 **Match report** tab: every player's estimated rating for this game, match grade, K/D, ADR, KAST, openings, clutches, utility, whiffs, upsets and role. Click a player to highlight their grade in every round; click a grade to watch that round.
 
@@ -54,7 +59,7 @@ The website reads `.dem` files with a WebAssembly build of the same parser (Laih
 1. **Log in with Steam** (top right). Steam's own page opens; scan the QR code with the Steam app (Steam Guard) and approve.
 2. Once only: in **Your matches**, click **Open Steam Support (CS2 codes)**, create the authentication code if asked, select the whole page (Ctrl/Cmd+A), copy, and paste it into the box. The app picks out your **authentication code** and **latest match code**.
    - Desktop only: also paste your own Steam Web API key page (steamcommunity.com/dev/apikey, domain `localhost`). The website uses its own key.
-3. Done: new matches appear by themselves (checked every 5 minutes). On the **website** the demo bot downloads and reads each one, so a few minutes after a match it shows map, score, K/D and **Review**, with no clicks. On **desktop**, **Download in CS2** opens CS2, which downloads the demo, and the app imports it by itself.
+3. Done: new matches appear by themselves (checked every 5 minutes). On the **website**, **Download in CS2** and then **Your CS2 demo folder** reads it (once the demo bot is hosted, it will do this by itself). On **desktop**, **Download in CS2** opens CS2, which downloads the demo, and the app imports it by itself.
 4. Older games: Valve only lists matches *after* the code you gave it. Paste older share links (CS2 → Watch → Your Matches → copy link) to add them; several at once is fine.
 5. Valve deletes demos after about a month, so download the ones you want to keep.
 
@@ -80,8 +85,8 @@ Requires Node 18+. Developed on macOS (Apple Silicon), also runs on Windows. You
 | Domain | Namecheap → Advanced DNS | four `A` records for `@`: `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`; `CNAME` `www` → `boijacherv-lgtm.github.io.` |
 | Steam login + match list | Cloudflare Worker `stratboard-api` → https://stratboard-api.stratboard.workers.dev | code in `worker/` (setup and updates: [worker/README.md](worker/README.md)); secret `STEAM_API_KEY`; KV storage `SB` |
 | Link between them | GitHub → Settings → Secrets and variables → Actions → **Variables** | `API_URL` = `https://stratboard-api.stratboard.workers.dev` |
-| Demo parser in the browser | `public/demoparser/` (WebAssembly, ~3 MB) | built by GitHub Actions **Build demo parser (browser)** from LaihoE/demoparser at a pinned commit (`PARSER_REV`), with two build patches (browser-safe clock, panic messages); `tools/demo-wasm.mjs` adapts it, `src/ui/demoWorker.ts` runs it |
-| Demo bot | Oracle Cloud Always Free VM, service `stratboard` | code in `server/` (setup and updates: [server/README.md](server/README.md)); its own **bot** Steam account; shares secret `SERVER_TOKEN` with the Worker |
+| Demo parser in the browser | `public/demoparser/` (WebAssembly, ~3 MB) | built by GitHub Actions **Build demo parser (browser)** from LaihoE/demoparser at a pinned commit (`PARSER_REV`), with two build patches (browser-safe clock, panic messages); `tools/demo-wasm.mjs` adapts it, `src/ui/demoWorker.ts` runs it (`src/ui/readDemo.ts`); `src/ui/DemoFolder.tsx` reads the replays folder (File System Access API) and keeps results in IndexedDB (`src/ui/localStore.ts`) |
+| Demo bot | not hosted yet (any always-on machine with Node.js) | code in `server/` (setup: [server/README.md](server/README.md)); its own **bot** Steam account; shares secret `SERVER_TOKEN` with the Worker |
 
 Update the Worker after changing `worker/src`: `cd worker && npx wrangler deploy`.
 
@@ -179,7 +184,7 @@ tools/
   steam.mjs          your matches: Steam OpenID (Log in with Steam), Valve match-history Web API, public profile XML (name/avatar, /id/ links), share-code decoding, CS2 download links, replays-folder auto-import, parsed demos keyed by outcome id (.steam-cache/)
 vite.config.ts       dev-server plugins: POST /api/demo parses a demo locally; /api/steam/* (status, openid/start + openid/return, settings (profile from anywhere; key/auth code/folder localhost only), forget, sync, load); POST /api/demo?name= keeps Valve demos for the match list
 public/maps/         Valve radars + overview .txt (pos_x/pos_y/scale, spawns, bomb markers)
-server/              demo bot for the website (Oracle VM): bot Steam account → demo links, download + parse, results to the Worker (see server/README.md)
+server/              demo bot for the website (not hosted yet): bot Steam account → demo links, download + parse, results to the Worker (see server/README.md)
 worker/              Cloudflare Worker for the website: Steam OpenID check, sessions, Valve match history with the site's key (see worker/README.md)
 .github/workflows/   pages.yml: test + build (VITE_ONLINE=1, VITE_API_URL from the API_URL repo variable) + deploy to GitHub Pages
 ```
