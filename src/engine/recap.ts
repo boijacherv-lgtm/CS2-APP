@@ -35,6 +35,28 @@ export interface DemoRound {
   blind: { t: number; victim: string; attacker: string; dur: number }[];
   /** Each player's economy a few seconds into the round (after buying). */
   econ?: Record<string, PlayerEcon>;
+  /** What happens to the bomb (world x/y = the player's position); older parses don't have it. */
+  bomb?: BombEvent[];
+}
+
+export interface BombEvent { t: number; kind: 'carry' | 'drop' | 'plant' | 'defuse' | 'explode'; id: string; x: number; y: number }
+export type BombState =
+  | { kind: 'carry'; id: string }
+  | { kind: 'drop' | 'plant' | 'defuse' | 'explode'; x: number; y: number; since: number; plantedAt: number | null };
+
+/** Where the bomb is at time t: carried by someone, or lying on the map (dropped / planted / defused / exploded). */
+export function bombAt(r: DemoRound, t: number): BombState | null {
+  let state: BombState | null = null;
+  let spot: { x: number; y: number; at: number } | null = null; // the planted bomb stays where it was planted
+  for (const e of r.bomb ?? []) {
+    if (e.t > t) break;
+    if (e.kind === 'carry') state = { kind: 'carry', id: e.id };
+    else if (e.kind === 'drop' || e.kind === 'plant') {
+      if (e.kind === 'plant') spot = { x: e.x, y: e.y, at: e.t };
+      state = { kind: e.kind, x: e.x, y: e.y, since: e.t, plantedAt: spot?.at ?? null };
+    } else if (spot) state = { kind: e.kind, x: spot.x, y: spot.y, since: e.t, plantedAt: spot.at };
+  }
+  return state;
 }
 
 export interface PlayerEcon {

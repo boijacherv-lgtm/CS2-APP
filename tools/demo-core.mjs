@@ -79,6 +79,11 @@ export function buildDemoData(parser, input, progress = () => {}) {
   const shotsAll = (safe(() => p.parseEvent(input, 'weapon_fire', [], [])) ?? [])
     .filter(w => !/grenade|flashbang|molotov|incgrenade|decoy|knife|bayonet|c4|taser/.test(String(pick(w, 'weapon') ?? '')));
   const plants = roundEvents.filter(e => evName(e) === 'bomb_planted').map(e => num(e.tick));
+  // where the bomb is: who picks it up, where it's dropped / planted, defused or blown up (positions are the player's)
+  const BOMB_KIND = { bomb_pickup: 'carry', bomb_dropped: 'drop', bomb_planted: 'plant', bomb_defused: 'defuse', bomb_exploded: 'explode' };
+  const bombEvents = (safe(() => p.parseEvents(input, Object.keys(BOMB_KIND), ['X', 'Y'], [])) ?? [])
+    .map(e => ({ tick: num(e.tick), kind: BOMB_KIND[evName(e)], id: sid(pick(e, 'user_steamid')), x: num(pick(e, 'user_X', 'user_x')), y: num(pick(e, 'user_Y', 'user_y')) }))
+    .filter(e => e.kind && Number.isFinite(e.tick)).sort((a, b) => a.tick - b.tick);
 
   const names = {};
   const out = rounds.map((r, idx) => {
@@ -148,10 +153,19 @@ export function buildDemoData(parser, input, progress = () => {}) {
         helmet: !!e.helmet, defuser: !!e.defuser, weapons,
       };
     }
+    // the bomb at the start (who has it after freeze time; the inventory a few seconds in confirms it), then
+    // everything that happens to it
+    const inRoundBomb = bombEvents.filter(e => inRound(e.tick));
+    const before = bombEvents.filter(e => e.tick < r.start).at(-1);
+    const holder = Object.keys(roundEcon).find(id => roundEcon[id].weapons.some(w => /c4/i.test(w)));
+    const start = holder && !inRoundBomb.some(e => e.tick <= econTicks[idx]) ? { kind: 'carry', id: holder, x: NaN, y: NaN }
+      : before && (before.kind === 'carry' || before.kind === 'drop') ? before : null;
+    const bomb = [...(start ? [{ ...start, tick: r.start }] : []), ...inRoundBomb]
+      .map(e => ({ t: round2(tOf(e.tick)), kind: e.kind, id: e.id, x: round1(e.x), y: round1(e.y) }));
     return {
       n: idx + 1, winner: r.winner, reason: r.reason, duration: tOf(r.end),
       plant: plant !== undefined ? tOf(plant) : null,
-      frames, kills, util, blind, econ: roundEcon, nadeDamage, shots, hits,
+      frames, kills, util, blind, econ: roundEcon, nadeDamage, shots, hits, bomb,
     };
   });
   // Premier / competitive rating of every player, read once early in the match (rank type 11 = Premier)

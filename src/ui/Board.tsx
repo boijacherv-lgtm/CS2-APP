@@ -4,11 +4,11 @@ import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, T
 import type { ControlMap } from '../engine/control';
 import { FOV, type Analysis, type TacticalEngine } from '../engine/predict';
 import { activeSmokes, distToSegment, SMOKE_RADIUS_UNITS } from '../engine/grid';
-import { radarToWorld } from '../engine/coords';
+import { radarToWorld, worldToRadar } from '../engine/coords';
 import { simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
 import type { SpotMap } from '../engine/spots';
-import { evalAt, GRADE_INFO, isMarked, TAG_INFO, type Review } from '../engine/recap';
+import { bombAt, evalAt, GRADE_INFO, isMarked, TAG_INFO, type Review } from '../engine/recap';
 import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
 import { MomentNav } from './Recap';
@@ -482,6 +482,16 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             </Group>
             );
           })}
+          {recap && s.review && (() => {
+            const b = bombAt(s.review.data.rounds[s.review.round], s.time);
+            if (!b) return null;
+            if (b.kind === 'carry') {
+              const at = live.get(b.id);
+              return at && at.alive !== false ? <C4 x={at.pos.x + 11 * k} y={at.pos.y + 10 * k} k={k * 0.9} /> : null;
+            }
+            const at = worldToRadar(b, engine.map.radar);
+            return <BombOnMap at={at} k={k} state={b.kind} age={s.time - b.since} planted={b.plantedAt === null ? null : s.time - b.plantedAt} />;
+          })()}
           {sim && sim.kills.filter(kv => kv.killer && s.time >= kv.t && s.time - kv.t < 1.5).map((kv, i) => {
             const killer = sim.ids.indexOf(kv.killer);
             const step = Math.min(sim.steps - 1, Math.floor(kv.t / 0.1));
@@ -614,6 +624,59 @@ function FacingHandle({ engine, player, k, aiming, onAim, onPreview, onCommit }:
 }
 
 const BADGE_SECS = 3.5;
+const BOMB_FUSE = 40;
+
+/** The bomb, as a small C4 block (with a status light). */
+function C4({ x, y, k, light }: { x: number; y: number; k: number; light?: string }) {
+  return (
+    <Group x={x} y={y} scaleX={k} scaleY={k} listening={false}>
+      <Rect x={-9} y={-6} width={18} height={12} cornerRadius={2} fill="#b8963a" stroke="#111" strokeWidth={1.4} shadowColor="#000" shadowBlur={4} shadowOpacity={0.6} />
+      <Rect x={-6.5} y={-3.5} width={9} height={5} cornerRadius={1} fill="#1f2a1a" />
+      <Text x={-6.5} y={-3} width={9} align="center" text="C4" fontSize={4.5} fontStyle="bold" fill="#9be36b" />
+      <Circle x={5.5} y={-1} radius={2} fill={light ?? '#5a1a14'} stroke="#111" strokeWidth={0.6} />
+    </Group>
+  );
+}
+
+/** Dropped (waiting to be picked up), planted (blinking faster as the fuse runs out), defused or exploded. */
+function BombOnMap({ at, k, state, age, planted }: { at: Vec2; k: number; state: 'drop' | 'plant' | 'defuse' | 'explode'; age: number; planted: number | null }) {
+  if (state === 'explode') {
+    const a = Math.min(1, age / 0.6);
+    return (
+      <Group x={at.x} y={at.y} listening={false}>
+        {age < 2.5 && <Circle radius={(14 + 70 * a) * k} fill="#ff7a1a" opacity={0.55 * (1 - age / 2.5)} />}
+        {age < 1.2 && <Circle radius={(8 + 34 * a) * k} fill="#ffe08a" opacity={0.9 * (1 - age / 1.2)} />}
+        <Circle radius={11 * k} fill="#1a1410" opacity={0.7} />
+      </Group>
+    );
+  }
+  if (state === 'defuse') {
+    return (
+      <Group listening={false}>
+        <Circle x={at.x} y={at.y} radius={17 * k} stroke="#5aa9ff" strokeWidth={2 * k} fill="rgba(90,169,255,0.15)" />
+        <C4 x={at.x} y={at.y} k={k * 1.35} light="#5aa9ff" />
+      </Group>
+    );
+  }
+  if (state === 'plant') {
+    const left = Math.max(0, BOMB_FUSE - (planted ?? 0));
+    const rate = left > 10 ? 1 : left > 5 ? 2 : 4; // beeps per second, like the real bomb
+    const on = ((planted ?? 0) * rate) % 1 < 0.35;
+    const pulse = ((planted ?? 0) * rate) % 1;
+    return (
+      <Group listening={false}>
+        <Circle x={at.x} y={at.y} radius={(16 + 20 * pulse) * k} stroke="#ff3b30" strokeWidth={2.5 * k} opacity={0.8 * (1 - pulse)} />
+        <C4 x={at.x} y={at.y} k={k * 1.35} light={on ? '#ff3b30' : '#5a1a14'} />
+      </Group>
+    );
+  }
+  return (
+    <Group listening={false}>
+      <Circle x={at.x} y={at.y} radius={16 * k} stroke="#ffd23f" strokeWidth={1.5 * k} dash={[3 * k, 2.5 * k]} />
+      <C4 x={at.x} y={at.y} k={k * 1.35} />
+    </Group>
+  );
+}
 
 /** Chess.com-style eval bar: CT share from the bottom, T from the top. */
 function EvalBar({ ct }: { ct: number }) {

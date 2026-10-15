@@ -12,6 +12,32 @@ import { ONLINE, STEAM_AVAILABLE } from '../env';
 import { DEMO_PASSES, readDemoInBrowser } from './readDemo';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+const REASON: Record<string, { icon: string; text: string }> = {
+  ct_killed: { icon: '☠', text: 'all CTs killed' }, t_killed: { icon: '☠', text: 'all Ts killed' },
+  bomb_exploded: { icon: '💥', text: 'bomb exploded' }, bomb_defused: { icon: '✂', text: 'bomb defused' },
+  target_saved: { icon: '⏱', text: 'time ran out' }, t_surrender: { icon: '🏳', text: 'T surrendered' }, ct_surrender: { icon: '🏳', text: 'CT surrendered' },
+};
+const reasonText = (r: string) => REASON[r]?.text ?? r.replace(/_/g, ' ');
+
+/**
+ * The match score round by round. Teams are followed across halftime by their players: "first" is the team that
+ * started the match on CT. after[i] = [first, second] after round i; swap[i] = sides changed before round i.
+ */
+export function matchScore(data: DemoData) {
+  const r0 = data.rounds[0];
+  const first = new Set(r0 ? Object.keys(r0.frames.players).filter(id => r0.frames.players[id].side === 'CT') : []);
+  const firstSide = data.rounds.map(r => {
+    const id = Object.keys(r.frames.players).find(x => first.has(x));
+    return id ? r.frames.players[id].side : 'CT';
+  });
+  let a = 0, b = 0;
+  const after = data.rounds.map((r, i) => {
+    if (r.winner) { if (r.winner === firstSide[i]) a++; else b++; }
+    return [a, b] as [number, number];
+  });
+  return { after, firstSide, swap: firstSide.map((s, i) => i > 0 && s !== firstSide[i - 1]) };
+}
+
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
 
 /** Reads a .dem (desktop: the dev server; website: in the browser) or a previously saved .json into a review. */
@@ -122,20 +148,41 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   const players = scoreboard(recap, seen);
   const tp = recap.turningPoint && (all || recap.turningPoint.t <= s.time) ? recap.turningPoint : null;
   const ct = evalAt(recap.curve, s.time);
+  const score = matchScore(rv.data);
+  // shown from this round's sides, like the HUD: CT team first
+  const asCT = (pair: [number, number], i: number) => (score.firstSide[i] === 'CT' ? pair : [pair[1], pair[0]] as [number, number]);
+  const final = asCT(score.after.at(-1) ?? [0, 0], rv.round);
+  const before = asCT(rv.round > 0 ? score.after[rv.round - 1] : [0, 0], rv.round);
 
   return (
     <aside className="panel">
       <section>
         <h3>{engine.map.name} · round {r.n} of {rv.data.rounds.length}</h3>
+        <div className="match-score">
+          <span title="Before this round, this round's CT team first">Now <b className="ct">{before[0]}</b> – <b className="t">{before[1]}</b></span>
+          <span title="Final score of the match, this round's CT team first">Final <b className="ct">{final[0]}</b> – <b className="t">{final[1]}</b>
+            <span className="muted"> ({final[0] > final[1] ? "this round's CTs win" : final[0] < final[1] ? "this round's Ts win" : 'draw'})</span></span>
+        </div>
         <div className="rounds">
-          {rv.data.rounds.map((x, i) => (
-            <button key={i} className={`rnd ${i === rv.round ? 'on' : ''} ${all ? (x.winner === 'CT' ? 'ctw' : x.winner === 'T' ? 'tw' : '') : ''}`}
-              onClick={() => s.setReviewRound(i)} title={all ? `${x.winner ?? '?'} won${x.reason ? ` (${x.reason})` : ''}` : `Round ${x.n}`}>{x.n}</button>
-          ))}
+          {rv.data.rounds.map((x, i) => {
+            // rounds already played are shown with their result; the rest once revealed
+            const known = all || i < rv.round;
+            const [c, t] = asCT(score.after[i], i);
+            return (
+              <span key={i} className="rnd-wrap">
+                {score.swap[i] && <span className="half" title="Sides switch" />}
+                <button className={`rnd ${i === rv.round ? 'on' : ''} ${known ? (x.winner === 'CT' ? 'ctw' : x.winner === 'T' ? 'tw' : '') : ''}`}
+                  onClick={() => s.setReviewRound(i)}
+                  title={known ? `Round ${x.n} · ${x.winner ?? '?'} won${x.reason ? `, ${reasonText(x.reason)}` : ''} · ${c}–${t} after it` : `Round ${x.n}`}>
+                  {x.n}<i>{known ? REASON[x.reason]?.icon ?? '' : ''}</i>
+                </button>
+              </span>
+            );
+          })}
         </div>
         <p className="muted">
           {finished
-            ? <>{r.winner ? <b className={r.winner.toLowerCase()}>{r.winner} won</b> : 'Result unknown'}{r.reason ? ` · ${r.reason}` : ''}</>
+            ? <>{r.winner ? <b className={r.winner.toLowerCase()}>{r.winner} won</b> : 'Result unknown'}{r.reason ? ` · ${reasonText(r.reason)}` : ''}</>
             : <>Round in progress · press <b>▶ Play</b> (Space) to watch it unfold</>}
           {r.plant !== null && (all || s.time >= r.plant) ? ` · bomb planted ${fmt(r.plant)}` : ''}
         </p>

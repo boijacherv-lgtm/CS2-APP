@@ -15,6 +15,9 @@ import { steamFetch } from './steamApi';
 const AUTO_READ = 5; // newest demos read automatically; older ones on click
 const RESCAN_MS = 8000;
 const SHOW = 20;
+// bump when the demo data gains something (v2: the bomb on the map), so saved games are read again
+const V = 2;
+const DEMO = (name: string) => `demo${V}:${name}`, SUM = (name: string) => `sum${V}:${name}`;
 
 interface DemoFile { name: string; size: number; modified: number; handle: FileSystemFileHandle }
 interface Summary { map: string; rounds: number; score: [number, number] | null; result: 'win' | 'loss' | 'tie' | null; kd: [number, number] | null }
@@ -105,7 +108,7 @@ export function DemoFolder() {
       out.sort((a, b) => b.modified - a.modified);
       setFiles(out);
       const known: Record<string, Summary> = {};
-      for (const f of out.slice(0, SHOW)) { const s = await getItem<Summary>(`sum:${f.name}`); if (s) known[f.name] = s; }
+      for (const f of out.slice(0, SHOW)) { const s = await getItem<Summary>(SUM(f.name)); if (s) known[f.name] = s; }
       setSums(prev => ({ ...prev, ...known }));
     } catch (e) {
       setMsg(`Couldn't read the folder: ${e instanceof Error ? e.message : String(e)}`);
@@ -130,9 +133,10 @@ export function DemoFolder() {
       if (Date.now() - file.lastModified < 5000) throw new Error('still downloading');
       const data = await readDemoInBrowser(file, pass => setReading({ name: f.name, pass }));
       if (!MAPS.some(m => m.id === data.map)) throw new Error(`${data.map} isn't one of the supported maps`);
-      await setItem(`demo:${f.name}`, await gzipJson(data));
+      await setItem(DEMO(f.name), await gzipJson(data));
       const s = summarize(data, steamId);
-      await setItem(`sum:${f.name}`, s);
+      await setItem(SUM(f.name), s);
+      delItem(`demo:${f.name}`); delItem(`sum:${f.name}`); // the older copy
       setSums(prev => ({ ...prev, [f.name]: s }));
     } catch (e) {
       const why = e instanceof Error ? e.message : String(e);
@@ -151,7 +155,7 @@ export function DemoFolder() {
   }, [files, sums, failed, reading, read]);
 
   const open = async (f: DemoFile) => {
-    const blob = await getItem<Blob>(`demo:${f.name}`);
+    const blob = await getItem<Blob>(DEMO(f.name));
     if (!blob) return read(f);
     startReview(await gunzipJson<DemoData>(blob));
   };
