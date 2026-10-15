@@ -27,6 +27,31 @@ type DirHandle = FileSystemDirectoryHandle & {
 };
 const supported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 
+// where CS2 keeps demos, from the folders people tend to pick (C:\, Program Files (x86), Steam, SteamLibrary, …)
+const REPLAYS = ['steamapps', 'common', 'Counter-Strike Global Offensive', 'game', 'csgo', 'replays'];
+const ROOTS = [['Program Files (x86)', 'Steam'], ['Program Files', 'Steam'], ['SteamLibrary'], ['Steam'], ['Games', 'SteamLibrary'], ['Games', 'Steam']];
+const CHAINS = [...ROOTS.map(r => [...r, ...REPLAYS]), REPLAYS];
+
+/** The replays folder inside whatever folder you picked: any folder on the way to it works. */
+async function findReplays(picked: DirHandle): Promise<DirHandle | null> {
+  if (picked.name.toLowerCase() === 'replays') return picked;
+  const tried = new Set<string>();
+  for (const chain of CHAINS) {
+    // start from wherever the picked folder sits on this path (or from the top of it)
+    const at = chain.findIndex(n => n.toLowerCase() === picked.name.toLowerCase());
+    const rest = chain.slice(at + 1);
+    if (tried.has(rest.join('/'))) continue;
+    tried.add(rest.join('/'));
+    let h: DirHandle | null = picked;
+    for (const name of rest) {
+      h = await h.getDirectoryHandle(name).then(x => x as DirHandle, () => null);
+      if (!h) break;
+    }
+    if (h) return h;
+  }
+  return null;
+}
+
 /** Map, score from your side, result and K/D (needs your SteamID; map and rounds only without it). */
 function summarize(d: DemoData, steamId: string | null): Summary {
   const played = steamId ? d.rounds.filter(r => r.winner && r.frames.players[steamId]) : [];
@@ -134,7 +159,9 @@ export function DemoFolder() {
   const connect = async () => {
     setMsg(null);
     try {
-      const h = await (window as unknown as { showDirectoryPicker(o: object): Promise<DirHandle> }).showDirectoryPicker({ id: 'cs2-replays', mode: 'read' });
+      const picked = await (window as unknown as { showDirectoryPicker(o: object): Promise<DirHandle> }).showDirectoryPicker({ id: 'cs2-replays', mode: 'read' });
+      const h = await findReplays(picked);
+      if (!h) { setMsg(`No CS2 demo folder inside "${picked.name}". Pick your Steam folder (or SteamLibrary), or CS2's replays folder itself.`); return; }
       await setItem('replaysDir', h);
       setDir(h);
       setPerm('granted');
@@ -164,11 +191,11 @@ export function DemoFolder() {
 
       {!dir && (
         <div className="steam-profile">
-          <p>Connect CS2's demo folder once and your downloaded games show up here by themselves, read and ready to review. Nothing is uploaded.</p>
-          <div className="row"><button className="primary" onClick={connect}>Choose CS2's demo folder</button></div>
+          <p>Pick your <b>Steam</b> folder (or <b>SteamLibrary</b>) once: the site finds CS2's demos inside it, and your downloaded games show up here by themselves, read and ready to review. Nothing is uploaded.</p>
+          <div className="row"><button className="primary" onClick={connect}>Choose your Steam folder</button></div>
           <p className="muted">
-            It's <code>…\steamapps\common\Counter-Strike Global Offensive\game\csgo\replays</code> in your Steam library
-            (e.g. <code>C:\Program Files (x86)\Steam\…</code> or <code>E:\SteamLibrary\…</code>). CS2 saves a demo there when you press
+            Usually <code>C:\Program Files (x86)\Steam</code> or <code>D:\SteamLibrary</code> (where CS2 is installed). Picking{' '}
+            <code>…\csgo\replays</code> itself works too. CS2 saves a demo there when you press
             Download in Watch → Your Matches (or <b>Download in CS2</b> below).
           </p>
         </div>

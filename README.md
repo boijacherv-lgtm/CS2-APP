@@ -48,7 +48,7 @@ The website reads `.dem` files with a WebAssembly build of the same parser (Laih
 4. The top bar shows who's alive, health, the score and the bomb timer. Click any move in the list to jump there.
 
 ### Your CS2 demo folder (website, Chrome / Edge)
-1. **Review** tab → **Choose CS2's demo folder** → pick `…\steamapps\common\Counter-Strike Global Offensive\game\csgo\replays` in your Steam library.
+1. **Review** tab → **Choose your Steam folder** → pick the Steam folder where CS2 is installed (e.g. `C:\Program Files (x86)\Steam` or `D:\SteamLibrary`; any folder on the way to `…\csgo\replays` works). The site finds the demos inside it. (A website can't search your disk by itself; the desktop version does.)
 2. Your demos are listed newest first. The 5 newest are read by themselves, one at a time, in your browser (nothing is uploaded) and kept in this browser; older ones have a **Read** button. Logged in with Steam, each row also shows your score, result and K/D.
 3. Any demo CS2 downloads appears within seconds. After a browser restart, click **Reconnect** once (the browser asks for folder access again each visit).
 
