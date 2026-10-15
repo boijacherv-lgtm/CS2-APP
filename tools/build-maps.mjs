@@ -26,7 +26,7 @@ const DARK_WALL_PIXELS = 3; // a cell is solid if it holds at least this many wa
 
 const NAMES = {
   de_mirage: 'Mirage', de_inferno: 'Inferno', de_dust2: 'Dust II', de_nuke: 'Nuke', de_ancient: 'Ancient',
-  de_anubis: 'Anubis', de_overpass: 'Overpass', de_train: 'Train', de_vertigo: 'Vertigo',
+  de_anubis: 'Anubis', de_overpass: 'Overpass', de_train: 'Train', de_vertigo: 'Vertigo', de_cache: 'Cache',
 };
 
 /** Minimal parser for Valve KeyValues overview files. */

@@ -24,7 +24,7 @@ Requires Node 18+. The project was developed on macOS (Apple Silicon) and also r
 
 | Area | What it does |
 |---|---|
-| **Maps** | 9 competitive maps (Mirage, Inferno, Dust II, Nuke, Ancient, Anubis, Overpass, Train, Vertigo) on Valve's radars, with Upper/Lower levels for Nuke, Train and Vertigo. |
+| **Maps** | 10 maps: the 9 competitive ones (Mirage, Inferno, Dust II, Nuke, Ancient, Anubis, Overpass, Train, Vertigo) plus Cache, on Valve's radars, with Upper/Lower levels for Nuke, Train and Vertigo. |
 | **Board** | CT/T players with view cones (106° FOV); drag, double-click → click to move, right-click to send a player somewhere; turn players by clicking the white dot or with `[` `]`; smokes, flashes, molotovs, HE grenades. |
 | **Routes** | Route tool: click a player, then click a destination, and it follows the shortest walkable path (Shift+click adds waypoints). Leave time, run/walk. |
 | **Timeline** | Round-time slider and ▶ Play (0.5–4×). Everything (positions, smokes, map control, fights) follows the time. |

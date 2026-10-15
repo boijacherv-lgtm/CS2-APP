@@ -125,6 +125,13 @@ const EXTRAS: Record<string, MapExtras> = {
   de_overpass: {
     callouts: [{ name: 'Monster', pos: p(828, 469) }, { name: 'Connector', pos: p(588, 623) }, { name: 'Long A', pos: p(414, 536) }],
   },
+  de_cache: {
+    callouts: [
+      { name: 'A main', pos: p(480, 308) }, { name: 'Squeaky', pos: p(340, 405) }, { name: 'B main', pos: p(432, 726) },
+      { name: 'Mid', pos: p(464, 637) }, { name: 'A site', pos: p(333, 266) }, { name: 'B site', pos: p(353, 809) },
+      { name: 'CT spawn', pos: p(100, 480) }, { name: 'T spawn', pos: p(908, 600) },
+    ],
+  },
   de_train: {
     callouts: [{ name: 'Ivy', pos: p(826, 326) }, { name: 'B halls', pos: p(442, 724) }, { name: 'Popdog', pos: p(732, 697) }],
   },

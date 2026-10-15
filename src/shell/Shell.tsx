@@ -11,7 +11,7 @@ interface Game { id: string; name: string; short: string; live: boolean; blurb: 
 
 /** Games on the platform. Only CS2 is built so far; the rest are placeholders. */
 const GAMES: Game[] = [
-  { id: 'cs2', name: 'Counter-Strike 2', short: 'CS2', live: true, color: '#e8a33c', blurb: 'Tactical board on all 9 competitive maps, round simulation with fights, and chess-style match review.' },
+  { id: 'cs2', name: 'Counter-Strike 2', short: 'CS2', live: true, color: '#e8a33c', blurb: 'Tactical board on 10 maps (the 9 competitive ones plus Cache), round simulation with fights, and chess-style match review.' },
   { id: 'valorant', name: 'Valorant', short: 'VAL', live: false, color: '#ff4655', blurb: 'Agent abilities, sites and executes.' },
   { id: 'r6', name: 'Rainbow Six Siege', short: 'R6', live: false, color: '#6aa7ff', blurb: 'Destruction, reinforcements and site setups.' },
 ];
