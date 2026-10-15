@@ -26,6 +26,8 @@ export interface DemoRound {
     t: number; type: UtilType; thrower: string; x: number; y: number;
     /** Release time, flight path (world x/y) and when the smoke/fire ended; older parses don't have them. */
     throwT?: number; path?: [number, number][]; end?: number;
+    /** Where it was thrown from (world x/y) when there's no flight path (browser build). */
+    from?: [number, number];
   }[];
   /** Damage done by HE grenades and fire. */
   nadeDamage?: { t: number; attacker: string; victim: string; dmg: number; weapon: 'he' | 'molotov' }[];
@@ -152,6 +154,24 @@ export interface Replay {
 
 const POP: Record<UtilType, number> = { smoke: UTIL_FLIGHT, molotov: UTIL_FLIGHT, flash: FLASH_POP, he: HE_POP };
 
+const catmullRom = (p0: number, p1: number, p2: number, p3: number, t: number) =>
+  0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+
+/**
+ * A grenade's flight seen from above when only the throw and the pop are known: a thrown grenade goes straight (from
+ * above) at a steady speed. Flashes and HEs go off in the air, molotovs on landing; smokes slow down as they roll and
+ * sit for a moment before they pop. Samples are evenly spaced in time from the throw to the pop.
+ */
+export function flightPath(type: UtilType, from: Vec2, to: Vec2, samples = 16): Vec2[] {
+  const out: Vec2[] = [];
+  for (let i = 0; i <= samples; i++) {
+    const f = i / samples;
+    const g = type === 'smoke' ? Math.min(1, 1 - (1 - Math.min(1, f / 0.85)) ** 2) : f;
+    out.push({ x: from.x + (to.x - from.x) * g, y: from.y + (to.y - from.y) * g });
+  }
+  return out;
+}
+
 /** Builds a board + simulation-shaped replay so the normal board, kill feed and map control work. */
 export function buildReplay(engine: TacticalEngine, demo: DemoData, roundIdx: number, context: BoardState['context']): Replay {
   const r = demo.rounds[roundIdx];
@@ -175,10 +195,15 @@ export function buildReplay(engine: TacticalEngine, demo: DemoData, roundIdx: nu
       const t = s * SIM_DT;
       while (k < ft.length - 2 && ft[k + 1] <= t) k++;
       const a = Math.max(0, Math.min(1, (t - ft[k]) / ((ft[k + 1] ?? ft[k]) - ft[k] || 1)));
-      const lerp = (arr: number[]) => arr[k] + ((arr[k + 1] ?? arr[k]) - arr[k]) * a;
-      const p = toR(lerp(f.x), lerp(f.y));
+      // smooth curve through the 4-a-second samples (Catmull-Rom) instead of straight lines with corners
+      const at = (arr: number[], j: number) => arr[Math.max(0, Math.min(arr.length - 1, j))];
+      const curve = (arr: number[]) => catmullRom(at(arr, k - 1), at(arr, k), at(arr, k + 1), at(arr, k + 2), a);
+      const p = toR(curve(f.x), curve(f.y));
       sim.x[i][s] = p.x; sim.y[i][s] = p.y;
-      sim.facing[i][s] = (-f.yaw[k] * Math.PI) / 180; // world yaw is counter-clockwise, radar y points down
+      // turn the short way round between samples (350° → 10° is a 20° turn, not 340°)
+      const y0 = at(f.yaw, k), y1 = at(f.yaw, k + 1);
+      const yaw = y0 + ((((y1 - y0) % 360) + 540) % 360 - 180) * a;
+      sim.facing[i][s] = (-yaw * Math.PI) / 180; // world yaw is counter-clockwise, radar y points down
       sim.hp[i][s] = Math.max(0, Math.min(100, f.hp[k]));
       if (!f.alive[k] && !Number.isFinite(sim.deathT[i])) sim.deathT[i] = ft[k];
     }
@@ -197,7 +222,12 @@ export function buildReplay(engine: TacticalEngine, demo: DemoData, roundIdx: nu
   // grenades as they were really thrown: release time, flight path and how long the smoke/fire lasted
   const utility: Utility[] = r.util.map((u, i) => {
     const throwAt = u.throwT ?? Math.max(0, u.t - POP[u.type]);
-    const path = u.path && u.path.length > 1 ? u.path.map(([x, y]) => toR(x, y)) : undefined;
+    // the real flight when the parser has it; otherwise from where it was thrown (or the thrower) to where it went off
+    const thrower = ids.indexOf(u.thrower);
+    const step = Math.max(0, Math.min(steps - 1, Math.round(throwAt / SIM_DT)));
+    const from = u.from ? toR(u.from[0], u.from[1]) : thrower >= 0 ? { x: sim.x[thrower][step], y: sim.y[thrower][step] } : null;
+    const path = u.path && u.path.length > 1 ? u.path.map(([x, y]) => toR(x, y))
+      : from ? flightPath(u.type, from, toR(u.x, u.y)) : undefined;
     return {
       id: `u${i}`, type: u.type, pos: toR(u.x, u.y), throwAt, flight: u.t - throwAt,
       ...(path ? { path, from: path[0] } : {}),

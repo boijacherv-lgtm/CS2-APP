@@ -219,12 +219,19 @@ function RealFlight({ u, path, t, k }: { u: Utility; path: Vec2[]; t: number; k:
   const at = { x: p.x + (q.x - p.x) * a, y: p.y + (q.y - p.y) * a };
   const pts = path.slice(0, i + 1).flatMap(v => [v.x, v.y]).concat(at.x, at.y);
   const fade = t > pop ? 1 - (t - pop) / 1.5 : 1;
+  // up in the air and back down (smokes land and roll for the last part): bigger icon, shadow further away
+  const air = Math.sin(Math.PI * Math.min(1, f / (u.type === 'smoke' ? 0.75 : 1)));
   return (
     <Group listening={false} opacity={fade}>
       <Line points={pts} stroke="#000" strokeWidth={3 * k} opacity={0.35} lineCap="round" lineJoin="round" />
       <Line points={pts} stroke={NADE_COLOR[u.type]} strokeWidth={1.5 * k} lineCap="round" lineJoin="round" />
       <Circle x={path[0].x} y={path[0].y} radius={2.5 * k} fill={NADE_COLOR[u.type]} stroke="#000" strokeWidth={0.8 * k} />
-      {t < pop && <Group x={at.x} y={at.y}><NadeIcon type={u.type} size={5 * k} /></Group>}
+      {t < pop && (
+        <>
+          <Circle x={at.x + 2 * air * k} y={at.y + 4 * air * k} radius={3.5 * k} fill="#000" opacity={0.35 * (1 - air * 0.5)} />
+          <Group x={at.x} y={at.y - 4 * air * k}><NadeIcon type={u.type} size={5 * (1 + 0.4 * air) * k} /></Group>
+        </>
+      )}
     </Group>
   );
 }

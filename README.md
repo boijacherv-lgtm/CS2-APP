@@ -29,7 +29,7 @@ You place CTs and Ts on Valve's real radar, give them routes, grenades and line-
 | Review & Match report | ✅ | ✅ |
 | Grenade flight paths in Review | ❌ (grenades show where/when they popped) | ✅ |
 
-The website reads `.dem` files with a WebAssembly build of the same parser (LaihoE/demoparser), so nothing is uploaded; it just doesn't show grenade flight paths. **Save .json** still lets you share an already-read match.
+The website reads `.dem` files with a WebAssembly build of the same parser (LaihoE/demoparser), so nothing is uploaded; grenades fly straight from where they were thrown to where they went off (the desktop version shows the exact path, bounces included). **Save .json** still lets you share an already-read match.
 
 ## How to use it
 

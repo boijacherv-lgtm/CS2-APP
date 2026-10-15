@@ -243,6 +243,9 @@ export function simulate(engine: TacticalEngine, board: BoardState, end: number,
 
 export interface SimState { pos: Vec2; facing: number; alive: boolean; deathT: number; hp: number; blind: boolean }
 
+/** From angle a toward b (radians) the short way round. */
+const turn = (a: number, b: number, f: number) => a + ((((b - a) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI) * f;
+
 export function simStateAt(sim: Simulation, id: string, t: number): SimState | null {
   const i = sim.ids.indexOf(id);
   if (i < 0) return null;
@@ -253,7 +256,7 @@ export function simStateAt(sim: Simulation, id: string, t: number): SimState | n
   const k = alive ? f : 0;
   return {
     pos: { x: sim.x[i][s] + (sim.x[i][s2] - sim.x[i][s]) * k, y: sim.y[i][s] + (sim.y[i][s2] - sim.y[i][s]) * k },
-    facing: sim.facing[i][s],
+    facing: turn(sim.facing[i][s], sim.facing[i][s2], k),
     alive,
     deathT: sim.deathT[i],
     hp: sim.hp[i][s],

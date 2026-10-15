@@ -468,6 +468,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                   <Arc innerRadius={TOKEN_R + 1.5} outerRadius={TOKEN_R + 4} angle={(360 * (live.get(lp.id)!.hp)) / 100} rotation={-90}
                     fill={live.get(lp.id)!.hp > 50 ? '#3ddc84' : live.get(lp.id)!.hp > 25 ? '#ffb020' : '#ff4d4d'} listening={false} />
                 )}
+                {/* where they're looking, like the arrow on CS2's radar */}
+                <Line points={[TOKEN_R - 1, -5, TOKEN_R + 7, 0, TOKEN_R - 1, 5]} closed rotation={deg(p.facing ?? engine.facing(p))}
+                  fill="#fff" stroke="#000" strokeWidth={1.2} lineJoin="round" listening={false} />
                 <Circle radius={TOKEN_R} hitStrokeWidth={18} fill={eraseTarget === p.id ? ERASE : COLORS[p.side]}
                   stroke={s.selectedId === p.id ? '#fff' : '#000a'} strokeWidth={s.selectedId === p.id ? 2.5 : 1.5} />
                 <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />

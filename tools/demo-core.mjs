@@ -76,8 +76,14 @@ export function buildDemoData(parser, input, progress = () => {}) {
   const hurts = allHurts.filter(h => /hegrenade|inferno|molotov|incgrenade/.test(String(pick(h, 'weapon') ?? '')));
   const gunHurts = allHurts.filter(h => !/hegrenade|inferno|molotov|incgrenade|world|knife|bayonet/.test(String(pick(h, 'weapon') ?? '')));
   // every gun shot (one event per bullet; grenades, knife, bomb and taser excluded)
-  const shotsAll = (safe(() => p.parseEvent(input, 'weapon_fire', [], [])) ?? [])
-    .filter(w => !/grenade|flashbang|molotov|incgrenade|decoy|knife|bayonet|c4|taser/.test(String(pick(w, 'weapon') ?? '')));
+  const firesAll = safe(() => p.parseEvent(input, 'weapon_fire', ['X', 'Y'], [])) ?? [];
+  const shotsAll = firesAll.filter(w => !/grenade|flashbang|molotov|incgrenade|decoy|knife|bayonet|c4|taser/.test(String(pick(w, 'weapon') ?? '')));
+  // grenade throws (weapon_fire fires on release): when and where each was thrown, for builds without flight paths
+  const NADE_WEAPON = { weapon_smokegrenade: 'smoke', weapon_flashbang: 'flash', weapon_hegrenade: 'he', weapon_molotov: 'molotov', weapon_incgrenade: 'molotov' };
+  const throws = firesAll.filter(w => NADE_WEAPON[String(pick(w, 'weapon'))]).map(w => ({
+    tick: num(w.tick), type: NADE_WEAPON[String(pick(w, 'weapon'))], thrower: sid(pick(w, 'user_steamid')),
+    x: num(pick(w, 'user_X', 'user_x')), y: num(pick(w, 'user_Y', 'user_y')),
+  }));
   const plants = roundEvents.filter(e => evName(e) === 'bomb_planted').map(e => num(e.tick));
   // where the bomb is: who picks it up, where it's dropped / planted, defused or blown up (positions are the player's)
   const BOMB_KIND = { bomb_pickup: 'carry', bomb_dropped: 'drop', bomb_planted: 'plant', bomb_defused: 'defuse', bomb_exploded: 'explode' };
@@ -124,7 +130,7 @@ export function buildDemoData(parser, input, progress = () => {}) {
       type: { flashbang_detonate: 'flash', hegrenade_detonate: 'he', smokegrenade_detonate: 'smoke', inferno_startburn: 'molotov' }[evName(n)],
       thrower: sid(pick(n, 'user_steamid', 'player_steamid')),
       x: num(pick(n, 'x', 'X')), y: num(pick(n, 'y', 'Y')),
-      ...throwOf(n, flights, nadeEnds, tOf),
+      ...throwOf(n, flights, nadeEnds, tOf, throws),
     })).filter(u => u.type && Number.isFinite(u.x));
     const shots = shotsAll.filter(w => inRound(num(w.tick))).map(w => ({ t: round2(tOf(num(w.tick))), id: sid(pick(w, 'user_steamid')) }));
     const hits = gunHurts.filter(h => inRound(num(h.tick))).map(h => ({
@@ -204,7 +210,7 @@ function grenadeFlights(p, input) {
 }
 
 /** Throw time, flight path and real lifetime for one detonation event. */
-function throwOf(n, flights, ends, tOf) {
+function throwOf(n, flights, ends, tOf, throws) {
   const tick = num(n.tick), thrower = sid(pick(n, 'user_steamid', 'player_steamid'));
   const type = { flashbang_detonate: 'flash', hegrenade_detonate: 'he', smokegrenade_detonate: 'smoke', inferno_startburn: 'molotov' }[pick(n, 'event_name', 'eventName')];
   const x = num(pick(n, 'x', 'X')), y = num(pick(n, 'y', 'Y'));
@@ -223,6 +229,10 @@ function throwOf(n, flights, ends, tOf) {
     const pts = best.pts.filter((p, i) => p[0] <= tick && (i % 4 === 0));
     pts.push([tick, x, y]);
     out.path = pts.map(p => [p[1], p[2]]);
+  } else {
+    // no flight data (browser build): the same player's last throw of this grenade before it went off
+    const th = throws.findLast(w => w.type === type && w.thrower === thrower && w.tick <= tick && tick - w.tick < 64 * 12);
+    if (th) { out.throwT = tOf(th.tick); if (Number.isFinite(th.x)) out.from = [round1(th.x), round1(th.y)]; }
   }
   if (type === 'smoke' || type === 'molotov') {
     const endName = type === 'smoke' ? 'smokegrenade_expired' : 'inferno_expire';

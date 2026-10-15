@@ -15,8 +15,8 @@ import { steamFetch } from './steamApi';
 const AUTO_READ = 5; // newest demos read automatically; older ones on click
 const RESCAN_MS = 8000;
 const SHOW = 20;
-// bump when the demo data gains something (v2: the bomb on the map), so saved games are read again
-const V = 2;
+// bump when the demo data gains something (v2: the bomb, v3: grenade throws), so saved games are read again
+const V = 3;
 const DEMO = (name: string) => `demo${V}:${name}`, SUM = (name: string) => `sum${V}:${name}`;
 
 interface DemoFile { name: string; size: number; modified: number; handle: FileSystemFileHandle }
@@ -161,7 +161,7 @@ export function DemoFolder() {
       await setItem(DEMO(f.name), await gzipJson(data));
       const s = summarize(data, steamId);
       await setItem(SUM(f.name), s);
-      delItem(`demo:${f.name}`); delItem(`sum:${f.name}`); // the older copy
+      for (let v = 1; v < V; v++) { delItem(`demo${v > 1 ? v : ''}:${f.name}`); delItem(`sum${v > 1 ? v : ''}:${f.name}`); } // older copies
       setSums(prev => ({ ...prev, [f.name]: s }));
     } catch (e) {
       const why = e instanceof Error ? e.message : String(e);
