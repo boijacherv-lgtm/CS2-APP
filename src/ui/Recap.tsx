@@ -7,12 +7,31 @@ import { gunFromName, primaryGun } from '../engine/guns';
 import { Fold } from './Fold';
 import { useStore } from '../store';
 import { SteamMatches } from './SteamMatches';
-import { LOCAL_ONLY_NOTE, ONLINE, STEAM_AVAILABLE } from '../env';
+import { ONLINE, STEAM_AVAILABLE } from '../env';
+import type { DemoWorkerOut } from './demoWorker';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
 
-/** Reads a .dem (parsed locally by the dev server) or a previously saved .json into a review. */
+/** How many full passes over the demo tools/demo-core.mjs makes (for the progress text). */
+const DEMO_PASSES = 20;
+
+/** Website: parse the demo in a Web Worker with the WebAssembly parser (src/ui/demoWorker.ts). */
+function readDemoInBrowser(file: File, onProgress: (pass: number) => void): Promise<DemoData> {
+  return new Promise((resolve, reject) => {
+    const w = new Worker(new URL('./demoWorker.ts', import.meta.url), { type: 'module' });
+    w.onmessage = (e: MessageEvent<DemoWorkerOut>) => {
+      const m = e.data;
+      if ('progress' in m) return onProgress(m.progress);
+      w.terminate();
+      if ('error' in m) reject(new Error(m.error)); else resolve(m.data as DemoData);
+    };
+    w.onerror = e => { w.terminate(); reject(new Error(e.message || 'The demo reader crashed (the demo may be too big for this browser).')); };
+    w.postMessage({ file });
+  });
+}
+
+/** Reads a .dem (desktop: the dev server; website: in the browser) or a previously saved .json into a review. */
 function useDemoLoader() {
   const startReview = useStore(s => s.startReview);
   const [status, setStatus] = useState<string | null>(null);
@@ -22,8 +41,11 @@ function useDemoLoader() {
     try {
       let data: DemoData;
       if (file.name.endsWith('.json')) data = JSON.parse(await file.text());
-      else if (ONLINE) throw new Error(`${file.name} is a raw demo. ${LOCAL_ONLY_NOTE}`);
-      else {
+      else if (ONLINE) {
+        // website: read it right here in the browser (nothing is uploaded)
+        setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB) in your browser…`);
+        data = await readDemoInBrowser(file, pass => setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB) in your browser… step ${pass} of ~${DEMO_PASSES}`));
+      } else {
         setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB)… big demos take a few seconds.`);
         const res = await fetch(`/api/demo?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
         const body = await res.json();
@@ -76,13 +98,13 @@ export function ReviewStart() {
       >
         <div className="dz-icon">{busy ? '⏳' : '⬆'}</div>
         <h2>{busy ? 'Reading your match…' : 'Drop a demo here'}</h2>
-        <p>{busy ? status : ONLINE ? 'or click to choose a match saved as .json (Save .json in the desktop version)' : 'or click to choose a .dem file (or a .json you saved before)'}</p>
-        <input ref={input} type="file" accept={ONLINE ? ".json" : ".dem,.json"} hidden onChange={e => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ''; }} />
+        <p>{busy ? status : 'or click to choose a .dem file (or a .json you saved before)'}</p>
+        <input ref={input} type="file" accept=".dem,.json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ''; }} />
       </div>
       {status && !busy && <p className="warn-text center">{status}</p>}
       <div className="review-how">
         <div><b>1. Get a demo</b><span>CS2 → Watch → Your Matches → download. FACEIT and HLTV demos work too (unzip them first).</span></div>
-        <div><b>2. Drop it in</b><span>{ONLINE ? 'Open it in the desktop version and press Save .json; that file opens here. It stays in your browser; nothing is uploaded.' : "It's read on this computer only; nothing is uploaded anywhere."}</span></div>
+        <div><b>2. Drop it in</b><span>{ONLINE ? "It's read right here in your browser; nothing is uploaded." : "It's read on this computer only; nothing is uploaded anywhere."}</span></div>
         <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar, and every kill, death and flash is graded from Brilliant !! to Blunder ??.</span></div>
       </div>
       {STEAM_AVAILABLE && <SteamMatches />}

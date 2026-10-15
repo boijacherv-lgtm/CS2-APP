@@ -24,11 +24,12 @@ You place CTs and Ts on Valve's real radar, give them routes, grenades and line-
 | Setup | none, just open it | install Node, then `npm install`, `npm run dev` |
 | Tactical board, simulation, analysis | ✅ | ✅ |
 | Log in with Steam + your match list | ✅ | ✅ |
-| Open a raw `.dem` demo | ❌ (open a saved `.json` instead) | ✅ |
+| Open a raw `.dem` demo | ✅ read in your browser (~10–25 s), nothing uploaded | ✅ |
 | Demos from **Download in CS2** import by themselves | ❌ | ✅ (watches CS2's replays folder) |
-| Review & Match report | ✅ for `.json` matches | ✅ for everything |
+| Review & Match report | ✅ | ✅ |
+| Grenade flight paths in Review | ❌ (grenades show where/when they popped) | ✅ |
 
-The desktop version reads `.dem` files with a native parser that can't run on a static website. To share a match with someone using the website: open it in the desktop version, press **Save .json**, send the file.
+The website reads `.dem` files with a WebAssembly build of the same parser (LaihoE/demoparser), so nothing is uploaded; it just doesn't show grenade flight paths. **Save .json** still lets you share an already-read match.
 
 ## How to use it
 
@@ -41,7 +42,7 @@ The desktop version reads `.dem` files with a native parser that can't run on a 
 6. The right panel explains it: weakest entrance, likely T plays, kill chances (200 simulated rounds), map control, what each grenade is worth. Select a CT and turn on **Best spots** to see where they should stand.
 
 ### Review a match
-1. **Review** tab → drop a demo (`.dem` on desktop, `.json` on the website). FACEIT/HLTV demos work too (unzip first).
+1. **Review** tab → drop a `.dem` (or a saved `.json`). FACEIT/HLTV demos work too (unzip first). On the website it's read in your browser in about 10–25 seconds.
 2. Press **▶ Play**. The win-chance bar, the graph and the grades reveal themselves as the round plays, like a chess review. **⏭ Reveal all** (or R) shows everything at once.
 3. **◀ ▶** (or ← →) jump between key moments: kills and graded grenades, across rounds.
 4. The top bar shows who's alive, health, the score and the bomb timer. Click any move in the list to jump there.
@@ -79,6 +80,7 @@ Requires Node 18+. Developed on macOS (Apple Silicon), also runs on Windows. You
 | Domain | Namecheap → Advanced DNS | four `A` records for `@`: `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`; `CNAME` `www` → `boijacherv-lgtm.github.io.` |
 | Steam login + match list | Cloudflare Worker `stratboard-api` → https://stratboard-api.stratboard.workers.dev | code in `worker/` (setup and updates: [worker/README.md](worker/README.md)); secret `STEAM_API_KEY`; KV storage `SB` |
 | Link between them | GitHub → Settings → Secrets and variables → Actions → **Variables** | `API_URL` = `https://stratboard-api.stratboard.workers.dev` |
+| Demo parser in the browser | `public/demoparser/` (WebAssembly, ~3 MB) | built by GitHub Actions **Build demo parser (browser)** from LaihoE/demoparser at a pinned commit (`PARSER_REV`), with two build patches (browser-safe clock, panic messages); `tools/demo-wasm.mjs` adapts it, `src/ui/demoWorker.ts` runs it |
 | Demo bot | Oracle Cloud Always Free VM, service `stratboard` | code in `server/` (setup and updates: [server/README.md](server/README.md)); its own **bot** Steam account; shares secret `SERVER_TOKEN` with the Worker |
 
 Update the Worker after changing `worker/src`: `cd worker && npx wrangler deploy`.
@@ -95,6 +97,7 @@ Update the Worker after changing `worker/src`: `cd worker && npx wrangler deploy
 | "Steam refused the site's Web API key" | the Worker's key was revoked or mistyped | new key → `npx wrangler secret put STEAM_API_KEY` |
 | "Steam says your authentication code or match code doesn't belong to your account" | codes from another account, or the auth code was reset | paste the Steam Support page again |
 | Only a few / no older matches | Valve only lists matches after the code you gave | paste older share links |
+| Website: reading a .dem fails or the tab crashes | very large demo on a low-memory device | try a desktop browser; or the desktop version |
 | Desktop: CT player button does nothing | the side already has 5 players | the 5/5 counter shows it; select a CT first to move it, or Clear CTs |
 
 ## Features
