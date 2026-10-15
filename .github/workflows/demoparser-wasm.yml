@@ -36,6 +36,12 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: wasm-pack
+      - name: Browser-safe clock (the parser times itself with std::time::Instant, which panics in WebAssembly)
+        working-directory: demoparser/src/parser
+        run: |
+          cargo add web-time@1
+          grep -rl 'std::time::Instant' src --include='*.rs' | grep -v '/bin/' | xargs sed -i 's/std::time::Instant/web_time::Instant/g'
+          ! grep -rn 'std::time::Instant' src --include='*.rs' | grep -v '/bin/'
       - name: Show Rust panic messages (instead of a bare "unreachable")
         working-directory: demoparser/src/wasm
         run: |
