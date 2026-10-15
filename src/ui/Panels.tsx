@@ -74,7 +74,9 @@ export function Toolbar({ engine, timelineEnd }: { engine: TacticalEngine; timel
         <div className="tools">
           {TOOLS.map(t => (
             <button key={t.id} className={s.tool === t.id ? 'on' : ''} onClick={() => s.setTool(t.id)} title={`Shortcut: ${t.key}`}>
-              <span className={`dot ${t.id}`} />{t.label}<kbd>{t.key}</kbd>
+              <span className={`dot ${t.id}`} />{t.label}
+              {(t.id === 'ct' || t.id === 't') && <span className="count">{s.board.players.filter(p => p.side === (t.id === 'ct' ? 'CT' : 'T')).length}/5</span>}
+              <kbd>{t.key}</kbd>
             </button>
           ))}
         </div>

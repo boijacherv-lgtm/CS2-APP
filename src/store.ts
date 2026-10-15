@@ -114,6 +114,9 @@ const freshBoard = (mapId: string, level = 0): BoardState => {
   return { players: relabel(presets[first]()), utility: [], context: ctx };
 };
 
+const fullSide = (side: Side) =>
+  `All 5 ${side} players are already on the map. Click a ${side} first to move it here, erase one (E), or press "Clear ${side}s" on the left.`;
+
 export const useStore = create<Store>((set, get) => {
   /** Apply an undoable board change. */
   const commit = (fn: (b: BoardState) => BoardState) =>
@@ -151,6 +154,9 @@ export const useStore = create<Store>((set, get) => {
       // Switching to Route with a player selected starts that player's route right away.
       const sel = get().board.players.find(p => p.id === get().selectedId);
       set({ tool, draftRoute: tool === 'path' && sel ? { playerId: sel.id, pts: [] } : null });
+      // a side is capped at 5: say so right away instead of letting map clicks seem to do nothing
+      const side = tool === 'ct' ? 'CT' : tool === 't' ? 'T' : null;
+      if (side && get().board.players.filter(p => p.side === side).length >= 5) set({ notice: fullSide(side) });
     },
     select: selectedId => set({ selectedId }),
     toggleOverlay: o =>
@@ -164,7 +170,12 @@ export const useStore = create<Store>((set, get) => {
 
     addPlayer: (side, pos) => {
       if (get().board.players.filter(p => p.side === side).length >= 5) {
-        set({ notice: `Already 5 ${side} players. Erase one first, or use "Clear board".` });
+        // full side: a click moves the selected player of that side instead (no dead clicks)
+        const sel = get().board.players.find(p => p.id === get().selectedId && p.side === side);
+        if (sel) {
+          get().move(sel.id, pos);
+          set({ notice: `5 ${side}s max, so ${side} ${sel.label ?? ''} moved here instead.` });
+        } else set({ notice: fullSide(side) });
         return;
       }
       const p = P(side, pos.x, pos.y);

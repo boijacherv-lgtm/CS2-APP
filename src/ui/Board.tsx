@@ -68,7 +68,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
 
   useEffect(() => {
     if (!s.notice) return;
-    const t = setTimeout(() => useStore.setState({ notice: null }), 2500);
+    const t = setTimeout(() => useStore.setState({ notice: null }), 5000);
     return () => clearTimeout(t);
   }, [s.notice]);
 

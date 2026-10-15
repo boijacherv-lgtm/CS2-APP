@@ -27,6 +27,8 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: v
 .tools { display: grid; gap: 4px; margin-bottom: 6px; }
 .tools button { display: flex; align-items: center; gap: 8px; }
 .tools kbd { margin-left: auto; font-size: 10px; color: var(--muted); }
+.tools .count { margin-left: auto; font-size: 10px; color: var(--muted); }
+.tools .count + kbd { margin-left: 6px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
 .dot.ct { background: var(--ct); } .dot.t { background: var(--t); }
 .dot.smoke { background: #c9d1d9; } .dot.flash { background: #fff6a8; } .dot.molotov { background: #ff5a1f; }
