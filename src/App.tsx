@@ -29,7 +29,11 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [review?.data, review?.round, engine],
   );
-  useEffect(() => { if (replay) useStore.setState({ board: replay.board }); }, [replay]);
+  // Only while the store is really in Review: coming back from the report/home page this component mounts
+  // (and React dev re-runs effects) while the switch to Tactical is already under way.
+  useEffect(() => {
+    if (replay && useStore.getState().mode === 'review') useStore.setState({ board: replay.board, boardFromReplay: true });
+  }, [replay]);
   const recap = useMemo(() => (replay ? reviewRound(engine, replay) : null), [engine, replay]);
   // Analysis runs on a deferred copy so dragging stays smooth.
   const deferred = useDeferredValue(board);

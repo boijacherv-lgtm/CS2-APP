@@ -44,6 +44,8 @@ interface Store {
   report: { data: DemoData; rounds: (RoundSummary | null)[]; done: boolean } | null;
   /** The tactical board, parked while Review mode shows a match. */
   parked: { board: BoardState; mapId: string; level: number } | null;
+  /** The board currently shows a demo replay (never park it as the tactical board or bring it into Tactical). */
+  boardFromReplay: boolean;
   /** Review shows the whole round at once instead of revealing it as time passes. */
   reviewSpoilers: boolean;
   /** Short message shown over the board (e.g. why an action did nothing). */
@@ -146,6 +148,7 @@ export const useStore = create<Store>((set, get) => {
     review: null,
     report: null,
     parked: null,
+    boardFromReplay: false,
     reviewSpoilers: false,
     notice: null,
 
@@ -252,17 +255,20 @@ export const useStore = create<Store>((set, get) => {
         if (mode === s.mode) return s;
         const common = { mode, selectedId: null, draftRoute: null, draftLineup: null, playing: false, past: [], future: [], tool: 'select' as Tool };
         if (mode === 'review') {
-          const parked = { board: s.board, mapId: s.mapId, level: s.level };
+          // park the tactical board, unless what's on screen is a replay (then the earlier park stands)
+          const parked = s.boardFromReplay ? s.parked : { board: s.board, mapId: s.mapId, level: s.level };
           return { ...common, parked, time: 0, ...(s.review ? { mapId: s.review.data.map, level: 0 } : {}) };
         }
-        // back to tactical: restore the board exactly as it was
+        // back to tactical: restore the board exactly as it was (a replay board never comes along)
         const p = s.parked;
-        return { ...common, parked: null, time: 10, ...(p ? { board: p.board, mapId: p.mapId, level: p.level } : {}) };
+        const restored = p ? { board: p.board, mapId: p.mapId, level: p.level }
+          : s.boardFromReplay ? { board: { ...freshBoard(s.mapId), context: s.board.context }, level: 0 } : {};
+        return { ...common, parked: null, time: 10, boardFromReplay: false, ...restored };
       }),
     startReview: data =>
       set(s => ({
         mode: 'review',
-        parked: s.mode === 'review' ? s.parked : { board: s.board, mapId: s.mapId, level: s.level },
+        parked: s.mode === 'review' || s.boardFromReplay ? s.parked : { board: s.board, mapId: s.mapId, level: s.level },
         review: { data, round: 0 },
         report: null,
         mapId: data.map, level: 0, selectedId: null, draftRoute: null, playing: false, time: 0, past: [], future: [],
@@ -294,13 +300,15 @@ export const useStore = create<Store>((set, get) => {
     setMap: id =>
       set(s => (id === s.mapId ? s : {
         mapId: id, level: 0, selectedId: null, draftRoute: null, playing: false, past: [], future: [],
-        saved: { ...s.saved, [`${s.mapId}:${s.level}`]: s.board },
+        saved: s.boardFromReplay ? s.saved : { ...s.saved, [`${s.mapId}:${s.level}`]: s.board },
+        boardFromReplay: false, // the board we switch to is a saved/fresh tactical one
         board: s.saved[`${id}:0`] ?? { ...freshBoard(id), context: s.board.context },
       })),
     setLevel: level =>
       set(s => (level === s.level ? s : {
         level, selectedId: null, draftRoute: null, playing: false, past: [], future: [],
-        saved: { ...s.saved, [`${s.mapId}:${s.level}`]: s.board },
+        saved: s.boardFromReplay ? s.saved : { ...s.saved, [`${s.mapId}:${s.level}`]: s.board },
+        boardFromReplay: false, // the board we switch to is a saved/fresh tactical one
         board: s.saved[`${s.mapId}:${level}`] ?? { ...freshBoard(s.mapId, level), context: s.board.context },
       })),
     undo: () => set(s => (s.past.length ? { board: s.past[s.past.length - 1], past: s.past.slice(0, -1), future: [s.board, ...s.future] } : s)),
