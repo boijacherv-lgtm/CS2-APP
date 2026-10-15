@@ -1,0 +1,16 @@
+{
+  "name": "stratboard-server",
+  "private": true,
+  "type": "module",
+  "description": "Background worker for tsakhstvo.xyz: fetches demo links with a bot Steam account, downloads and parses demos, sends them to the Cloudflare Worker.",
+  "scripts": {
+    "start": "node src/main.mjs",
+    "login": "node src/login.mjs",
+    "once": "node src/main.mjs --once"
+  },
+  "dependencies": {
+    "globaloffensive": "^3.3.0",
+    "steam-user": "^5.3.0",
+    "unbzip2-stream": "^1.4.3"
+  }
+}

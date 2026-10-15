@@ -87,7 +87,9 @@ export function SteamMatches() {
 
   const open = async (m: SteamMatch) => {
     try {
-      const data = await post<DemoData>('load', { outcomeId: m.outcomeId });
+      // website: the server already parsed it and the Worker serves it; desktop: from this PC's cache
+      const data = ONLINE ? await steamFetch(`/demo/${m.outcomeId}`).then(async r => { const out = await r.json(); if (!r.ok) throw new Error(out.error ?? r.statusText); return out as DemoData; })
+        : await post<DemoData>('load', { outcomeId: m.outcomeId });
       if (!MAPS.some(x => x.id === data.map)) throw new Error(`${data.map} isn't one of the supported maps.`);
       startReview(data);
     } catch (e) { setMsg(errText(e)); }
@@ -134,11 +136,11 @@ export function SteamMatches() {
       {st.matches.length > 0 && (
         <>
           <p className="muted">
-            {ready ? 'From Valve · updates every few minutes. Map and score show once the demo is in. '
+            {ready ? (ONLINE ? 'From Valve · updates every few minutes. ' : 'From Valve · updates every few minutes. Map and score show once the demo is in. ')
               : loggedIn ? <><b>Only the demos you've already loaded are shown.</b> Do steps 1–2 above to list all your matches. </>
               : 'Demos you have loaded. '}
             {!loggedIn && 'Log in with Steam to see your score in each. '}
-            {ready && ONLINE && <>After <b>Download in CS2</b>, open the demo in the desktop version (or save it there as .json and open that here). </>}
+            {ready && ONLINE && <>The server downloads and reads every new demo by itself; <b>Review</b> appears a few minutes after a match. Demos Valve already deleted (older than about a month) can't be fetched. </>}
             {ready && !ONLINE && (st.replays.length
               ? <>Demos downloaded with <b>Download in CS2</b> are imported automatically.</>
               : <>CS2's replays folder wasn't found on this computer: drop downloaded demos in the box above (or set the folder under Settings).</>)}
@@ -150,12 +152,16 @@ export function SteamMatches() {
                   <td>{m.time ? new Date(m.time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
                     : m.loadedAt ? <span className="muted">loaded {fmtDay(m.loadedAt)}</span>
                     : m.foundAt ? <span className="muted">found {fmtDay(m.foundAt)}</span> : ''}</td>
-                  <td>{m.map ? MAPS.find(x => x.id === m.map)?.name ?? m.map : <span className="muted">demo not loaded yet</span>}</td>
+                  <td>{m.map ? MAPS.find(x => x.id === m.map)?.name ?? m.map : <span className="muted">{m.processing ? 'getting the demo…' : 'demo not loaded yet'}</span>}</td>
                   <td className={m.result ?? ''}>{m.scores ? `${m.scores[0]}–${m.scores[1]}` : ''} {m.result ? m.result.toUpperCase() : ''}</td>
                   <td className="muted">{m.kd ? `${m.kd[0]}/${m.kd[1]}` : ''}</td>
                   <td>
                     {m.parsed
                       ? <button onClick={() => open(m)}>Review</button>
+                      : m.processing
+                        ? <span className="muted" title="The server is downloading and reading this demo; it appears here by itself">processing…</span>
+                      : m.gone
+                        ? <span className="muted" title="Valve keeps demos for about a month">demo expired</span>
                       : m.download
                         ? <a className="btn" href={m.download} onClick={() => setWaiting(new Set(waiting).add(m.code))}
                             title="Opens CS2, which downloads the demo; the app imports it by itself">

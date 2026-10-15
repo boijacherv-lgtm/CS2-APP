@@ -17,6 +17,10 @@ export interface SteamMatch {
   download: string | null;
   /** the demo is imported and opens instantly */
   parsed: boolean;
+  /** website: the server is still fetching / parsing this demo */
+  processing?: boolean;
+  /** website: Valve no longer has the demo */
+  gone?: boolean;
 }
 export interface SteamStatus {
   configured: { steamId: boolean; apiKey: boolean; authCode: boolean; knownCode: boolean; replays: boolean };

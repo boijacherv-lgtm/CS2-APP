@@ -26,6 +26,14 @@ Then tell the website where the Worker is: GitHub → repo **CS2-APP** → Setti
 **Variables** → New repository variable `API_URL` = the address `wrangler deploy` printed (no trailing slash). Re-run the
 "Deploy website" action (or push anything) and the site shows **Log in with Steam**.
 
+## Demo bot (server/)
+
+The Oracle server (see [../server/README.md](../server/README.md)) uses the `/internal/*` routes with a shared secret:
+
+```bash
+npx wrangler secret put SERVER_TOKEN   # paste the token printed by server/deploy/setup.sh
+```
+
 ## Updating
 
 `npx wrangler deploy` after changing `src/`. `npx wrangler tail` shows live logs.

@@ -1,0 +1,16 @@
+[Unit]
+Description=Stratboard server (CS2 demo bot for tsakhstvo.xyz)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__DIR__/server
+ExecStart=/usr/bin/node src/main.mjs
+Restart=always
+RestartSec=30
+MemoryMax=8G
+
+[Install]
+WantedBy=multi-user.target
