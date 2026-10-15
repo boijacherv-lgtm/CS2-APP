@@ -10,7 +10,8 @@ import type { Spot, SpotMap } from '../engine/spots';
 import { killColor } from './Board';
 import type { Econ } from '../engine/types';
 import { hasLayer, isAutoLayer, MAPS, presetsFor, roughNote, tPlaysFor } from '../map/catalog';
-import { useStore, type Overlay, type Tool } from '../store';
+import { useStore, type Tool } from '../store';
+import { Fold } from './Fold';
 import { BUILTIN_LINEUPS, flightTime, type Lineup, type Technique } from '../map/lineups';
 import { DemoLoader } from './Recap';
 import { useState } from 'react';
@@ -28,19 +29,8 @@ const TOOLS: { id: Tool; label: string; key: string }[] = [
   { id: 'lineup', label: 'Line-up', key: 'L' },
   { id: 'erase', label: 'Erase', key: 'E' },
 ];
-const OVERLAYS: { id: Overlay; label: string }[] = [
-  { id: 'vision', label: 'Vision (everyone, who sees whom)' },
-  { id: 'control', label: 'Map control (CT coverage)' },
-  { id: 'killmap', label: 'Best spots (selected CT)' },
-  { id: 'threat', label: 'Entry points (who holds what)' },
-  { id: 'los', label: 'Sightline of selected' },
-  { id: 'timing', label: 'Spawn timing race' },
-  { id: 'callouts', label: 'Callouts' },
-  { id: 'lineups', label: 'Line-ups on map' },
-  { id: 'walkable', label: 'Walkable floor (debug)' },
-];
 
-export function Toolbar({ engine, timelineEnd }: { engine: TacticalEngine; timelineEnd: number }) {
+export function Toolbar({ engine }: { engine: TacticalEngine }) {
   const s = useStore();
   const entry = MAPS.find(m => m.id === s.mapId)!;
   return (
@@ -69,14 +59,11 @@ export function Toolbar({ engine, timelineEnd }: { engine: TacticalEngine; timel
           {roughNote(s.mapId) && <><br /><b>Rough:</b> {roughNote(s.mapId)}</>}
         </p>
       </section>
-      {s.mode !== 'review' && <section>
-        <h3>Tools</h3>
+      {s.mode !== 'review' && <Fold id="tools" title="Tools">
         <div className="tools">
           {TOOLS.map(t => (
             <button key={t.id} className={s.tool === t.id ? 'on' : ''} onClick={() => s.setTool(t.id)} title={`Shortcut: ${t.key}`}>
-              <span className={`dot ${t.id}`} />{t.label}
-              {(t.id === 'ct' || t.id === 't') && <span className="count">{s.board.players.filter(p => p.side === (t.id === 'ct' ? 'CT' : 'T')).length}/5</span>}
-              <kbd>{t.key}</kbd>
+              <span className={`dot ${t.id}`} />{t.label}<kbd>{t.key}</kbd>
             </button>
           ))}
         </div>
@@ -87,54 +74,24 @@ export function Toolbar({ engine, timelineEnd }: { engine: TacticalEngine; timel
           <button onClick={s.undo} disabled={!s.past.length}>Undo</button>
           <button onClick={s.redo} disabled={!s.future.length}>Redo</button>
         </div>
-      </section>}
+      </Fold>}
       {s.mode === 'review' && <DemoLoader />}
       {s.mode !== 'review' && <>
-      <section>
-        <h3>CT setups</h3>
+      <Fold id="ct-setups" title="CT setups">
         <div className="presets">
           {Object.keys(presetsFor(s.mapId, s.level)).map(n => <button key={n} onClick={() => s.loadPreset(n)}>{n === 'Empty' ? 'Clear CTs' : n}</button>)}
         </div>
-      </section>
+      </Fold>
       {Object.keys(tPlaysFor(s.mapId, s.level)).length > 0 && (
-        <section>
-          <h3>T plays (with routes)</h3>
+        <Fold id="t-plays" title="T plays (with routes)">
           <div className="presets">
             {Object.keys(tPlaysFor(s.mapId, s.level)).map(n => <button key={n} onClick={() => s.loadTPlay(n)}>{n}</button>)}
             <button onClick={() => s.loadTPlay(null)}>Clear Ts</button>
           </div>
-        </section>
+        </Fold>
       )}
       <Lineups engine={engine} />
       </>}
-      <section>
-        <h3>Overlays</h3>
-        {OVERLAYS.filter(o => s.mode !== 'review' || !['killmap', 'threat'].includes(o.id)).map(o => (
-          <label key={o.id} className="check">
-            <input type="checkbox" checked={s.overlays[o.id]} onChange={() => s.toggleOverlay(o.id)} /> {o.label}
-          </label>
-        ))}
-      </section>
-      <section>
-        <h3>Round time · {fmt(s.time)}</h3>
-        <div className="row play">
-          <button className={s.playing ? 'on' : ''} onClick={() => {
-            if (!s.playing && s.time >= timelineEnd - 0.05) s.setTime(0);
-            s.setPlaying(!s.playing);
-          }}>{s.playing ? '❚❚ Pause' : '▶ Play'}</button>
-          <button onClick={() => { s.setPlaying(false); s.setTime(0); }} title="Back to round start">⟲</button>
-          <select value={s.speed} onChange={e => s.setSpeed(+e.target.value)} title="Playback speed">
-            <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
-          </select>
-        </div>
-        {s.mode !== 'review' && <div className="row combat">
-          <label className="check grow"><input type="checkbox" checked={s.combat} onChange={e => s.setCombat(e.target.checked)} /> Combat (players die)</label>
-          <button onClick={s.reroll} disabled={!s.combat} title="Roll the fights again">🎲 Re-roll</button>
-        </div>}
-        <input type="range" min={0} max={s.mode === 'review' ? Math.ceil(timelineEnd) : Math.max(60, Math.ceil(timelineEnd))} step={0.1} value={s.time}
-          onChange={e => { s.setPlaying(false); s.setTime(+e.target.value); }} />
-        <p className="muted">Seconds after freeze time. Moves players along their routes and drives map control and utility. Space = play/pause.</p>
-      </section>
       {s.mode !== 'review' && <Selection engine={engine} />}
     </aside>
   );
@@ -200,8 +157,7 @@ export function AnalysisPanel({ analysis, engine, control, sim, spots, batch, im
   const names = new Map(engine.map.chokepoints.map(c => [c.id, c.name]));
   return (
     <aside className={`panel ${stale ? 'stale' : ''}`}>
-      <section>
-        <h3>Round context</h3>
+      <Fold id="context" title="Round context">
         <div className="grid2">
           <label className="field">Your side<select disabled value="CT"><option>CT</option></select></label>
           <label className="field">Round phase
@@ -216,7 +172,7 @@ export function AnalysisPanel({ analysis, engine, control, sim, spots, batch, im
             <EconSelect value={ctx.economy.enemy} onChange={v => s.setContext({ economy: { ...ctx.economy, enemy: v } })} />
           </label>
         </div>
-      </section>
+      </Fold>
 
       <section className="summary">
         {analysis.summary.map((l, i) => <p key={i}>{l}</p>)}
@@ -235,8 +191,7 @@ export function AnalysisPanel({ analysis, engine, control, sim, spots, batch, im
         </section>
       )}
 
-      {analysis.predictions.length > 0 && <section>
-        <h3>Predicted T plays</h3>
+      {analysis.predictions.length > 0 && <Fold id="preds" title="Predicted T plays">
         {analysis.predictions.map((p, i) => (
           <div key={p.id} className={`pred ${i === 0 ? 'top' : ''}`}>
             <div className="pred-head">
@@ -253,10 +208,9 @@ export function AnalysisPanel({ analysis, engine, control, sim, spots, batch, im
             {i < 3 && <div className="counter">Counter: {p.counter}</div>}
           </div>
         ))}
-      </section>}
+      </Fold>}
 
-      {entries.length > 0 && <section>
-        <h3>Entries · who holds what</h3>
+      {entries.length > 0 && <Fold id="entries" title="Entries · who holds what" defaultOpen={false}>
         {entries.map(e => (
           <div key={e.id} className="entry">
             <div className="entry-head">
@@ -269,7 +223,7 @@ export function AnalysisPanel({ analysis, engine, control, sim, spots, batch, im
             {e.details.map((d, i) => <div key={i} className="reason">{d}</div>)}
           </div>
         ))}
-      </section>}
+      </Fold>}
       <p className="muted foot">
         Floor comes from Valve's official radar (opaque pixels), so walls drawn only as colour lines and height differences are not modelled.
         Timings are rifle speed from the best spawn and are not calibrated against demos yet. Fights use a hand-tuned model.
@@ -294,8 +248,7 @@ function UtilityEval({ engine, batch, impact }: {
   };
   const sign = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
   return (
-    <section>
-      <h3>Utility evaluation {impact && !impact.done ? '· measuring…' : ''}</h3>
+    <Fold id="utility" title="Utility evaluation" aside={impact && !impact.done ? 'measuring…' : undefined}>
       {util.map(u => {
         const st = batch?.stats.utility[u.id];
         const imp = impact?.v[u.id];
@@ -322,7 +275,7 @@ function UtilityEval({ engine, batch, impact }: {
         );
       })}
       <p className="muted">"+X% CT" = how many more rounds CTs win with this grenade than without it (same simulated rounds). Edit "Thrown at" on a selected grenade to time it.</p>
-    </section>
+    </Fold>
   );
 }
 
@@ -345,8 +298,7 @@ function KillChances({ batch }: { batch: { stats: BatchStats; done: boolean } | 
   };
   if (!cts.length) return null;
   return (
-    <section>
-      <h3>Kill chances {batch ? `· ${batch.stats.rounds}${batch.done ? '' : '/200'} rounds` : ''}</h3>
+    <Fold id="kills" title="Kill chances" aside={batch ? `${batch.stats.rounds}${batch.done ? '' : '/200'} rounds` : undefined}>
       {!ts.length && <p className="muted">Place T players (or load a T play) to simulate fights.</p>}
       {!s.combat && ts.length > 0 && <p className="muted">Turn on Combat to simulate rounds.</p>}
       {batch && (
@@ -361,7 +313,7 @@ function KillChances({ batch }: { batch: { stats: BatchStats; done: boolean } | 
         <thead><tr><th /><th title="Chance to get at least one kill">Kill</th><th title="Average kills per round">Avg K</th><th title="Chance to survive the round">Alive</th><th title="Rounds in which this player gets blinded for 1 s or more">Flashed</th></tr></thead>
         <tbody>{cts.map(row)}{ts.map(row)}</tbody>
       </table>
-    </section>
+    </Fold>
   );
 }
 
@@ -386,8 +338,7 @@ function SpotFinder({ spots }: { spots: SpotMap | null }) {
     `You're set by ${fmt(sp.setBy)}, first T around ${fmt(sp.firstContact)}.`,
   ];
   return (
-    <section>
-      <h3>Best spots · {pl.side} {pl.label} ({gun.name})</h3>
+    <Fold id="spots" title={<>Best spots · {pl.side} {pl.label} ({gun.name})</>}>
       {spots.jobs.length > 0 && <p className="muted">Keeps <b>{spots.jobs.join(' + ')}</b> covered: only spots that still see it are suggested.</p>}
       {spots.best.map((sp, i) => (
         <div key={i} className="spot">
@@ -414,7 +365,7 @@ function SpotFinder({ spots }: { spots: SpotMap | null }) {
         </div>
       )}
       <p className="muted">Scored against {spots.source === 'players' ? 'the Ts you placed and their routes' : 'Ts on the default paths from spawn'}. Score = first duel, tradeability, angles, minus hiding deep.</p>
-    </section>
+    </Fold>
   );
 }
 
@@ -430,8 +381,9 @@ function KillFeed({ sim, engine }: { sim: Simulation; engine: TacticalEngine }) 
   };
   const alive = (sd: 'T' | 'CT') => players.filter(p => p.side === sd && (sim.deathT[sim.ids.indexOf(p.id)] ?? Infinity) > s.time).length;
   return (
-    <section>
-      <h3>Round events · alive at {fmt(s.time)}: <span className="ct">CT {alive('CT')}</span> vs <span className="t">T {alive('T')}</span></h3>
+    <Fold id="feed" defaultOpen={false}
+      title="Round events"
+      aside={<>alive {fmt(s.time)}: <span className="ct">CT {alive('CT')}</span> vs <span className="t">T {alive('T')}</span></>}>
       {sim.kills.length === 0 && <p className="muted">No fights yet. Give players routes (or place them in each other's sight) and press ▶ Play.</p>}
       {[
         ...sim.kills.map(k => ({ t: k.t, kind: 'kill' as const, k })),
@@ -451,7 +403,7 @@ function KillFeed({ sim, engine }: { sim: Simulation; engine: TacticalEngine }) 
         </button>
       ))}
       <p className="muted">Click an event to jump there. 🎲 Re-roll plays the same round with different fight luck.</p>
-    </section>
+    </Fold>
   );
 }
 
@@ -488,6 +440,7 @@ function RouteEditor({ player, engine }: { player: import('../engine/types').Pla
 
 /** Territory summary: who holds how much, the legend, and every named area with a CT-vs-T bar. */
 function MapControl({ control, time }: { control: ControlMap; time: number }) {
+  const [allZones, setAllZones] = useState(false);
   let ct = 0, tt = 0, mid = 0, n = 0;
   for (let i = 0; i < control.owner.length; i++) {
     const o = control.owner[i];
@@ -505,8 +458,7 @@ function MapControl({ control, time }: { control: ControlMap; time: number }) {
     return z.ct > z.t ? 'CT leaning' : 'T leaning';
   };
   return (
-    <section>
-      <h3>Map control at {fmt(time)}</h3>
+    <Fold id="mapcontrol" title={<>Map control at {fmt(time)}</>}>
       <div className="stack">
         <div style={{ width: `${pct(ct)}%`, background: 'var(--ct)' }} title={`CT ${pct(ct)}%`} />
         <div style={{ width: `${pct(mid)}%`, background: '#ffd640' }} title={`Contested ${pct(mid)}%`} />
@@ -519,7 +471,7 @@ function MapControl({ control, time }: { control: ControlMap; time: number }) {
       </div>
       <p className="muted">Stronger colour = firmer hold · brighter = someone is watching it · <b style={{ color: '#ffd640' }}>yellow line</b> = the front.</p>
       <div className="zones">
-        {zones.map(z => (
+        {(allZones ? zones : zones.slice(0, 4)).map(z => (
           <div key={z.name} className="zone-row">
             <b>{z.name}</b>
             <div className="zone-bar" title={`CT ${Math.round(z.ct * 100)}% · contested ${Math.round(z.contested * 100)}% · T ${Math.round(z.t * 100)}%`}>
@@ -531,7 +483,10 @@ function MapControl({ control, time }: { control: ControlMap; time: number }) {
           </div>
         ))}
       </div>
-    </section>
+      {zones.length > 4 && (
+        <button className="linkish" onClick={() => setAllZones(v => !v)}>{allZones ? 'Show fewer areas' : `Show all ${zones.length} areas`}</button>
+      )}
+    </Fold>
   );
 }
 
@@ -571,8 +526,7 @@ function Lineups({ engine }: { engine: TacticalEngine }) {
   };
 
   return (
-    <section>
-      <h3>Line-ups</h3>
+    <Fold id="lineups" title="Line-ups" defaultOpen={false}>
       {s.tool === 'lineup' && <NewLineup engine={engine} />}
       <div className="row km">
         <select value={side} onChange={e => setSide(e.target.value as typeof side)}>
@@ -597,7 +551,7 @@ function Lineups({ engine }: { engine: TacticalEngine }) {
       ))}
       {!list.length && <p className="muted">No line-ups here yet. Pick the Line-up tool (L) to add your own.</p>}
       <p className="muted">{sel ? `Use = ${sel.side} ${sel.label} walks there and throws it.` : 'Select a player first to have them walk over and throw it.'} Built-in spots are approximate; save your exact in-game version.</p>
-    </section>
+    </Fold>
   );
 }
 

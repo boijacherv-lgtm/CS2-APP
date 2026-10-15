@@ -7,7 +7,40 @@ import { loadCustomLineups, saveCustomLineups, type Lineup } from './map/lineups
 import type { BoardState, Player, RoundContext, Route, Side, UtilType, Utility, Vec2, Weapon } from './engine/types';
 
 export type Tool = 'select' | 'ct' | 't' | 'smoke' | 'flash' | 'molotov' | 'he' | 'path' | 'lineup' | 'erase';
-export type Overlay = 'control' | 'vision' | 'killmap' | 'lineups' | 'los' | 'threat' | 'timing' | 'walkable' | 'callouts';
+export type Overlay =
+  | 'control' | 'vision' | 'killmap' | 'lineups' | 'los' | 'threat' | 'entryCards' | 'playerInfo' | 'timing' | 'walkable' | 'callouts';
+
+/** How much the board shows. Presets only touch the "noise" layers; tool layers (best spots, line-ups, timing, debug) stay as they are. */
+export type ViewName = 'clean' | 'standard' | 'full';
+export const NOISE_LAYERS: Overlay[] = ['control', 'vision', 'threat', 'entryCards', 'playerInfo', 'callouts', 'los'];
+const OFF: Record<Overlay, boolean> = {
+  control: false, vision: false, killmap: false, lineups: false, los: false, threat: false,
+  entryCards: false, playerInfo: false, timing: false, walkable: false, callouts: false,
+};
+export const VIEW_PRESETS: Record<ViewName, Record<Overlay, boolean>> = {
+  /** Players, routes and grenades only. */
+  clean: { ...OFF },
+  /** Map control, entry lines, callouts, guns and kill chances; no vision cones, no entry cards. */
+  standard: { ...OFF, control: true, threat: true, callouts: true, los: true, playerInfo: true },
+  /** Everything the board can draw. */
+  full: { ...OFF, control: true, vision: true, threat: true, entryCards: true, callouts: true, los: true, playerInfo: true },
+};
+
+/** Which preset the current layers match, or null when the user has mixed their own. */
+export function activeView(o: Record<Overlay, boolean>): ViewName | null {
+  for (const name of Object.keys(VIEW_PRESETS) as ViewName[]) {
+    const pr = VIEW_PRESETS[name];
+    // the control heat-map is switched off whenever Best spots is on, so don't count it then
+    if (NOISE_LAYERS.every(l => (l === 'control' && o.killmap ? true : o[l] === pr[l]))) return name;
+  }
+  return null;
+}
+
+const LS_OVERLAYS = 'stratboard.overlays', LS_FOLDED = 'stratboard.folded';
+function loadJson<T>(key: string, fallback: T): T {
+  try { const raw = localStorage.getItem(key); return raw ? { ...fallback, ...JSON.parse(raw) } : fallback; } catch { return fallback; }
+}
+function saveJson(key: string, v: unknown) { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode etc. */ } }
 export type KillMetric = 'pKill' | 'expKills' | 'survive';
 
 interface Store {
@@ -21,6 +54,8 @@ interface Store {
   tool: Tool;
   selectedId: string | null;
   overlays: Record<Overlay, boolean>;
+  /** Panel sections the user opened (false) or collapsed (true); sections not listed use their own default. */
+  folded: Record<string, boolean>;
   time: number;
   /** Route being drawn: the player it belongs to and the waypoints clicked so far. */
   draftRoute: { playerId: string; pts: Vec2[] } | null;
@@ -52,6 +87,8 @@ interface Store {
   setTool(t: Tool): void;
   select(id: string | null): void;
   toggleOverlay(o: Overlay): void;
+  setView(v: ViewName): void;
+  toggleFold(id: string, collapsedNow: boolean): void;
   setTime(t: number): void;
   setContext(c: Partial<RoundContext>): void;
   addPlayer(side: Side, pos: Vec2): void;
@@ -114,9 +151,6 @@ const freshBoard = (mapId: string, level = 0): BoardState => {
   return { players: relabel(presets[first]()), utility: [], context: ctx };
 };
 
-const fullSide = (side: Side) =>
-  `All 5 ${side} players are already on the map. Click a ${side} first to move it here, erase one (E), or press "Clear ${side}s" on the left.`;
-
 export const useStore = create<Store>((set, get) => {
   /** Apply an undoable board change. */
   const commit = (fn: (b: BoardState) => BoardState) =>
@@ -131,7 +165,8 @@ export const useStore = create<Store>((set, get) => {
     future: [],
     tool: 'select',
     selectedId: null,
-    overlays: { control: true, vision: true, killmap: false, lineups: false, los: true, threat: true, timing: false, walkable: false, callouts: true },
+    overlays: loadJson<Record<Overlay, boolean>>(LS_OVERLAYS, VIEW_PRESETS.standard),
+    folded: loadJson<Record<string, boolean>>(LS_FOLDED, {}),
     time: 10,
     draftRoute: null,
     playing: false,
@@ -154,28 +189,37 @@ export const useStore = create<Store>((set, get) => {
       // Switching to Route with a player selected starts that player's route right away.
       const sel = get().board.players.find(p => p.id === get().selectedId);
       set({ tool, draftRoute: tool === 'path' && sel ? { playerId: sel.id, pts: [] } : null });
-      // a side is capped at 5: say so right away instead of letting map clicks seem to do nothing
-      const side = tool === 'ct' ? 'CT' : tool === 't' ? 'T' : null;
-      if (side && get().board.players.filter(p => p.side === side).length >= 5) set({ notice: fullSide(side) });
     },
     select: selectedId => set({ selectedId }),
     toggleOverlay: o =>
       set(s => {
         const on = !s.overlays[o];
         const other = o === 'control' ? { killmap: false } : o === 'killmap' ? { control: false } : {};
-        return { overlays: { ...s.overlays, [o]: on, ...(on ? other : {}) } };
+        const overlays = { ...s.overlays, [o]: on, ...(on ? other : {}) };
+        saveJson(LS_OVERLAYS, overlays);
+        return { overlays };
+      }),
+    setView: v =>
+      set(s => {
+        const pr = VIEW_PRESETS[v];
+        const overlays = { ...s.overlays };
+        for (const l of NOISE_LAYERS) overlays[l] = pr[l];
+        if (overlays.killmap) overlays.control = false; // Best spots replaces the heat-map
+        saveJson(LS_OVERLAYS, overlays);
+        return { overlays };
+      }),
+    toggleFold: (id, collapsedNow) =>
+      set(s => {
+        const folded = { ...s.folded, [id]: !collapsedNow };
+        saveJson(LS_FOLDED, folded);
+        return { folded };
       }),
     setTime: time => set({ time }),
     setContext: c => commit(b => ({ ...b, context: { ...b.context, ...c, economy: { ...b.context.economy, ...c.economy } } })),
 
     addPlayer: (side, pos) => {
       if (get().board.players.filter(p => p.side === side).length >= 5) {
-        // full side: a click moves the selected player of that side instead (no dead clicks)
-        const sel = get().board.players.find(p => p.id === get().selectedId && p.side === side);
-        if (sel) {
-          get().move(sel.id, pos);
-          set({ notice: `5 ${side}s max, so ${side} ${sel.label ?? ''} moved here instead.` });
-        } else set({ notice: fullSide(side) });
+        set({ notice: `Already 5 ${side} players. Erase one first, or use "Clear board".` });
         return;
       }
       const p = P(side, pos.x, pos.y);

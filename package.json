@@ -12,12 +12,9 @@
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",
     "konva": "^9.3.16",
-    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-konva": "^18.2.10",
-    "steam-session": "^1.9.4",
-    "unbzip2-stream": "^1.4.3",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
@@ -28,8 +25,5 @@
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^2.1.4"
-  },
-  "allowScripts": {
-    "esbuild@0.21.5": true
   }
 }

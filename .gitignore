@@ -3,7 +3,3 @@ dist
 tsconfig.tsbuildinfo
 .DS_Store
 .claude
-
-# Steam settings and cache (secrets, never commit)
-.env
-.steam-cache

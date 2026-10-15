@@ -35,7 +35,6 @@ Requires Node 18+. The project was developed on macOS (Apple Silicon) and also r
 | **Tactical layers** | Hand-made for **Mirage** and **Nuke** (A on the upper level, B on the lower level); generated from geometry for the other maps (Vertigo is marked rough). |
 | **Line-ups** | Starter library (Mirage, Dust II) and custom line-ups saved in the browser. "Use" makes the selected player walk to the spot and throw it. |
 | **Match review** | Load a `.dem` file. Rounds replay live like a chess game review (eval bar, graph and grades revealed as the round plays; ⏭ Reveal all / R; ◀ ▶ or ← → step through key moments like chess moves, across rounds). Kills and every grenade get a chess grade (Brilliant !! … Blunder ??; deaths aren't marked, but their win-chance loss still counts toward impact and grades) plus context tags (OPENING, TRADE, ISOLATED, CLUTCH, FLASH ASSIST, WASTED…); each player gets a round letter grade (S+ … F) and an inferred role (Entry, Lurk, Support, AWPer, Anchor, Rotator, Rifler). Players' Premier ratings (read from the demo) shape the eval and the duel grades (UPSET), and missed sprays are tagged WHIFF. |
-| **Steam matches** | Review start page: sign in to Steam once (QR in the Steam mobile app, or login + Steam Guard) and your recent Premier / Competitive / Wingman matches are listed from your Personal Game Data pages; one click downloads the demo from Valve, unpacks and reviews it. Manual `.dem` upload still works. |
 | **Match report** | `#/cs2/report`: all rounds graded in a Web Worker; per player an estimated rating for the game (chess-style performance rating from duels vs real opponent ratings + round impact), match grade, K/D/ADR/KAST/HS%, openings, clutches, utility, whiffs, upsets, roles, and a grid of round grades (click → that round in Review), weighed by each team's economy (eco / force / full buy) and the guns used. Demos are parsed locally by the dev server. |
 
 ---
@@ -89,8 +88,7 @@ src/
 tools/
   build-maps.mjs     radar PNG → grid (alpha = floor; small grey shapes = props/walls; dark lines = walls on Nuke/Vertigo)
   demo.mjs           .dem → per-round JSON (uses @laihoe/demoparser2, Node only)
-  steam.mjs          your matches from Steam: web sign-in (steam-session, QR or password + Steam Guard), match history from steamcommunity.com/…/gcpd/730 (parseMatches), download + unbz2 + parse, cache in .steam-cache/
-vite.config.ts       dev-server plugins: POST /api/demo parses a demo locally; /api/steam/* (status, login/qr, login/password (localhost only), guard, cancel, signout, sync, load)
+vite.config.ts       dev-server plugin: POST /api/demo parses a demo locally
 public/maps/         Valve radars + overview .txt (pos_x/pos_y/scale, spawns, bomb markers)
 ```
 
@@ -116,13 +114,15 @@ public/maps/         Valve radars + overview .txt (pos_x/pos_y/scale, spawns, bo
 - When driving the running app from browser JS after hot reloads, the store module URL may carry `?t=…`; import that exact URL (see `performance.getEntriesByType('resource')`), or you'll get a second store instance.
 
 ### Gotchas
-- **Steam secrets:** `.steam-cache/` (Steam login token, account id, match list, parsed demos) is git-ignored. Never commit it, never log it, and never return tokens or cookies from `/api/steam/status`. The user signs in themselves in the UI; password sign-in is refused from non-localhost requests (plain HTTP over the LAN), QR works from anywhere.
-- The sign-in is a WebBrowser-platform session (not a Steam client login), so it never kicks the user out of CS2. Match history comes from scraping the Personal Game Data pages; if Steam changes that HTML, fix `parseMatches` (tested in `src/engine/__tests__/steam.test.ts`). Valve deletes demos after about a month (no download link → "demo expired").
+- Radars only mark floor by opacity. Walls drawn *on* the floor are recovered heuristically in `build-maps.mjs` (grey props, dark wall lines on Nuke/Vertigo). After changing it, run `npm run build:maps` and the full test suite: props can seal off doorways.
+- Nuke's floors aren't connected (no ramp/vent transitions within one simulation); B is analysed on the lower level only.
+- `npm run dev` binds to localhost; use `-- --host` for LAN access. `/api/demo` exists only in the dev server, and `tools/demo.mjs` is cached by Node: restart the dev server after editing it.
+- Don't feed `useDeferredValue(time)` into anything that must update during playback: it never settles while time changes every frame. `App.tsx` steps map control at 4 Hz while playing instead.
 
 ### Status and open work
 - **Demo review works on the user's real demos.** The newer fields (economy: `balance`, `current_equip_value`, `inventory`, `armor_value`…; gun names in kills) are each parsed defensively in `tools/demo.mjs`. If the Economy table or gun names come out empty, check those names against the parser output.
 - Share-code links (`steam://…csgo_download_match CSGO-…`) can't be downloaded directly; they need CS2 or a service like csstats.gg/Leetify to get the `.dem.bz2` URL. Decoding the code works (base-57 → match id / outcome id / token).
-- Ideas the user showed interest in: grade utility beyond flashes, positioning/rotation moves, CT reactions in the simulation (rotate on contact, retreat), more line-ups, a hand-made Vertigo layer, Train/Vertigo lower-level layers, a GitHub Pages build (without demo review), FACEIT matches (needs a FACEIT API key).
+- Ideas the user showed interest in: grade utility beyond flashes, positioning/rotation moves, CT reactions in the simulation (rotate on contact, retreat), more line-ups, a hand-made Vertigo layer, Train/Vertigo lower-level layers, a GitHub Pages build (without demo review), fetching matches automatically (needs Steam/FACEIT API access).
 - Calibration: travel times come from geometry and the fight model is hand-tuned. Nothing is fitted to pro demo data yet; the review grades are estimates.
 
 ---
