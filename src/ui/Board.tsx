@@ -13,7 +13,7 @@ import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
 import { MomentNav } from './Recap';
 import { LayersBar } from './Layers';
-import { PlaybackBar, RoundHud } from './Playback';
+import { PlaybackBar, RoundHud, scoreBefore } from './Playback';
 import { FOV as VISION_FOV } from '../engine/predict';
 import { ENTRY_COLOR, entryClock, entryReports } from '../engine/entries';
 import { BUILTIN_LINEUPS } from '../map/lineups';
@@ -551,8 +551,12 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
       <Coords stageRef={stageRef} engine={engine} spots={spots} />
       <LayersBar />
       <RoundHud
-        ctAlive={s.board.players.filter(p => p.side === 'CT' && live.get(p.id)?.alive !== false).length}
-        tAlive={s.board.players.filter(p => p.side === 'T' && live.get(p.id)?.alive !== false).length} />
+        players={s.board.players.map(p => ({
+          id: p.id, side: p.side, label: p.label, name: s.mode === 'review' ? s.review?.data.names[p.id] ?? p.label : `${p.side} ${p.label}`,
+          alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100,
+        }))}
+        score={recap && s.review ? scoreBefore(s.review.data, s.review.round) : null}
+        plantedAt={recap && s.review ? s.review.data.rounds[s.review.round]?.plant ?? null : null} />
       <PlaybackBar end={timelineEnd} />
       <div className="zoom">
         <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>

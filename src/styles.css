@@ -45,7 +45,7 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: v
 .field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
 
-.board { position: relative; overflow: hidden; background: var(--bg); }
+.board { position: relative; overflow: hidden; background: var(--bg); container-type: inline-size; } /* the HUD adapts to the board's width */
 .board.tool-ct, .board.tool-t, .board.tool-smoke, .board.tool-flash, .board.tool-molotov, .board.tool-path { cursor: crosshair; }
 .coords { position: absolute; left: 10px; bottom: 54px; background: #000a; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-variant-numeric: tabular-nums; }
 .hint.carry { color: #fff; background: #1f4f8acc; }
@@ -332,12 +332,43 @@ td.loadout { white-space: nowrap; }
 .layers-group h4 { margin: 0 0 2px; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 
 /* ---- round clock (top centre) and playback bar (bottom left), on the board ---- */
-.hud { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 4; display: flex; align-items: stretch;
-  background: #0b0e12e6; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; pointer-events: none; font-variant-numeric: tabular-nums; }
-.hud-side { min-width: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: #0b0e12; }
-.hud-side.ct { background: var(--ct); } .hud-side.t { background: var(--t); }
-.hud-clock { min-width: 84px; padding: 3px 12px; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: .02em; line-height: 30px; }
-.hud-clock.low { color: #ff5a4d; }
+.hud { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 5px;
+  padding: 4px 5px; border-radius: 10px; background: linear-gradient(180deg, #151a21f2, #0b0e12f2); border: 1px solid #2a313b;
+  box-shadow: 0 6px 18px #0009; pointer-events: none; font-variant-numeric: tabular-nums; }
+.hud-team { display: flex; gap: 3px; }
+.hud-tile { position: relative; width: 26px; height: 26px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; pointer-events: auto; transition: opacity var(--motion-smooth) var(--ease-out), filter var(--motion-smooth) var(--ease-out); }
+.hud-tile b { font-size: 9px; font-weight: 800; letter-spacing: -.02em; max-width: 24px; overflow: hidden; white-space: nowrap; line-height: 1; margin-top: -3px; }
+.hud-tile.ct { background: #4ea3ff2e; border: 1px solid #4ea3ff73; color: #d6e9ff; }
+.hud-tile.t { background: #e8a33c2e; border: 1px solid #e8a33c73; color: #ffe9c7; }
+.hud-tile i { position: absolute; left: 0; bottom: 0; height: 3px; width: var(--hp); background: #3ddc84; transition: width var(--motion-smooth) var(--ease-out), height var(--motion-smooth) var(--ease-out); }
+.hud-tile i.low { background: #ff5a4d; }
+.hud-tile.dead { opacity: .3; filter: grayscale(1); }
+.hud-tile.dead::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to top right, transparent 45%, #ff5a4dcc 47%, #ff5a4dcc 53%, transparent 55%); }
+.hud-alive { min-width: 24px; height: 26px; padding: 0 4px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 900; color: #0b0e12; pointer-events: auto; }
+.hud-alive.ct { background: var(--ct); } .hud-alive.t { background: var(--t); }
+.hud-mid { display: flex; align-items: center; gap: 7px; padding: 0 5px; }
+.hud-clock { min-width: 50px; text-align: center; font-size: 19px; font-weight: 800; letter-spacing: .02em; line-height: 26px; display: inline-flex; align-items: center; justify-content: center; }
+.hud-mid.low .hud-clock, .hud-mid.bomb .hud-clock { color: #ff5a4d; }
+.hud-bomb { font-size: 12px; margin-right: 4px; animation: bomb-pulse 1s ease-in-out infinite; }
+@keyframes bomb-pulse { 50% { opacity: .35; transform: scale(.85); } }
+.hud-score { min-width: 14px; text-align: center; font-size: 12px; font-weight: 800; opacity: .9; pointer-events: auto; }
+.hud-score.ct { padding-right: 6px; border-right: 1px solid #ffffff1f; } .hud-score.t { padding-left: 6px; border-left: 1px solid #ffffff1f; }
+.hud-score.ct { color: var(--ct); } .hud-score.t { color: var(--t); }
+/* medium board: each player is a slim vertical health bar (name on hover); narrow board: counts + clock only */
+@container (max-width: 1100px) {
+  .hud-team { gap: 3px; }
+  .hud-tile { width: 9px; height: 24px; border-radius: 3px; }
+  .hud-tile b { display: none; }
+  .hud-tile i { width: 100%; height: var(--hp); opacity: .9; }
+  .hud-tile.ct { background: #4ea3ff26; } .hud-tile.t { background: #e8a33c26; }
+  .hud-tile.ct i { background: var(--ct); } .hud-tile.t i { background: var(--t); }
+  .hud-tile i.low { background: #ff5a4d; }
+  .hud-tile.dead::after { background: linear-gradient(to top right, transparent 40%, #ff5a4dcc 45%, #ff5a4dcc 55%, transparent 60%); }
+}
+@container (max-width: 700px) { .hud-team { display: none; } }
 .playbar { position: absolute; left: 10px; bottom: 10px; z-index: 4; display: flex; align-items: center; gap: 4px; width: min(420px, calc(100% - 150px));
   background: #0b0e12e6; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
 .playbar button { text-align: center; padding: 5px 9px; flex: none; }

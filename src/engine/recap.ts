@@ -135,7 +135,8 @@ export function buildReplay(engine: TacticalEngine, demo: DemoData, roundIdx: nu
   const r = demo.rounds[roundIdx];
   const toR = (x: number, y: number) => worldToRadar({ x, y }, engine.map.radar);
   const ids = Object.keys(r.frames.players);
-  const shortName = (id: string) => (demo.names[id] ?? id).replace(/[^\p{L}\p{N}]/gu, '').slice(0, 3) || '?';
+  // by characters, not UTF-16 units: fancy names (𝖫𝖺𝗒2𝗇) would be cut in half
+  const shortName = (id: string) => [...(demo.names[id] ?? id).replace(/[^\p{L}\p{N}]/gu, '')].slice(0, 3).join('') || '?';
 
   const steps = Math.max(1, Math.ceil(r.duration / SIM_DT) + 1);
   const sim: Simulation = {
