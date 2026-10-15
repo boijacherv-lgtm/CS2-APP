@@ -9,6 +9,12 @@ import { ONLINE } from '../env';
 
 const SYNC_EVERY = 5 * 60 * 1000; // new games show up by themselves
 
+/** What the website shows before you log in (the Worker answers 401 until then). */
+const LOGGED_OUT: SteamStatus = {
+  configured: { steamId: false, apiKey: true, authCode: false, knownCode: false, replays: false },
+  steamId: null, source: null, note: null, syncing: false, replays: [], importing: { file: null, error: null }, matches: [],
+};
+
 /**
  * "Your matches" on the review start page, Valve's official way and nothing else:
  *   1. Log in with Steam (Steam OpenID, the app only learns your SteamID)
@@ -29,6 +35,8 @@ export function SteamMatches() {
   const refresh = useCallback(async () => {
     try {
       const res = await steamFetch('/status');
+      // the website's Worker answers 401 until you log in: show the box logged out, not hidden
+      if (res.status === 401) { setSt(LOGGED_OUT); setOffline(false); return; }
       if (!res.ok) throw new Error();
       setSt(await res.json());
       setOffline(false);
@@ -103,11 +111,14 @@ export function SteamMatches() {
             Opens Steam's own login page (steamcommunity.com), where you can scan Steam's QR code with Steam Guard. Steam only tells
             the app your SteamID: no password, no access to your account.
           </p>
-          <p className="muted">Or paste your profile link:</p>
-          <div className="row">
-            <input value={profile} onChange={e => setProfile(e.target.value)} placeholder="https://steamcommunity.com/id/yourname" spellCheck={false} />
-            <button type="submit" disabled={!profile.trim()}>Use this profile</button>
-          </div>
+          {/* desktop only: the website's match list is tied to a real Steam login */}
+          {!ONLINE && <>
+            <p className="muted">Or paste your profile link:</p>
+            <div className="row">
+              <input value={profile} onChange={e => setProfile(e.target.value)} placeholder="https://steamcommunity.com/id/yourname" spellCheck={false} />
+              <button type="submit" disabled={!profile.trim()}>Use this profile</button>
+            </div>
+          </>}
         </form>
       )}
 
