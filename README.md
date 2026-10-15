@@ -30,10 +30,12 @@ Requires Node 18+. The project was developed on macOS (Apple Silicon) and also r
 | **Timeline** | Round-time slider and ▶ Play (0.5–4×). Everything (positions, smokes, map control, fights) follows the time. |
 | **Guns** | 31 CS2 weapons with price, damage, fire rate, armour pen, movement speed, kill speed and range. Pick the exact gun per player; the simulation uses its stats. |
 | **Combat** | Seeded fight simulation: reaction times, peeker's advantage, crossfires, gun stats, flashes, HE/molotov damage and HP. 🎲 Re-roll for other outcomes. 200-round batches give kill chances and round win rates. |
+| **Visuals** | In Review, grenades replay exactly as thrown in the match (real flight path with bounces, real smoke/fire duration) with their grade on them. Grenades look like the real thing and follow the clock: flying along their arc, then a smoke cloud that blooms and fades, flickering fire, a flash burst, an HE blast ring, each with a countdown. The Vision layer draws every living player's field of view (blocked by walls and smokes) and red dashed lines between players who can see each other. |
 | **Analysis** | Map control as territory (CT/T ground with a front line, ownership per area), entry points (when Ts arrive, who holds it with what, crossfire, share of the T push), predicted T plays, best spots for a selected CT, utility evaluation. |
 | **Tactical layers** | Hand-made for **Mirage** and **Nuke** (A on the upper level, B on the lower level); generated from geometry for the other maps (Vertigo is marked rough). |
 | **Line-ups** | Starter library (Mirage, Dust II) and custom line-ups saved in the browser. "Use" makes the selected player walk to the spot and throw it. |
-| **Match review** | Load a `.dem` file. Rounds replay live like a chess game review (eval bar, graph and grades revealed as the round plays; ⏭ Reveal all / R). Kills, deaths and flashes get grades (Brilliant !! … Blunder ??), weighed by each team's economy (eco / force / full buy) and the guns used. Demos are parsed locally by the dev server. |
+| **Match review** | Load a `.dem` file. Rounds replay live like a chess game review (eval bar, graph and grades revealed as the round plays; ⏭ Reveal all / R; ◀ ▶ or ← → step through key moments like chess moves, across rounds). Kills and every grenade get a chess grade (Brilliant !! … Blunder ??; deaths aren't marked, but their win-chance loss still counts toward impact and grades) plus context tags (OPENING, TRADE, ISOLATED, CLUTCH, FLASH ASSIST, WASTED…); each player gets a round letter grade (S+ … F) and an inferred role (Entry, Lurk, Support, AWPer, Anchor, Rotator, Rifler). Players' Premier ratings (read from the demo) shape the eval and the duel grades (UPSET), and missed sprays are tagged WHIFF. |
+| **Match report** | `#/cs2/report`: all rounds graded in a Web Worker; per player an estimated rating for the game (chess-style performance rating from duels vs real opponent ratings + round impact), match grade, K/D/ADR/KAST/HS%, openings, clutches, utility, whiffs, upsets, roles, and a grid of round grades (click → that round in Review), weighed by each team's economy (eco / force / full buy) and the guns used. Demos are parsed locally by the dev server. |
 
 ---
 
@@ -50,6 +52,8 @@ Requires Node 18+. The project was developed on macOS (Apple Silicon) and also r
 
 ```
 src/
+  shell/             app frame: nav bar (logo, game tabs, Tactical | Review switch), home page, hash router
+                     (#/ home · #/cs2/tactical · #/cs2/review · #/cs2/report). Brand name lives in shell/Logo.tsx (APP_NAME).
   engine/            pure TypeScript, no React: everything testable in Node
     types.ts         data model: MapDefinition, Player, Utility, Route, BoardState…
     grid.ts          MapGrid: walkability bitset, Dijkstra fields, A* shortestPath, line of sight, vision casting, popAt()
@@ -64,7 +68,9 @@ src/
     killmap.ts       first-sight sweep of T movement + duel model (shared by spots)
     spots.ts         best spots for a selected CT (first duel, trade, exposure; keeps their entry covered)
     batch.ts         chunked many-round runs (kill chances, win rate) + utility impact
-    recap.ts         demo → replay (Simulation-shaped), economy/buy types, eval curve, chess-style move grading
+    recap.ts         demo → replay (Simulation-shaped), economy/buy types, eval curve, chess-style move grading, tags, roles, ratings
+    match.ts         match report: per-round summaries → per-player stats, performance rating, match grade
+    match.worker.ts  grades every round of a loaded match off the main thread (started by Shell's useMatchGrader)
     coords.ts / rng.ts
   map/
     catalog.ts       MAPS list, hand-made layers (EXTRAS) incl. per-level data, getEngine(map, level), presets, T plays
@@ -74,7 +80,10 @@ src/
     Board.tsx        Konva stage: radar, overlays, players, routes, utility, tools, gestures
     Panels.tsx       left toolbar + right analysis panel
     Recap.tsx        demo loader + review panel (eval graph, moves, player grades)
-  store.ts           zustand store: board per map level, tools, overlays, time/playback, review state
+    Report.tsx       match report page (plain layout, design pass pending)
+    Nades.tsx        grenade visuals: smoke clouds, fire, flash burst, HE ring, flight arcs, countdowns (time-driven)
+  store.ts           zustand store: board per map level, tools, overlays, time/playback, mode ('tactical' | 'review'),
+                     the loaded match, and the tactical board parked while Review shows a match
   App.tsx            wires engine ⇄ store; memoized analysis, simulation, control, kill map, batches
 tools/
   build-maps.mjs     radar PNG → grid (alpha = floor; small grey shapes = props/walls; dark lines = walls on Nuke/Vertigo)
@@ -83,12 +92,14 @@ vite.config.ts       dev-server plugin: POST /api/demo parses a demo locally
 public/maps/         Valve radars + overview .txt (pos_x/pos_y/scale, spawns, bomb markers)
 ```
 
+**Modes:** the URL decides the CS2 mode (`Shell` calls `store.setMode`). Switching parks/restores the tactical board, and a loaded match survives switching back to Tactical. In Review with no match, `ReviewStart` (drop zone) replaces the board.
+
 **Data flow:** `store.board` → (deferred) → `engine.analyze` / `simulate` / `computeControl` / `computeKillMap` / `runBatch` → props to `Board` and panels. In review mode `buildReplay()` replaces the board and the simulation with the real round.
 
 ### Conventions and invariants
 - **Coordinates:** all geometry is in **radar pixels (0–1024)**. Convert to world units only via `coords.ts` (`worldToRadar`, `radarToWorld`) with the map's `pos_x/pos_y/scale`. Engine timings use `engine.secPerPx(side, weapon)`.
 - **Grid:** `CELL = 4` px. `MapGrid.isWalkable`, `lineOfSight` (ray-marched, smokes as discs), `distanceField` (multi-source, `blocked`, `start` offsets), `shortestPath` (A* + string pulling).
-- **Grenade timing:** always use `popAt(u)` (throw time + `flight` or the type default). Never hard-code flight constants.
+- **Grenade timing:** always use `popAt(u)` (throw time + `flight` or the type default). Never hard-code flight constants. Smoke/fire lifetime is `lifeOf(u)` (demo grenades carry their real `duration`). Grading lives in `recap.ts`: chess marks come from win-chance change (`grade`), tags from `TAG_INFO`, letters from `letterGrade` (impact points + tag bonuses), roles from `playerRoles`. Grenade grades are in `gradeNade` (smoke: sightlines cut; molotov: damage + enemies kept off; HE: damage + kills set up; flash: blinds).
 - **Facing:** radians in radar space (y down). `undefined` = auto-aim (`engine.facing(p)`). Demo yaw converts as `-yaw°`.
 - **Simulation shape:** `combat.Simulation` (per-player Float32/Uint8 arrays at `SIM_DT = 0.1 s`) is the common format for playback, control, kill feed and demo replays. Reuse it rather than inventing parallel structures.
 - **Determinism:** everything random goes through `mulberry32(seed)`. Same board + seed = same round.

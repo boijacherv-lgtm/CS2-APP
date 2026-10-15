@@ -1,4 +1,4 @@
-import { activeSmokes, CELL, MOLLY_DURATION, popAt } from './grid';
+import { activeSmokes, CELL, lifeOf, popAt } from './grid';
 import { FOV, type TacticalEngine } from './predict';
 import { simPlayersAt, SIM_DT, type Simulation } from './combat';
 import { bakeRoute, playersAt } from './timeline';
@@ -68,7 +68,7 @@ export function computeControl(engine: TacticalEngine, board: BoardState, t: num
 
   // 2. Molotovs deny ground while burning.
   const mollyR = 120 / engine.map.radar.scale;
-  const mollies = board.utility.filter(u => u.type === 'molotov' && t >= popAt(u) && t <= popAt(u) + MOLLY_DURATION);
+  const mollies = board.utility.filter(u => u.type === 'molotov' && t >= popAt(u) && t <= popAt(u) + lifeOf(u));
   const denied = new Uint8Array(n);
   if (mollies.length) for (let i = 0; i < n; i++) if (g.walk[i] && mollies.some(m => near(g, i, m.pos, mollyR))) denied[i] = 1;
 

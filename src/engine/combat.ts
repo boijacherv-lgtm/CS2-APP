@@ -1,4 +1,4 @@
-import { activeSmokes, MOLLY_DURATION, popAt } from './grid';
+import { activeSmokes, lifeOf, popAt } from './grid';
 import { FOV, inFov, type TacticalEngine } from './predict';
 import { gunHazard, gunOf } from './guns';
 import { mulberry32 } from './rng';
@@ -96,7 +96,7 @@ export function simulate(engine: TacticalEngine, board: BoardState, end: number,
   const flashes = board.utility.filter(u => u.type === 'flash').map(u => ({ id: u.id, pos: u.pos, pop: popAt(u), done: false }));
   const pxToUnits = engine.map.radar.scale;
   const hes = board.utility.filter(u => u.type === 'he').map(u => ({ id: u.id, pos: u.pos, pop: popAt(u), done: false }));
-  const mollies = board.utility.filter(u => u.type === 'molotov').map(u => ({ id: u.id, pos: u.pos, from: popAt(u), to: popAt(u) + MOLLY_DURATION }));
+  const mollies = board.utility.filter(u => u.type === 'molotov').map(u => ({ id: u.id, pos: u.pos, from: popAt(u), to: popAt(u) + lifeOf(u) }));
   const burnEvent = new Map<string, UtilEvent>();
   const kill = (j: number, t: number, killer: string, cause: KillEvent['cause']) => {
     const b = agents[j];

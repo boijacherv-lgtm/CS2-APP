@@ -29,6 +29,7 @@ const TOOLS: { id: Tool; label: string; key: string }[] = [
   { id: 'erase', label: 'Erase', key: 'E' },
 ];
 const OVERLAYS: { id: Overlay; label: string }[] = [
+  { id: 'vision', label: 'Vision (everyone, who sees whom)' },
   { id: 'control', label: 'Map control (CT coverage)' },
   { id: 'killmap', label: 'Best spots (selected CT)' },
   { id: 'threat', label: 'Entry points (who holds what)' },
@@ -44,10 +45,10 @@ export function Toolbar({ engine, timelineEnd }: { engine: TacticalEngine; timel
   const entry = MAPS.find(m => m.id === s.mapId)!;
   return (
     <aside className="toolbar">
-      <h1>CS2 Tactics<span>{entry.id} · beta</span></h1>
+      <h1>{s.mode === 'review' ? 'Match review' : 'Tactical board'}<span>{entry.name}{s.level ? ' · lower level' : ''}</span></h1>
       <section>
         <h3>Map</h3>
-        <select value={s.mapId} disabled={!!s.review} onChange={e => s.setMap(e.target.value)}>
+        <select value={s.mapId} disabled={s.mode === 'review'} onChange={e => s.setMap(e.target.value)}>
           {MAPS.map(m => <option key={m.id} value={m.id}>{m.name}{roughNote(m.id) ? ' (rough)' : ''}</option>)}
         </select>
         {entry.levels.length > 1 && (
@@ -68,7 +69,7 @@ export function Toolbar({ engine, timelineEnd }: { engine: TacticalEngine; timel
           {roughNote(s.mapId) && <><br /><b>Rough:</b> {roughNote(s.mapId)}</>}
         </p>
       </section>
-      <section>
+      {s.mode !== 'review' && <section>
         <h3>Tools</h3>
         <div className="tools">
           {TOOLS.map(t => (
@@ -84,9 +85,9 @@ export function Toolbar({ engine, timelineEnd }: { engine: TacticalEngine; timel
           <button onClick={s.undo} disabled={!s.past.length}>Undo</button>
           <button onClick={s.redo} disabled={!s.future.length}>Redo</button>
         </div>
-      </section>
-      <DemoLoader />
-      {!s.review && <>
+      </section>}
+      {s.mode === 'review' && <DemoLoader />}
+      {s.mode !== 'review' && <>
       <section>
         <h3>CT setups</h3>
         <div className="presets">
@@ -106,7 +107,7 @@ export function Toolbar({ engine, timelineEnd }: { engine: TacticalEngine; timel
       </>}
       <section>
         <h3>Overlays</h3>
-        {OVERLAYS.map(o => (
+        {OVERLAYS.filter(o => s.mode !== 'review' || !['killmap', 'threat'].includes(o.id)).map(o => (
           <label key={o.id} className="check">
             <input type="checkbox" checked={s.overlays[o.id]} onChange={() => s.toggleOverlay(o.id)} /> {o.label}
           </label>
@@ -124,15 +125,15 @@ export function Toolbar({ engine, timelineEnd }: { engine: TacticalEngine; timel
             <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
           </select>
         </div>
-        {!s.review && <div className="row combat">
+        {s.mode !== 'review' && <div className="row combat">
           <label className="check grow"><input type="checkbox" checked={s.combat} onChange={e => s.setCombat(e.target.checked)} /> Combat (players die)</label>
           <button onClick={s.reroll} disabled={!s.combat} title="Roll the fights again">🎲 Re-roll</button>
         </div>}
-        <input type="range" min={0} max={s.review ? Math.ceil(timelineEnd) : Math.max(60, Math.ceil(timelineEnd))} step={0.1} value={s.time}
+        <input type="range" min={0} max={s.mode === 'review' ? Math.ceil(timelineEnd) : Math.max(60, Math.ceil(timelineEnd))} step={0.1} value={s.time}
           onChange={e => { s.setPlaying(false); s.setTime(+e.target.value); }} />
         <p className="muted">Seconds after freeze time. Moves players along their routes and drives map control and utility. Space = play/pause.</p>
       </section>
-      <Selection engine={engine} />
+      {s.mode !== 'review' && <Selection engine={engine} />}
     </aside>
   );
 }

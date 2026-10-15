@@ -1,5 +1,5 @@
 import { FLASH_BLIND, HAZARD, HE_RADIUS_U, MAX_RANGE_PX, PEEKER_EDGE, rangeFactor, SIM_DT, TURN_AFTER, type Simulation } from './combat';
-import { activeSmokes, CELL, MOLLY_DURATION, popAt, type MapGrid } from './grid';
+import { activeSmokes, CELL, lifeOf, popAt, type MapGrid } from './grid';
 import { FOV, inFov, type TacticalEngine } from './predict';
 import { mulberry32 } from './rng';
 import { bakeRoute } from './timeline';
@@ -178,7 +178,7 @@ export function utilityTilt(g: MapGrid, util: Utility[], scale: number, t: numbe
       w *= 1 - 0.4 * heDmg(ct, u);
       w = 1 - (1 - w) * (1 - 0.4 * heDmg(tp, u));
     } else if (u.type === 'molotov') {
-      const burning = t >= popAt(u) && t <= popAt(u) + MOLLY_DURATION;
+      const burning = t >= popAt(u) && t <= popAt(u) + lifeOf(u);
       if (burning && Math.hypot(ct.x - u.pos.x, ct.y - u.pos.y) * scale < 120) w *= 0.3;
     }
   }

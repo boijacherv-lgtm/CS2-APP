@@ -1,4 +1,4 @@
-import { activeSmokes, MapGrid, MOLLY_DURATION, segmentHitsCircle, SMOKE_DURATION, SMOKE_RADIUS_UNITS, popAt, type SmokeDisc } from './grid';
+import { activeSmokes, MapGrid, lifeOf, segmentHitsCircle, SMOKE_RADIUS_UNITS, popAt, type SmokeDisc } from './grid';
 import { gaussian, mulberry32 } from './rng';
 import { prior, type StrategyArchetype } from './strategies';
 import type { BoardState, Chokepoint, Econ, MapDefinition, Player, SiteId, Vec2, Weapon } from './types';
@@ -260,11 +260,11 @@ export class TacticalEngine {
         const c = chokeById.get(chokeId)!;
         let t = next.t;
         // CT molotov on the choke: Ts wait it out
-        const molly = mollies.find(m => segmentHitsCircle(c.portal[0], c.portal[1], m.pos, 120 / scale) && t >= popAt(m) && t <= popAt(m) + MOLLY_DURATION);
-        if (molly) { next.delay += popAt(molly) + MOLLY_DURATION - t + 0.3; continue; }
+        const molly = mollies.find(m => segmentHitsCircle(c.portal[0], c.portal[1], m.pos, 120 / scale) && t >= popAt(m) && t <= popAt(m) + lifeOf(m));
+        if (molly) { next.delay += popAt(molly) + lifeOf(molly) - t + 0.3; continue; }
         // CT smoke on the choke: half the time Ts wait for it to fade
-        const smoke = ctSmokes.find(s => segmentHitsCircle(c.portal[0], c.portal[1], s.pos, SMOKE_RADIUS_UNITS / scale) && t >= popAt(s) && t <= popAt(s) + SMOKE_DURATION);
-        if (smoke && rng() < 0.5) { next.delay += popAt(smoke) + SMOKE_DURATION - t + 0.3; continue; }
+        const smoke = ctSmokes.find(s => segmentHitsCircle(c.portal[0], c.portal[1], s.pos, SMOKE_RADIUS_UNITS / scale) && t >= popAt(s) && t <= popAt(s) + lifeOf(s));
+        if (smoke && rng() < 0.5) { next.delay += popAt(smoke) + lifeOf(smoke) - t + 0.3; continue; }
 
         // CTs who already left to rotate no longer hold anything
         const holdingAlive = new Set([...alive].filter(id => rotateAt + INFO_DELAY > t || rot.get(id)! < 1.5));
@@ -334,7 +334,7 @@ export function utilityOnChoke(util: BoardState['utility'], c: Chokepoint, from:
   return {
     flash: util.some(u => u.type === 'flash' && popAt(u) >= from - 2.4 && popAt(u) <= to && near(u.pos, 500)),
     he: util.some(u => u.type === 'he' && popAt(u) >= from - 3 && popAt(u) <= to && near(u.pos, 300)),
-    molly: util.some(u => u.type === 'molotov' && popAt(u) <= to && popAt(u) + MOLLY_DURATION >= from && near(u.pos, 150)),
+    molly: util.some(u => u.type === 'molotov' && popAt(u) <= to && popAt(u) + lifeOf(u) >= from && near(u.pos, 150)),
   };
 }
 

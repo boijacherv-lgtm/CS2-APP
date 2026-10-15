@@ -1,6 +1,6 @@
 // Turns a CS2 .dem into compact per-round data for the review screen.
 // Runs in the Vite dev server (Node) — the parser is a native module.
-import { parseEvent, parseEvents, parseHeader, parseTicks } from '@laihoe/demoparser2';
+import { parseEvent, parseEvents, parseGrenades, parseHeader, parseTicks } from '@laihoe/demoparser2';
 
 const TICKRATE = 64;
 const SAMPLE_EVERY = 16; // ticks → 0.25 s
@@ -63,6 +63,15 @@ export function parseDemo(path) {
   const deaths = parseEvent(path, 'player_death', ['X', 'Y', 'team_num'], []) ?? [];
   const blinds = safe(() => parseEvent(path, 'player_blind', ['team_num'], [])) ?? [];
   const nades = safe(() => parseEvents(path, ['flashbang_detonate', 'hegrenade_detonate', 'smokegrenade_detonate', 'inferno_startburn'])) ?? [];
+  const nadeEnds = safe(() => parseEvents(path, ['smokegrenade_expired', 'inferno_expire'])) ?? [];
+  const flights = safe(() => grenadeFlights(path)) ?? [];
+  // damage: grenades (HE / fire) for grading utility, guns for ADR and missed duels
+  const allHurts = safe(() => parseEvent(path, 'player_hurt', [], [])) ?? [];
+  const hurts = allHurts.filter(h => /hegrenade|inferno|molotov|incgrenade/.test(String(pick(h, 'weapon') ?? '')));
+  const gunHurts = allHurts.filter(h => !/hegrenade|inferno|molotov|incgrenade|world|knife|bayonet/.test(String(pick(h, 'weapon') ?? '')));
+  // every gun shot (one event per bullet; grenades, knife, bomb and taser excluded)
+  const shotsAll = (safe(() => parseEvent(path, 'weapon_fire', [], [])) ?? [])
+    .filter(w => !/grenade|flashbang|molotov|incgrenade|decoy|knife|bayonet|c4|taser/.test(String(pick(w, 'weapon') ?? '')));
   const plants = roundEvents.filter(e => evName(e) === 'bomb_planted').map(e => num(e.tick));
 
   const names = {};
@@ -104,7 +113,17 @@ export function parseDemo(path) {
       type: { flashbang_detonate: 'flash', hegrenade_detonate: 'he', smokegrenade_detonate: 'smoke', inferno_startburn: 'molotov' }[evName(n)],
       thrower: sid(pick(n, 'user_steamid', 'player_steamid')),
       x: num(pick(n, 'x', 'X')), y: num(pick(n, 'y', 'Y')),
+      ...throwOf(n, flights, nadeEnds, tOf),
     })).filter(u => u.type && Number.isFinite(u.x));
+    const shots = shotsAll.filter(w => inRound(num(w.tick))).map(w => ({ t: round2(tOf(num(w.tick))), id: sid(pick(w, 'user_steamid')) }));
+    const hits = gunHurts.filter(h => inRound(num(h.tick))).map(h => ({
+      t: round2(tOf(num(h.tick))), attacker: sid(pick(h, 'attacker_steamid')), victim: sid(pick(h, 'user_steamid')),
+      dmg: num(pick(h, 'dmg_health')) || 0, head: pick(h, 'hitgroup') === 'head',
+    }));
+    const nadeDamage = hurts.filter(h => inRound(num(h.tick))).map(h => ({
+      t: tOf(num(h.tick)), attacker: sid(pick(h, 'attacker_steamid')), victim: sid(pick(h, 'user_steamid')),
+      dmg: num(pick(h, 'dmg_health')) || 0, weapon: /hegrenade/.test(String(h.weapon)) ? 'he' : 'molotov',
+    }));
     const blind = blinds.filter(b => inRound(num(b.tick))).map(b => ({
       t: tOf(num(b.tick)),
       victim: sid(pick(b, 'user_steamid')), attacker: sid(pick(b, 'attacker_steamid')),
@@ -126,11 +145,75 @@ export function parseDemo(path) {
     return {
       n: idx + 1, winner: r.winner, reason: r.reason, duration: tOf(r.end),
       plant: plant !== undefined ? tOf(plant) : null,
-      frames, kills, util, blind, econ: roundEcon,
+      frames, kills, util, blind, econ: roundEcon, nadeDamage, shots, hits,
     };
   });
-  return { map, tickrate: TICKRATE, names, rounds: out.filter(r => r.frames.t.length > 4) };
+  // Premier / competitive rating of every player, read once early in the match (rank type 11 = Premier)
+  const ranks = {};
+  const rankRows = rounds.length ? safe(() => parseTicks(path, ['rank', 'comp_rank_type', 'comp_wins'], [rounds[0].start + 64])) ?? [] : [];
+  for (const row of rankRows) {
+    const id = sid(pick(row, 'steamid', 'player_steamid'));
+    const rating = num(row.rank);
+    if (id && Number.isFinite(rating) && rating > 0) ranks[id] = { rating, type: num(row.comp_rank_type) === 11 ? 'premier' : 'competitive', wins: num(row.comp_wins) || 0 };
+  }
+  return { map, tickrate: TICKRATE, names, ranks, rounds: out.filter(r => r.frames.t.length > 4) };
+}
+
+const PROJECTILE = { CSmokeGrenadeProjectile: 'smoke', CFlashbangProjectile: 'flash', CHEGrenadeProjectile: 'he', CMolotovProjectile: 'molotov' };
+
+/** Every thrown grenade's flight: one entry per throw (entity ids get reused, so split on gaps). */
+function grenadeFlights(path) {
+  const rows = parseGrenades(path) ?? [];
+  const open = new Map();
+  const out = [];
+  for (const r of rows) {
+    const type = PROJECTILE[r.grenade_type];
+    if (!type || r.x == null) continue;
+    const key = r.grenade_entity_id;
+    let f = open.get(key);
+    const tick = num(r.tick);
+    if (!f || f.type !== type || tick - f.last > 8 || sid(r.steamid) !== f.thrower) {
+      f = { type, thrower: sid(r.steamid), start: tick, last: tick, pts: [] };
+      open.set(key, f);
+      out.push(f);
+    }
+    f.last = tick;
+    f.pts.push([tick, round1(num(r.x)), round1(num(r.y))]);
+  }
+  return out;
+}
+
+/** Throw time, flight path and real lifetime for one detonation event. */
+function throwOf(n, flights, ends, tOf) {
+  const tick = num(n.tick), thrower = sid(pick(n, 'user_steamid', 'player_steamid'));
+  const type = { flashbang_detonate: 'flash', hegrenade_detonate: 'he', smokegrenade_detonate: 'smoke', inferno_startburn: 'molotov' }[pick(n, 'event_name', 'eventName')];
+  const x = num(pick(n, 'x', 'X')), y = num(pick(n, 'y', 'Y'));
+  // the flight that ends closest to this detonation, from the same player
+  let best = null, bd = Infinity;
+  for (const f of flights) {
+    if (f.type !== type || f.thrower !== thrower || f.start > tick || tick - f.start > 64 * 12) continue;
+    const landed = f.pts.findLast(p => p[0] <= tick) ?? f.pts.at(-1);
+    const d = Math.hypot(landed[1] - x, landed[2] - y) + Math.abs(Math.min(f.last, tick) - tick);
+    if (d < bd) { bd = d; best = f; }
+  }
+  const out = {};
+  if (best && bd < 400) {
+    out.throwT = tOf(best.start);
+    // every 4 ticks (~16 Hz) is smooth enough on a radar
+    const pts = best.pts.filter((p, i) => p[0] <= tick && (i % 4 === 0));
+    pts.push([tick, x, y]);
+    out.path = pts.map(p => [p[1], p[2]]);
+  }
+  if (type === 'smoke' || type === 'molotov') {
+    const endName = type === 'smoke' ? 'smokegrenade_expired' : 'inferno_expire';
+    const id = pick(n, 'entityid');
+    const end = ends.find(e => pick(e, 'event_name', 'eventName') === endName && num(e.tick) > tick && (id === undefined || pick(e, 'entityid') === id)
+      && Math.hypot(num(e.x) - x, num(e.y) - y) < 50);
+    if (end) out.end = tOf(num(end.tick));
+  }
+  return out;
 }
 
 function safe(fn) { try { return fn(); } catch { return null; } }
 const round1 = v => Math.round(v * 10) / 10;
+const round2 = v => Math.round(v * 100) / 100;

@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { UTIL_FLIGHT } from './engine/grid';
+import type { RoundSummary } from './engine/match';
 import type { DemoData } from './engine/recap';
 import { presetsFor, tPlaysFor } from './map/catalog';
 import { loadCustomLineups, saveCustomLineups, type Lineup } from './map/lineups';
 import type { BoardState, Player, RoundContext, Route, Side, UtilType, Utility, Vec2, Weapon } from './engine/types';
 
 export type Tool = 'select' | 'ct' | 't' | 'smoke' | 'flash' | 'molotov' | 'he' | 'path' | 'lineup' | 'erase';
-export type Overlay = 'control' | 'killmap' | 'lineups' | 'los' | 'threat' | 'timing' | 'walkable' | 'callouts';
+export type Overlay = 'control' | 'vision' | 'killmap' | 'lineups' | 'los' | 'threat' | 'timing' | 'walkable' | 'callouts';
 export type KillMetric = 'pKill' | 'expKills' | 'survive';
 
 interface Store {
@@ -35,8 +36,14 @@ interface Store {
   /** Line-up being drawn with the Line-up tool: throw spot, then landing spot. */
   draftLineup: { from?: Vec2; to?: Vec2 } | null;
   customLineups: Lineup[];
-  /** Demo review: parsed demo, round shown, and the board to restore afterwards. */
-  review: { data: DemoData; round: number; prevBoard: BoardState; prevMap: string } | null;
+  /** Which CS2 screen is open: planning a round, or reviewing a played match. */
+  mode: 'tactical' | 'review';
+  /** The loaded match (kept while you switch back to Tactical). */
+  review: { data: DemoData; round: number } | null;
+  /** Every round of the loaded match graded in the background (Match report page). */
+  report: { data: DemoData; rounds: (RoundSummary | null)[]; done: boolean } | null;
+  /** The tactical board, parked while Review mode shows a match. */
+  parked: { board: BoardState; mapId: string; level: number } | null;
   /** Review shows the whole round at once instead of revealing it as time passes. */
   reviewSpoilers: boolean;
   /** Short message shown over the board (e.g. why an action did nothing). */
@@ -68,8 +75,10 @@ interface Store {
   deleteLineup(id: string): void;
   /** Put a line-up's grenade on the board, released at `throwAt`. */
   useLineup(l: Lineup, throwAt: number, flight: number): void;
+  setMode(mode: 'tactical' | 'review'): void;
   startReview(data: DemoData): void;
   setReviewRound(n: number): void;
+  /** Close the loaded match (stays in Review mode, back to the loader). */
   exitReview(): void;
   setReviewSpoilers(on: boolean): void;
   /** Auto-route a player to a destination (replaces their route, keeps leave time/mode). */
@@ -119,7 +128,7 @@ export const useStore = create<Store>((set, get) => {
     future: [],
     tool: 'select',
     selectedId: null,
-    overlays: { control: true, killmap: false, lineups: false, los: true, threat: true, timing: false, walkable: false, callouts: true },
+    overlays: { control: true, vision: true, killmap: false, lineups: false, los: true, threat: true, timing: false, walkable: false, callouts: true },
     time: 10,
     draftRoute: null,
     playing: false,
@@ -130,7 +139,10 @@ export const useStore = create<Store>((set, get) => {
     killMetric: 'pKill',
     draftLineup: null,
     customLineups: loadCustomLineups(),
+    mode: 'tactical',
     review: null,
+    report: null,
+    parked: null,
     reviewSpoilers: false,
     notice: null,
 
@@ -224,16 +236,30 @@ export const useStore = create<Store>((set, get) => {
     },
     useLineup: (l, throwAt, flight) =>
       commit(b => ({ ...b, utility: [...b.utility, { id: uid(), type: l.type, pos: l.to, from: l.from, flight, throwAt, lineup: l.id }] })),
+    setMode: mode =>
+      set(s => {
+        if (mode === s.mode) return s;
+        const common = { mode, selectedId: null, draftRoute: null, draftLineup: null, playing: false, past: [], future: [], tool: 'select' as Tool };
+        if (mode === 'review') {
+          const parked = { board: s.board, mapId: s.mapId, level: s.level };
+          return { ...common, parked, time: 0, ...(s.review ? { mapId: s.review.data.map, level: 0 } : {}) };
+        }
+        // back to tactical: restore the board exactly as it was
+        const p = s.parked;
+        return { ...common, parked: null, time: 10, ...(p ? { board: p.board, mapId: p.mapId, level: p.level } : {}) };
+      }),
     startReview: data =>
       set(s => ({
-        review: { data, round: 0, prevBoard: s.board, prevMap: s.mapId },
+        mode: 'review',
+        parked: s.mode === 'review' ? s.parked : { board: s.board, mapId: s.mapId, level: s.level },
+        review: { data, round: 0 },
+        report: null,
         mapId: data.map, level: 0, selectedId: null, draftRoute: null, playing: false, time: 0, past: [], future: [],
         tool: 'select',
       })),
     setReviewRound: n => set(s => (s.review ? { review: { ...s.review, round: n }, time: 0, playing: false, selectedId: null } : s)),
     setReviewSpoilers: reviewSpoilers => set({ reviewSpoilers }),
-    exitReview: () =>
-      set(s => (s.review ? { board: s.review.prevBoard, mapId: s.review.prevMap, level: 0, review: null, time: 10, playing: false, selectedId: null } : s)),
+    exitReview: () => set({ review: null, report: null, time: 0, playing: false, selectedId: null }),
     routeTo: (playerId, p) =>
       commit(b => ({
         ...b,

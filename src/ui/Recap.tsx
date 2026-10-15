@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
 import type { TacticalEngine } from '../engine/predict';
-import { equipValue, evalAt, GRADE_INFO, movesUntil, teamEconomy, type DemoData, type Grade, type Move, type Replay, type Review } from '../engine/recap';
+import { equipValue, evalAt, GRADE_INFO, isMarked, moments, type Moment, LETTER_COLOR, letterGrade, movesUntil, TAG_INFO, teamEconomy, type DemoData, type Grade, type Move, type Replay, type Review, type Tag } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { gunFromName, primaryGun } from '../engine/guns';
 import { useStore } from '../store';
@@ -9,18 +9,18 @@ import { useStore } from '../store';
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
 
-/** Load a .dem (parsed locally by the dev server) or a previously exported .json. */
-export function DemoLoader() {
-  const s = useStore();
-  const input = useRef<HTMLInputElement>(null);
+/** Reads a .dem (parsed locally by the dev server) or a previously saved .json into a review. */
+function useDemoLoader() {
+  const startReview = useStore(s => s.startReview);
   const [status, setStatus] = useState<string | null>(null);
-
+  const [busy, setBusy] = useState(false);
   const load = async (file: File) => {
+    setBusy(true);
     try {
       let data: DemoData;
       if (file.name.endsWith('.json')) data = JSON.parse(await file.text());
       else {
-        setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB)…`);
+        setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB)… big demos take a few seconds.`);
         const res = await fetch('/api/demo', { method: 'POST', body: file });
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? res.statusText);
@@ -29,29 +29,59 @@ export function DemoLoader() {
       if (!MAPS.some(m => m.id === data.map)) throw new Error(`${data.map} isn't one of the supported maps.`);
       if (!data.rounds.length) throw new Error('No rounds found in this demo.');
       setStatus(null);
-      s.startReview(data);
+      startReview(data);
     } catch (e) {
       setStatus(`Couldn't load: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
     }
   };
+  return { load, status, busy };
+}
 
+/** Sidebar controls for the loaded match. */
+export function DemoLoader() {
+  const s = useStore();
+  if (!s.review) return null;
+  const d = s.review.data;
   return (
     <section>
-      <h3>Review a match</h3>
-      {s.review ? (
-        <div className="row">
-          <button onClick={() => exportJson(s.review!.data)} title="Save the parsed rounds so they load instantly next time">Save .json</button>
-          <button onClick={s.exitReview}>Exit review</button>
-        </div>
-      ) : (
-        <>
-          <button className="wide" onClick={() => input.current?.click()}>Load demo (.dem)…</button>
-          <input ref={input} type="file" accept=".dem,.json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ''; }} />
-          <p className="muted">CS2 → Watch → Your matches → download, or a FACEIT / HLTV demo (unzip first). It's read on this Mac only.</p>
-        </>
-      )}
-      {status && <p className={status.startsWith("Couldn't") ? 'warn-text' : 'muted'}>{status}</p>}
+      <h3>Match</h3>
+      <p className="muted">{MAPS.find(m => m.id === d.map)?.name ?? d.map} · {d.rounds.length} rounds · {Object.keys(d.names).length} players</p>
+      <div className="row">
+        <button onClick={() => exportJson(d)} title="Save the parsed rounds so they load instantly next time">Save .json</button>
+        <button onClick={s.exitReview} title="Close this match and load another">Load another</button>
+      </div>
     </section>
+  );
+}
+
+/** Review mode with no match loaded: a big place to drop a demo. */
+export function ReviewStart() {
+  const { load, status, busy } = useDemoLoader();
+  const input = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+  return (
+    <div className="review-start">
+      <div
+        className={`dropzone ${over ? 'over' : ''} ${busy ? 'busy' : ''}`}
+        onClick={() => !busy && input.current?.click()}
+        onDragOver={e => { e.preventDefault(); setOver(true); }}
+        onDragLeave={() => setOver(false)}
+        onDrop={e => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f && !busy) load(f); }}
+      >
+        <div className="dz-icon">{busy ? '⏳' : '⬆'}</div>
+        <h2>{busy ? 'Reading your match…' : 'Drop a demo here'}</h2>
+        <p>{busy ? status : 'or click to choose a .dem file (or a .json you saved before)'}</p>
+        <input ref={input} type="file" accept=".dem,.json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ''; }} />
+      </div>
+      {status && !busy && <p className="warn-text center">{status}</p>}
+      <div className="review-how">
+        <div><b>1. Get a demo</b><span>CS2 → Watch → Your Matches → download. FACEIT and HLTV demos work too (unzip them first).</span></div>
+        <div><b>2. Drop it in</b><span>It's read on this computer only; nothing is uploaded anywhere.</span></div>
+        <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar, and every kill, death and flash is graded from Brilliant !! to Blunder ??.</span></div>
+      </div>
+    </div>
   );
 }
 
@@ -75,8 +105,8 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   // Like a chess game review: only what has happened so far, unless "show whole round" is on.
   const seen = movesUntil(recap, s.time, all);
   const finished = all || s.time >= r.duration - 0.3;
-  const moves = seen.filter(m => filter === 'all' ? true : filter === 'key' ? m.grade !== 'book' : m.player === filter);
-  const latest = [...seen].reverse().find(m => m.grade !== 'book');
+  const moves = seen.filter(m => filter === 'all' ? true : filter === 'key' ? isMarked(m) : filter === 'util' ? !!m.util : m.player === filter);
+  const latest = [...seen].reverse().find(isMarked);
   const jump = (t: number) => { s.setPlaying(false); s.setTime(Math.max(0, t - 1.5)); };
   const players = scoreboard(recap, seen);
   const tp = recap.turningPoint && (all || recap.turningPoint.t <= s.time) ? recap.turningPoint : null;
@@ -129,27 +159,31 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
       <section>
         <h3>Players {finished ? '' : '(so far)'}</h3>
         <table className="kills">
-          <thead><tr><th /><th title="Total change in their team's win chance">Impact</th>
+          <thead><tr><th /><th title="Round grade: S+ (won the round) … F (threw it). Win-chance impact plus clutches, multi-kills, team damage, unused grenades">Grade</th><th title="Total change in their team's win chance">Impact</th>
             {(['brilliant', 'great', 'inaccuracy', 'mistake', 'blunder'] as Grade[]).map(g => <th key={g} title={GRADE_INFO[g].label} style={{ color: GRADE_INFO[g].color }}>{GRADE_INFO[g].mark}</th>)}
           </tr></thead>
           <tbody>
             {Object.entries(players).sort(([a], [b]) => sideOf(a).localeCompare(sideOf(b)) || players[b].impact - players[a].impact).map(([id, p]) => (
               <tr key={id} className={filter === id ? 'sel' : ''} onClick={() => setFilter(filter === id ? 'key' : id)}>
-                <td><b className={sideOf(id).toLowerCase()}>{names[id] ?? id}</b></td>
+                <td>
+                  <b className={sideOf(id).toLowerCase()}>{names[id] ?? id}</b>
+                  {finished && recap.roles[id] && <span className="role" title={recap.roles[id].note}>{recap.roles[id].role}</span>}
+                </td>
+                <td><Letter moves={seen.filter(m => m.player === id)} /></td>
                 <td style={{ color: p.impact > 0.02 ? '#7fbf4d' : p.impact < -0.02 ? '#e5483a' : undefined }}>{signed(p.impact)}</td>
                 {(['brilliant', 'great', 'inaccuracy', 'mistake', 'blunder'] as Grade[]).map(g => <td key={g}>{p.counts[g] || ''}</td>)}
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="muted">Click a player to see only their moves.</p>
+        <p className="muted">Click a player to see only their moves.{finished ? ' Hover a role to see why.' : ' Roles show when the round ends.'}</p>
       </section>
 
       <section>
         <div className="row km">
           <h3 className="grow" style={{ margin: 0 }}>Moves</h3>
           <select value={filter.length > 4 ? 'key' : filter} onChange={e => setFilter(e.target.value)}>
-            <option value="key">Key moves</option><option value="all">Everything</option>
+            <option value="key">Key moves</option><option value="util">Grenades</option><option value="all">Everything</option>
           </select>
         </div>
         {moves.map((m, i) => (
@@ -171,11 +205,71 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   );
 }
 
+const SHOW_AFTER = 0.1; // a moment is shown just after it happens (badges and banner up)
+
+/**
+ * Step through a round's key moments like chess moves (◀ ▶ / arrow keys). Past the last moment ▶ goes
+ * to the next round's start; before the first, ◀ goes to the end of the previous round.
+ */
+export function stepMoment(recap: Review, dir: 1 | -1) {
+  const st = useStore.getState();
+  const rv = st.review;
+  if (!rv) return;
+  const list = moments(recap);
+  const now = st.time;
+  st.setPlaying(false);
+  if (dir > 0) {
+    const next = list.find(m => m.t + SHOW_AFTER > now + 0.05);
+    if (next) return st.setTime(next.t + SHOW_AFTER);
+    if (rv.round < rv.data.rounds.length - 1) st.setReviewRound(rv.round + 1);
+  } else {
+    const prev = [...list].reverse().find(m => m.t + SHOW_AFTER < now - 0.05);
+    if (prev) return st.setTime(prev.t + SHOW_AFTER);
+    if (now > 0.05) return st.setTime(0);
+    if (rv.round > 0) {
+      const n = rv.round - 1;
+      st.setReviewRound(n);
+      st.setTime(rv.data.rounds[n].duration);
+    }
+  }
+}
+
+/** ◀ moment n/N ▶ bar over the board. */
+export function MomentNav({ recap }: { recap: Review }) {
+  const time = useStore(s => s.time);
+  const rv = useStore(s => s.review);
+  const list = moments(recap);
+  if (!rv) return null;
+  const idx = list.reduce((a, m, i) => (m.t + SHOW_AFTER <= time + 0.05 ? i : a), -1);
+  const cur: Moment | undefined = list[idx];
+  const atMoment = cur && Math.abs(time - (cur.t + SHOW_AFTER)) < 0.06;
+  const main = cur ? cur.moves.find(m => m.kind === 'kill') ?? cur.moves[0] : undefined;
+  const g = main ? GRADE_INFO[main.grade] : undefined;
+  const first = rv.round === 0 && time < 0.05, last = rv.round === rv.data.rounds.length - 1 && idx === list.length - 1;
+  const watch = () => { if (!cur) return; const st = useStore.getState(); st.setTime(Math.max(0, cur.t - 3)); st.setPlaying(true); };
+  return (
+    <div className="moment-nav">
+      <button onClick={() => stepMoment(recap, -1)} disabled={first} title="Previous moment (←)">◀</button>
+      <div className="moment-label">
+        {idx < 0
+          ? <span className="muted">Round {rv.round + 1} start · {list.length} moments</span>
+          : <>
+              <span className="muted">{idx + 1}/{list.length}</span>
+              {g && <span className="badge" style={{ background: g.color }}>{g.mark}</span>}
+              <span className={atMoment ? '' : 'muted'}>{main?.title}{cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}</span>
+              {cur && <button className="mini" onClick={watch} title="Watch the 3 s leading up to it">↺</button>}
+            </>}
+      </div>
+      <button onClick={() => stepMoment(recap, 1)} disabled={last && time >= (list[list.length - 1]?.t ?? 0) + SHOW_AFTER - 0.05} title="Next moment (→)">▶</button>
+    </div>
+  );
+}
+
 /** Impact and grade counts from the moves seen so far. */
 function scoreboard(recap: Review, seen: Move[]) {
   const out: Review['players'] = {};
   for (const id of Object.keys(recap.players)) out[id] = { impact: 0, counts: { brilliant: 0, great: 0, good: 0, book: 0, inaccuracy: 0, mistake: 0, blunder: 0 } };
-  for (const m of seen) if (out[m.player]) { out[m.player].impact += m.gain; out[m.player].counts[m.grade]++; }
+  for (const m of seen) if (out[m.player]) { out[m.player].impact += m.gain; if (m.kind !== 'death') out[m.player].counts[m.grade]++; }
   return out;
 }
 
@@ -244,17 +338,34 @@ function loadout(weapons: string[]) {
 
 function MoveRow({ m, compact }: { m: Move; compact?: boolean }) {
   const g = GRADE_INFO[m.grade];
+  const death = m.kind === 'death'; // no mark: only the win-chance change is shown
   return (
     <>
       <div className="move-head">
         <span className="muted">{fmt(m.t)}</span>
-        <span className="badge" style={{ background: g.color }} title={g.label}>{g.mark}</span>
+        {death
+          ? <span className="badge death" title="Deaths aren't marked; the loss still counts toward impact and the round grade">✝</span>
+          : <span className="badge" style={{ background: g.color }} title={g.label}>{g.mark}</span>}
         <b className={m.side.toLowerCase()}>{m.title}</b>
         <span className="pct" style={{ color: m.gain > 0.02 ? '#7fbf4d' : m.gain < -0.02 ? '#e5483a' : 'var(--muted)' }}>{signed(m.gain)}</span>
       </div>
-      {!compact && <div className="why">{g.label}. {m.why.join(' ')}</div>}
+      {m.tags.length > 0 && <Tags tags={m.tags} />}
+      {!compact && <div className="why">{death ? '' : `${g.label}. `}{m.why.join(' ')}</div>}
     </>
   );
+}
+
+export function Tags({ tags }: { tags: Tag[] }) {
+  return (
+    <div className="tags">
+      {tags.map(t => <span key={t} className="tag" style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }} title={TAG_INFO[t].tip}>{t}</span>)}
+    </div>
+  );
+}
+
+function Letter({ moves }: { moves: Move[] }) {
+  const { letter, points } = letterGrade(moves);
+  return <span className="letter" style={{ background: LETTER_COLOR[letter] }} title={`${points >= 0 ? '+' : ''}${points.toFixed(0)} points`}>{letter}</span>;
 }
 
 /** CT win chance over the round, like a chess eval graph. Click to jump. */

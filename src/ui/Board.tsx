@@ -3,13 +3,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text, Wedge } from 'react-konva';
 import type { ControlMap } from '../engine/control';
 import { FOV, type Analysis, type TacticalEngine } from '../engine/predict';
-import { activeSmokes, distToSegment, MOLLY_DURATION, popAt, SMOKE_DURATION, SMOKE_RADIUS_UNITS } from '../engine/grid';
+import { activeSmokes, distToSegment, SMOKE_RADIUS_UNITS } from '../engine/grid';
 import { radarToWorld } from '../engine/coords';
-import { HE_RADIUS_U, simStateAt, type Simulation } from '../engine/combat';
+import { simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
 import type { SpotMap } from '../engine/spots';
-import { evalAt, GRADE_INFO, type Review } from '../engine/recap';
+import { evalAt, GRADE_INFO, isMarked, TAG_INFO, type Review } from '../engine/recap';
 import { gunOf } from '../engine/guns';
+import { NadeAtLanding, NadeFlight } from './Nades';
+import { MomentNav } from './Recap';
+import { FOV as VISION_FOV } from '../engine/predict';
 import { ENTRY_COLOR, entryClock, entryReports } from '../engine/entries';
 import { BUILTIN_LINEUPS } from '../map/lineups';
 import { bakeRoute, liveState, type BakedRoute } from '../engine/timeline';
@@ -242,11 +245,34 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
   const selectedRaw = s.board.players.find(p => p.id === s.selectedId);
   const selected = selectedRaw && !isDead(selectedRaw) ? livePlayer(selectedRaw) : undefined;
   const smokesNow = activeSmokes(s.board.utility, s.time, UNITS_PER_PX);
+  // review: each grenade's grade (not 'book'), shown on the grenade itself
+  const nadeGrades = useMemo(() => new Map((recap?.moves ?? []).filter(m => m.util && m.grade !== 'book').map(m => [m.util!, m.grade])), [recap]);
   const losPoly = useMemo(
     () => (selected && s.overlays.los ? engine.grid.visibilityPolygon(selected.pos, smokesNow, [engine.facing(selected), FOV]) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [engine, selected?.pos.x, selected?.pos.y, selected?.facing, s.overlays.los, JSON.stringify(smokesNow)],
   );
+  // Vision of every living player (cone cut by walls and smokes), refreshed 10× a second.
+  const visionKey = Math.round(s.time * 10);
+  const visionLayer = useMemo(() => {
+    if (!s.overlays.vision) return null;
+    const alive = s.board.players.filter(p => live.get(p.id)?.alive !== false).map(livePlayer);
+    const cones = alive.map(p => ({
+      id: p.id, side: p.side,
+      poly: engine.grid.visibilityPolygon(p.pos, smokesNow, [p.facing ?? engine.facing(p), VISION_FOV], 360, 900),
+    }));
+    // who has an enemy in their view cone with a clear line of sight
+    const spotted: { a: Vec2; b: Vec2 }[] = [];
+    for (const a of alive) for (const b of alive) {
+      if (a.side !== 'CT' || b.side !== 'T') continue;
+      const ab = Math.hypot(b.pos.x - a.pos.x, b.pos.y - a.pos.y);
+      if (ab > 900 || !engine.grid.lineOfSight(a.pos, b.pos, smokesNow)) continue;
+      const aSees = inViewCone(a.pos, a.facing ?? engine.facing(a), b.pos), bSees = inViewCone(b.pos, b.facing ?? engine.facing(b), a.pos);
+      if (aSees || bSees) spotted.push({ a: a.pos, b: b.pos });
+    }
+    return { cones, spotted };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine, s.overlays.vision, s.board.players, visionKey, sim, JSON.stringify(smokesNow), drag]);
   const timingImg = useMemo(() => (s.overlays.timing ? timingCanvas(engine, s.time) : null), [engine, s.overlays.timing, s.time]);
   const entries = useMemo(() => entryReports(engine, analysis, s.board), [engine, analysis, s.board]);
   const controlImg = useMemo(() => (control ? controlCanvas(engine, control) : null), [engine, control]);
@@ -302,8 +328,15 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
             <Text key={c.name} text={c.name} x={c.pos.x - 60} y={c.pos.y - (c.size ?? 10) / 2} width={120} align="center"
               fontSize={c.size ?? 10} fill="#fff" stroke="#000" strokeWidth={2.5} fillAfterStrokeEnabled fontStyle="bold" opacity={0.85} />
           ))}
+          {visionLayer && visionLayer.cones.map(v => (
+            <Line key={`vis-${v.id}`} points={v.poly} closed fill={v.side === 'CT' ? 'rgba(78,163,255,0.13)' : 'rgba(232,163,60,0.13)'}
+              stroke={v.side === 'CT' ? 'rgba(78,163,255,0.5)' : 'rgba(232,163,60,0.5)'} strokeWidth={0.7 * k} />
+          ))}
+          {visionLayer && visionLayer.spotted.map((l, i) => (
+            <Line key={`spot-${i}`} points={[l.a.x, l.a.y, l.b.x, l.b.y]} stroke="#ff4d4d" strokeWidth={1.4 * k} dash={[5 * k, 3 * k]} opacity={0.85} />
+          ))}
           {losPoly && <Line points={losPoly} closed fill="rgba(78,163,255,0.13)" stroke="rgba(78,163,255,0.45)" strokeWidth={0.8} />}
-          {s.overlays.threat && !s.review && entries.map(e => {
+          {s.overlays.threat && s.mode !== 'review' && entries.map(e => {
             const col = ENTRY_COLOR[e.level];
             const [a, b] = e.portal;
             const w = 132;
@@ -360,12 +393,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
               <Text x={l.to.x + 5 * k} y={l.to.y - 5 * k} text={l.name} fontSize={8 * k} fill="#fff" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled />
             </Group>
           ))}
-          {s.board.utility.filter(u => u.from && s.time <= popAt(u) + 0.5).map(u => (
-            <Group key={`arc-${u.id}`} listening={false}>
-              <ThrowArc from={u.from!} to={u.pos} k={k} color={UTIL_COLOR[u.type]} />
-              <Circle x={u.from!.x} y={u.from!.y} radius={3.5 * k} fill="#ffd23f" stroke="#000" strokeWidth={0.8 * k} />
-            </Group>
-          ))}
+          {s.board.utility.filter(u => u.from || u.path).map(u => <NadeFlight key={`fly-${u.id}`} u={u} t={s.time} k={k} />)}
           {s.tool === 'lineup' && s.draftLineup?.from && (
             <Group listening={false}>
               <Circle x={s.draftLineup.from.x} y={s.draftLineup.from.y} radius={4 * k} fill="#ffd23f" stroke="#000" strokeWidth={1 * k} />
@@ -373,19 +401,13 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
             </Group>
           )}
           {s.board.utility.map(u => {
-            const active = isUtilActive(u, s.time);
-            const fill = u.type === 'smoke' ? '#c9d1d9' : u.type === 'molotov' ? '#ff5a1f' : u.type === 'he' ? '#7bd88f' : '#fff6a8';
-            const boom = u.type === 'he' && s.time >= popAt(u) && s.time < popAt(u) + 0.6;
             const doomed = eraseTarget === u.id;
             return (
               <Group key={u.id} x={u.pos.x} y={u.pos.y} draggable={s.tool === 'select' && !carry} opacity={carry === u.id ? 0.35 : 1}
                 onDblClick={e => { e.cancelBubble = true; pickUp(u.id); }} onDblTap={e => { e.cancelBubble = true; pickUp(u.id); }}
                 onDragEnd={e => s.move(u.id, { x: e.target.x(), y: e.target.y() })}
                 onClick={e => { e.cancelBubble = true; if (aiming) commitAim(); else if (carry) { const q = pointer(); if (q) drop(q); } else if (s.tool === 'select') s.select(u.id); }}>
-                <Circle radius={utilR(u)} fill={doomed ? ERASE : fill} opacity={doomed ? 0.6 : active ? 0.55 : 0.15}
-                  stroke={doomed ? ERASE : fill} strokeWidth={(s.selectedId === u.id ? 2 : 1) * k} dash={active ? undefined : [4 * k, 3 * k]} />
-                {boom && <Circle radius={HE_RADIUS_U / UNITS_PER_PX} stroke="#ffb020" strokeWidth={3 * k} fill="rgba(255,176,32,0.18)" listening={false} />}
-                <Text text={u.type === 'smoke' ? 'S' : u.type === 'molotov' ? 'M' : u.type === 'he' ? 'H' : 'F'} fontSize={9 * k} x={-3 * k} y={-4.5 * k} fill="#111" fontStyle="bold" />
+                <NadeAtLanding u={u} t={s.time} k={k} unitsPerPx={UNITS_PER_PX} selected={s.selectedId === u.id} doomed={doomed} editable={s.mode !== 'review'} grade={nadeGrades.get(u.id)} />
               </Group>
             );
           })}
@@ -447,11 +469,11 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
                 <Circle radius={TOKEN_R} hitStrokeWidth={18} fill={eraseTarget === p.id ? ERASE : COLORS[p.side]}
                   stroke={s.selectedId === p.id ? '#fff' : '#000a'} strokeWidth={s.selectedId === p.id ? 2.5 : 1.5} />
                 <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />
-                {s.review && <Text text={s.review.data.names[p.id] ?? ''} fontSize={7} fill="#c8ced8" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled width={60} x={-30} y={21} align="center" fontStyle="bold" listening={false} />}
+                {s.mode === 'review' && s.review && <Text text={s.review.data.names[p.id] ?? ''} fontSize={7} fill="#c8ced8" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled width={60} x={-30} y={21} align="center" fontStyle="bold" listening={false} />}
                 <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? '#ffd23f' : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
                   width={40} x={-20} y={13} align="center" fontStyle="bold" listening={false} />
                 {batch?.players[p.id] && (
-                  <Text text={`${Math.round(batch.players[p.id].pKill * 100)}% K`} fontSize={8} fontStyle="bold" width={40} x={-20} y={s.review ? 29 : 21} align="center"
+                  <Text text={`${Math.round(batch.players[p.id].pKill * 100)}% K`} fontSize={8} fontStyle="bold" width={40} x={-20} y={s.mode === 'review' ? 29 : 21} align="center"
                     fill={killColor(batch.players[p.id].pKill)} stroke="#000" strokeWidth={2.2} fillAfterStrokeEnabled />
                 )}
               </Group>
@@ -488,7 +510,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
               </Group>
             );
           })()}
-          {recap && sim && recap.moves.filter(m => m.grade !== 'book' && s.time >= m.t && s.time - m.t < BADGE_SECS).map((m, i) => {
+          {recap && sim && recap.moves.filter(m => isMarked(m) && s.time >= m.t && s.time - m.t < BADGE_SECS).map((m, i) => {
             const pi = sim.ids.indexOf(m.player);
             if (pi < 0) return null;
             const step = Math.min(sim.steps - 1, Math.round((m.kind === 'death' ? m.t : s.time) / 0.1));
@@ -537,6 +559,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap }: {
         </button>
       )}
       {recap && <MoveBanner recap={recap} time={s.time} />}
+      {recap && <MomentNav recap={recap} />}
       <div className={`hint ${s.notice ? 'notice' : aiming || carry || s.draftRoute ? 'carry' : ''}`} style={recap ? { display: 'none' } : undefined}>
         {s.notice ?? (aiming ? 'Move the mouse to aim · click to set the direction · Esc cancels'
           : carry ? 'Click where to put it · Esc cancels'
@@ -594,7 +617,7 @@ function EvalBar({ ct }: { ct: number }) {
 
 /** The latest graded move, announced over the board as it happens. */
 function MoveBanner({ recap, time }: { recap: Review; time: number }) {
-  const m = [...recap.moves].reverse().find(x => x.grade !== 'book' && time >= x.t && time - x.t < BADGE_SECS);
+  const m = [...recap.moves].reverse().find(x => isMarked(x) && time >= x.t && time - x.t < BADGE_SECS);
   if (!m) return null;
   const g = GRADE_INFO[m.grade];
   return (
@@ -602,12 +625,18 @@ function MoveBanner({ recap, time }: { recap: Review; time: number }) {
       <span className="badge" style={{ background: g.color }}>{g.mark}</span>
       <b>{g.label}</b>
       <span>{m.title}</span>
+      {m.tags.slice(0, 3).map(t => <span key={t} className="tag" style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }}>{t}</span>)}
       <b style={{ color: m.gain >= 0 ? '#7fbf4d' : '#e5483a' }}>{m.gain >= 0 ? '+' : '−'}{Math.abs(Math.round(m.gain * 100))}%</b>
     </div>
   );
 }
 
 const UTIL_COLOR: Record<Utility['type'], string> = { smoke: '#c9d1d9', flash: '#fff6a8', molotov: '#ff5a1f', he: '#7bd88f' };
+
+function inViewCone(from: Vec2, facing: number, to: Vec2) {
+  const a = Math.atan2(to.y - from.y, to.x - from.x);
+  return Math.abs(Math.atan2(Math.sin(a - facing), Math.cos(a - facing))) <= VISION_FOV / 2;
+}
 
 /** Grenade flight drawn as a lob from the thrower to the landing spot. */
 function ThrowArc({ from, to, k, color, dashed }: { from: Vec2; to: Vec2; k: number; color: string; dashed?: boolean }) {
@@ -829,12 +858,6 @@ function useRadarImage(src?: string) {
     i.src = src;
   }, [src]);
   return img;
-}
-
-function isUtilActive(u: Utility, t: number) {
-  if (u.type === 'he') return t < popAt(u) + 0.6;
-  const dur = u.type === 'smoke' ? SMOKE_DURATION : u.type === 'molotov' ? MOLLY_DURATION : 0.5;
-  return t >= popAt(u) && t <= popAt(u) + dur;
 }
 
 export function threatColor(x: number) {

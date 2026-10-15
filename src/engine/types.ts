@@ -98,6 +98,10 @@ export interface Utility {
   from?: Vec2;
   /** Line-up this grenade came from. */
   lineup?: string;
+  /** Real flight path from a demo (release → landing), drawn instead of a generic arc. */
+  path?: Vec2[];
+  /** How long the smoke/fire lasted (demo); defaults per type. */
+  duration?: number;
 }
 
 export interface Route {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { radarToWorld, worldToRadar } from '../coords';
 import { getEngine, MAPS, presetsFor } from '../../map/catalog';
+import { popAt } from '../grid';
 import type { BoardState } from '../types';
 
 const board = (mapId: string, preset: string): BoardState => {
@@ -233,7 +234,7 @@ describe('nuke hand-made layer', () => {
 describe('round review (chess-style grading)', () => {
   it('grades kills, deaths and flashes from a demo-shaped round', async () => {
     const { simulate, SIM_DT } = await import('../combat');
-    const { buildReplay, reviewRound, GRADE_INFO } = await import('../recap');
+    const { buildReplay, reviewRound, GRADE_INFO, letterGrade } = await import('../recap');
     const { tPlaysFor } = await import('../../map/catalog');
     const e = getEngine('de_mirage');
     const b = board('de_mirage', 'Default 2-1-2');
@@ -260,7 +261,14 @@ describe('round review (chess-style grading)', () => {
       map: 'de_mirage', tickrate: 64, names: Object.fromEntries(b.players.map(p => [p.id, `${p.side}${p.label || b.players.indexOf(p)}`])),
       rounds: [{
         n: 1, winner: null, reason: '', duration: 40, plant: null, frames: { t, players }, kills,
-        util: [{ t: 13.2, type: 'flash' as const, thrower, ...radarToWorld({ x: 700, y: 640 }, e.map.radar) }],
+        util: [
+          { t: 13.2, type: 'flash' as const, thrower, ...radarToWorld({ x: 700, y: 640 }, e.map.radar) },
+          // a smoke with its real flight and a short life (cleared by an HE), and an HE that hit nobody
+          { t: 9, type: 'smoke' as const, thrower, ...radarToWorld({ x: 600, y: 700 }, e.map.radar), throwT: 7.5, end: 15,
+            path: [{ x: 800, y: 600 }, { x: 700, y: 650 }, { x: 600, y: 700 }].map(p => { const w = radarToWorld(p, e.map.radar); return [w.x, w.y] as [number, number]; }) },
+          { t: 11, type: 'he' as const, thrower, ...radarToWorld({ x: 100, y: 100 }, e.map.radar) },
+        ],
+        nadeDamage: [],
         blind: sim.utilEvents.filter(u => u.kind === 'blind').map(u => ({ t: u.t, victim: u.id, attacker: thrower, dur: u.amount })),
       }],
     };
@@ -271,6 +279,39 @@ describe('round review (chess-style grading)', () => {
     for (const m of rev.moves) console.log(`  ${m.t.toFixed(1).padStart(5)}s ${GRADE_INFO[m.grade].mark.padEnd(2)} ${GRADE_INFO[m.grade].label.padEnd(10)} ${(m.gain >= 0 ? '+' : '') + (m.gain * 100).toFixed(0)}%  ${m.title} — ${m.why.slice(1).join(' ')}`);
     expect(rev.moves.filter(m => m.kind === 'kill').length).toBe(sim.kills.filter(k => k.killer).length);
     expect(rev.curve.every(c => c.ct >= 0 && c.ct <= 1)).toBe(true);
+    // grenades replay as thrown and every one is graded
+    const smoke = rep.board.utility.find(u => u.type === 'smoke')!;
+    expect(smoke.throwAt).toBeCloseTo(7.5);
+    expect(popAt(smoke)).toBeCloseTo(9);
+    expect(smoke.duration).toBeCloseTo(6);
+    expect(smoke.path?.length).toBe(3);
+    expect(smoke.path![0].x).toBeCloseTo(800, 0);
+    expect(rev.moves.filter(m => m.util).length).toBe(3);
+    const he = rev.moves.find(m => m.util === rep.board.utility.find(u => u.type === 'he')!.id)!;
+    expect(he.grade).toBe('inaccuracy');
+    expect(he.why.join(' ')).toMatch(/Hit nobody/);
+    expect(he.tags).toContain('WASTED');
+    // every player gets a role and a letter grade
+    for (const id of rep.sim.ids) expect(rev.roles[id]?.role).toBeTruthy();
+    expect(letterGrade([]).letter).toBe('C');
+    expect(letterGrade([{ ...he, gain: 0.4, tags: ['CLUTCH'] }]).letter).toBe('S+');
+    // moments: every kill is one, in time order, deaths are never their own moment
+    const { moments } = await import('../recap');
+    const ms = moments(rev);
+    expect(ms.flatMap(x => x.moves).filter(m => m.kind === 'kill').length).toBe(rev.moves.filter(m => m.kind === 'kill').length);
+    expect(ms.every((x, i) => i === 0 || x.t > ms[i - 1].t)).toBe(true);
+    expect(ms.some(x => x.moves.some(m => m.kind === 'death'))).toBe(false);
+    // match report from the graded round
+    const { summarizeRound, buildMatchReport, performance: perfRating } = await import('../match');
+    const sum = summarizeRound(rep, rev);
+    const report = buildMatchReport(demo as any, [sum]);
+    expect(report.players.length).toBe(b.players.length);
+    const totalKills = report.players.reduce((a, p) => a + p.kills, 0);
+    expect(totalKills).toBe(demo.rounds[0].kills.filter(k => k.attacker && k.attacker !== k.victim).length);
+    // performance rating: even record vs 10k players ≈ 10k, winning everything rates higher
+    expect(Math.abs(perfRating([10000, 10000], 1) - 10000)).toBeLessThan(50);
+    expect(perfRating([10000, 10000, 10000], 3)).toBeGreaterThan(13000);
+    expect(perfRating([10000, 10000, 10000], 0)).toBeLessThan(7000);
   });
 });
 

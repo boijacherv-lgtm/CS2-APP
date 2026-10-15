@@ -247,11 +247,13 @@ export const SMOKE_RADIUS_UNITS = 144;
 export const SMOKE_DURATION = 18;
 export const MOLLY_DURATION = 7;
 export const UTIL_FLIGHT = 1.5;
+/** How long a smoke or fire lasts once it pops (a demo knows the real value: cleared or extinguished early). */
+export const lifeOf = (u: Pick<Utility, 'type' | 'duration'>) => u.duration ?? (u.type === 'smoke' ? SMOKE_DURATION : u.type === 'molotov' ? MOLLY_DURATION : 0);
 
 /** Smokes whose bloom is active at round time t. */
 export function activeSmokes(util: Utility[], t: number, unitsPerPx: number): SmokeDisc[] {
   return util
-    .filter(u => u.type === 'smoke' && t >= popAt(u) && t <= popAt(u) + SMOKE_DURATION)
+    .filter(u => u.type === 'smoke' && t >= popAt(u) && t <= popAt(u) + lifeOf(u))
     .map(u => ({ pos: u.pos, r: SMOKE_RADIUS_UNITS / unitsPerPx }));
 }
 
