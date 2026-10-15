@@ -82,6 +82,10 @@ export function PlaybackBar({ end }: { end: number }) {
       <select value={s.speed} onChange={e => s.setSpeed(+e.target.value)} title="Playback speed">
         <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
       </select>
+      {review && (
+        <button className={s.readSlow ? 'on' : ''} onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
+          title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'}>📖</button>
+      )}
       <input className="playbar-range" type="range" min={0} max={max} step={0.1} value={Math.min(s.time, max)}
         title="Seconds after freeze time"
         onChange={e => { s.setPlaying(false); s.setTime(+e.target.value); }} />

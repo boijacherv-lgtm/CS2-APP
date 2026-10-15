@@ -369,6 +369,35 @@ export function moments(rv: Review): Moment[] {
   return out;
 }
 
+/** How long a move stays on screen after it happens (round seconds), unless it's waiting in the reading queue. */
+export const CALLOUT_SECS = 3.5;
+/** A queued move still waiting to be read is shown up to this long (round seconds) after it happened. */
+export const QUEUE_SECS = 8;
+/** How long reading a move's window takes (real ms): a base plus time for every character, less for small moves. */
+export const readMs = (m: Move) => {
+  const chars = m.title.length + m.why.join(' ').length;
+  // the moves that swing a round get the full time; small ones (good / inaccuracy) a quicker look
+  const big = m.grade === 'brilliant' || m.grade === 'great' || m.grade === 'mistake' || m.grade === 'blunder';
+  return big ? Math.max(1800, Math.min(4000, 800 + 20 * chars)) : Math.max(1200, Math.min(2500, 500 + 12 * chars));
+};
+export const moveKey = (m: Move) => `${m.t}-${m.player}-${m.kind}-${m.util ?? ''}`;
+
+/**
+ * Which move's window to show at round time `time`.
+ *   playing with "slow down to read" on (`queueing`): the earliest graded move not read yet, one at a time and in
+ *     order, so none are skipped however close together they happen; `backlog` = more are waiting behind it.
+ *   otherwise: the latest moment (graded moves and every kill); moves at the same instant are paged (`page`).
+ */
+export function calloutAt(moves: Move[], time: number, queueing: boolean, read: Set<string>, page: number) {
+  const waiting = queueing ? moves.filter(x => isMarked(x) && x.t <= time && time - x.t < QUEUE_SECS && !read.has(moveKey(x))) : [];
+  const recent = moves.filter(x => (isMarked(x) || x.kind === 'kill') && x.t <= time && time - x.t < CALLOUT_SECS);
+  const latest = recent.at(-1);
+  const group = latest ? recent.filter(x => latest.t - x.t <= 0.15) : [];
+  const pending = waiting[0];
+  const move = pending ?? (queueing ? latest : group[Math.min(page, group.length - 1)]);
+  return { move, pending, group, backlog: waiting.length > 1 };
+}
+
 export interface Review {
   curve: { t: number; ct: number }[];
   moves: Move[];

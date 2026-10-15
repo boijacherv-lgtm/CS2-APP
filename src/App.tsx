@@ -103,7 +103,9 @@ export function App() {
     let last = performance.now(), raf = 0;
     const tick = (now: number) => {
       const st = useStore.getState();
-      const t = Math.min(end, st.time + ((now - last) / 1000) * st.speed);
+      // slow motion while a graded move is being read, easing back to full speed afterwards
+      const slow = now < st.slowUntil ? st.slowSpeed : Math.min(1, st.slowSpeed + (now - st.slowUntil) / 500);
+      const t = Math.min(end, st.time + ((now - last) / 1000) * st.speed * (st.slowUntil ? slow : 1));
       last = now;
       useStore.setState({ time: t, ...(t >= end ? { playing: false } : {}) });
       if (t < end) raf = requestAnimationFrame(tick);

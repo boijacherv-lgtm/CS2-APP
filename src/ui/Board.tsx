@@ -8,7 +8,7 @@ import { radarToWorld, worldToRadar } from '../engine/coords';
 import { simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
 import type { SpotMap } from '../engine/spots';
-import { bombAt, evalAt, GRADE_INFO, isMarked, TAG_INFO, type Review } from '../engine/recap';
+import { bombAt, calloutAt, evalAt, GRADE_INFO, isMarked, moveKey, readMs, TAG_INFO, type Review } from '../engine/recap';
 import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
 import { Gunfire } from './Shots';
@@ -697,7 +697,8 @@ function EvalBar({ ct }: { ct: number }) {
   );
 }
 
-const CALLOUT_W = 270;
+const CALLOUT_W = 300;
+
 
 /**
  * The latest graded move as a window that pops out next to the player, joined to them by a line, with every comment
@@ -706,7 +707,39 @@ const CALLOUT_W = 270;
 function MoveCallout({ recap, sim, time, view, size, names }: {
   recap: Review; sim: Simulation; time: number; view: { scale: number; x: number; y: number }; size: { w: number; h: number }; names: Record<string, string>;
 }) {
-  const m = [...recap.moves].reverse().find(x => isMarked(x) && time >= x.t && time - x.t < BADGE_SECS);
+  const playing = useStore(s => s.playing), readSlow = useStore(s => s.readSlow), held = useStore(s => s.readHold);
+  // the reading queue runs while playing, and stays on the same move while you've stopped to read it
+  const queueing = readSlow && (playing || held);
+  // moves already read (while playing in slow motion), so the queue moves on; forgotten when you go back in time
+  const [read, setRead] = useState<Set<string>>(() => new Set());
+  const lastTime = useRef(time);
+  useEffect(() => {
+    if (time < lastTime.current - 0.05) setRead(new Set());
+    lastTime.current = time;
+  }, [time]);
+  useEffect(() => setRead(new Set()), [recap]);
+  const [page, setPage] = useState(0);
+  const { move: m, pending, group, backlog } = calloutAt(recap.moves, time, queueing, read, page);
+  const key = m ? moveKey(m) : '';
+  const groupKey = group.map(moveKey).join('|');
+  useEffect(() => setPage(group.length - 1), [groupKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const reading = !!pending && pending === m;
+  const [readFor, setReadFor] = useState(0);
+  // the move being read: slow down for its reading time, then mark it read so the next one comes up
+  useEffect(() => {
+    if (!pending || held) { useStore.setState({ slowUntil: 0 }); return; }
+    const ms = readMs(pending);
+    setReadFor(ms);
+    useStore.setState({ slowUntil: performance.now() + ms, slowSpeed: backlog ? 0.12 : 0.3 });
+    const t = setTimeout(() => setRead(r => new Set(r).add(key)), ms);
+    return () => clearTimeout(t);
+    // only when a different move comes up, or you stop / carry on
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending ? key : '', held]);
+  const skip = () => { if (reading && !held) setRead(r => new Set(r).add(key)); };
+  const stop = () => useStore.setState({ playing: false, readHold: true });
+  // carry on: this one is read, the next comes up
+  const resume = () => { setRead(r => new Set(r).add(key)); useStore.getState().setPlaying(true); };
   const st = m && simStateAt(sim, m.player, time);
   if (!m || !st) return null;
   const g = GRADE_INFO[m.grade];
@@ -731,17 +764,28 @@ function MoveCallout({ recap, sim, time, view, size, names }: {
   const sx = px + ((ax - px) / d) * r, sy = py + ((ay - py) / d) * r;
   return (
     <>
-      <svg className="callout-line" width={size.w} height={size.h} key={`l-${m.t}-${m.player}-${m.kind}`}>
+      <svg className="callout-line" width={size.w} height={size.h} key={`l-${key}`}>
         <line x1={sx} y1={sy} x2={ax} y2={ay} stroke={g.color} strokeWidth={2} />
         <circle cx={sx} cy={sy} r={3.5} fill={g.color} />
       </svg>
-      <div className="callout" key={`c-${m.t}-${m.player}-${m.kind}`} style={{ left, ...pos, width: CALLOUT_W, borderColor: g.color }}>
+      <div className={`callout ${reading ? 'reading' : ''}`} key={`c-${key}`} style={{ left, ...pos, width: CALLOUT_W, borderColor: g.color }}
+        onClick={skip} title={reading ? 'Click for the next move' : undefined}>
         <div className="callout-head">
-          <span className="badge" style={{ background: g.color }}>{g.mark}</span>
-          <b style={{ color: g.color }}>{g.label}</b>
-          <span className="muted">{names[m.player] ?? ''}</span>
-          <b className="callout-gain" style={{ color: m.gain >= 0 ? '#7fbf4d' : '#e5483a' }}>{m.gain >= 0 ? '+' : '−'}{Math.abs(Math.round(m.gain * 100))}%</b>
+          <span className="callout-mark" style={{ background: g.color }}>{g.mark}</span>
+          <div className="callout-who">
+            <b style={{ color: g.color }}>{g.label}</b>
+            <span className={m.side === 'CT' ? 'ct' : 't'}>{names[m.player] ?? ''}</span>
+          </div>
+          <span className="callout-gain" style={{ background: m.gain >= 0 ? '#1f3a20' : '#3a1f1f', color: m.gain >= 0 ? '#8fdc6a' : '#ff7a6e' }}
+            title="Change in their team's win chance">{m.gain >= 0 ? '+' : '−'}{Math.abs(Math.round(m.gain * 100))}%</span>
         </div>
+        {!queueing && group.length > 1 && (
+          <div className="callout-pager" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setPage((page + group.length - 1) % group.length)} aria-label="Previous move at this moment">‹</button>
+            <span>{Math.min(page, group.length - 1) + 1} of {group.length} at this moment</span>
+            <button onClick={() => setPage((page + 1) % group.length)} aria-label="Next move at this moment">›</button>
+          </div>
+        )}
         <div className="callout-title">{m.title}</div>
         {m.tags.length > 0 && (
           <div className="callout-tags">
@@ -749,6 +793,19 @@ function MoveCallout({ recap, sim, time, view, size, names }: {
           </div>
         )}
         {m.why.length > 0 && <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+        {reading && (
+          <div className="callout-read" onClick={e => e.stopPropagation()}>
+            {held
+              ? <button className="callout-btn" onClick={resume} title="Carry on (Space)">▶ Continue</button>
+              : <>
+                  {readFor > 0 && <i key={key} style={{ animationDuration: `${readFor}ms`, background: g.color }} />}
+                  <div className="callout-read-row">
+                    <button className="callout-btn" onClick={stop} title="Stop the replay on this move">⏸ Stop to read</button>
+                    <span>slow motion · click the window to skip</span>
+                  </div>
+                </>}
+          </div>
+        )}
       </div>
     </>
   );

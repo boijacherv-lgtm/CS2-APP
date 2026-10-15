@@ -61,6 +61,14 @@ interface Store {
   draftRoute: { playerId: string; pts: Vec2[] } | null;
   playing: boolean;
   speed: number;
+  /** Review: slow the replay down while a graded move's window is up, so it can be read. */
+  readSlow: boolean;
+  /** Until when (performance.now ms) the replay runs in slow motion for reading; 0 = not. */
+  slowUntil: number;
+  /** How slow (× the chosen speed) while reading: slower still when more moves are waiting. */
+  slowSpeed: number;
+  /** Stopped on a move's window to read it (⏸ in the window); ▶ Continue goes on to the next one. */
+  readHold: boolean;
   /** Players fight and die during the timeline. */
   combat: boolean;
   /** Seed for fight outcomes; re-roll to see another way the round can go. */
@@ -123,6 +131,7 @@ interface Store {
   /** Auto-route a player to a destination (replaces their route, keeps leave time/mode). */
   routeTo(playerId: string, p: Vec2): void;
   setSpeed(x: number): void;
+  setReadSlow(on: boolean): void;
   loadPreset(name: string): void;
   /** Replace the T side with a scripted T play (CTs stay). */
   loadTPlay(name: string | null): void;
@@ -176,6 +185,10 @@ export const useStore = create<Store>((set, get) => {
     draftRoute: null,
     playing: false,
     speed: 1,
+    readSlow: true,
+    slowUntil: 0,
+    slowSpeed: 0.3,
+    readHold: false,
     combat: true,
     seed: 1,
     autoRoute: true,
@@ -285,7 +298,7 @@ export const useStore = create<Store>((set, get) => {
         ...b,
         players: b.players.map(p => (p.id !== playerId ? p : { ...p, route: patch === null || !p.route ? undefined : { ...p.route, ...patch } })),
       })),
-    setPlaying: playing => set({ playing }),
+    setPlaying: playing => set({ playing, readHold: false }),
     setCombat: combat => set({ combat }),
     reroll: () => set(s => ({ seed: s.seed + 1 })),
     setAutoRoute: autoRoute => set({ autoRoute }),
@@ -338,6 +351,7 @@ export const useStore = create<Store>((set, get) => {
         players: b.players.map(q => (q.id !== playerId ? q : { ...q, route: { pts: [p], start: q.route?.start ?? 0, mode: q.route?.mode ?? 'run' } })),
       })),
     setSpeed: speed => set({ speed }),
+    setReadSlow: readSlow => set({ readSlow, ...(readSlow ? {} : { slowUntil: 0 }) }),
     loadPreset: name => {
       const preset = presetsFor(get().mapId, get().level)[name];
       if (!preset) return;
