@@ -3,7 +3,6 @@ import { CELL, MapGrid } from '../engine/grid';
 import { TacticalEngine } from '../engine/predict';
 import { MIRAGE_STRATS, type StrategyArchetype } from '../engine/strategies';
 import type { Callout, ChokepointSpec, MapDefinition, MapLevel, Player, RadarCalib, SiteId, Vec2, Weapon } from '../engine/types';
-import { CALLOUTS } from './callouts';
 import generated from './generated/maps.json';
 
 /** Raw entry produced by tools/build-maps.mjs from Valve's radar + overview files. */
@@ -60,21 +59,11 @@ const EXTRAS: Record<string, MapExtras> = {
       [p(401, 205), p(401, 272)],
     ],
     callouts: [
-      // from the team's own Mirage callout map (fitted to the game's spawn and bomb-site markers); minor = only when
-      // zoomed in or 'All callout names' is on
-      { name: 'B Apps', pos: p(292, 184) }, { name: 'Van', pos: p(187, 198), minor: true }, { name: 'Apps', pos: p(443, 227), minor: true },
-      { name: 'Underpass', pos: p(446, 306) }, { name: 'Bench', pos: p(128, 277) }, { name: 'B Short', pos: p(392, 290) },
-      { name: 'Boost', pos: p(461, 335), minor: true }, { name: 'Trash', pos: p(158, 359), minor: true }, { name: '90', pos: p(314, 379), minor: true },
-      { name: 'Ladder Room', pos: p(417, 369), minor: true }, { name: 'Kitchen Door', pos: p(175, 414), minor: true },
-      { name: 'Kitchen Window', pos: p(252, 405), minor: true }, { name: 'Kitchen', pos: p(279, 455) }, { name: 'Short', pos: p(550, 422) },
-      { name: 'Window', pos: p(408, 465) }, { name: 'Mid Bench', pos: p(443, 487), minor: true }, { name: 'Mid', pos: p(544, 472) },
-      { name: 'Top Mid', pos: p(709, 465) }, { name: 'Start', pos: p(687, 392) }, { name: 'T Spawn', pos: p(892, 359) },
-      { name: 'Chair', pos: p(590, 519), minor: true }, { name: 'Water', pos: p(696, 519), minor: true }, { name: 'Connector', pos: p(508, 551) },
-      { name: 'Jungle', pos: p(417, 624) }, { name: 'Stairs', pos: p(544, 650) }, { name: 'Tetris', pos: p(616, 639) },
-      { name: 'A Ramp', pos: p(727, 657) }, { name: 'Under Palace', pos: p(655, 743), minor: true }, { name: 'Firebox', pos: p(519, 743) },
-      { name: 'Default', pos: p(584, 755), minor: true }, { name: 'Ninja', pos: p(597, 807) }, { name: 'CT', pos: p(392, 806) },
-      { name: 'Ticket', pos: p(469, 852) }, { name: 'CT Spawn', pos: p(292, 717) }, { name: 'Palace', pos: p(687, 800) },
-      { name: 'Pillars', pos: p(763, 771), minor: true }, { name: 'TV', pos: p(735, 171), minor: true },
+      { name: 'Top Mid', pos: p(715, 470) }, { name: 'Mid', pos: p(590, 470) }, { name: 'Window', pos: p(405, 520) },
+      { name: 'Connector', pos: p(513, 530) }, { name: 'Jungle', pos: p(450, 625) }, { name: 'Catwalk', pos: p(410, 360) },
+      { name: 'Underpass', pos: p(482, 345) }, { name: 'Apartments', pos: p(330, 185) }, { name: 'Palace', pos: p(785, 790) },
+      { name: 'A Ramp', pos: p(775, 600) }, { name: 'Ticket', pos: p(420, 760) }, { name: 'Market', pos: p(260, 445) },
+      { name: 'Kitchen', pos: p(195, 440) }, { name: 'Short', pos: p(450, 290) },
     ],
     strats: MIRAGE_STRATS,
     tPlays: {
@@ -107,28 +96,44 @@ const EXTRAS: Record<string, MapExtras> = {
       'Stack B': [[690, 650], [330, 300], [180, 330], [250, 230], [260, 440]],
     },
   },
-  // Callouts (src/map/callouts.ts) also name the chokepoints the geometry analysis finds (nearest within 90 px).
+  // Callouts below name the chokepoints the geometry analysis finds (nearest within 90 px).
   de_dust2: {
-    callouts: CALLOUTS.de_dust2,
+    callouts: [
+      { name: 'Mid doors', pos: p(468, 376) }, { name: 'Long A', pos: p(858, 468) }, { name: 'Short A', pos: p(513, 448) },
+      { name: 'B tunnels', pos: p(112, 398) }, { name: 'B doors', pos: p(267, 128) },
+    ],
   },
   de_inferno: {
-    callouts: CALLOUTS.de_inferno,
+    callouts: [
+      { name: 'Short A', pos: p(802, 747) }, { name: 'Apartments', pos: p(649, 843) }, { name: 'Mid', pos: p(716, 623) },
+      { name: 'Banana', pos: p(503, 406) }, { name: 'Arch', pos: p(760, 389) },
+    ],
   },
   de_ancient: {
-    callouts: CALLOUTS.de_ancient,
+    callouts: [
+      { name: 'Donut', pos: p(382, 466) }, { name: 'A main', pos: p(230, 438) }, { name: 'CT', pos: p(450, 214) },
+      { name: 'B ramp', pos: p(838, 510) }, { name: 'Cave', pos: p(686, 502) },
+    ],
   },
   de_anubis: {
     sites: { A: p(765, 255), B: p(335, 505) },
-    callouts: CALLOUTS.de_anubis,
+    callouts: [
+      { name: 'A main', pos: p(788, 470) }, { name: 'A connector', pos: p(623, 388) }, { name: 'Mid', pos: p(522, 510) },
+      { name: 'Canal', pos: p(444, 618) }, { name: 'B main', pos: p(281, 536) }, { name: 'B connector', pos: p(377, 420) },
+    ],
   },
   de_overpass: {
-    callouts: CALLOUTS.de_overpass,
+    callouts: [{ name: 'Monster', pos: p(828, 469) }, { name: 'Connector', pos: p(588, 623) }, { name: 'Long A', pos: p(414, 536) }],
   },
   de_cache: {
-    callouts: CALLOUTS.de_cache,
+    callouts: [
+      { name: 'A main', pos: p(480, 308) }, { name: 'Squeaky', pos: p(340, 405) }, { name: 'B main', pos: p(432, 726) },
+      { name: 'Mid', pos: p(464, 637) }, { name: 'A site', pos: p(333, 266) }, { name: 'B site', pos: p(353, 809) },
+      { name: 'CT spawn', pos: p(100, 480) }, { name: 'T spawn', pos: p(908, 600) },
+    ],
   },
   de_train: {
-    callouts: CALLOUTS.de_train,
+    callouts: [{ name: 'Ivy', pos: p(826, 326) }, { name: 'B halls', pos: p(442, 724) }, { name: 'Popdog', pos: p(732, 697) }],
   },
   // Nuke, hand-made. Upper radar = A (Lobby → Squeaky / Hut, Outside → Main). Lower radar = B,
   // entered via Ramp (from Lobby) and Secret (from Outside); CTs come down from the A side.
@@ -140,12 +145,10 @@ const EXTRAS: Record<string, MapExtras> = {
       { id: 'main', name: 'Main', area: 'Outside', feeds: ['A'], at: p(583, 628), axis: 'h', maxHalf: 30 },
     ],
     callouts: [
-      // the team's own names and spots
-      { name: 'Lobby', pos: p(486, 540) }, { name: 'Squeaky', pos: p(498, 592) }, { name: 'Hut', pos: p(548, 566) },
-      { name: 'A site', pos: p(600, 470) }, { name: 'Heaven', pos: p(662, 477) }, { name: 'Main', pos: p(583, 642) },
+      { name: 'Lobby', pos: p(486, 540) }, { name: 'Squeaky', pos: p(520, 476) }, { name: 'Hut', pos: p(548, 566) },
+      { name: 'A site', pos: p(600, 470) }, { name: 'Heaven', pos: p(585, 330) }, { name: 'Main', pos: p(583, 642) },
       { name: 'Outside', pos: p(560, 720) }, { name: 'Silo', pos: p(505, 690) }, { name: 'Garage', pos: p(740, 700) },
-      { name: 'Ramp', pos: p(584, 396) }, { name: 'Radio', pos: p(519, 423) }, { name: 'Wardrobe', pos: p(662, 517) },
-      { name: 'White', pos: p(701, 638) }, { name: 'Red', pos: p(578, 746) },
+      { name: 'T Roof', pos: p(390, 560) }, { name: 'Ramp (to B)', pos: p(490, 598) },
     ],
     strats: [
       {
@@ -379,9 +382,8 @@ function buildDefinition(mapId: string, level: number): MapDefinition {
     spawnDelay,
     chokepoints,
     callouts: [
-      // spawn labels, unless the hand-made callouts already place them
-      ...(!extras.entries && raw.spawns.T && !extras.callouts?.some(c => c.name === 'T Spawn') ? [{ name: 'T Spawn', pos: raw.spawns.T, size: 13 }] : []),
-      ...(!extras.entries && raw.spawns.CT && !extras.callouts?.some(c => c.name === 'CT Spawn') ? [{ name: 'CT Spawn', pos: raw.spawns.CT, size: 13 }] : []),
+      ...(!extras.entries && raw.spawns.T ? [{ name: 'T Spawn', pos: raw.spawns.T, size: 13 }] : []),
+      ...(!extras.entries && raw.spawns.CT ? [{ name: 'CT Spawn', pos: raw.spawns.CT, size: 13 }] : []),
       ...entryCallouts,
       ...(extras.callouts ?? []),
       // unnamed generated chokepoints still get a label

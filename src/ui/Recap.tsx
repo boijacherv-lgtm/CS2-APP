@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
-import { brief } from './MoveFeed';
 import type { TacticalEngine } from '../engine/predict';
 import { equipValue, GRADE_INFO, isMarked, moments, type Moment, LETTER_COLOR, letterGrade, movesUntil, TAG_INFO, teamEconomy, type DemoData, type Grade, type Move, type Replay, type Review, type Tag } from '../engine/recap';
 import { MAPS } from '../map/catalog';
@@ -75,26 +74,36 @@ export function ReviewStart() {
   const [over, setOver] = useState(false);
   return (
     <div className="review-start">
-      <div
-        className={`dropzone ${over ? 'over' : ''} ${busy ? 'busy' : ''}`}
-        onClick={() => !busy && input.current?.click()}
-        onDragOver={e => { e.preventDefault(); setOver(true); }}
-        onDragLeave={() => setOver(false)}
-        onDrop={e => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f && !busy) load(f); }}
-      >
-        <div className="dz-icon"><Icon name={busy ? 'hourglass' : 'upload'} size={34} /></div>
-        <h2>{busy ? 'Reading your match…' : 'Drop a demo here'}</h2>
-        <p>{busy ? status : 'or click to choose a .dem file (or a .json you saved before)'}</p>
-        <input ref={input} type="file" accept=".dem,.json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ''; }} />
+      <header className="rs-head">
+        <h1 className="display">Review a match</h1>
+        <p>Drop a demo file, or pick one of your recent matches.</p>
+      </header>
+      <div className="rs-grid">
+        <div className="rs-left">
+          <div
+            className={`dropzone ${over ? 'over' : ''} ${busy ? 'busy' : ''}`}
+            onClick={() => !busy && input.current?.click()}
+            onDragOver={e => { e.preventDefault(); setOver(true); }}
+            onDragLeave={() => setOver(false)}
+            onDrop={e => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f && !busy) load(f); }}
+          >
+            <div className="dz-icon"><Icon name={busy ? 'hourglass' : 'upload'} size={34} /></div>
+            <h2>{busy ? 'Reading your match…' : 'Drop a demo here'}</h2>
+            <p>{busy ? status : 'or click to choose a .dem file (or a .json you saved before)'}</p>
+            <input ref={input} type="file" accept=".dem,.json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ''; }} />
+          </div>
+          {status && !busy && <p className="warn-text center">{status}</p>}
+          <div className="review-how">
+            <div><b>1. Get a demo</b><span>CS2 → Watch → Your Matches → download. FACEIT and HLTV demos work too (unzip them first).</span></div>
+            <div><b>2. Drop it in</b><span>{ONLINE ? "It's read right here in your browser; nothing is uploaded." : "It's read on this computer only; nothing is uploaded anywhere."}</span></div>
+            <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar, and every kill, grenade and costly death gets a letter from S+ (round-swinging) to F.</span></div>
+          </div>
+        </div>
+        <div className="rs-right">
+          {ONLINE && <DemoFolder />}
+          {STEAM_AVAILABLE && <SteamMatches />}
+        </div>
       </div>
-      {status && !busy && <p className="warn-text center">{status}</p>}
-      <div className="review-how">
-        <div><b>1. Get a demo</b><span>CS2 → Watch → Your Matches → download. FACEIT and HLTV demos work too (unzip them first).</span></div>
-        <div><b>2. Drop it in</b><span>{ONLINE ? "It's read right here in your browser; nothing is uploaded." : "It's read on this computer only; nothing is uploaded anywhere."}</span></div>
-        <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar, and every kill, grenade and costly death gets a letter from S+ (round-swinging) to F.</span></div>
-      </div>
-      {ONLINE && <DemoFolder />}
-      {STEAM_AVAILABLE && <SteamMatches />}
     </div>
   );
 }
@@ -274,7 +283,7 @@ export function MomentNav({ recap }: { recap: Review }) {
           : <>
               <span className="muted">{idx + 1}/{list.length}</span>
               {g && <span className="badge" style={{ background: g.color }}>{g.mark}</span>}
-              <span className={atMoment ? '' : 'muted'}>{main && brief(main.title)}{cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}</span>
+              <span className={atMoment ? '' : 'muted'}>{main?.title}{cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}</span>
               {cur && <button className="mini" onClick={watch} title="Watch the 3 s leading up to it" aria-label="Watch the lead-up"><Icon name="rewind" size={12} /></button>}
             </>}
       </div>

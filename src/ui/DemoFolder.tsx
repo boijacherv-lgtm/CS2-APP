@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { DemoData } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { useStore } from '../store';
@@ -243,7 +243,7 @@ export function DemoFolder() {
               {files.slice(0, SHOW).map(f => {
                 const s = sums[f.name];
                 return (
-                  <tr key={f.name}>
+                  <tr key={f.name} className={s?.result ?? ''} style={{ '--radar': s ? `url(/maps/${s.map}.png)` : 'none' } as CSSProperties}>
                     <td>{new Date(f.modified).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</td>
                     <td>{s ? MAPS.find(m => m.id === s.map)?.name ?? s.map : <span className="muted">{(f.size / 1e6).toFixed(0)} MB</span>}</td>
                     <td className={s?.result ?? ''}>{s?.score ? `${s.score[0]}–${s.score[1]}${s.result ? ` ${s.result.toUpperCase()}` : ''}` : s ? `${s.rounds} rounds` : ''}</td>

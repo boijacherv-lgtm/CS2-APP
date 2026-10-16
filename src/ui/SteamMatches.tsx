@@ -144,12 +144,12 @@ export function SteamMatches() {
             {ready && ONLINE && <>The server downloads and reads every new demo by itself; <b>Review</b> appears a few minutes after a match. Demos Valve already deleted (older than about a month) can't be fetched. </>}
             {ready && !ONLINE && (st.replays.length
               ? <>Demos downloaded with <b>Download in CS2</b> are imported automatically.</>
-              : <>CS2's replays folder wasn't found on this computer: drop downloaded demos in the box above (or set the folder under Settings).</>)}
+              : <>CS2's replays folder wasn't found on this computer: drop downloaded demos into the drop zone (or set the folder under Settings).</>)}
           </p>
           <table className="steam-list">
             <tbody>
               {st.matches.map(m => (
-                <tr key={m.code}>
+                <tr key={m.code} className={m.result ?? ''} style={{ '--radar': m.map ? `url(/maps/${m.map}.png)` : 'none' } as React.CSSProperties}>
                   <td>{m.time ? new Date(m.time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
                     : m.loadedAt ? <span className="muted">loaded {fmtDay(m.loadedAt)}</span>
                     : m.foundAt ? <span className="muted">found {fmtDay(m.foundAt)}</span> : ''}</td>

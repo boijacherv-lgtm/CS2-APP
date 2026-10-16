@@ -106,8 +106,7 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: v
 .coords { background: var(--overlay); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-variant-numeric: tabular-nums; }
 .hint.carry { color: #fff; background: #1f4f8acc; }
 .hint.notice { color: #fff; background: #b3261ecc; }
-.hint.faded { opacity: 0; }
-.hint { transition: opacity .6s var(--ease-out); background: var(--overlay); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.hint { background: var(--overlay); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
 
 .summary { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .summary p { margin: 3px 0; }
@@ -333,22 +332,11 @@ td.loadout { white-space: nowrap; }
 .game-state { position: absolute; right: 12px; top: 12px; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
 .game-state.live { color: var(--t); }
 
-.review-start { max-width: 760px; margin: 0 auto; padding: 56px 20px; }
-.dropzone { border: 2px dashed #3a4656; border-radius: 16px; padding: 56px 20px; text-align: center; cursor: pointer; background: var(--panel); transition: border-color var(--motion-smooth) var(--ease-out), background-color var(--motion-smooth) var(--ease-out); }
-.dropzone:hover, .dropzone.over { border-color: var(--accent); background: #16202c; }
-.dropzone.busy { cursor: progress; border-color: #ffb020; }
-.dz-icon { font-size: 36px; margin-bottom: 8px; }
-.dropzone h2 { margin: 0 0 6px; font-size: 22px; }
-.dropzone p { margin: 0; color: var(--muted); }
-.review-how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 22px; }
-.review-how div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
-.review-how span { color: var(--muted); }
 .center { text-align: center; }
 @media (max-width: 820px) {
   .navbar { gap: 10px; padding: 0 10px; }
   .brand span { display: none; }
   .modes button { padding: 5px 9px; }
-  .review-how { grid-template-columns: 1fr; }
   .app { height: auto; }
 }
 
@@ -405,9 +393,6 @@ td.loadout { white-space: nowrap; }
 .hud-tile.t { background: color-mix(in srgb, var(--t) 18%, transparent); border: 1px solid color-mix(in srgb, var(--t) 45%, transparent); color: #ffe9c7; }
 .hud-tile i { position: absolute; left: 0; bottom: 0; height: 3px; width: var(--hp); background: #3ddc84; transition: width var(--motion-smooth) var(--ease-out), height var(--motion-smooth) var(--ease-out); }
 .hud-tile i.low { background: #ff5a4d; }
-.hud-tile.pic { width: 30px; height: 30px; padding: 0; }
-.hud-tile.pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.hud-tile.pic i { height: 4px; box-shadow: 0 -1px 0 #000a; }
 .hud-tile.dead { opacity: .3; filter: grayscale(1); }
 .hud-tile.dead::after { content: ''; position: absolute; inset: 0;
   background: linear-gradient(to top right, transparent 45%, #ff5a4dcc 47%, #ff5a4dcc 53%, transparent 55%); }
@@ -427,9 +412,6 @@ td.loadout { white-space: nowrap; }
   .hud-team { gap: 3px; }
   .hud-tile { width: 9px; height: 24px; border-radius: 3px; }
   .hud-tile b { display: none; }
-  /* with avatars there's room for a small picture each */
-  .hud-tile.pic { width: 24px; height: 24px; border-radius: 4px; }
-  .hud-tile.pic i { width: var(--hp); height: 3px; }
   .hud-tile i { width: 100%; height: var(--hp); opacity: .9; }
   .hud-tile.ct { background: color-mix(in srgb, var(--ct) 15%, transparent); } .hud-tile.t { background: color-mix(in srgb, var(--t) 15%, transparent); }
   .hud-tile.ct i { background: var(--ct); } .hud-tile.t i { background: var(--t); }
@@ -448,14 +430,6 @@ td.loadout { white-space: nowrap; }
 .move-list { max-height: 340px; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid var(--line); margin-top: 6px; }
 
 /* review start: matches from Steam (plain layout; design pass pending) */
-.steam { max-width: 820px; margin: 24px auto 0; width: 100%; }
-.steam-head { display: flex; align-items: center; gap: 12px; }
-.steam-head h2 { font-size: 15px; margin: 0; flex: 1; }
-.steam-list { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
-.steam-list td { padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-.steam-list td.win { color: #22c55e; } .steam-list td.loss { color: #ef4444; }
-.steam-list td:last-child { text-align: right; }
-.steam-head .muted { font-size: 12px; }
 .steam-profile { display: flex; flex-direction: column; gap: 8px; font-size: 12px; margin: 8px 0; }
 .steam-profile .row { display: flex; gap: 8px; }
 .steam-profile input { flex: 1; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; }
@@ -464,7 +438,6 @@ td.loadout { white-space: nowrap; }
 .steam-field { display: grid; grid-template-columns: 220px 1fr; gap: 2px 10px; align-items: center; }
 .steam-field input { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; font-family: ui-monospace, monospace; font-size: 12px; }
 .steam-field small { grid-column: 2; font-size: 11px; }
-.steam-list td.code { font-family: ui-monospace, monospace; font-size: 10.5px; }
 a.btn { display: inline-block; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; color: var(--text); text-decoration: none;
   transition: border-color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out); }
 a.btn:hover { border-color: #45505e; }
@@ -622,3 +595,78 @@ a.btn:hover { border-color: #45505e; }
 /* grenades in the Economy table: CS2's buy-menu pictograms */
 .nade-pics { display: inline-flex; gap: 4px; justify-content: flex-end; align-items: center; color: var(--text-1); }
 .nade-pic { display: inline-flex; gap: 1px; align-items: center; }
+
+/* ---- Review start page: two columns, a drop zone with a radar sweep, and match rows with their map's radar ---- */
+.review-start { max-width: 1120px; margin: 0 auto; padding: 40px 28px 72px; }
+.rs-head h1 { margin: 0; font-size: 46px; line-height: 1; font-weight: 700; letter-spacing: .01em; }
+.rs-head p { margin: 12px 0 0; color: var(--text-2); font-size: 14px; }
+.rs-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 40px; margin-top: 30px; align-items: start; }
+.rs-grid:has(> .rs-right:empty) { grid-template-columns: minmax(0, 560px); justify-content: center; } /* no lists to show: one centred column */
+.rs-right { display: flex; flex-direction: column; gap: 30px; }
+.rs-right:empty { display: none; }
+.review-start:has(.rs-right:empty) .rs-head { text-align: center; }
+
+.dropzone { position: relative; isolation: isolate; overflow: hidden; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  text-align: center; padding: 32px 24px; border: 1px solid var(--border-strong); border-radius: 18px; background: var(--surface-1); cursor: pointer;
+  transition: border-color var(--motion-smooth) var(--ease-out), background-color var(--motion-smooth) var(--ease-out); }
+.dropzone:hover, .dropzone.over { border-color: var(--text-1); background: var(--surface-2); }
+.dropzone.busy { cursor: progress; }
+/* the radar: rings and crosshair (::before) with a slow sweep over them (::after) */
+.dropzone::before, .dropzone::after { content: ''; position: absolute; z-index: -1; left: 50%; top: 50%; width: 620px; height: 620px; border-radius: 50%;
+  transform: translate(-50%, -50%); pointer-events: none; -webkit-mask-image: radial-gradient(circle, #000 20%, transparent 66%); mask-image: radial-gradient(circle, #000 20%, transparent 66%); }
+.dropzone::before { opacity: .55;
+  background: linear-gradient(var(--border-strong), var(--border-strong)) center / 1px 100% no-repeat, linear-gradient(var(--border-strong), var(--border-strong)) center / 100% 1px no-repeat,
+    repeating-radial-gradient(circle, transparent 0 59px, var(--border-strong) 59px 60px); }
+.dropzone::after { background: conic-gradient(from 0deg, transparent 0 292deg, rgba(232, 235, 240, .22) 358deg, rgba(232, 235, 240, .7) 360deg); animation: radar-sweep 8s linear infinite; }
+.dropzone.over::after { animation-duration: 1.8s; }
+.dropzone.busy::after { animation-duration: 2.6s; }
+@keyframes radar-sweep { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+.dz-icon { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 50%; background: var(--bg-0); border: 1px solid var(--border-strong); margin-bottom: 6px; }
+.dropzone h2 { margin: 0; font-family: var(--font-display); font-size: 30px; font-weight: 700; letter-spacing: .02em; }
+.dropzone p { margin: 0; max-width: 34ch; color: var(--text-2); font-size: 13px; line-height: 1.5; }
+.center { text-align: center; }
+
+/* the three steps as a path */
+.review-how { margin-top: 28px; }
+.review-how div { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 0 0 18px 30px; font-size: 12.5px; }
+.review-how div::before { content: ''; position: absolute; left: 0; top: 3px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--border-strong); background: var(--bg-0); }
+.review-how div:not(:last-child)::after { content: ''; position: absolute; left: 5.5px; top: 18px; bottom: 2px; width: 1px; background: var(--border); }
+.review-how b { font-size: 13px; }
+.review-how span { color: var(--text-2); line-height: 1.5; max-width: 52ch; }
+
+/* match lists (your demo folder, your Valve matches) */
+.steam { width: 100%; }
+.steam-head { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border-strong); }
+.steam-head h2 { flex: 1; margin: 0; font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: .02em; }
+.steam-head button { padding: 4px 10px; font-size: 12px; }
+.steam > p.muted { margin: 12px 0 4px; max-width: 62ch; font-size: 12px; line-height: 1.55; color: var(--text-2); }
+.steam-list { display: block; width: 100%; margin-top: 4px; }
+.steam-list tbody { display: block; }
+.steam-list tr { display: grid; align-items: center; column-gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--border);
+  grid-template-columns: 46px minmax(0, 1fr) auto 58px minmax(96px, auto);
+  grid-template-areas: "radar name score kd act" "radar when score kd act"; }
+.steam-list tr::before { content: ''; grid-area: radar; width: 46px; height: 46px; border-radius: 50%; background: var(--surface-2) var(--radar, none) center / 138% no-repeat; box-shadow: 0 0 0 2px var(--border-strong); }
+.steam-list tr.win::before { box-shadow: 0 0 0 2px var(--good); }
+.steam-list tr.loss::before { box-shadow: 0 0 0 2px var(--bad); }
+.steam-list td { padding: 0; border: 0; white-space: nowrap; min-width: 0; }
+.steam-list td:nth-child(1) { grid-area: when; color: var(--text-2); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.steam-list td:nth-child(2) { grid-area: name; align-self: end; font-family: var(--font-display); font-size: 21px; font-weight: 700; letter-spacing: .02em; line-height: 1.1; }
+.steam-list td:nth-child(2) .muted { font-family: var(--font-ui); font-size: 12px; font-weight: 400; letter-spacing: 0; }
+.steam-list td:nth-child(3) { grid-area: score; text-align: right; font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: .02em; }
+.steam-list td:nth-child(4) { grid-area: kd; text-align: right; font-size: 12px; }
+.steam-list td:nth-child(5) { grid-area: act; text-align: right; }
+.steam-list td.win { color: var(--good); } .steam-list td.loss { color: var(--bad); }
+.steam-list td button, .steam-list td a.btn { padding: 5px 12px; font-size: 12px; }
+.steam-profile { margin: 14px 0; }
+
+@media (max-width: 900px) {
+  .review-start { padding: 24px 16px 56px; }
+  .rs-head h1 { font-size: 36px; }
+  .rs-grid, .rs-grid:has(> .rs-right:empty) { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .dropzone { min-height: 240px; }
+}
+@media (max-width: 560px) {
+  .steam-list tr { grid-template-columns: 40px minmax(0, 1fr) auto auto; grid-template-areas: "radar name score act" "radar when score act"; column-gap: 10px; }
+  .steam-list tr::before { width: 40px; height: 40px; } .steam-list td:nth-child(4) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .dropzone::after { animation: none; } }

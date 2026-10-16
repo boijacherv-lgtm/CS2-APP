@@ -174,9 +174,8 @@ export function computeControl(engine: TacticalEngine, board: BoardState, t: num
       return { name: c.name, cls: i >= 0 ? (cls[i] as Ctl) : Ctl.None, tArrive: i >= 0 ? tSeen[i] : Infinity, watchers: i >= 0 ? seen[i] : 0 };
     });
 
-  // Areas: every floor cell belongs to its nearest main callout (within reach); share held by each side.
-  // Detailed spots (minor: Boost, 90, Default…) would only cut areas into slivers.
-  const named = engine.map.callouts.filter(c => !/spawn/i.test(c.name) && !c.minor);
+  // Areas: every floor cell belongs to its nearest callout (within reach); share held by each side.
+  const named = engine.map.callouts.filter(c => !/spawn/i.test(c.name));
   const acc = named.map(() => ({ ct: 0, t: 0, mid: 0, n: 0 }));
   if (named.length)
     for (let i = 0; i < n; i++) {

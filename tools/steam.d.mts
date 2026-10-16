@@ -50,5 +50,4 @@ export function openIdStartUrl(origin: string, back?: string): string;
 export function safeBack(back: string | undefined): string;
 export function signOut(): void;
 export function me(): Promise<{ steamId: string; name: string | null; avatar: string | null } | null>;
-export function profiles(ids: string | null | undefined): Promise<Record<string, { name: string | null; avatar: string | null }>>;
 export function openIdVerify(origin: string, query: string): Promise<string>;
