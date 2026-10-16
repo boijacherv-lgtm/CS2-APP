@@ -36,7 +36,7 @@ export function activeView(o: Record<Overlay, boolean>): ViewName | null {
   return null;
 }
 
-const LS_OVERLAYS = 'stratboard.overlays', LS_FOLDED = 'stratboard.folded', LS_POPUPS = 'stratboard.popups';
+const LS_OVERLAYS = 'stratboard.overlays', LS_FOLDED = 'stratboard.folded', LS_POPUPS = 'stratboard.popups', LS_DRAWER = 'stratboard.drawer';
 function loadJson<T>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? { ...fallback, ...JSON.parse(raw) } : fallback; } catch { return fallback; }
 }
@@ -65,6 +65,8 @@ interface Store {
   readSlow: boolean;
   /** Review: show a window for each graded move (remembered in this browser). Off = no windows, no slow motion. */
   popups: boolean;
+  /** The right-hand panel (analysis / review) is open. Remembered; starts closed on narrow screens. */
+  drawerOpen: boolean;
   /** Until when (performance.now ms) the replay runs in slow motion for reading; 0 = not. */
   slowUntil: number;
   /** How slow (× the chosen speed) while reading: slower still when more moves are waiting. */
@@ -135,6 +137,7 @@ interface Store {
   setSpeed(x: number): void;
   setReadSlow(on: boolean): void;
   setPopups(on: boolean): void;
+  setDrawerOpen(on: boolean): void;
   loadPreset(name: string): void;
   /** Replace the T side with a scripted T play (CTs stay). */
   loadTPlay(name: string | null): void;
@@ -190,6 +193,7 @@ export const useStore = create<Store>((set, get) => {
     speed: 1,
     readSlow: true,
     popups: loadJson<{ on: boolean }>(LS_POPUPS, { on: true }).on,
+    drawerOpen: loadJson<{ on: boolean }>(LS_DRAWER, { on: typeof window === 'undefined' || window.innerWidth >= 1280 }).on,
     slowUntil: 0,
     slowSpeed: 0.3,
     readHold: false,
@@ -355,6 +359,7 @@ export const useStore = create<Store>((set, get) => {
         players: b.players.map(q => (q.id !== playerId ? q : { ...q, route: { pts: [p], start: q.route?.start ?? 0, mode: q.route?.mode ?? 'run' } })),
       })),
     setSpeed: speed => set({ speed }),
+    setDrawerOpen: drawerOpen => { saveJson(LS_DRAWER, { on: drawerOpen }); set({ drawerOpen }); },
     setPopups: popups => {
       saveJson(LS_POPUPS, { on: popups });
       set({ popups, ...(popups ? {} : { slowUntil: 0, readHold: false }) });

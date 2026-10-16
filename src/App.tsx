@@ -8,7 +8,7 @@ import { buildReplay, reviewRound } from './engine/recap';
 import { getEngine } from './map/catalog';
 import { useStore, type Tool } from './store';
 import { Board } from './ui/Board';
-import { AnalysisPanel, Toolbar } from './ui/Panels';
+import { AnalysisPanel, Rail } from './ui/Panels';
 import { RecapPanel, ReviewStart, stepMoment } from './ui/Recap';
 
 const KEYS: Record<string, Tool> = { v: 'select', c: 'ct', t: 't', s: 'smoke', f: 'flash', m: 'molotov', h: 'he', p: 'path', l: 'lineup', e: 'erase' };
@@ -145,16 +145,21 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [end, recap]);
 
+  const drawerOpen = useStore(s => s.drawerOpen);
+
   // Review mode without a match: just the place to load one
   if (inReview && !loaded) return <div className="app single"><ReviewStart /></div>;
 
   return (
-    <div className="app">
-      <Toolbar engine={engine} />
+    <div className={`app ${drawerOpen ? '' : 'drawer-closed'}`}>
+      <Rail engine={engine} />
       <Board key={`${mapId}:${level}`} timelineEnd={end} analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch?.stats ?? null} recap={recap} />
-      {recap && replay
-        ? <RecapPanel recap={recap} replay={replay} engine={engine} control={control} />
-        : <AnalysisPanel analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch} impact={impact} stale={deferred !== board} />}
+      <div className="drawer" aria-hidden={!drawerOpen}>
+        <button className="ghost drawer-close" onClick={() => useStore.getState().setDrawerOpen(false)} title="Hide the panel" aria-label="Hide the panel">✕</button>
+        {recap && replay
+          ? <RecapPanel recap={recap} replay={replay} engine={engine} control={control} />
+          : <AnalysisPanel analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch} impact={impact} stale={deferred !== board} />}
+      </div>
     </div>
   );
 }

@@ -14,7 +14,7 @@ import { useStore, type Tool } from '../store';
 import { Fold } from './Fold';
 import { BUILTIN_LINEUPS, flightTime, type Lineup, type Technique } from '../map/lineups';
 import { DemoLoader } from './Recap';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { threatColor } from './Board';
 
 const TOOLS: { id: Tool; label: string; key: string }[] = [
@@ -30,12 +30,59 @@ const TOOLS: { id: Tool; label: string; key: string }[] = [
   { id: 'erase', label: 'Erase', key: 'E' },
 ];
 
-export function Toolbar({ engine }: { engine: TacticalEngine }) {
+const TOOL_GLYPH: Partial<Record<Tool, string>> = { select: '↖', path: '⤳', lineup: '◎', erase: '⌫' };
+
+/**
+ * The thin tool rail on the left of the board: one button per tool (with its key), undo/redo, and ☰, which opens the
+ * Setup panel (map, CT setups, T plays, line-ups; in Review: the match) over the board. Everything is a click.
+ */
+export function Rail({ engine }: { engine: TacticalEngine }) {
+  const s = useStore();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('mousedown', away);
+    window.addEventListener('keydown', esc);
+    return () => { window.removeEventListener('mousedown', away); window.removeEventListener('keydown', esc); };
+  }, [open]);
+  const review = s.mode === 'review';
+  const count = (side: 'CT' | 'T') => s.board.players.filter(p => p.side === side).length;
+  return (
+    <div className="rail-wrap" ref={box}>
+      <nav className="rail" aria-label="Tools">
+        <button className={`rail-btn ${open ? 'on' : ''}`} onClick={() => setOpen(o => !o)} aria-expanded={open}
+          title={review ? 'Match: load another, save' : 'Map, CT setups, T plays and line-ups'}>
+          <span className="rail-ico">☰</span><small>{review ? 'Match' : 'Setup'}</small>
+        </button>
+        {!review && <>
+          <i className="rail-sep" />
+          {TOOLS.map(t => (
+            <button key={t.id} className={`rail-btn ${s.tool === t.id ? 'on' : ''}`} onClick={() => s.setTool(t.id)} title={`${t.label} (key ${t.key})`} aria-label={t.label}>
+              {TOOL_GLYPH[t.id] ? <span className="rail-ico">{TOOL_GLYPH[t.id]}</span> : <span className={`dot ${t.id}`} />}
+              <small>{t.key}</small>
+              {(t.id === 'ct' || t.id === 't') && <em className="rail-count">{count(t.id === 'ct' ? 'CT' : 'T')}/5</em>}
+            </button>
+          ))}
+          <span className="rail-grow" />
+          <button className="rail-btn" onClick={s.undo} disabled={!s.past.length} title="Undo" aria-label="Undo"><span className="rail-ico">↶</span></button>
+          <button className="rail-btn" onClick={s.redo} disabled={!s.future.length} title="Redo" aria-label="Redo"><span className="rail-ico">↷</span></button>
+        </>}
+      </nav>
+      {open && <div className="flyout"><SetupPanel engine={engine} /></div>}
+    </div>
+  );
+}
+
+/** What used to be the left column: map and level, setups, T plays, line-ups (Tactical) or the match (Review). */
+function SetupPanel({ engine }: { engine: TacticalEngine }) {
   const s = useStore();
   const entry = MAPS.find(m => m.id === s.mapId)!;
   return (
-    <aside className="toolbar">
-      <h1>{s.mode === 'review' ? 'Match review' : 'Tactical board'}<span>{entry.name}{s.level ? ' · lower level' : ''}</span></h1>
+    <>
+      <h1 className="display">{s.mode === 'review' ? 'Match review' : 'Tactical board'}<span>{entry.name}{s.level ? ' · lower level' : ''}</span></h1>
       <section>
         <h3>Map</h3>
         <select value={s.mapId} disabled={s.mode === 'review'} onChange={e => s.setMap(e.target.value)}>
@@ -59,26 +106,11 @@ export function Toolbar({ engine }: { engine: TacticalEngine }) {
           {roughNote(s.mapId) && <><br /><b>Rough:</b> {roughNote(s.mapId)}</>}
         </p>
       </section>
-      {s.mode !== 'review' && <Fold id="tools" title="Tools">
-        <div className="tools">
-          {TOOLS.map(t => (
-            <button key={t.id} className={s.tool === t.id ? 'on' : ''} onClick={() => s.setTool(t.id)} title={`Shortcut: ${t.key}`}>
-              <span className={`dot ${t.id}`} />{t.label}
-              {(t.id === 'ct' || t.id === 't') && <span className="count">{s.board.players.filter(p => p.side === (t.id === 'ct' ? 'CT' : 'T')).length}/5</span>}
-              <kbd>{t.key}</kbd>
-            </button>
-          ))}
-        </div>
-        <label className="check" title="Route tool: click a player, then one click on the map sends them there by the shortest path">
-          <input type="checkbox" checked={s.autoRoute} onChange={e => s.setAutoRoute(e.target.checked)} /> Auto-route (Shift+click = waypoint)
-        </label>
-        <div className="row">
-          <button onClick={s.undo} disabled={!s.past.length}>Undo</button>
-          <button onClick={s.redo} disabled={!s.future.length}>Redo</button>
-        </div>
-      </Fold>}
       {s.mode === 'review' && <DemoLoader />}
       {s.mode !== 'review' && <>
+      <label className="check" title="Route tool: click a player, then one click on the map sends them there by the shortest path">
+        <input type="checkbox" checked={s.autoRoute} onChange={e => s.setAutoRoute(e.target.checked)} /> Auto-route (Shift+click = waypoint)
+      </label>
       <Fold id="ct-setups" title="CT setups">
         <div className="presets">
           {Object.keys(presetsFor(s.mapId, s.level)).map(n => <button key={n} onClick={() => s.loadPreset(n)}>{n === 'Empty' ? 'Clear CTs' : n}</button>)}
@@ -94,8 +126,7 @@ export function Toolbar({ engine }: { engine: TacticalEngine }) {
       )}
       <Lineups engine={engine} />
       </>}
-      {s.mode !== 'review' && <Selection engine={engine} />}
-    </aside>
+    </>
   );
 }
 
@@ -159,6 +190,7 @@ export function AnalysisPanel({ analysis, engine, control, sim, spots, batch, im
   const names = new Map(engine.map.chokepoints.map(c => [c.id, c.name]));
   return (
     <aside className={`panel ${stale ? 'stale' : ''}`}>
+      <Selection engine={engine} />
       <Fold id="context" title="Round context">
         <div className="grid2">
           <label className="field">Your side<select disabled value="CT"><option>CT</option></select></label>

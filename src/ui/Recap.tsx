@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
 import type { TacticalEngine } from '../engine/predict';
-import { equipValue, evalAt, GRADE_INFO, isMarked, moments, type Moment, LETTER_COLOR, letterGrade, movesUntil, TAG_INFO, teamEconomy, type DemoData, type Grade, type Move, type Replay, type Review, type Tag } from '../engine/recap';
+import { equipValue, GRADE_INFO, isMarked, moments, type Moment, LETTER_COLOR, letterGrade, movesUntil, TAG_INFO, teamEconomy, type DemoData, type Grade, type Move, type Replay, type Review, type Tag } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { gunFromName, primaryGun } from '../engine/guns';
-import { Fold } from './Fold';
 import { useStore } from '../store';
 import { SteamMatches } from './SteamMatches';
 import { DemoFolder } from './DemoFolder';
@@ -88,7 +87,7 @@ export function ReviewStart() {
       <div className="review-how">
         <div><b>1. Get a demo</b><span>CS2 → Watch → Your Matches → download. FACEIT and HLTV demos work too (unzip them first).</span></div>
         <div><b>2. Drop it in</b><span>{ONLINE ? "It's read right here in your browser; nothing is uploaded." : "It's read on this computer only; nothing is uploaded anywhere."}</span></div>
-        <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar, and every kill, death and flash is graded from Brilliant !! to Blunder ??.</span></div>
+        <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar, and every kill, grenade and costly death gets a letter from S+ (round-swinging) to F.</span></div>
       </div>
       {ONLINE && <DemoFolder />}
       {STEAM_AVAILABLE && <SteamMatches />}
@@ -121,10 +120,10 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   const jump = (t: number) => { s.setPlaying(false); s.setTime(Math.max(0, t - 1.5)); };
   const players = scoreboard(recap, seen);
   const tp = recap.turningPoint && (all || recap.turningPoint.t <= s.time) ? recap.turningPoint : null;
-  const ct = evalAt(recap.curve, s.time);
+  const [tab, setTab] = useState<'moves' | 'economy' | 'players'>('moves');
 
   return (
-    <aside className="panel">
+    <aside className="panel review-panel">
       <section>
         <h3>{engine.map.name} · round {r.n} of {rv.data.rounds.length}</h3>
         <div className="rounds">
@@ -139,16 +138,18 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
             : <>Round in progress · press <b>▶ Play</b> (Space) to watch it unfold</>}
           {r.plant !== null && (all || s.time >= r.plant) ? ` · bomb planted ${fmt(r.plant)}` : ''}
         </p>
-        <button className={`wide reveal ${all ? 'on' : ''}`} onClick={() => s.setReviewSpoilers(!all)} title="Shortcut: R">
-          {all ? '◀ Back to live (hide what hasn\'t happened)' : '⏭ Reveal all: full eval, every move and the result'}
-        </button>
       </section>
 
-      <Economy replay={replay} totalRounds={rv.data.rounds.length} />
+      <div className="tabs" role="tablist">
+        {([['moves', 'Moves'], ['economy', 'Economy'], ['players', 'Players']] as const).map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>
+        ))}
+      </div>
 
+      {tab === 'economy' && <Economy replay={replay} totalRounds={rv.data.rounds.length} />}
+
+      {tab === 'moves' && <>
       <section>
-        <h3>Win chance · {fmt(s.time)} · <span className="ct">CT {Math.round(ct * 100)}%</span> – <span className="t">T {Math.round((1 - ct) * 100)}%</span></h3>
-        <EvalGraph recap={recap} duration={r.duration} time={s.time} until={all ? Infinity : s.time} onSeek={t => { s.setPlaying(false); s.setTime(t); }} />
         {latest && !all && (
           <div className="turning" onClick={() => jump(latest.t)}>
             <span className="muted">Last move</span>
@@ -162,32 +163,34 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
           </div>
         )}
       </section>
+      </>}
 
-      <section>
+      {tab === 'players' && <section>
         <h3>Players {finished ? '' : '(so far)'}</h3>
         <table className="kills">
           <thead><tr><th /><th title="Round grade: S+ (won the round) … F (threw it). Win-chance impact plus clutches, multi-kills, team damage, unused grenades">Grade</th><th title="Total change in their team's win chance">Impact</th>
-            {(['brilliant', 'great', 'inaccuracy', 'mistake', 'blunder'] as Grade[]).map(g => <th key={g} title={GRADE_INFO[g].label} style={{ color: GRADE_INFO[g].color }}>{GRADE_INFO[g].mark}</th>)}
+            {COUNTED.map(g => <th key={g} title={`${GRADE_INFO[g].label} moves`} style={{ color: GRADE_INFO[g].color }}>{GRADE_INFO[g].mark}</th>)}
           </tr></thead>
           <tbody>
             {Object.entries(players).sort(([a], [b]) => sideOf(a).localeCompare(sideOf(b)) || players[b].impact - players[a].impact).map(([id, p]) => (
-              <tr key={id} className={filter === id ? 'sel' : ''} onClick={() => setFilter(filter === id ? 'key' : id)}>
+              <tr key={id} className={filter === id ? 'sel' : ''} onClick={() => { setFilter(filter === id ? 'key' : id); if (filter !== id) setTab('moves'); }}>
                 <td>
                   <b className={sideOf(id).toLowerCase()}>{names[id] ?? id}</b>
                   {finished && recap.roles[id] && <span className="role" title={recap.roles[id].note}>{recap.roles[id].role}</span>}
                 </td>
                 <td><Letter moves={seen.filter(m => m.player === id)} /></td>
                 <td style={{ color: p.impact > 0.02 ? '#7fbf4d' : p.impact < -0.02 ? '#e5483a' : undefined }}>{signed(p.impact)}</td>
-                {(['brilliant', 'great', 'inaccuracy', 'mistake', 'blunder'] as Grade[]).map(g => <td key={g}>{p.counts[g] || ''}</td>)}
+                {COUNTED.map(g => <td key={g}>{p.counts[g] || ''}</td>)}
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="muted">Click a player to see only their moves.{finished ? ' Hover a role to see why.' : ' Roles show when the round ends.'}</p>
-      </section>
+        <p className="muted">Click a player to see only their moves (Moves tab).{finished ? ' Hover a role to see why.' : ' Roles show when the round ends.'}</p>
+      </section>}
 
-      {/* A quiet history: new moves are added at the top, nothing scrolls or flashes, and it can be collapsed. */}
-      <Fold id="moves" title="Moves" aside={moves.length ? `${moves.length}` : undefined}>
+      {/* A quiet history: new moves are added at the top, nothing scrolls or flashes. */}
+      {tab === 'moves' && <section>
+        <h3>Moves{moves.length ? ` · ${moves.length}` : ''}</h3>
         <div className="row km">
           <select value={filter.length > 4 ? 'key' : filter} onChange={e => setFilter(e.target.value)}>
             <option value="key">Key moves</option><option value="util">Grenades</option><option value="all">Everything</option>
@@ -202,7 +205,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
           {!moves.length && <p className="muted">{all ? 'No moves for this filter.' : 'Nothing has happened yet. Press ▶ Play.'}</p>}
         </div>
         {moves.length > 0 && <p className="muted">Newest first. Click a move to jump to it.</p>}
-      </Fold>
+      </section>}
 
       {control && (
         <p className="muted foot">
@@ -274,11 +277,14 @@ export function MomentNav({ recap }: { recap: Review }) {
   );
 }
 
+/** Move letters counted per player in the Players tab: the big ones, both ways. */
+const COUNTED: Grade[] = ['S+', 'S', 'A', 'D', 'E', 'F'];
+
 /** Impact and grade counts from the moves seen so far. */
 function scoreboard(recap: Review, seen: Move[]) {
   const out: Review['players'] = {};
-  for (const id of Object.keys(recap.players)) out[id] = { impact: 0, counts: { brilliant: 0, great: 0, good: 0, book: 0, inaccuracy: 0, mistake: 0, blunder: 0 } };
-  for (const m of seen) if (out[m.player]) { out[m.player].impact += m.gain; if (m.kind !== 'death') out[m.player].counts[m.grade]++; }
+  for (const id of Object.keys(recap.players)) out[id] = { impact: 0, counts: { 'S+': 0, S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 } };
+  for (const m of seen) if (out[m.player]) { out[m.player].impact += m.gain; if (m.kind !== 'death' || isMarked(m)) out[m.player].counts[m.grade]++; }
   return out;
 }
 
@@ -347,13 +353,13 @@ function loadout(weapons: string[]) {
 
 function MoveRow({ m, compact }: { m: Move; compact?: boolean }) {
   const g = GRADE_INFO[m.grade];
-  const death = m.kind === 'death'; // no mark: only the win-chance change is shown
+  const death = m.kind === 'death' && !isMarked(m); // ordinary deaths: no letter, only the win-chance change
   return (
     <>
       <div className="move-head">
         <span className="muted">{fmt(m.t)}</span>
         {death
-          ? <span className="badge death" title="Deaths aren't marked; the loss still counts toward impact and the round grade">✝</span>
+          ? <span className="badge death" title="Ordinary deaths aren't marked (only costly untraded ones are); the loss still counts toward impact and the round grade">✝</span>
           : <span className="badge" style={{ background: g.color }} title={g.label}>{g.mark}</span>}
         <b className={m.side.toLowerCase()}>{m.title}</b>
         <span className="pct" style={{ color: m.gain > 0.02 ? '#7fbf4d' : m.gain < -0.02 ? '#e5483a' : 'var(--muted)' }}>{signed(m.gain)}</span>
@@ -377,29 +383,3 @@ function Letter({ moves }: { moves: Move[] }) {
   return <span className="letter" style={{ background: LETTER_COLOR[letter] }} title={`${points >= 0 ? '+' : ''}${points.toFixed(0)} points`}>{letter}</span>;
 }
 
-/** CT win chance over the round, like a chess eval graph. Click to jump. */
-function EvalGraph({ recap, duration, time, until, onSeek }: { recap: Review; duration: number; time: number; until: number; onSeek: (t: number) => void }) {
-  const W = 320, H = 110;
-  const x = (t: number) => (t / Math.max(1, duration)) * W;
-  const y = (v: number) => H - v * H;
-  const shown = recap.curve.filter(c => c.t <= until + 0.01);
-  if (shown.length && shown.at(-1)!.t < Math.min(until, duration)) shown.push({ t: Math.min(until, duration), ct: evalAt(recap.curve, until) });
-  const line = shown.map((c, i) => `${i ? 'L' : 'M'}${x(c.t).toFixed(1)},${y(c.ct).toFixed(1)}`).join(' ');
-  const area = shown.length ? `${line} L${x(shown.at(-1)!.t)},${H} L0,${H} Z` : '';
-  const marks = recap.moves.filter(m => m.grade !== 'book' && m.kind !== 'death' && m.t <= until + 0.01);
-  return (
-    <svg className="evalgraph" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
-      onClick={e => { const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect(); onSeek(((e.clientX - r.left) / r.width) * duration); }}>
-      <rect width={W} height={H} fill="var(--panel2)" />
-      {shown.length > 0 && <rect width={x(shown.at(-1)!.t)} height={H} fill="var(--t)" opacity={0.22} />}
-      <path d={area} fill="var(--ct)" opacity={0.35} />
-      <path d={line} fill="none" stroke="var(--ct)" strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
-      <line x1={0} x2={W} y1={H / 2} y2={H / 2} stroke="#fff" strokeOpacity={0.25} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-      {marks.map((m, i) => {
-        const v = evalAt(recap.curve, m.t);
-        return <circle key={i} cx={x(m.t)} cy={y(v)} r={3} fill={GRADE_INFO[m.grade].color} stroke="#000" strokeWidth={0.6} vectorEffect="non-scaling-stroke" />;
-      })}
-      <line x1={x(time)} x2={x(time)} y1={0} y2={H} stroke="#fff" strokeWidth={1.2} vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}

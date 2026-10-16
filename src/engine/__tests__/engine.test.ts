@@ -288,19 +288,21 @@ describe('round review (chess-style grading)', () => {
     expect(smoke.path![0].x).toBeCloseTo(800, 0);
     expect(rev.moves.filter(m => m.util).length).toBe(3);
     const he = rev.moves.find(m => m.util === rep.board.utility.find(u => u.type === 'he')!.id)!;
-    expect(he.grade).toBe('inaccuracy');
+    expect(he.grade).toBe('D');
     expect(he.why.join(' ')).toMatch(/Hit nobody/);
     expect(he.tags).toContain('WASTED');
     // every player gets a role and a letter grade
     for (const id of rep.sim.ids) expect(rev.roles[id]?.role).toBeTruthy();
     expect(letterGrade([]).letter).toBe('C');
     expect(letterGrade([{ ...he, gain: 0.4, tags: ['CLUTCH'] }]).letter).toBe('S+');
-    // moments: every kill is one, in time order, deaths are never their own moment
-    const { moments } = await import('../recap');
+    // moments: every kill is one, in time order; a death only shows when it cost the team (untraded, 8%+)
+    const { moments, isMarked } = await import('../recap');
     const ms = moments(rev);
     expect(ms.flatMap(x => x.moves).filter(m => m.kind === 'kill').length).toBe(rev.moves.filter(m => m.kind === 'kill').length);
     expect(ms.every((x, i) => i === 0 || x.t > ms[i - 1].t)).toBe(true);
-    expect(ms.some(x => x.moves.some(m => m.kind === 'death'))).toBe(false);
+    const deaths = ms.flatMap(x => x.moves).filter(m => m.kind === 'death');
+    expect(deaths.every(m => isMarked(m) && !m.tags.includes('TRADED') && (m.grade === 'E' || m.grade === 'F'))).toBe(true);
+    expect(rev.moves.filter(m => m.kind === 'death' && m.tags.includes('TRADED')).every(m => !isMarked(m))).toBe(true);
     // match report from the graded round
     const { summarizeRound, buildMatchReport, performance: perfRating } = await import('../match');
     const sum = summarizeRound(rep, rev);

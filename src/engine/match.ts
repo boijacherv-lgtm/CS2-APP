@@ -165,5 +165,5 @@ export function performance(opponents: number[], wins: number): number {
 
 /** Match grade from average impact points per round. */
 export function matchLetter(ppr: number): Letter {
-  return ppr >= 12 ? 'S+' : ppr >= 8 ? 'S' : ppr >= 4 ? 'A' : ppr >= 1.5 ? 'B' : ppr > -1.5 ? 'C' : ppr > -5 ? 'D' : 'F';
+  return ppr >= 12 ? 'S+' : ppr >= 8 ? 'S' : ppr >= 4 ? 'A' : ppr >= 1.5 ? 'B' : ppr > -1.5 ? 'C' : ppr > -4 ? 'D' : ppr > -7 ? 'E' : 'F';
 }

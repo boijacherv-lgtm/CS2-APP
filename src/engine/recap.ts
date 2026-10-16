@@ -280,16 +280,26 @@ export function evalState(state: {
   return 1 / (1 + Math.exp(-z));
 }
 
-export type Grade = 'brilliant' | 'great' | 'good' | 'book' | 'inaccuracy' | 'mistake' | 'blunder';
-export const GRADE_INFO: Record<Grade, { mark: string; label: string; color: string }> = {
-  brilliant: { mark: '!!', label: 'Brilliant', color: '#1bc6c6' },
-  great: { mark: '!', label: 'Great', color: '#5c8bd6' },
-  good: { mark: '✓', label: 'Good', color: '#7fbf4d' },
-  book: { mark: '·', label: 'Book', color: '#a39b8f' },
-  inaccuracy: { mark: '?!', label: 'Inaccuracy', color: '#f0c33c' },
-  mistake: { mark: '?', label: 'Mistake', color: '#e58f2a' },
-  blunder: { mark: '??', label: 'Blunder', color: '#e5483a' },
+/**
+ * One letter scale for everything: a move, a player's round and their whole match all go S+ … F. For a move the
+ * letter is how much it changed their team's chance to win the round (see grade()); C is neutral and not shown.
+ */
+export type Letter = 'S+' | 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+export type Grade = Letter;
+export const LETTER_COLOR: Record<Letter, string> = {
+  'S+': '#f5c542', S: '#22c55e', A: '#7fbf4d', B: '#5c8bd6', C: '#a39b8f', D: '#e5a52a', E: '#ec6b34', F: '#e5483a',
 };
+export const GRADE_INFO: Record<Grade, { mark: string; label: string; color: string }> = {
+  'S+': { mark: 'S+', label: 'Round-swinging', color: LETTER_COLOR['S+'] },
+  S: { mark: 'S', label: 'Excellent', color: LETTER_COLOR.S },
+  A: { mark: 'A', label: 'Great', color: LETTER_COLOR.A },
+  B: { mark: 'B', label: 'Good', color: LETTER_COLOR.B },
+  C: { mark: 'C', label: 'Neutral', color: LETTER_COLOR.C },
+  D: { mark: 'D', label: 'Weak', color: LETTER_COLOR.D },
+  E: { mark: 'E', label: 'Bad', color: LETTER_COLOR.E },
+  F: { mark: 'F', label: 'Terrible', color: LETTER_COLOR.F },
+};
+export const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'E', 'F'];
 
 /** Context tags: the one-word "why" next to a grade (like a match feed). */
 export type Tag =
@@ -339,23 +349,21 @@ export interface Move {
 export type Role = 'Entry' | 'Lurk' | 'Support' | 'AWPer' | 'Anchor' | 'Rotator' | 'Rifler';
 export interface PlayerRole { role: Role; note: string }
 
-/** Round grade for a player, S+ (round-winning) … F (threw it). */
-export type Letter = 'S+' | 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
-export const LETTER_COLOR: Record<Letter, string> = { 'S+': '#f5c542', S: '#22c55e', A: '#7fbf4d', B: '#5c8bd6', C: '#a39b8f', D: '#e58f2a', F: '#ef4444' };
 const TAG_POINTS: Partial<Record<Tag, number>> = { CLUTCH: 5, 'MULTI-KILL': 3, 'TEAM FLASH': -2, 'TEAM DAMAGE': -3, 'UNUSED UTIL': -2 };
 /** Letter from a player's moves: their win-chance impact (in points) plus a few things % misses. */
 export function letterGrade(moves: Move[]): { letter: Letter; points: number } {
   let pts = 0;
   for (const m of moves) { pts += m.gain * 100; for (const t of m.tags) pts += TAG_POINTS[t] ?? 0; }
-  const letter: Letter = pts >= 35 ? 'S+' : pts >= 22 ? 'S' : pts >= 12 ? 'A' : pts >= 4 ? 'B' : pts > -4 ? 'C' : pts > -15 ? 'D' : 'F';
+  const letter: Letter = pts >= 35 ? 'S+' : pts >= 22 ? 'S' : pts >= 12 ? 'A' : pts >= 4 ? 'B' : pts > -4 ? 'C' : pts > -12 ? 'D' : pts > -22 ? 'E' : 'F';
   return { letter, points: pts };
 }
 
 /**
- * Moves that get a visible mark. Deaths are not marked (the killer's mark tells the story and the UI
- * stays readable), but their win-chance loss still counts toward the player's impact and letter grade.
+ * Moves that get a visible letter. Neutral moves (C) don't. Deaths only do when they cost the team: not traded and
+ * at least 8% of win chance (E or F); ordinary deaths stay unmarked so the map stays readable, but every death's
+ * win-chance loss still counts toward the player's impact and round letter.
  */
-export const isMarked = (m: Move) => m.kind !== 'death' && m.grade !== 'book';
+export const isMarked = (m: Move) => m.grade !== 'C' && (m.kind !== 'death' || (!m.tags.includes('TRADED') && (m.grade === 'E' || m.grade === 'F')));
 
 /** Key moments of a round, like the moves of a chess game: every kill and marked move, simultaneous ones grouped. */
 export interface Moment { t: number; moves: Move[] }
@@ -376,8 +384,8 @@ export const QUEUE_SECS = 8;
 /** How long reading a move's window takes (real ms): a base plus time for every character, less for small moves. */
 export const readMs = (m: Move) => {
   const chars = m.title.length + m.why.join(' ').length;
-  // the moves that swing a round get the full time; small ones (good / inaccuracy) a quicker look
-  const big = m.grade === 'brilliant' || m.grade === 'great' || m.grade === 'mistake' || m.grade === 'blunder';
+  // the moves that swing a round get the full time; small ones (B / D) a quicker look
+  const big = m.grade === 'S+' || m.grade === 'S' || m.grade === 'A' || m.grade === 'E' || m.grade === 'F';
   return big ? Math.max(1800, Math.min(4000, 800 + 20 * chars)) : Math.max(1200, Math.min(2500, 500 + 12 * chars));
 };
 export const moveKey = (m: Move) => `${m.t}-${m.player}-${m.kind}-${m.util ?? ''}`;
@@ -406,14 +414,17 @@ export interface Review {
   turningPoint: Move | null;
 }
 
-function grade(gain: number, special: boolean): Grade {
-  if (gain >= 0.15 && special) return 'brilliant';
-  if (gain >= 0.1) return 'great';
-  if (gain >= 0.03) return 'good';
-  if (gain > -0.03) return 'book';
-  if (gain > -0.08) return 'inaccuracy';
-  if (gain > -0.15) return 'mistake';
-  return 'blunder';
+/** A move's letter from the change in its team's win chance (in whole %, as shown, so +10% is always an A). */
+function grade(gain: number): Grade {
+  const p = Math.round(gain * 100);
+  if (p >= 25) return 'S+';
+  if (p >= 15) return 'S';
+  if (p >= 10) return 'A';
+  if (p >= 3) return 'B';
+  if (p > -3) return 'C';
+  if (p > -8) return 'D';
+  if (p > -15) return 'E';
+  return 'F';
 }
 
 /** Full review of a replayed round. */
@@ -539,7 +550,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (whiff) vTags.push('WHIFF');
     if (postPlant) vTags.push('POST-PLANT');
     moves.push({
-      t: k.t, player: k.victim, side: vSide, kind: 'death', gain: loss, grade: grade(loss, false),
+      t: k.t, player: k.victim, side: vSide, kind: 'death', gain: loss, grade: grade(loss),
       title: `${name(k.victim)} died${where(k.at)}${kGun ? ` (${kGun.name})` : ''}`, why, tags: vTags,
     });
 
@@ -585,7 +596,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (upset) aTags.push('UPSET');
       if (postPlant) aTags.push('POST-PLANT');
       moves.push({
-        t: k.t, player: k.killer, side: aSide, kind: 'kill', gain, grade: grade(gain, special || clutch),
+        t: k.t, player: k.killer, side: aSide, kind: 'kill', gain, grade: grade(gain),
         title: `${name(k.killer)} killed ${name(k.victim)}${withGun}${where(k.at)}`, why: awhy, tags: aTags,
       });
     }
@@ -644,7 +655,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (caught) why.push(`${caught} teammate${caught > 1 ? 's' : ''} died at the smoke anyway.`);
       if (nade.duration !== undefined && nade.duration < 12) why.push(`Cleared early (lasted ${nade.duration.toFixed(0)} s).`);
       const tags: Tag[] = !pairSec && !blinded.size ? ['WASTED'] : gain >= 0.03 ? ['DENIED'] : [];
-      return { gain, grade: pairSec || blinded.size ? grade(gain, false) : 'inaccuracy', why, tags };
+      return { gain, grade: pairSec || blinded.size ? grade(gain) : 'D', why, tags };
     }
 
     // HE / molotov: damage and who it reached
@@ -669,12 +680,12 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       gain += 0.02 * Math.min(3, near.size);
       if (near.size) why.push(`Kept ${near.size === 1 ? 'an enemy' : `${near.size} enemies`} off that ground for ${(to - from).toFixed(0)} s.`);
       if (near.size) tags.push('DENIED');
-      if (!near.size && !enemyDmg) { why.push('Burned empty ground: no enemy came near it.'); return { gain: Math.min(gain, -0.01), grade: 'inaccuracy', why, tags: [...tags, 'WASTED'] }; }
+      if (!near.size && !enemyDmg) { why.push('Burned empty ground: no enemy came near it.'); return { gain: Math.min(gain, -0.01), grade: 'D', why, tags: [...tags, 'WASTED'] }; }
     } else if (!enemyDmg) {
       why.push('Hit nobody.');
-      return { gain: Math.min(gain, -0.01), grade: teamDmg >= 40 ? 'mistake' : 'inaccuracy', why, tags: [...tags, 'WASTED'] };
+      return { gain: Math.min(gain, -0.01), grade: teamDmg >= 40 ? 'E' : 'D', why, tags: [...tags, 'WASTED'] };
     }
-    return { gain, grade: grade(gain, softened.length >= 2), why, tags };
+    return { gain, grade: grade(gain), why, tags };
   };
 
   // flashes: enemies blinded, teammates blinded, and whether it led to a kill
@@ -704,18 +715,18 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (team.length) tags.push('TEAM FLASH');
     if (!hits.length) tags.push('WASTED');
     moves.push({
-      t: u.t, player: u.thrower, side: s, kind: 'flash', util: `u${ui}`, gain, grade: hits.length ? grade(gain, assisted.length >= 2) : 'inaccuracy',
+      t: u.t, player: u.thrower, side: s, kind: 'flash', util: `u${ui}`, gain, grade: hits.length ? grade(gain) : 'D',
       title: `${name(u.thrower)}: flash${where(worldToRadar({ x: u.x, y: u.y }, engine.map.radar))}`, why, tags,
     });
   });
 
   moves.sort((a, b) => a.t - b.t || (a.kind === 'kill' ? -1 : 1));
   const players: Review['players'] = {};
-  for (const id of sim.ids) players[id] = { impact: 0, counts: { brilliant: 0, great: 0, good: 0, book: 0, inaccuracy: 0, mistake: 0, blunder: 0 } };
+  for (const id of sim.ids) players[id] = { impact: 0, counts: { 'S+': 0, S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 } };
   for (const m of moves) {
     if (!players[m.player]) continue;
     players[m.player].impact += m.gain;
-    if (m.kind !== 'death') players[m.player].counts[m.grade]++;
+    if (m.kind !== 'death' || isMarked(m)) players[m.player].counts[m.grade]++;
   }
   const turningPoint = moves.filter(m => m.kind !== 'death').reduce<Move | null>((best, m) => (!best || Math.abs(m.gain) > Math.abs(best.gain) ? m : best), null);
   return { curve, moves, players, roles: playerRoles(engine, rep, moves), turningPoint };

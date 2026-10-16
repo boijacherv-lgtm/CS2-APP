@@ -2,7 +2,7 @@
 
 **https://tsakhstvo.xyz** · plan rounds, simulate fights, and review your own matches like a chess game.
 
-Place CTs and Ts on Valve's real radar, give them routes, grenades and line-ups, and watch the round play out with fights. Or load one of your own matches: every round replays on the radar with a live win-chance bar, every kill and grenade is graded chess-style (Brilliant !!, Mistake ?, Blunder ??), and a built-in coach tells you what to work on.
+Place CTs and Ts on Valve's real radar, give them routes, grenades and line-ups, and watch the round play out with fights. Or load one of your own matches: every round replays on the radar with a live win-chance bar, every kill and grenade gets a letter from S+ to F, and a built-in coach tells you what to work on.
 
 > **Working on this as an AI agent / new developer?** Read the [Agent guide](#agent-guide) first. It has the conventions, gotchas and open work that aren't obvious from the code.
 
@@ -35,18 +35,28 @@ Both read demos with the same parser (LaihoE/demoparser); the website uses a Web
 
 ### Review your match
 1. **Review** tab → drop a `.dem` (or a saved `.json`), or use **Your CS2 demo folder** below. FACEIT/HLTV demos work too (unzip first).
-2. Press **▶ Play** (or Space). The win-chance bar, the graph and the grades reveal themselves as the round plays. **⏭ Reveal all** (or R) shows everything at once.
-3. **◀ ▶** (or ← →) step through the key moments of the match, across rounds, like moves in a chess game.
+2. Press **▶ Play** (or Space). The win-chance bar, the timeline and the grades reveal themselves as the round plays. **⏭ Reveal all** (or R) shows everything at once.
+3. **The timeline** at the bottom is the round's story: the win chance as a curve (CT blue above the middle, T yellow below), kills as ticks in the killer's colour, the big moves as their letter (S+ S E F), the smaller ones (A B D) as dots, and 💣 at the plant. Click anywhere, or on a mark, to jump there.
+4. **◀ ▶** (or ← →) step through the key moments of the match, across rounds, like moves in a chess game.
+5. The panel on the right (**Panel** to show or hide it) has the rounds and three tabs: **Moves**, **Economy**, **Players**.
+
+**The letters.** One scale for moves, rounds and the whole match. For a move it's how much it changed the team's chance to win the round:
+
+| S+ | S | A | B | C | D | E | F |
+|---|---|---|---|---|---|---|---|
+| +25% or more | +15% | +10% | +3% | neutral (not shown) | −3% | −8% | −15% or worse |
+
+Deaths only get a letter when they cost the team: not traded and −8% or worse (E or F). Ordinary deaths stay unmarked but still count toward the round letter.
 
 What you see on the map:
 - **Players** move smoothly, with a view cone and a white arrow for where they look. The top bar shows who's alive, health, score and the round / bomb timer, like in CS2.
 - **Shots:** every bullet is a muzzle flash and a tracer, to whoever it hit or toward the wall it hit.
 - **Grenades** fly as thrown and grow while they're in the air; then the smoke blooms, the fire burns, the flash bursts, the HE rings, each with its grade.
 - **The bomb:** next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded.
-- **Move windows:** each graded move pops out next to the player, joined to them by a line, with every comment on it.
-  - While playing, the moves come up one at a time, in order, and the replay goes into slow motion until each one is read, so none are skipped.
-  - **⏸ Stop to read** freezes the replay on that move until **▶ Continue**. Click the window to skip ahead. **📖** turns slow motion off, and **💬** turns the move windows off altogether (remembered in your browser).
-  - Paused, moves at the same moment are paged with **‹ ›**.
+- **Graded moves**, in the bottom-left corner so they never cover the fight:
+  - While playing, a feed like CS2's kill feed: one line per move, the newest with a line to the player. The moves come one at a time, in order, and the replay goes into slow motion until each one is read, so none are skipped. **⏸** on the line stops on that move; click a line to open it.
+  - Paused, the full card: grade, every comment, tags, **‹ ›** for moves at the same moment. The players it's about light up and the rest of the map dims. **▶ Continue** carries on after ⏸.
+  - **📖** turns slow motion off, and **💬** turns the feed off altogether (remembered in your browser).
 
 ### Your CS2 demo folder (website, Chrome / Edge)
 1. **Review** tab → **Choose your Steam folder** → pick the Steam folder where CS2 is installed (e.g. `C:\Program Files (x86)\Steam` or `D:\SteamLibrary`; any folder on the way to `…\csgo\replays` works). A website can't search your disk, so you pick it once.
@@ -54,12 +64,12 @@ What you see on the map:
 3. A demo CS2 downloads appears within seconds. After a browser restart, click **Reconnect** once (browsers ask for folder access again each visit).
 
 ### Match recap
-**Match recap** tab, for the match loaded in Review:
-- **Coach**, for you (when logged in with Steam) or any player you pick:
-  - **Work on**: up to 4 things, each with a concrete tip and **Watch: R5 R12…** buttons that open that round. It looks at untraded and isolated deaths, opening deaths, missed sprays, dying with grenades, flashes that blind nobody, team damage, losing the AWP, fighting while hurt, ADR, KAST, headshots and a weak CT or T side.
-  - **Keep doing**: up to 3 strengths (high damage, quick trades, round-winning plays…).
-- **Ratings and stats** for every player: estimated game rating, match grade, impact, K/D, ADR, KAST, HS%, openings, clutches, utility, whiffs, upsets and roles.
-- **Round grades** (S+ … F) for every player in every round. Click a player to highlight theirs; click a grade to watch that round.
+**Match recap** tab, for the match loaded in Review, top to bottom:
+- **The result:** map, final score (your team first when you're logged in with Steam), victory or defeat, your game rating against your Premier.
+- **Your game** (or any player you pick): match grade, game rating on a dial (the yellow tick is their real Premier rating), and ADR / KAST / Impact against normal.
+- **Coach:** every number as a bar from "normal": right and green is better, left and red is worse, longer is further off. **!** marks the things to work on; click a row for the tip and **Watch: R5 R12…** buttons that open those rounds (hovering one outlines that round in the grid below). It looks at untraded and isolated deaths, opening deaths, missed sprays, dying with grenades, flashes that blind nobody, team damage, losing the AWP, fighting while hurt, ADR, KAST, headshots, grenade damage, flash assists, trades, impact and a weak CT or T side.
+- **Scoreboard:** both teams, columns grouped (Rating · Fights · Openings & clutches · Utility · Impact); only numbers far from normal are coloured. Click a player to see their game above.
+- **Round grades** (S+ … F) for every player in every round, with who won each round and how; a gap marks the side switch. Click a grade to watch that round.
 
 ### Your matches (Steam match list)
 1. **Log in with Steam** (top right). Steam's own page opens; scan the QR code with the Steam app (Steam Guard) and approve.
@@ -70,12 +80,12 @@ What you see on the map:
 5. Valve deletes demos after about a month, so download the ones you want to keep.
 
 ### Plan a round (Tactical)
-1. Pick a map on the left. A default CT setup is already placed; **CT setups** and **T plays** load ready-made ones.
+1. **☰ Setup** (top of the tool rail on the left) opens the map picker, **CT setups**, **T plays** and line-ups. A default CT setup is already placed.
 2. **Move players:** drag them, double-click then click where they go, or select one and right-click the map. Turn them by clicking the white dot or with `[` `]`.
 3. **Routes:** Route tool → click a player → click where they should go (Shift+click adds waypoints).
-4. **Grenades:** Smoke / Flash / Molotov / HE tools, or **Line-up** for real throws.
+4. **Grenades:** Smoke / Flash / Molotov / HE tools, or **Line-up** for real throws. Every tool is on the rail with its key (V, C, T, S, F, M, H, P, L, E); ↶ ↷ undo and redo.
 5. Press **▶ Play** (or Space). **Clean / Standard / Full** (keys 1–3) choose how much is drawn; **Layers** turns single layers on and off.
-6. The right panel explains it: weakest entrance, likely T plays, kill chances (200 simulated rounds), map control, what each grenade is worth. Select a CT and turn on **Best spots** to see where they should stand.
+6. The right panel (**Panel** to show or hide it; it slides over the map on smaller screens) explains it. Selecting a player or grenade shows its settings at the top: weakest entrance, likely T plays, kill chances (200 simulated rounds), map control, what each grenade is worth. Select a CT and turn on **Best spots** to see where they should stand.
 
 ## Running it yourself (desktop)
 
@@ -131,7 +141,7 @@ Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings an
 | **Combat** | Seeded fight simulation: reaction times, peeker's advantage, crossfires, gun stats, flashes, HE/molotov damage and HP. 🎲 Re-roll for other outcomes. 200-round batches give kill chances and round win rates. |
 | **Analysis** | Map control as territory with a front line, entry points (timing, holders, guns, crossfire, T pressure), predicted T plays, best spots for a selected CT, utility value. Hand-made layers for Mirage and Nuke, generated from geometry for the rest (Vertigo is rough). |
 | **Line-ups** | Starter library (Mirage, Dust II) and your own line-ups saved in the browser. "Use" makes the selected player walk to the spot and throw it. |
-| **Match review** | Demo rounds replay with smooth movement, look arrows, bullet tracers, grenades as thrown, the bomb, a CS2-style HUD and a live eval bar. Kills and grenades get chess grades (deaths aren't marked but still count) plus context tags; each player gets a round letter (S+ … F) and a role (Entry, Lurk, Support, AWPer, Anchor, Rotator, Rifler). Premier ratings shape the eval and duel grades (UPSET); grades weigh each team's economy and guns. Move windows with a reading queue and slow motion. |
+| **Match review** | Demo rounds replay with smooth movement, look arrows, bullet tracers, grenades as thrown, the bomb, a CS2-style HUD and a live eval bar. Kills, grenades and costly deaths get a letter (S+ … F, see below) plus context tags; each player gets a round letter and a match letter on the same scale and a role (Entry, Lurk, Support, AWPer, Anchor, Rotator, Rifler). Premier ratings shape the eval and duel grades (UPSET); grades weigh each team's economy and guns. Move windows with a reading queue and slow motion. |
 | **Match recap** | Built-in coach (work on / keep doing, rounds to watch), estimated game rating per player (chess-style performance rating from duels against real opponent ratings + round impact), match grade, full stats and a grid of round grades. |
 | **Demo folder** | Website: connect CS2's replays folder once; new demos are listed and read in the browser by themselves, results kept in IndexedDB. |
 | **Your matches** | Log in with Steam (OpenID) + Valve's match-history API list your new matches; **Download in CS2** via Valve's `steam://` link. Codes and lists are per Steam account. |
@@ -144,7 +154,7 @@ Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings an
 - Communicates casually and briefly ("push it to github", "try again"). Act on clear requests and report results plainly. **Commit and push only when asked.**
 - **Uses a MacBook trackpad, often with tap-to-click, so press-and-drag is unreliable for them.** Every interaction must also work without dragging; that's why click-to-move, right-click-to-send and click-to-aim exist. Keep it that way.
 - Wants to *see* things working: check UI changes in a browser (the ONLINE build: `VITE_ONLINE=1 npx vite build && npx vite preview`), and start the dev server when asked.
-- Has another developer for visual design; keep layouts plain and functional unless asked.
+- Has another developer for visual design. The current design system (tokens, rail + drawer, overlay slots, timeline, move feed, recap layout) came from a design review the user asked for; they'll say what they don't like.
 - **GitHub identity matters:** this repo belongs to **boijacherv-lgtm**. Commit and push only as that account (the local repo config uses its no-reply email and a dedicated SSH key, `core.sshCommand` → `~/.ssh/id_ed25519_boijacherv`). **Don't commit or push as any other account or with any other email.**
 - Valve assets (radars) are deliberately committed to this public repo; this was the user's call.
 
@@ -169,7 +179,7 @@ src/
     spots.ts         best spots for a selected CT (first duel, trade, exposure; keeps their entry covered)
     batch.ts         chunked many-round runs (kill chances, win rate) + utility impact
     recap.ts         demo → replay (Catmull-Rom movement, grenade flights, bombAt), eval curve, chess-style move grading,
-                     tags, roles, ratings, key moments, and the move-window queue (calloutAt, readMs)
+                     tags, roles, ratings, key moments, and the reading queue for graded moves (calloutAt, readMs)
     match.ts         per-round summaries → per-player stats, performance rating, match grade
     match.worker.ts  grades every round of a loaded match off the main thread (started by Shell's useMatchGrader)
     coach.ts         the coach: coachFeatures (match → numbers) → CoachModel (what's normal) → coach() notes; trainCoach()
@@ -180,13 +190,17 @@ src/
     lineups.ts       built-in + custom line-ups, flight-time model
     generated/maps.json   walkability grids + overview calibration (built by tools/build-maps.mjs)
   ui/
-    Board.tsx        Konva stage: radar, overlays, players, routes, utility, bomb, tools, gestures; MoveCallout (move windows)
+    tokens.ts        design tokens: every colour, the fonts; applyTokens() writes them to :root, Konva imports the same values
+    Board.tsx        Konva stage: radar, overlays, players, routes, utility, bomb, tools, gestures; the overlay slots
+                     (.board-ui: HUD, layers, eval bar, zoom, move feed, playback dock) around the map
+    MoveFeed.tsx     graded moves in Review: the ticker while playing (reading queue, slow motion), the card when paused,
+                     the line to the player and who it's about (onFocus dims the rest)
     Shots.tsx        bullet tracers and muzzle flashes in Review
     Nades.tsx        grenade visuals: flights, smoke clouds, fire, flash burst, HE ring, countdowns, grade marks
-    Panels.tsx       left toolbar + right analysis panel
+    Panels.tsx       the tool rail (+ ☰ Setup flyout) and the right analysis panel (selection editor on top)
     Recap.tsx        review start page (drop zone) + review panel (eval graph, moves, economy, player grades, moment nav)
-    Report.tsx       Match recap page: CoachPanel, players table, round grades
-    Playback.tsx     CS2-style round HUD and playback bar (play, speed, 📖 slow motion, slider, combat)
+    Report.tsx       Match recap page: header, Performance + Gauge, CoachCard (deviation bars), Scoreboard, RoundGrid
+    Playback.tsx     CS2-style round HUD and the playback dock (play, speed, 💬, 📖, Review timeline, combat)
     DemoFolder.tsx   website: CS2 replays folder (File System Access API), auto-read, cache versioned by V
     readDemo.ts      reads a .dem in demoWorker.ts (WebAssembly parser) off the main thread
     localStore.ts    IndexedDB key-value store + gzip helpers (CompressionStream)
@@ -219,13 +233,14 @@ server/              demo bot, not hosted (server/README.md)
 ### Conventions and invariants
 - **Coordinates:** all geometry is in **radar pixels (0–1024)**. Convert to world units only via `coords.ts` (`worldToRadar`, `radarToWorld`). Engine timings use `engine.secPerPx(side, weapon)`.
 - **Grid:** `CELL = 4` px. `MapGrid.isWalkable`, `lineOfSight` (ray-marched, smokes as discs), `distanceField`, `shortestPath` (A* + string pulling).
-- **Grenade timing:** always use `popAt(u)` and `lifeOf(u)`; never hard-code flight constants. Grading lives in `recap.ts`: chess marks from win-chance change (`grade`), tags from `TAG_INFO`, letters from `letterGrade`, roles from `playerRoles`, grenades in `gradeNade`.
+- **Grenade timing:** always use `popAt(u)` and `lifeOf(u)`; never hard-code flight constants. Grading lives in `recap.ts`: a move's letter from its win-chance change (`grade`: S+ ≥ +25%, S ≥ +15%, A ≥ +10%, B ≥ +3%, C neutral, D > −8%, E > −15%, F worse); deaths are marked only when untraded and −8% or worse (`isMarked`), tags from `TAG_INFO`, letters from `letterGrade`, roles from `playerRoles`, grenades in `gradeNade`.
 - **Facing:** radians in radar space (y down). `undefined` = auto-aim (`engine.facing(p)`). Demo yaw converts as `-yaw°`; interpolate angles the short way round.
 - **Simulation shape:** `combat.Simulation` (per-player arrays at `SIM_DT = 0.1 s`) is the common format for playback, control, kill feed and demo replays. Reuse it.
 - **Determinism:** everything random goes through `mulberry32(seed)`. Same board + seed = same round.
 - **Demo data changes:** when `tools/demo-core.mjs` gains a field, bump `V` in `DemoFolder.tsx` so saved games are read again, and keep older data working (fields are optional in `DemoRound`).
 - **Per-level maps:** `getEngine(mapId, level)`. The store keeps a separate board per `map:level`.
 - **Tactical data:** hand-made layers live in `catalog.ts`. Prefer adding callouts/chokepoints there over editing the generator.
+- **Design:** colours only from `ui/tokens.ts` (CSS `var(--…)`, Konva imports `T` / `SIDE_COLOR` / `UTIL_COLOR`). Only team, grenade and grade colours are colourful; the chrome is greyscale and white is the interactive colour. Rajdhani (`var(--font-display)`) for headings and big numbers, Inter for everything else, tabular digits in tables. Anything over the map goes into a `.board-ui` slot, on a solid `var(--overlay)` surface (no backdrop blur over the canvas).
 - **Style:** match the surrounding code: small pure functions in `engine/`, short doc comments on the *why*, no new dependencies without asking the user.
 
 ### Testing

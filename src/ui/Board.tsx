@@ -8,10 +8,12 @@ import { radarToWorld, worldToRadar } from '../engine/coords';
 import { simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
 import type { SpotMap } from '../engine/spots';
-import { bombAt, calloutAt, evalAt, GRADE_INFO, isMarked, moveKey, readMs, TAG_INFO, type Review } from '../engine/recap';
+import { bombAt, evalAt, GRADE_INFO, isMarked, type Review } from '../engine/recap';
 import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
 import { Gunfire } from './Shots';
+import { MoveFeed } from './MoveFeed';
+import { SIDE_COLOR, T as TOK, UTIL_COLOR } from './tokens';
 import { MomentNav } from './Recap';
 import { LayersBar } from './Layers';
 import { PlaybackBar, RoundHud, scoreBefore } from './Playback';
@@ -24,7 +26,7 @@ import { useStore } from '../store';
 
 Konva.dragDistance = 4;
 
-const COLORS = { T: '#e8a33c', CT: '#4ea3ff', bg: '#0f1216' };
+const COLORS = { ...SIDE_COLOR, bg: TOK.bg0 };
 const TOKEN_R = 11;
 const PICK_SCREEN_PX = 14;
 const ERASE = '#ff4d4d';
@@ -63,6 +65,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const engineRef = useRef(engine);
   engineRef.current = engine;
   const [hoverPlayer, setHoverPlayer] = useState<string | null>(null);
+  /** Review: the players an open move card is about (the rest of the map dims). */
+  const [focus, setFocus] = useState<string[] | null>(null);
   const s = useStore();
   // Tokens keep roughly the same on-screen size at any zoom.
   const k = Math.min(2.6, Math.max(0.7, 1.3 / view.scale));
@@ -80,8 +84,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     const ro = new ResizeObserver(() => {
       const w = Math.max(el.clientWidth, 100), h = Math.max(el.clientHeight, 100);
       setSize({ w, h });
-      const scale = Math.min(w, h) / 1024 * 0.98;
-      setView({ scale, x: (w - 1024 * scale) / 2, y: (h - 1024 * scale) / 2 });
+      setView(fitView(w, h));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -218,10 +221,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size.w, size.h]);
 
-  const fit = () => {
-    const scale = (Math.min(size.w, size.h) / 1024) * 0.98;
-    setView({ scale, x: (size.w - 1024 * scale) / 2, y: (size.h - 1024 * scale) / 2 });
-  };
+  const fit = () => setView(fitView(size.w, size.h));
 
   // Where each player is at the current round time (routes animate them).
   const baked = useMemo(() => new Map(s.board.players.map(p => [p.id, bakeRoute(engine, p)])), [engine, s.board.players]);
@@ -248,8 +248,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const selectedRaw = s.board.players.find(p => p.id === s.selectedId);
   const selected = selectedRaw && !isDead(selectedRaw) ? livePlayer(selectedRaw) : undefined;
   const smokesNow = activeSmokes(s.board.utility, s.time, UNITS_PER_PX);
-  // review: each grenade's grade (not 'book'), shown on the grenade itself
-  const nadeGrades = useMemo(() => new Map((recap?.moves ?? []).filter(m => m.util && m.grade !== 'book').map(m => [m.util!, m.grade])), [recap]);
+  // review: each grenade's letter (not C, neutral), shown on the grenade itself
+  const nadeGrades = useMemo(() => new Map((recap?.moves ?? []).filter(m => m.util && m.grade !== 'C').map(m => [m.util!, m.grade])), [recap]);
   const losPoly = useMemo(
     () => (selected && s.overlays.los ? engine.grid.visibilityPolygon(selected.pos, smokesNow, [engine.facing(selected), FOV]) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -426,7 +426,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           {s.board.players.filter(isDead).map(lp => {
             const p = livePlayer(lp);
             return (
-              <Group key={`dead-${p.id}`} x={p.pos.x} y={p.pos.y} scaleX={k} scaleY={k} listening={false} opacity={0.8}>
+              <Group key={`dead-${p.id}`} x={p.pos.x} y={p.pos.y} scaleX={k} scaleY={k} listening={false} opacity={focus && !focus.includes(p.id) ? 0.3 : 0.8}>
                 <Circle radius={TOKEN_R * 0.85} fill="#2a2f36" stroke={COLORS[p.side]} strokeWidth={1.5} />
                 <Line points={[-5, -5, 5, 5]} stroke={COLORS[p.side]} strokeWidth={2.2} lineCap="round" />
                 <Line points={[-5, 5, 5, -5]} stroke={COLORS[p.side]} strokeWidth={2.2} lineCap="round" />
@@ -438,7 +438,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             const p = livePlayer(lp);
             const moved = displaced(lp);
             return (
-            <Group key={p.id} x={p.pos.x} y={p.pos.y} draggable={s.tool === 'select' && !carry && !moved} opacity={carry === p.id ? 0.35 : 1}
+            <Group key={p.id} x={p.pos.x} y={p.pos.y} draggable={s.tool === 'select' && !carry && !moved}
+              opacity={carry === p.id || (focus && !focus.includes(p.id)) ? 0.35 : 1}
               onDblClick={e => { e.cancelBubble = true; if (s.tool !== 'path') pickUp(p.id); }} onDblTap={e => { e.cancelBubble = true; if (s.tool !== 'path') pickUp(p.id); }}
               onMouseEnter={e => { setHoverPlayer(p.id); e.target.getStage()!.container().style.cursor = 'pointer'; }}
               onMouseLeave={e => { setHoverPlayer(h => (h === p.id ? null : h)); e.target.getStage()!.container().style.cursor = ''; }}
@@ -472,6 +473,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 {/* where they're looking, like the arrow on CS2's radar */}
                 <Line points={[TOKEN_R - 1, -5, TOKEN_R + 7, 0, TOKEN_R - 1, 5]} closed rotation={deg(p.facing ?? engine.facing(p))}
                   fill="#fff" stroke="#000" strokeWidth={1.2} lineJoin="round" listening={false} />
+                {focus?.includes(p.id) && <Circle radius={TOKEN_R + 4} stroke="#fff" strokeWidth={2} listening={false} />}
                 <Circle radius={TOKEN_R} hitStrokeWidth={18} fill={eraseTarget === p.id ? ERASE : COLORS[p.side]}
                   stroke={s.selectedId === p.id ? '#fff' : '#000a'} strokeWidth={s.selectedId === p.id ? 2.5 : 1.5} />
                 <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />
@@ -566,37 +568,55 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           )}
         </Layer>
       </Stage>
-      <Coords stageRef={stageRef} engine={engine} spots={spots} />
-      <LayersBar />
-      <RoundHud
-        players={s.board.players.map(p => ({
-          id: p.id, side: p.side, label: p.label, name: s.mode === 'review' ? s.review?.data.names[p.id] ?? p.label : `${p.side} ${p.label}`,
-          alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100,
-        }))}
-        score={recap && s.review ? scoreBefore(s.review.data, s.review.round) : null}
-        plantedAt={recap && s.review ? s.review.data.rounds[s.review.round]?.plant ?? null : null} />
-      <PlaybackBar end={timelineEnd} />
-      <div className="zoom">
-        <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>
-        <button onClick={() => zoomAt(0.8)} title="Zoom out">−</button>
-        <button onClick={fit} title="Fit map">Fit</button>
-      </div>
-      {recap && <EvalBar ct={evalAt(recap.curve, s.time)} />}
-      {recap && (
-        <button className={`reveal-float ${s.reviewSpoilers ? 'on' : ''}`} onClick={() => s.setReviewSpoilers(!s.reviewSpoilers)} title="Shortcut: R">
-          {s.reviewSpoilers ? '◀ Live' : '⏭ Reveal all'}
-        </button>
-      )}
-      {recap && sim && s.popups && <MoveCallout recap={recap} sim={sim} time={s.time} view={view} size={size} names={s.review?.data.names ?? {}} />}
-      {recap && <MomentNav recap={recap} />}
-      <div className={`hint ${s.notice ? 'notice' : aiming || carry || s.draftRoute ? 'carry' : ''}`} style={recap ? { display: 'none' } : undefined}>
-        {s.notice ?? (aiming ? 'Move the mouse to aim · click to set the direction · Esc cancels'
-          : carry ? 'Click where to put it · Esc cancels'
-          : s.draftRoute
-            ? s.autoRoute
-              ? `Route for ${draftLabel}: click the destination (Shift+click adds waypoints) · Esc cancels`
-              : `Route for ${draftLabel}: click waypoints · double-click or Enter to finish · Esc cancels`
-            : toolHint(s.tool))}
+      {/* everything over the map lives in fixed slots around its edges, so nothing overlaps */}
+      <div className="board-ui">
+        <div className="slot tl"><LayersBar /></div>
+        <div className="slot top">
+          <RoundHud
+            players={s.board.players.map(p => ({
+              id: p.id, side: p.side, label: p.label, name: s.mode === 'review' ? s.review?.data.names[p.id] ?? p.label : `${p.side} ${p.label}`,
+              alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100,
+            }))}
+            score={recap && s.review ? scoreBefore(s.review.data, s.review.round) : null}
+            plantedAt={recap && s.review ? s.review.data.rounds[s.review.round]?.plant ?? null : null} />
+          <div className={`hint ${s.notice ? 'notice' : aiming || carry || s.draftRoute ? 'carry' : ''}`} style={recap ? { display: 'none' } : undefined}>
+            {s.notice ?? (aiming ? 'Move the mouse to aim · click to set the direction · Esc cancels'
+              : carry ? 'Click where to put it · Esc cancels'
+              : s.draftRoute
+                ? s.autoRoute
+                  ? `Route for ${draftLabel}: click the destination (Shift+click adds waypoints) · Esc cancels`
+                  : `Route for ${draftLabel}: click waypoints · double-click or Enter to finish · Esc cancels`
+                : toolHint(s.tool))}
+          </div>
+        </div>
+        <div className="slot tr">
+          {recap && (
+            <button className={`reveal-float ${s.reviewSpoilers ? 'on' : ''}`} onClick={() => s.setReviewSpoilers(!s.reviewSpoilers)} title="Shortcut: R">
+              {s.reviewSpoilers ? '◀ Live' : '⏭ Reveal all'}
+            </button>
+          )}
+          <button className={`drawer-toggle ${s.drawerOpen ? 'on' : ''}`} onClick={() => s.setDrawerOpen(!s.drawerOpen)}
+            title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}>{s.drawerOpen ? 'Panel ⟩' : '⟨ Panel'}</button>
+        </div>
+        <div className="slot left">{recap && <EvalBar ct={evalAt(recap.curve, s.time)} />}</div>
+        <div className="slot right">
+          <div className="zoom">
+            <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>
+            <button onClick={() => zoomAt(0.8)} title="Zoom out">−</button>
+            <button onClick={fit} title="Fit map">Fit</button>
+          </div>
+        </div>
+        <div className="slot bl">
+          {recap && sim && s.popups && s.review && (
+            <MoveFeed recap={recap} sim={sim} round={s.review.data.rounds[s.review.round]} time={s.time} view={view} boardRef={wrap}
+              names={s.review.data.names} onFocus={setFocus} />
+          )}
+        </div>
+        <div className="slot br"><Coords stageRef={stageRef} engine={engine} spots={spots} /></div>
+        <div className="slot dock">
+          <PlaybackBar end={timelineEnd} recap={recap} round={s.review ? s.review.data.rounds[s.review.round] : null} />
+          {recap && <MomentNav recap={recap} />}
+        </div>
       </div>
     </div>
   );
@@ -632,6 +652,15 @@ function FacingHandle({ engine, player, k, aiming, onAim, onPreview, onCommit }:
 }
 
 const BADGE_SECS = 3.5;
+
+/** Room the overlays take around the map (px): the HUD on top, the eval bar and zoom at the sides, the dock below. */
+const FIT_PAD = { top: 52, bottom: 70, side: 44 };
+/** The whole radar, as big as fits between the overlays. */
+function fitView(w: number, h: number) {
+  const aw = Math.max(200, w - FIT_PAD.side * 2), ah = Math.max(200, h - FIT_PAD.top - FIT_PAD.bottom);
+  const scale = Math.min(aw, ah) / 1024;
+  return { scale, x: (w - 1024 * scale) / 2, y: FIT_PAD.top + (ah - 1024 * scale) / 2 };
+}
 const BOMB_FUSE = 40;
 
 /** The bomb, as a small C4 block (with a status light). */
@@ -696,122 +725,6 @@ function EvalBar({ ct }: { ct: number }) {
     </div>
   );
 }
-
-const CALLOUT_W = 300;
-
-
-/**
- * The latest graded move as a window that pops out next to the player, joined to them by a line, with every comment
- * on the move. It sits on the emptier side of the player and stays inside the board.
- */
-function MoveCallout({ recap, sim, time, view, size, names }: {
-  recap: Review; sim: Simulation; time: number; view: { scale: number; x: number; y: number }; size: { w: number; h: number }; names: Record<string, string>;
-}) {
-  const playing = useStore(s => s.playing), readSlow = useStore(s => s.readSlow), held = useStore(s => s.readHold);
-  // the reading queue runs while playing, and stays on the same move while you've stopped to read it
-  const queueing = readSlow && (playing || held);
-  // moves already read (while playing in slow motion), so the queue moves on; forgotten when you go back in time
-  const [read, setRead] = useState<Set<string>>(() => new Set());
-  const lastTime = useRef(time);
-  useEffect(() => {
-    if (time < lastTime.current - 0.05) setRead(new Set());
-    lastTime.current = time;
-  }, [time]);
-  useEffect(() => setRead(new Set()), [recap]);
-  const [page, setPage] = useState(0);
-  const { move: m, pending, group, backlog } = calloutAt(recap.moves, time, queueing, read, page);
-  const key = m ? moveKey(m) : '';
-  const groupKey = group.map(moveKey).join('|');
-  useEffect(() => setPage(group.length - 1), [groupKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const reading = !!pending && pending === m;
-  const [readFor, setReadFor] = useState(0);
-  // the move being read: slow down for its reading time, then mark it read so the next one comes up
-  useEffect(() => {
-    if (!pending || held) { useStore.setState({ slowUntil: 0 }); return; }
-    const ms = readMs(pending);
-    setReadFor(ms);
-    useStore.setState({ slowUntil: performance.now() + ms, slowSpeed: backlog ? 0.12 : 0.3 });
-    const t = setTimeout(() => setRead(r => new Set(r).add(key)), ms);
-    return () => clearTimeout(t);
-    // only when a different move comes up, or you stop / carry on
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending ? key : '', held]);
-  const skip = () => { if (reading && !held) setRead(r => new Set(r).add(key)); };
-  const stop = () => useStore.setState({ playing: false, readHold: true });
-  // carry on: this one is read, the next comes up
-  const resume = () => { setRead(r => new Set(r).add(key)); useStore.getState().setPlaying(true); };
-  const st = m && simStateAt(sim, m.player, time);
-  if (!m || !st) return null;
-  const g = GRADE_INFO[m.grade];
-  const px = view.x + st.pos.x * view.scale, py = view.y + st.pos.y * view.scale;
-  // beside the player when the board is wide enough (on the side with more room), otherwise above or below them
-  const gap = 60;
-  const fitsRight = px + gap + CALLOUT_W <= size.w - 8, fitsLeft = px - gap - CALLOUT_W >= 8;
-  const side = fitsRight && (px < size.w * 0.55 || !fitsLeft) ? 'right' : fitsLeft ? 'left' : null;
-  let left: number, pos: React.CSSProperties, ax: number, ay: number;
-  if (side) {
-    left = side === 'right' ? px + gap : px - gap - CALLOUT_W;
-    const top = Math.max(56, Math.min(size.h - 240, py - 110));
-    pos = { top };
-    ax = side === 'right' ? left : left + CALLOUT_W; ay = top + 22;
-  } else {
-    left = Math.max(8, Math.min(size.w - CALLOUT_W - 8, px - CALLOUT_W / 2));
-    const above = py > 280; // the window grows up from just above the player
-    pos = above ? { bottom: size.h - (py - gap) } : { top: py + gap };
-    ax = Math.max(left + 24, Math.min(left + CALLOUT_W - 24, px)); ay = above ? py - gap : py + gap;
-  }
-  const d = Math.hypot(ax - px, ay - py) || 1, r = 14;
-  const sx = px + ((ax - px) / d) * r, sy = py + ((ay - py) / d) * r;
-  return (
-    <>
-      <svg className="callout-line" width={size.w} height={size.h} key={`l-${key}`}>
-        <line x1={sx} y1={sy} x2={ax} y2={ay} stroke={g.color} strokeWidth={2} />
-        <circle cx={sx} cy={sy} r={3.5} fill={g.color} />
-      </svg>
-      <div className={`callout ${reading ? 'reading' : ''}`} key={`c-${key}`} style={{ left, ...pos, width: CALLOUT_W, borderColor: g.color }}
-        onClick={skip} title={reading ? 'Click for the next move' : undefined}>
-        <div className="callout-head">
-          <span className="callout-mark" style={{ background: g.color }}>{g.mark}</span>
-          <div className="callout-who">
-            <b style={{ color: g.color }}>{g.label}</b>
-            <span className={m.side === 'CT' ? 'ct' : 't'}>{names[m.player] ?? ''}</span>
-          </div>
-          <span className="callout-gain" style={{ background: m.gain >= 0 ? '#1f3a20' : '#3a1f1f', color: m.gain >= 0 ? '#8fdc6a' : '#ff7a6e' }}
-            title="Change in their team's win chance">{m.gain >= 0 ? '+' : '−'}{Math.abs(Math.round(m.gain * 100))}%</span>
-        </div>
-        {!queueing && group.length > 1 && (
-          <div className="callout-pager" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setPage((page + group.length - 1) % group.length)} aria-label="Previous move at this moment">‹</button>
-            <span>{Math.min(page, group.length - 1) + 1} of {group.length} at this moment</span>
-            <button onClick={() => setPage((page + 1) % group.length)} aria-label="Next move at this moment">›</button>
-          </div>
-        )}
-        <div className="callout-title">{m.title}</div>
-        {m.tags.length > 0 && (
-          <div className="callout-tags">
-            {m.tags.map(t => <span key={t} className="tag" title={TAG_INFO[t].tip} style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }}>{t}</span>)}
-          </div>
-        )}
-        {m.why.length > 0 && <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}
-        {reading && (
-          <div className="callout-read" onClick={e => e.stopPropagation()}>
-            {held
-              ? <button className="callout-btn" onClick={resume} title="Carry on (Space)">▶ Continue</button>
-              : <>
-                  {readFor > 0 && <i key={key} style={{ animationDuration: `${readFor}ms`, background: g.color }} />}
-                  <div className="callout-read-row">
-                    <button className="callout-btn" onClick={stop} title="Stop the replay on this move">⏸ Stop to read</button>
-                    <span>slow motion · click the window to skip</span>
-                  </div>
-                </>}
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
-
-const UTIL_COLOR: Record<Utility['type'], string> = { smoke: '#c9d1d9', flash: '#fff6a8', molotov: '#ff5a1f', he: '#7bd88f' };
 
 function inViewCone(from: Vec2, facing: number, to: Vec2) {
   const a = Math.atan2(to.y - from.y, to.x - from.x);

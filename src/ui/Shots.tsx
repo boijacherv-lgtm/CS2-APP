@@ -46,7 +46,7 @@ export function Gunfire({ round, sim, engine, t, k, sideOf }: {
         // the tracer streaks out from the gun: its tail follows the head
         const head = Math.min(1, age * 2.5), tail = Math.min(head, Math.max(0, age * 2.5 - 0.6));
         const at = (f: number) => [muzzle.x + (end.x - muzzle.x) * f, muzzle.y + (end.y - muzzle.y) * f];
-        const color = sideOf(s.id) === 'CT' ? '#cfe6ff' : '#ffe2a8';
+        const color = sideOf(s.id) === 'CT' ? '#d3e6ff' : '#ffe6b0'; // a lighter tint of the team colour, so tracers glow
         return (
           <Group key={`shot-${s.t}-${s.id}-${i}`}>
             <Line points={[...at(tail), ...at(head)]} stroke="#000" strokeWidth={3.6 * k} opacity={0.45 * (1 - age)} lineCap="round" />

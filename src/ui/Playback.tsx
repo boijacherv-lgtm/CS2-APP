@@ -1,4 +1,6 @@
-import type { DemoData } from '../engine/recap';
+import { useRef } from 'react';
+import { GRADE_INFO, isMarked, type DemoData, type DemoRound, type Review } from '../engine/recap';
+import { SIDE_COLOR, T } from './tokens';
 import { useStore } from '../store';
 
 /** CS2's round clock is 1:55 after freeze time. The board's time counts up from 0 at the end of freeze time. */
@@ -67,8 +69,8 @@ export function RoundHud({ players, score, plantedAt }: { players: HudPlayer[]; 
   );
 }
 
-/** Bottom-left of the board: play/pause, restart, speed, a scrub bar, and the fight settings. */
-export function PlaybackBar({ end }: { end: number }) {
+/** The playback dock: play/pause, restart, speed, the scrub bar (the round's timeline in Review), and the fight settings. */
+export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review | null; round?: DemoRound | null }) {
   const s = useStore();
   const review = s.mode === 'review';
   const max = review ? Math.ceil(end) : Math.max(60, Math.ceil(end));
@@ -90,15 +92,79 @@ export function PlaybackBar({ end }: { end: number }) {
         <button className={s.readSlow ? 'on' : ''} onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
           title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'}>📖</button>
       )}
-      <input className="playbar-range" type="range" min={0} max={max} step={0.1} value={Math.min(s.time, max)}
-        title="Seconds after freeze time"
-        onChange={e => { s.setPlaying(false); s.setTime(+e.target.value); }} />
+      {review && recap && round
+        ? <Timeline end={end} recap={recap} round={round} time={s.time} spoilers={s.reviewSpoilers} onSeek={t => { s.setPlaying(false); s.setTime(t); }} />
+        : <input className="playbar-range" type="range" min={0} max={max} step={0.1} value={Math.min(s.time, max)}
+            title="Seconds after freeze time"
+            onChange={e => { s.setPlaying(false); s.setTime(+e.target.value); }} />}
       {!review && (
         <>
           <button className={s.combat ? 'on' : ''} onClick={() => s.setCombat(!s.combat)} title="Combat: players fight and die">⚔</button>
           <button onClick={s.reroll} disabled={!s.combat} title="Roll the fights again">🎲</button>
         </>
       )}
+    </div>
+  );
+}
+
+const BIG = new Set(['S+', 'S', 'E', 'F']); // shown as their letter; A, B and D are dots
+const W = 1000, H = 40;
+
+/**
+ * The round as a timeline: the win chance as a filled curve behind the track (CT blue above the middle, T yellow
+ * below), every kill as a tick in the killer's colour (CT from the top, T from the bottom), the big graded moves as
+ * their letter (S+ S E F) and the small ones (A B D) as dots, and the bomb plant with the post-plant stretch tinted red. Like the
+ * rest of the review it only shows what has happened so far, unless Reveal all is on. Click anywhere (or a mark) to
+ * jump there; dragging scrubs too.
+ */
+function Timeline({ end, recap, round, time, spoilers, onSeek }: {
+  end: number; recap: Review; round: DemoRound; time: number; spoilers: boolean; onSeek: (t: number) => void;
+}) {
+  const track = useRef<HTMLDivElement>(null);
+  const until = spoilers ? Infinity : time;
+  const dur = Math.max(1, end);
+  const pct = (t: number) => `${Math.max(0, Math.min(100, (t / dur) * 100))}%`;
+  const seekAt = (clientX: number) => {
+    const r = track.current!.getBoundingClientRect();
+    onSeek(Math.max(0, Math.min(dur, ((clientX - r.left) / r.width) * dur)));
+  };
+  // win-chance curve, as an area from the middle line
+  const pts = recap.curve.filter(p => p.t <= until);
+  const area = pts.length > 1
+    ? `M ${(pts[0].t / dur) * W} ${H / 2} ${pts.map(p => `L ${(p.t / dur) * W} ${H / 2 - (p.ct - 0.5) * H * 0.92}`).join(' ')} L ${(pts[pts.length - 1].t / dur) * W} ${H / 2} Z`
+    : '';
+  const sideOf = (id: string) => round.frames.players[id]?.side;
+  const kills = round.kills.filter(k => k.t <= until && sideOf(k.attacker));
+  const moves = recap.moves.filter(m => isMarked(m) && m.t <= until);
+  const plant = round.plant !== null && round.plant <= until ? round.plant : null;
+  return (
+    <div className="tl" ref={track} role="slider" aria-label="Round timeline" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(time)}
+      onPointerDown={e => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); seekAt(e.clientX); }}
+      onPointerMove={e => { if (e.buttons & 1) seekAt(e.clientX); }}>
+      <svg className="tl-curve" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
+        <defs>
+          <linearGradient id="tl-eval" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={H}>
+            <stop offset="0" stopColor={T.ct} stopOpacity=".5" /><stop offset=".5" stopColor={T.ct} stopOpacity=".18" />
+            <stop offset=".5" stopColor={T.t} stopOpacity=".18" /><stop offset="1" stopColor={T.t} stopOpacity=".5" />
+          </linearGradient>
+        </defs>
+        {plant !== null && <rect x={(plant / dur) * W} y="0" width={((Math.min(until, dur) - plant) / dur) * W} height={H} fill={T.bomb} opacity=".12" />}
+        <line x1="0" x2={W} y1={H / 2} y2={H / 2} stroke={T.border} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        {area && <path d={area} fill="url(#tl-eval)" />}
+      </svg>
+      {kills.map((k, i) => (
+        <i key={`k${i}`} className={`tl-kill ${sideOf(k.attacker) === 'CT' ? 'ct' : 't'}`} style={{ left: pct(k.t), background: SIDE_COLOR[sideOf(k.attacker)!] }} />
+      ))}
+      {plant !== null && <span className="tl-bomb" style={{ left: pct(plant) }} title={`Bomb planted at ${clock(plant)} into the round`}>💣</span>}
+      {moves.map((m, i) => {
+        const g = GRADE_INFO[m.grade];
+        return BIG.has(m.grade)
+          ? <button key={`m${i}`} className="tl-mark" style={{ left: pct(m.t), background: g.color }} title={`${g.mark} ${m.title}`}
+              onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }}>{g.mark}</button>
+          : <button key={`m${i}`} className="tl-dot" style={{ left: pct(m.t), background: g.color }} title={`${g.mark} ${m.title}`}
+              onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }} />;
+      })}
+      <i className="tl-head" style={{ left: pct(time) }} />
     </div>
   );
 }

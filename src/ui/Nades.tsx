@@ -2,6 +2,7 @@ import { Arc, Arrow, Circle, Group, Line, Path, Star, Text } from 'react-konva';
 import { HE_RADIUS_U } from '../engine/combat';
 import { lifeOf, popAt, SMOKE_RADIUS_UNITS } from '../engine/grid';
 import { GRADE_INFO, type Grade } from '../engine/recap';
+import { UTIL_COLOR } from './tokens';
 import type { Utility, Vec2 } from '../engine/types';
 
 /**
@@ -16,7 +17,7 @@ const HE_SHOW = 0.7;
 const BLOOM = 0.7; // s for a smoke to reach full size
 const FADE = 1.5; // s of fade at the end of a smoke
 
-export const NADE_COLOR: Record<Utility['type'], string> = { smoke: '#b9c2cc', flash: '#fff3a3', molotov: '#ff6a1f', he: '#7bd88f' };
+export const NADE_COLOR: Record<Utility['type'], string> = UTIL_COLOR;
 
 /** 24×24 glyphs for the grenade icons. */
 const GLYPH: Record<Utility['type'], string> = {

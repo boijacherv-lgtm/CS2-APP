@@ -37,7 +37,30 @@ export interface CoachNote {
   rounds: number[];
 }
 
-export interface Coaching { player: string; improve: CoachNote[]; strengths: CoachNote[]; sides: { CT: number | null; T: number | null }; summary: string }
+export interface Coaching {
+  player: string; improve: CoachNote[]; strengths: CoachNote[]; sides: { CT: number | null; T: number | null }; summary: string;
+  /** Every number against normal, for a "better / worse than normal" chart: `z` > 0 is better, in spreads. */
+  profile: Deviation[];
+}
+
+export interface Deviation { feature: FeatureId; label: string; value: string; normal: string; z: number; note?: CoachNote }
+
+/** Short names and how to show each number. */
+export const FEATURE_LABEL: Record<FeatureId, string> = {
+  untradedDeaths: 'Untraded deaths', isolatedDeaths: 'Dying alone', openingDeaths: 'Opening deaths', whiffs: 'Missed sprays',
+  unusedUtil: 'Died with grenades', wastedFlashes: 'Wasted flashes', teamHarm: 'Team damage / flashes', awpLost: 'AWP lost',
+  lowHpFights: 'Fights while hurt', adr: 'ADR', kast: 'KAST', hs: 'Headshots', utilDamage: 'Grenade damage',
+  flashAssists: 'Flash assists', trades: 'Trades', impact: 'Impact',
+};
+function show(id: FeatureId, v: number): string {
+  switch (id) {
+    case 'adr': return `${Math.round(v)}`;
+    case 'kast': case 'hs': return `${Math.round(v)}%`;
+    case 'utilDamage': return `${v.toFixed(1)} / round`;
+    case 'impact': return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+    default: return `${Math.round(v * 100)}% of rounds`;
+  }
+}
 
 /** Typical values for a Premier player (per round unless it says otherwise). */
 export const DEFAULT_MODEL: CoachModel = {
@@ -208,6 +231,7 @@ export function coach(p: PlayerReport, model: CoachModel = DEFAULT_MODEL): Coach
   const f = coachFeatures(p);
   const role = p.roles[0]?.role ?? 'Rifler';
   const notes: CoachNote[] = [];
+  const profile: Deviation[] = [];
   for (const id of Object.keys(f) as FeatureId[]) {
     const m = model.features[id];
     if (!m || m.spread <= 0) continue;
@@ -216,8 +240,11 @@ export function coach(p: PlayerReport, model: CoachModel = DEFAULT_MODEL): Coach
     // entries are expected to die first more often
     const adj = id === 'openingDeaths' && role === 'Entry' ? z - 1 : z;
     const w = words(id, f[id], n, role);
-    if (adj > (IMPROVE_AT[id] ?? 0.8)) notes.push({ feature: id, kind: 'improve', title: w.improve[0], detail: w.improve[1], score: adj * m.weight, rounds: examples(id, lines) });
-    else if (adj < -0.8 && w.strength[0]) notes.push({ feature: id, kind: 'strength', title: w.strength[0], detail: w.strength[1], score: -adj * m.weight, rounds: examples(id, lines) });
+    let note: CoachNote | undefined;
+    if (adj > (IMPROVE_AT[id] ?? 0.8)) note = { feature: id, kind: 'improve', title: w.improve[0], detail: w.improve[1], score: adj * m.weight, rounds: examples(id, lines) };
+    else if (adj < -0.8 && w.strength[0]) note = { feature: id, kind: 'strength', title: w.strength[0], detail: w.strength[1], score: -adj * m.weight, rounds: examples(id, lines) };
+    if (note) notes.push(note);
+    profile.push({ feature: id, label: FEATURE_LABEL[id], value: show(id, f[id]), normal: show(id, m.baseline), z: -adj, note });
   }
   const sideImpact = (s: 'CT' | 'T') => {
     const got = lines.filter(x => x.line.side === s);
@@ -239,7 +266,8 @@ export function coach(p: PlayerReport, model: CoachModel = DEFAULT_MODEL): Coach
   const summary = n === 0 ? 'Not graded yet.'
     : improve.length === 0 ? `A solid game as ${role.toLowerCase()}: nothing stands out as a weakness.`
     : `Main thing to work on: ${improve[0].title.toLowerCase()}.${strengths.length ? ` Keep it up: ${strengths[0].title.toLowerCase()}.` : ''}`;
-  return { player: p.id, improve, strengths, sides, summary };
+  profile.sort((a, b) => Math.abs(b.z) - Math.abs(a.z));
+  return { player: p.id, improve, strengths, sides, summary, profile };
 }
 
 /**
