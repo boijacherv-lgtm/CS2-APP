@@ -49,7 +49,7 @@ Both read demos with the same parser (LaihoE/demoparser); the website uses a Web
 **All / Mine** (in the playback bar) chooses which moves are evaluated on screen: **All** is every move (every kill, every death, every grenade and flash, neutral C too), **Mine** is every move of yours (needs Log in with Steam, and you in the match). The map, the timeline, the killfeed, the cards and previous / next all follow it, so they always show the same moves. (Elsewhere, like the Players tab counts, only the moves that matter count: deaths only when untraded and −8% or worse.)
 
 What you see on the map:
-- **Players** move smoothly, with a view cone and a white arrow for where they look. The top bar shows who's alive, health, score and the round / bomb timer, like in CS2.
+- **Players** move smoothly, with a view cone and a white arrow for where they look. The top bar shows each player's avatar and health, the score and the round / bomb timer, like in CS2.
 - **Shots:** every bullet is a muzzle flash and a tracer, to whoever it hit or toward the wall it hit.
 - **Grenades** fly as thrown and grow while they're in the air; then the smoke blooms, the fire burns, the flash bursts, the HE rings, each with its grade.
 - **The bomb:** next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded.

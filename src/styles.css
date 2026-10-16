@@ -411,9 +411,6 @@ td.loadout { white-space: nowrap; }
 .hud-tile.dead { opacity: .3; filter: grayscale(1); }
 .hud-tile.dead::after { content: ''; position: absolute; inset: 0;
   background: linear-gradient(to top right, transparent 45%, #ff5a4dcc 47%, #ff5a4dcc 53%, transparent 55%); }
-.hud-alive { min-width: 24px; height: 26px; padding: 0 4px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
-  font-size: 15px; font-weight: 900; color: #0b0e12; pointer-events: auto; }
-.hud-alive.ct { background: var(--ct); } .hud-alive.t { background: var(--t); }
 .hud-mid { display: flex; align-items: center; gap: 7px; padding: 0 5px; }
 .hud-clock { min-width: 50px; text-align: center; font-size: 19px; font-weight: 800; letter-spacing: .02em; line-height: 26px; display: inline-flex; align-items: center; justify-content: center; }
 .hud-mid.low .hud-clock, .hud-mid.bomb .hud-clock { color: #ff5a4d; }
