@@ -1,19 +1,24 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { simStateAt, type Simulation } from '../engine/combat';
+import { gunFromName } from '../engine/guns';
 import { calloutAt, GRADE_INFO, isMarked, moveKey, readMs, TAG_INFO, type DemoRound, type Move, type Review } from '../engine/recap';
 import { useStore } from '../store';
 
 /**
  * Graded moves in Review, without covering the fight:
- *   playing   a ticker in the bottom-left corner, like CS2's kill feed: one line per move (up to 3). With "slow down
- *             to read" on, the moves come one at a time and the replay waits in slow motion for each (⏸ stops on it).
- *   paused    the full card for the move (every comment, tags, ‹ › for moves at the same moment), docked in the same
- *             corner. The players it's about are highlighted on the map (onFocus) and a line runs to the player.
+ *   kills     the KillFeed (top right, like CS2's): every kill with the killer's letter, and the victim's when the
+ *             death cost the team. Click one to open its card.
+ *   grenades  a ticker in the bottom-left corner, one line per grenade / flash (up to 3). With "slow down to read" on
+ *             they come one at a time and the replay waits in slow motion for each (⏸ stops on it).
+ *   paused    the full card for the move (every comment, tags, ‹ › for moves at the same moment), docked bottom left.
+ *             The players it's about are highlighted on the map (onFocus) and a line runs to the player.
  */
 
 const FEED_SECS = 5; // a ticker line stays this long (round seconds) after its move
 const FEED_LINES = 3;
-const shownMove = (m: Move) => isMarked(m) || m.kind === 'kill';
+const isNade = (m: Move) => m.kind === 'utility' || m.kind === 'flash';
+const KILL_SECS = 6; // a killfeed row stays this long (round seconds), like CS2's
+const KILL_ROWS = 6;
 
 /** Who a move is about: the player, and whoever they killed, blinded or hurt with it. */
 export function involvedIn(m: Move, sim: Simulation, round: DemoRound): string[] {
@@ -43,11 +48,14 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   }, [time]);
   useEffect(() => setRead(new Set()), [recap]);
   const [page, setPage] = useState(0);
-  const { move: atMove, pending, group, backlog } = calloutAt(recap.moves, time, queueing, read, page);
+  // the reading queue is for grenades (kills are in the killfeed); paused, any move at the current moment
+  const nades = useMemo(() => recap.moves.filter(isNade), [recap]);
+  const { pending, backlog } = calloutAt(nades, time, queueing, read, 0);
+  const { move: atMove, group } = calloutAt(recap.moves, time, false, read, page);
   const groupKey = group.map(moveKey).join('|');
   useEffect(() => setPage(group.length - 1), [groupKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  // a move picked from the ticker, or a card you closed: holds until the replay moves on
-  const [pickedAt, setPickedAt] = useState<{ key: string; t: number } | null>(null);
+  // a move picked from the ticker or the killfeed, or a card you closed: holds until the replay moves on
+  const pickedAt = useStore(s => s.feedPick);
   const [closedAt, setClosedAt] = useState<{ key: string; t: number } | null>(null);
   const picked = pickedAt && Math.abs(pickedAt.t - time) < 0.01 ? pickedAt.key : null;
   const closed = closedAt && Math.abs(closedAt.t - time) < 0.01 ? closedAt.key : null;
@@ -69,12 +77,15 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   const resume = () => { setRead(r => new Set(r).add(pendingKey)); useStore.getState().setPlaying(true); };
 
   // the ticker: recent moves, never past the one being read
-  const pendingAt = pending ? recap.moves.indexOf(pending) : Infinity;
-  const lines = recap.moves.filter((m, i) => shownMove(m) && m.t <= time && time - m.t < FEED_SECS && i <= pendingAt).slice(-FEED_LINES);
+  const pendingAt = pending ? nades.indexOf(pending) : Infinity;
+  const lines = nades.filter((m, i) => isMarked(m) && m.t <= time && time - m.t < FEED_SECS && i <= pendingAt).slice(-FEED_LINES);
 
   // the card: paused, or stopped on a move to read it
+  // the card only when you ask for it: a move you clicked, ⏸ on a grenade, or a moment you stepped to with ◀ ▶
+  // (which lands just after it); pausing anywhere else leaves the map clear
+  const stepped = atMove && Math.abs(time - (atMove.t + 0.1)) < 0.06 ? atMove : undefined;
   const cardMove = !playing
-    ? (picked ? recap.moves.find(m => moveKey(m) === picked) : held && pending ? pending : atMove)
+    ? (picked ? recap.moves.find(m => moveKey(m) === picked) : held && pending ? pending : stepped)
     : undefined;
   const card = cardMove && moveKey(cardMove) !== closed ? cardMove : undefined;
   const active = card ?? pending ?? (playing ? lines.at(-1) : undefined);
@@ -146,7 +157,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
             const k = moveKey(m), gi = GRADE_INFO[m.grade], reading = !!pending && k === pendingKey;
             return (
               <div key={k} ref={k === activeKey ? anchorEl : undefined} className={`feed-line ${reading ? 'reading' : ''}`}
-                onClick={() => { setPickedAt({ key: k, t: useStore.getState().time }); useStore.getState().setPlaying(false); }} title="Open this move">
+                onClick={() => openMove(k)} title="Open this move">
                 <span className="feed-mark" style={{ background: gi.color }}>{gi.mark}</span>
                 {name(m)}
                 <span className="feed-line-title">{m.title.replace(names[m.player] ?? '\u0000', '').replace(/^[: ]+/, '')}</span>
@@ -162,4 +173,62 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
       )}
     </>
   );
+}
+
+/** Opens a move's card: pauses on the current time and shows that move. */
+function openMove(key: string) {
+  const st = useStore.getState();
+  st.setPlaying(false);
+  useStore.setState({ feedPick: { key, t: st.time } });
+}
+
+/**
+ * The killfeed, top right like in CS2: killer → weapon → victim, newest at the bottom, each row for a few seconds.
+ * The killer's letter sits in front (not for a neutral C), the victim's after their name when the death cost the
+ * team. Click a row for the full card.
+ */
+export function KillFeed({ recap, round, time, names }: { recap: Review; round: DemoRound; time: number; names: Record<string, string> }) {
+  const picked = useStore(s => s.feedPick);
+  const sideOf = (id: string) => round.frames.players[id]?.side;
+  const rows = round.kills.filter(k => k.t <= time + 0.01 && time - k.t < KILL_SECS).slice(-KILL_ROWS);
+  if (!rows.length) return null;
+  const moveOf = (kind: 'kill' | 'death', id: string, t: number) => recap.moves.find(m => m.kind === kind && m.player === id && Math.abs(m.t - t) < 0.06);
+  const chip = (m: Move | undefined) => m && isMarked(m)
+    ? <span className="kf-mark" style={{ background: GRADE_INFO[m.grade].color }} title={`${GRADE_INFO[m.grade].label}: ${m.gain >= 0 ? '+' : '−'}${Math.abs(Math.round(m.gain * 100))}% win chance`}>{GRADE_INFO[m.grade].mark}</span>
+    : null;
+  const who = (id: string) => <b className={sideOf(id) === 'CT' ? 'ct' : 't'}>{names[id] ?? '?'}</b>;
+  return (
+    <div className="killfeed" role="log" aria-label="Kills">
+      {rows.map((k, i) => {
+        const kill = k.attacker && k.attacker !== k.victim && sideOf(k.attacker) ? moveOf('kill', k.attacker, k.t) : undefined;
+        const death = moveOf('death', k.victim, k.t);
+        const open = kill ?? death;
+        const gun = weaponLabel(k.weapon);
+        const on = !!open && picked?.key === moveKey(open) && Math.abs(picked.t - time) < 0.01;
+        return (
+          <div key={`${k.t}-${k.victim}-${i}`} className={`kf-row ${on ? 'on' : ''} ${time - k.t < 0.6 ? 'new' : ''}`}
+            onClick={() => open && openMove(moveKey(open))} title={open ? 'Open this kill' : undefined}>
+            {chip(kill)}
+            {kill ? who(k.attacker) : null}
+            <span className="kf-gun">{gun}{k.headshot && <i className="kf-hs" title="Headshot">⌖</i>}</span>
+            {who(k.victim)}
+            {chip(death)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Weapon name for the killfeed: the gun's short name, or what the grenade / knife / bomb was. */
+function weaponLabel(w: string): string {
+  const n = w.toLowerCase().replace(/^weapon_/, '');
+  if (n.includes('hegrenade')) return 'HE';
+  if (/inferno|molotov|incgrenade/.test(n)) return 'Fire';
+  if (n.includes('flashbang')) return 'Flash';
+  if (n.includes('smokegrenade')) return 'Smoke';
+  if (/knife|bayonet/.test(n)) return 'Knife';
+  if (/c4|planted/.test(n)) return 'Bomb';
+  if (n === 'world' || n === 'trigger_hurt') return 'Fall';
+  return gunFromName(w)?.short ?? n.replace(/_/g, ' ');
 }

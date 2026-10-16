@@ -12,7 +12,7 @@ import { bombAt, evalAt, GRADE_INFO, isMarked, type Review } from '../engine/rec
 import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
 import { Gunfire } from './Shots';
-import { MoveFeed } from './MoveFeed';
+import { KillFeed, MoveFeed } from './MoveFeed';
 import { SIDE_COLOR, T as TOK, UTIL_COLOR } from './tokens';
 import { MomentNav } from './Recap';
 import { LayersBar } from './Layers';
@@ -590,6 +590,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           </div>
         </div>
         <div className="slot tr">
+          <div className="tr-buttons">
           {recap && (
             <button className={`reveal-float ${s.reviewSpoilers ? 'on' : ''}`} onClick={() => s.setReviewSpoilers(!s.reviewSpoilers)} title="Shortcut: R">
               {s.reviewSpoilers ? '◀ Live' : '⏭ Reveal all'}
@@ -597,8 +598,11 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           )}
           <button className={`drawer-toggle ${s.drawerOpen ? 'on' : ''}`} onClick={() => s.setDrawerOpen(!s.drawerOpen)}
             title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}>{s.drawerOpen ? 'Panel ⟩' : '⟨ Panel'}</button>
+          </div>
+          {recap && s.review && (
+            <KillFeed recap={recap} round={s.review.data.rounds[s.review.round]} time={s.time} names={s.review.data.names} />
+          )}
         </div>
-        <div className="slot left">{recap && <EvalBar ct={evalAt(recap.curve, s.time)} />}</div>
         <div className="slot right">
           <div className="zoom">
             <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>
@@ -613,6 +617,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           )}
         </div>
         <div className="slot br"><Coords stageRef={stageRef} engine={engine} spots={spots} /></div>
+        {recap && <div className="slot eval"><EvalBar ct={evalAt(recap.curve, s.time)} /></div>}
         <div className="slot dock">
           <PlaybackBar end={timelineEnd} recap={recap} round={s.review ? s.review.data.rounds[s.review.round] : null} />
           {recap && <MomentNav recap={recap} />}
@@ -653,8 +658,8 @@ function FacingHandle({ engine, player, k, aiming, onAim, onPreview, onCommit }:
 
 const BADGE_SECS = 3.5;
 
-/** Room the overlays take around the map (px): the HUD on top, the eval bar and zoom at the sides, the dock below. */
-const FIT_PAD = { top: 52, bottom: 70, side: 44 };
+/** Room the overlays take around the map (px): the HUD on top, zoom at the side, the eval bar and the dock below. */
+const FIT_PAD = { top: 52, bottom: 92, side: 44 };
 /** The whole radar, as big as fits between the overlays. */
 function fitView(w: number, h: number) {
   const aw = Math.max(200, w - FIT_PAD.side * 2), ah = Math.max(200, h - FIT_PAD.top - FIT_PAD.bottom);
@@ -715,13 +720,14 @@ function BombOnMap({ at, k, state, age, planted }: { at: Vec2; k: number; state:
   );
 }
 
-/** Chess.com-style eval bar: CT share from the bottom, T from the top. */
+/** Win chance as a bar along the bottom of the map: CT share from the left, T from the right. */
 function EvalBar({ ct }: { ct: number }) {
   const pctCT = Math.round(ct * 100);
   return (
-    <div className="evalbar" title={`CT ${pctCT}% · T ${100 - pctCT}%`}>
-      <div className="evalbar-t" style={{ height: `${100 - ct * 100}%` }}><span>{100 - pctCT}</span></div>
-      <div className="evalbar-ct" style={{ height: `${ct * 100}%` }}><span>{pctCT}</span></div>
+    <div className="evalbar" title={`Win chance: CT ${pctCT}% · T ${100 - pctCT}%`}>
+      <div className="evalbar-ct" style={{ width: `${ct * 100}%` }}><span>CT {pctCT}%</span></div>
+      <div className="evalbar-t" style={{ width: `${100 - ct * 100}%` }}><span>{100 - pctCT}% T</span></div>
+      <i className="evalbar-mid" />
     </div>
   );
 }

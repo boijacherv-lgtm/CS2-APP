@@ -37,7 +37,7 @@ const GROUPS: { title: string; items: { id: Overlay; label: string; review?: boo
   },
 ];
 
-/** Floating control on the board: three presets for how busy the map is, plus per-layer switches. */
+/** Floating control on the board: how busy the map is (Clean / Standard / Full) and per-layer switches, in one menu. */
 export function LayersBar() {
   const overlays = useStore(s => s.overlays);
   const mode = useStore(s => s.mode);
@@ -56,23 +56,23 @@ export function LayersBar() {
     return () => { window.removeEventListener('mousedown', away); window.removeEventListener('keydown', esc); };
   }, [open]);
 
+  const label = VIEWS.find(v => v.id === current)?.label ?? 'Custom';
   return (
     <div className="layers" ref={box}>
-      <div className="layers-bar">
-        <div className="seg-mini" role="group" aria-label="How much the board shows">
-          {VIEWS.map(v => (
-            <button key={v.id} className={current === v.id ? 'on' : ''} onClick={() => setView(v.id)} title={`${v.hint} (key ${v.key})`}>
-              {v.label}
-            </button>
-          ))}
-        </div>
-        <button className={`layers-btn ${open ? 'on' : ''}`} onClick={() => setOpen(o => !o)} aria-expanded={open}
-          title="Choose exactly which layers to show">
-          {current ? 'Layers' : 'Custom'} <span aria-hidden>▾</span>
-        </button>
-      </div>
+      {/* one compact button (it never gets squeezed); the presets and every layer are in its menu */}
+      <button className={`layers-btn ${open ? 'on' : ''}`} onClick={() => setOpen(o => !o)} aria-expanded={open}
+        title="How much the map shows (keys 1 2 3), and every layer">
+        <span className="layers-ico" aria-hidden>◧</span> {label} <span aria-hidden>▾</span>
+      </button>
       {open && (
         <div className="layers-menu">
+          <div className="seg-mini" role="group" aria-label="How much the map shows">
+            {VIEWS.map(v => (
+              <button key={v.id} className={current === v.id ? 'on' : ''} onClick={() => setView(v.id)} title={`${v.hint} (key ${v.key})`}>
+                {v.label}
+              </button>
+            ))}
+          </div>
           {GROUPS.map(g => {
             const items = g.items.filter(i => mode !== 'review' || i.review !== false);
             if (!items.length) return null;

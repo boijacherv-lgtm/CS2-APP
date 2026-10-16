@@ -73,6 +73,8 @@ interface Store {
   slowSpeed: number;
   /** Stopped on a move's window to read it (⏸ in the window); ▶ Continue goes on to the next one. */
   readHold: boolean;
+  /** Review: a move opened from the killfeed or the ticker, while the replay stays on that time `t`. */
+  feedPick: { key: string; t: number } | null;
   /** Players fight and die during the timeline. */
   combat: boolean;
   /** Seed for fight outcomes; re-roll to see another way the round can go. */
@@ -197,6 +199,7 @@ export const useStore = create<Store>((set, get) => {
     slowUntil: 0,
     slowSpeed: 0.3,
     readHold: false,
+    feedPick: null,
     combat: true,
     seed: 1,
     autoRoute: true,

@@ -53,10 +53,11 @@ What you see on the map:
 - **Shots:** every bullet is a muzzle flash and a tracer, to whoever it hit or toward the wall it hit.
 - **Grenades** fly as thrown and grow while they're in the air; then the smoke blooms, the fire burns, the flash bursts, the HE rings, each with its grade.
 - **The bomb:** next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded.
-- **Graded moves**, in the bottom-left corner so they never cover the fight:
-  - While playing, a feed like CS2's kill feed: one line per move, the newest with a line to the player. The moves come one at a time, in order, and the replay goes into slow motion until each one is read, so none are skipped. **⏸** on the line stops on that move; click a line to open it.
-  - Paused, the full card: grade, every comment, tags, **‹ ›** for moves at the same moment. The players it's about light up and the rest of the map dims. **▶ Continue** carries on after ⏸.
-  - **📖** turns slow motion off, and **💬** turns the feed off altogether (remembered in your browser).
+- **Killfeed** (top right, like CS2's): every kill as killer → weapon → victim, with the killer's letter in front and the victim's after their name when the death cost the team. Click a kill to open its card.
+- **Grenades and flashes** come up in the bottom-left corner, one line each, the newest with a line to the player. They come one at a time, in order, and the replay goes into slow motion until each one is read, so none are skipped. **⏸** on the line stops on it.
+- **The card** (bottom left) has the letter, every comment, tags and **‹ ›** for moves at the same moment; the players it's about light up and the rest of the map dims. It opens only when you ask: a kill or grenade you click, a moment you step to with ◀ ▶, or ⏸. **▶ Continue** carries on after ⏸.
+- **Win chance** is the bar along the bottom of the map: CT from the left, T from the right.
+- **📖** turns slow motion off, and **💬** turns the grenade lines and cards off altogether (remembered in your browser).
 
 ### Your CS2 demo folder (website, Chrome / Edge)
 1. **Review** tab → **Choose your Steam folder** → pick the Steam folder where CS2 is installed (e.g. `C:\Program Files (x86)\Steam` or `D:\SteamLibrary`; any folder on the way to `…\csgo\replays` works). A website can't search your disk, so you pick it once.
@@ -84,7 +85,7 @@ What you see on the map:
 2. **Move players:** drag them, double-click then click where they go, or select one and right-click the map. Turn them by clicking the white dot or with `[` `]`.
 3. **Routes:** Route tool → click a player → click where they should go (Shift+click adds waypoints).
 4. **Grenades:** Smoke / Flash / Molotov / HE tools, or **Line-up** for real throws. Every tool is on the rail with its key (V, C, T, S, F, M, H, P, L, E); ↶ ↷ undo and redo.
-5. Press **▶ Play** (or Space). **Clean / Standard / Full** (keys 1–3) choose how much is drawn; **Layers** turns single layers on and off.
+5. Press **▶ Play** (or Space). The **◧ Standard ▾** menu (top left of the map) chooses how much is drawn (Clean / Standard / Full, keys 1–3) and turns single layers on and off.
 6. The right panel (**Panel** to show or hide it; it slides over the map on smaller screens) explains it. Selecting a player or grenade shows its settings at the top: weakest entrance, likely T plays, kill chances (200 simulated rounds), map control, what each grenade is worth. Select a CT and turn on **Best spots** to see where they should stand.
 
 ## Running it yourself (desktop)
@@ -192,9 +193,10 @@ src/
   ui/
     tokens.ts        design tokens: every colour, the fonts; applyTokens() writes them to :root, Konva imports the same values
     Board.tsx        Konva stage: radar, overlays, players, routes, utility, bomb, tools, gestures; the overlay slots
-                     (.board-ui: HUD, layers, eval bar, zoom, move feed, playback dock) around the map
-    MoveFeed.tsx     graded moves in Review: the ticker while playing (reading queue, slow motion), the card when paused,
-                     the line to the player and who it's about (onFocus dims the rest)
+                     (.board-ui: HUD, layers menu, killfeed, zoom, grenade feed / card, eval bar, playback dock) around the map
+    MoveFeed.tsx     Review: KillFeed (every kill with letters, top right), the grenade ticker (reading queue, slow
+                     motion), the move card (opened by click, ◀ ▶ or ⏸; store.feedPick), the line to the player and who
+                     it's about (onFocus dims the rest)
     Shots.tsx        bullet tracers and muzzle flashes in Review
     Nades.tsx        grenade visuals: flights, smoke clouds, fire, flash burst, HE ring, countdowns, grade marks
     Panels.tsx       the tool rail (+ ☰ Setup flyout) and the right analysis panel (selection editor on top)
