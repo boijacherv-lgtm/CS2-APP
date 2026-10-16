@@ -63,12 +63,12 @@ const EXTRAS: Record<string, MapExtras> = {
       // from the team's own Mirage callout map (fitted to the game's spawn and bomb-site markers); minor = only when
       // zoomed in or 'All callout names' is on
       { name: 'B Apps', pos: p(292, 184) }, { name: 'Van', pos: p(187, 198), minor: true }, { name: 'Apps', pos: p(443, 227), minor: true },
-      { name: 'Underpass', pos: p(484, 259) }, { name: 'Bench', pos: p(128, 277) }, { name: 'B Short', pos: p(417, 303) },
+      { name: 'Underpass', pos: p(446, 306) }, { name: 'Bench', pos: p(128, 277) }, { name: 'B Short', pos: p(392, 290) },
       { name: 'Boost', pos: p(461, 335), minor: true }, { name: 'Trash', pos: p(158, 359), minor: true }, { name: '90', pos: p(314, 379), minor: true },
       { name: 'Ladder Room', pos: p(417, 369), minor: true }, { name: 'Kitchen Door', pos: p(175, 414), minor: true },
       { name: 'Kitchen Window', pos: p(252, 405), minor: true }, { name: 'Kitchen', pos: p(279, 455) }, { name: 'Short', pos: p(550, 422) },
       { name: 'Window', pos: p(408, 465) }, { name: 'Mid Bench', pos: p(443, 487), minor: true }, { name: 'Mid', pos: p(544, 472) },
-      { name: 'Top Mid', pos: p(709, 465) }, { name: 'Start', pos: p(687, 392), minor: true }, { name: 'T Spawn', pos: p(892, 359) },
+      { name: 'Top Mid', pos: p(709, 465) }, { name: 'Start', pos: p(687, 392) }, { name: 'T Spawn', pos: p(892, 359) },
       { name: 'Chair', pos: p(590, 519), minor: true }, { name: 'Water', pos: p(696, 519), minor: true }, { name: 'Connector', pos: p(508, 551) },
       { name: 'Jungle', pos: p(417, 624) }, { name: 'Stairs', pos: p(544, 650) }, { name: 'Tetris', pos: p(616, 639) },
       { name: 'A Ramp', pos: p(727, 657) }, { name: 'Under Palace', pos: p(655, 743), minor: true }, { name: 'Firebox', pos: p(519, 743) },
