@@ -67,13 +67,26 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const engineRef = useRef(engine);
   engineRef.current = engine;
   const [hoverPlayer, setHoverPlayer] = useState<string | null>(null);
+  // the tip under the HUD fades after a few seconds; it comes back when the tool or the task changes
+  const [hintSeen, setHintSeen] = useState(false);
   /** Review: the players an open move card is about (the rest of the map dims). */
   const [focus, setFocus] = useState<string[] | null>(null);
   const s = useStore();
-  // Tokens keep roughly the same on-screen size at any zoom.
-  const k = Math.min(2.6, Math.max(0.7, 1.3 / view.scale));
+  // Everything on the map (tokens, badges, labels) is sized for the screen, not the radar: a player token is about
+  // 1.6 % of the map's on-screen size, between 7.5 and 11 px, so a small map isn't buried under its own markers and
+  // zooming in doesn't make them huge.
+  const tokenPx = Math.max(7.5, Math.min(11, 1024 * view.scale * 0.016));
+  const k = tokenPx / (TOKEN_R * view.scale);
+  // zoomed in (1.6× the whole-map view or more): room for names, guns and the detailed callouts
+  const zoomedIn = view.scale >= fitView(size.w, size.h).scale * ZOOM_DETAIL;
   const utilR = (u: Utility) =>
     u.type === 'smoke' ? SMOKE_RADIUS_UNITS / UNITS_PER_PX : u.type === 'molotov' ? 120 / UNITS_PER_PX : u.type === 'he' ? 8 * k : 7 * k;
+
+  useEffect(() => {
+    setHintSeen(false);
+    const t = setTimeout(() => setHintSeen(true), 6000);
+    return () => clearTimeout(t);
+  }, [s.tool]);
 
   useEffect(() => {
     if (!s.notice) return;
@@ -330,10 +343,18 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         </Layer>
 
         <Layer listening={false}>
-          {s.overlays.callouts && MAP.callouts.map(c => (
-            <Text key={c.name} text={c.name} x={c.pos.x - 60} y={c.pos.y - (c.size ?? 10) / 2} width={120} align="center"
-              fontSize={c.size ?? 10} fill="#fff" stroke="#000" strokeWidth={2.5} fillAfterStrokeEnabled fontStyle="bold" opacity={0.6} />
-          ))}
+          {/* main callouts with the Callouts layer; detailed ones too once you zoom in (or with "All callout names") */}
+          {(s.overlays.callouts || s.overlays.calloutsAll) && MAP.callouts
+            .filter(c => !c.minor || s.overlays.calloutsAll || zoomedIn)
+            .map((c, i) => {
+              // a fixed size on screen (like CS2's radar): small spaced capitals, quieter for the detailed spots
+              const fs = (c.minor ? 8 : 9.5) / view.scale;
+              return (
+                <Text key={`${c.name}-${i}`} text={c.name.toUpperCase()} x={c.pos.x - 80} y={c.pos.y - fs / 2} width={160} align="center" fontSize={fs}
+                  letterSpacing={0.6 / view.scale} fill={c.minor ? '#b9c1cc' : '#eef1f5'} stroke="#000" strokeWidth={2.2 / view.scale} fillAfterStrokeEnabled
+                  fontStyle={c.minor ? 'normal' : 'bold'} opacity={c.minor ? 0.6 : 0.78} />
+              );
+            })}
           {visionLayer && visionLayer.cones.map(v => (
             <Line key={`vis-${v.id}`} points={v.poly} closed fill={v.side === 'CT' ? 'rgba(78,163,255,0.13)' : 'rgba(232,163,60,0.13)'}
               stroke={v.side === 'CT' ? 'rgba(78,163,255,0.5)' : 'rgba(232,163,60,0.5)'} strokeWidth={0.7 * k} />
@@ -461,8 +482,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 else if (s.tool !== 'erase') s.select(p.id);
               }}>
               <Group scaleX={k} scaleY={k}>
-                <Wedge radius={34} angle={FOV_DEG} rotation={deg(p.facing ?? engine.facing(p)) - FOV_DEG / 2} listening={false}
-                  fill={COLORS[p.side]} opacity={p.facing === undefined ? 0.22 : 0.38} />
+                <Wedge radius={26} angle={FOV_DEG} rotation={deg(p.facing ?? engine.facing(p)) - FOV_DEG / 2} listening={false}
+                  fill={COLORS[p.side]} opacity={p.facing === undefined ? 0.16 : 0.26} />
                 {(hoverPlayer === p.id || s.draftRoute?.playerId === p.id) && s.tool === 'path' && (
                   <Circle radius={TOKEN_R + 5} stroke="#fff" strokeWidth={2} dash={[4, 3]} listening={false} />
                 )}
@@ -480,8 +501,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 <Circle radius={TOKEN_R} hitStrokeWidth={18} fill={eraseTarget === p.id ? ERASE : COLORS[p.side]}
                   stroke={s.selectedId === p.id ? '#fff' : '#000a'} strokeWidth={s.selectedId === p.id ? 2.5 : 1.5} />
                 <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />
-                {s.mode === 'review' && s.review && <Text text={s.review.data.names[p.id] ?? ''} fontSize={7} fill="#c8ced8" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled width={60} x={-30} y={21} align="center" fontStyle="bold" listening={false} />}
-                {s.overlays.playerInfo && <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? '#ffd23f' : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
+                {s.mode === 'review' && s.review && (zoomedIn || hoverPlayer === p.id || s.selectedId === p.id || focus?.includes(p.id)) && <Text text={s.review.data.names[p.id] ?? ''} fontSize={7} fill="#c8ced8" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled width={60} x={-30} y={21} align="center" fontStyle="bold" listening={false} />}
+                {s.overlays.playerInfo && (zoomedIn || hoverPlayer === p.id || s.selectedId === p.id) && <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? '#ffd23f' : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
                   width={40} x={-20} y={13} align="center" fontStyle="bold" listening={false} />}
                 {s.overlays.playerInfo && batch?.players[p.id] && (
                   <Text text={`${Math.round(batch.players[p.id].pKill * 100)}% K`} fontSize={8} fontStyle="bold" width={40} x={-20} y={s.mode === 'review' ? 29 : 21} align="center"
@@ -582,7 +603,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             }))}
             score={recap && s.review ? scoreBefore(s.review.data, s.review.round) : null}
             plantedAt={recap && s.review ? s.review.data.rounds[s.review.round]?.plant ?? null : null} />
-          <div className={`hint ${s.notice ? 'notice' : aiming || carry || s.draftRoute ? 'carry' : ''}`} style={recap ? { display: 'none' } : undefined}>
+          <div className={`hint ${s.notice ? 'notice' : aiming || carry || s.draftRoute ? 'carry' : ''} ${hintSeen && !s.notice && !aiming && !carry && !s.draftRoute ? 'faded' : ''}`}
+            style={recap ? { display: 'none' } : undefined}>
             {s.notice ?? (aiming ? 'Move the mouse to aim · click to set the direction · Esc cancels'
               : carry ? 'Click where to put it · Esc cancels'
               : s.draftRoute
@@ -660,6 +682,8 @@ function FacingHandle({ engine, player, k, aiming, onAim, onPreview, onCommit }:
 }
 
 const BADGE_SECS = 3.5;
+/** How far zoomed in (× the whole-map view) before the detailed callouts appear on their own. */
+const ZOOM_DETAIL = 1.6;
 
 /** Room the overlays take around the map (px): the HUD on top, zoom at the side, the eval bar and the dock below. */
 const FIT_PAD = { top: 52, bottom: 92, side: 44 };

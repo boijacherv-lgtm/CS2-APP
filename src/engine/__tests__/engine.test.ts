@@ -396,10 +396,12 @@ describe('territory map control', () => {
     const open = computeControl(e, board('de_mirage', 'Stack A, Mid open'), 15);
     const aggro = computeControl(e, board('de_mirage', 'Aggro Mid'), 15);
     const fmtZ = (z: any) => `${z.name} CT ${Math.round(z.ct * 100)} / T ${Math.round(z.t * 100)}`;
-    console.log('open :', ['Top Mid', 'Mid', 'Catwalk', 'Jungle'].map(n => fmtZ(zone(open, n))).join(' | '), '| front cells', open.front.reduce((a: number, b: number) => a + b, 0));
-    console.log('aggro:', ['Top Mid', 'Mid', 'Catwalk', 'Jungle'].map(n => fmtZ(zone(aggro, n))).join(' | '));
+    console.log('open :', ['Top Mid', 'Mid', 'Short', 'Jungle'].map(n => fmtZ(zone(open, n))).join(' | '), '| front cells', open.front.reduce((a: number, b: number) => a + b, 0));
+    console.log('aggro:', ['Top Mid', 'Mid', 'Short', 'Jungle'].map(n => fmtZ(zone(aggro, n))).join(' | '));
     expect(zone(open, 'Top Mid').t).toBeGreaterThan(zone(open, 'Top Mid').ct);
-    expect(zone(aggro, 'Mid').ct).toBeGreaterThan(zone(open, 'Mid').ct * 2);
+    // mid control = Mid and Short (the connection to B) together
+    const midCT = (c: any) => zone(c, 'Mid').ct + zone(c, 'Short').ct;
+    expect(midCT(aggro)).toBeGreaterThan(midCT(open) * 2);
     expect(open.front.reduce((a: number, b: number) => a + b, 0)).toBeGreaterThan(0);
   });
 });

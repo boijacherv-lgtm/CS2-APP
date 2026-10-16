@@ -84,7 +84,7 @@ What you see on the map:
 2. **Move players:** drag them, double-click then click where they go, or select one and right-click the map. Turn them by clicking the white dot or with `[` `]`.
 3. **Routes:** Route tool → click a player → click where they should go (Shift+click adds waypoints).
 4. **Grenades:** Smoke / Flash / Molotov / HE tools, or **Line-up** for real throws. Every tool is on the rail with its key (V, C, T, S, F, M, H, P, L, E); undo and redo at the bottom.
-5. Press **Play** (or Space). The **Standard** layers menu (top left of the map) chooses how much is drawn (Clean / Standard / Full, keys 1–3) and turns single layers on and off.
+5. Press **Play** (or Space). Callout names: the main ones show on the map; zoom in for the detailed spots (Boost, 90, Default…), or switch on **All callout names** in the layers menu. The **Standard** layers menu (top left of the map) chooses how much is drawn (Clean / Standard / Full, keys 1–3) and turns single layers on and off.
 6. The right panel (**Panel** to show or hide it; it slides over the map on smaller screens) explains it. Selecting a player or grenade shows its settings at the top: weakest entrance, likely T plays, kill chances (200 simulated rounds), map control, what each grenade is worth. Select a CT and turn on **Best spots** to see where they should stand.
 
 ## Running it yourself (desktop)
@@ -188,6 +188,8 @@ src/
   map/
     catalog.ts       MAPS list, hand-made layers (EXTRAS) incl. per-level data, getEngine(map, level), presets, T plays
     lineups.ts       built-in + custom line-ups, flight-time model
+    callouts.ts      callout names and positions for Ancient, Anubis, Cache, Dust II, Inferno, Overpass, Train (from
+                     totalcsgo.com/callouts; main ones vs `minor` detailed spots). Mirage's are the team's own (catalog.ts)
     generated/maps.json   walkability grids + overview calibration (built by tools/build-maps.mjs)
   ui/
     Icon.tsx         <Icon name="play" />: interface icons from Phosphor (@phosphor-icons/react, bold / filled); equipment
@@ -246,6 +248,7 @@ server/              demo bot, not hosted (server/README.md)
 - **Determinism:** everything random goes through `mulberry32(seed)`. Same board + seed = same round.
 - **Demo data changes:** when `tools/demo-core.mjs` gains a field, bump `V` in `DemoFolder.tsx` so saved games are read again, and keep older data working (fields are optional in `DemoRound`).
 - **Per-level maps:** `getEngine(mapId, level)`. The store keeps a separate board per `map:level`.
+- **Callouts:** main callouts show with the Callouts layer; `minor: true` ones (detailed spots) only when zoomed in 1.6× or with "All callout names". Map-control areas use only the main ones. To move or add one, edit its `pos` (radar px) in `callouts.ts` / `catalog.ts`.
 - **Tactical data:** hand-made layers live in `catalog.ts`. Prefer adding callouts/chokepoints there over editing the generator.
 - **Design:** colours only from `ui/tokens.ts` (CSS `var(--…)`, Konva imports `T` / `SIDE_COLOR` / `UTIL_COLOR`). Only team, grenade and grade colours are colourful; the chrome is greyscale and white is the interactive colour. Rajdhani (`var(--font-display)`) for headings and big numbers, Inter for everything else, tabular digits in tables. Anything over the map goes into a `.board-ui` slot, on a solid `var(--overlay)` surface (no backdrop blur over the canvas).
 - **Icons:** only from `ui/Icon.tsx`. Interface icons are Phosphor (bold; filled for playback). Grenades, armour, the bomb, the defuse kit and weapons are CS2's own pictograms (`public/icons/cs2`, from the game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons); the art is Valve's). No emoji anywhere in the UI.
@@ -272,4 +275,4 @@ server/              demo bot, not hosted (server/README.md)
 
 ## Credits
 
-Radar images and overview data are © Valve Corporation, taken from the CS2 game files via [MurkyYT/cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons). Weapon and equipment pictograms are © Valve Corporation, from the CS2 game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons). Demo parsing by [LaihoE/demoparser](https://github.com/LaihoE/demoparser). Interface icons by [Phosphor Icons](https://phosphoricons.com) (MIT). Counter-Strike is a trademark of Valve Corporation; this project is not affiliated with Valve.
+Radar images and overview data are © Valve Corporation, taken from the CS2 game files via [MurkyYT/cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons). Callout names and areas for most maps from [totalcsgo.com/callouts](https://totalcsgo.com/callouts). Weapon and equipment pictograms are © Valve Corporation, from the CS2 game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons). Demo parsing by [LaihoE/demoparser](https://github.com/LaihoE/demoparser). Interface icons by [Phosphor Icons](https://phosphoricons.com) (MIT). Counter-Strike is a trademark of Valve Corporation; this project is not affiliated with Valve.

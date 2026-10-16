@@ -106,7 +106,8 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: v
 .coords { background: var(--overlay); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-variant-numeric: tabular-nums; }
 .hint.carry { color: #fff; background: #1f4f8acc; }
 .hint.notice { color: #fff; background: #b3261ecc; }
-.hint { background: var(--overlay); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.hint.faded { opacity: 0; }
+.hint { transition: opacity .6s var(--ease-out); background: var(--overlay); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
 
 .summary { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .summary p { margin: 3px 0; }
