@@ -62,7 +62,7 @@ const EXTRAS: Record<string, MapExtras> = {
       { name: 'Top Mid', pos: p(715, 470) }, { name: 'Mid', pos: p(590, 470) }, { name: 'Window', pos: p(405, 520) },
       { name: 'Connector', pos: p(513, 530) }, { name: 'Jungle', pos: p(450, 625) }, { name: 'Catwalk', pos: p(410, 360) },
       { name: 'Underpass', pos: p(482, 345) }, { name: 'Apartments', pos: p(330, 185) }, { name: 'Palace', pos: p(785, 790) },
-      { name: 'A Ramp', pos: p(775, 600) }, { name: 'Ticket', pos: p(420, 760) }, { name: 'Market', pos: p(260, 445) },
+      { name: 'A Ramp', pos: p(775, 600) }, { name: 'Ticket', pos: p(-887,-2546) }, { name: 'Market', pos: p(260, 445) },
       { name: 'Kitchen', pos: p(195, 440) }, { name: 'Short', pos: p(450, 290) },
     ],
     strats: MIRAGE_STRATS,
