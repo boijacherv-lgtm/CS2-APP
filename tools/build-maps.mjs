@@ -1,5 +1,5 @@
 // Builds src/map/generated/maps.json from the official radar PNGs + overview .txt files
-// in public/maps. Walkable floor = opaque radar pixels, rasterised to the engine grid.
+// in public/images/maps (overview .txt files in tools/overviews). Walkable floor = opaque radar pixels, rasterised to the engine grid.
 //
 //   node tools/build-maps.mjs
 import fs from 'node:fs';
@@ -7,7 +7,8 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const SRC = path.join(ROOT, 'public/maps');
+const SRC = path.join(ROOT, 'public/images/maps');
+const OVERVIEWS = path.join(ROOT, 'tools/overviews');
 const OUT = path.join(ROOT, 'src/map/generated/maps.json');
 const CELL = 4; // must match engine/grid.ts
 const ALPHA = 200;
@@ -131,14 +132,14 @@ function rasterise(file) {
 
 const maps = [];
 for (const id of Object.keys(NAMES)) {
-  const kv = parseKV(fs.readFileSync(path.join(SRC, `${id}.txt`), 'utf8'));
+  const kv = parseKV(fs.readFileSync(path.join(OVERVIEWS, `${id}.txt`), 'utf8'));
   const num = k => (kv[k] !== undefined ? parseFloat(kv[k]) : undefined);
   const size = 1024;
   const norm = (x, y) => (num(x) !== undefined ? { x: num(x) * size, y: num(y) * size } : undefined);
-  const levels = [{ id: 'upper', image: `/maps/${id}.png`, grid: rasterise(path.join(SRC, `${id}.png`)) }];
+  const levels = [{ id: 'upper', image: `/images/maps/${id}.png`, grid: rasterise(path.join(SRC, `${id}.png`)) }];
   const vs = kv.verticalsections;
   const lowerFile = path.join(SRC, `${id}_lower.png`);
-  if (fs.existsSync(lowerFile)) levels.push({ id: 'lower', image: `/maps/${id}_lower.png`, grid: rasterise(lowerFile) });
+  if (fs.existsSync(lowerFile)) levels.push({ id: 'lower', image: `/images/maps/${id}_lower.png`, grid: rasterise(lowerFile) });
   if (vs) {
     const sections = Object.values(vs);
     levels.forEach((l, i) => {

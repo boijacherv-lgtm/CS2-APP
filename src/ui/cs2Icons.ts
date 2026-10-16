@@ -1,5 +1,5 @@
 /**
- * CS2's own pictograms (public/icons/cs2, from the game files via github.com/Juknum/counter-strike-icons; the art is
+ * CS2's own pictograms (public/images/icons/cs2, from the game files via github.com/Juknum/counter-strike-icons; the art is
  * Valve's) and each one's width / height, so wide ones (guns) keep their shape. Regenerate this list when adding icons.
  */
 export const CS2_ICONS = {

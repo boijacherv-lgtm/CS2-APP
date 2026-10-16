@@ -94,7 +94,7 @@ npm install
 npm run dev          # http://localhost:5173  (add `-- --host` to open it from other devices on your network)
 npm test             # tests (vitest, a few seconds)
 npm run build        # type-check + production build
-npm run build:maps   # regenerate src/map/generated/maps.json from public/maps/*.png (only after changing radars or tools/build-maps.mjs)
+npm run build:maps   # regenerate src/map/generated/maps.json from public/images/maps/*.png (only after changing radars or tools/build-maps.mjs)
 ```
 
 Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings and imported matches stay in `.steam-cache/` (never committed).
@@ -195,7 +195,7 @@ src/
     Icon.tsx         <Icon name="play" />: interface icons from Phosphor (@phosphor-icons/react, bold / filled); equipment
                      (grenades, armour, bomb, defuse kit) as CS2's own pictograms; <GameIcon src="equipment/ak47" /> for
                      any game pictogram (drawn in currentColor with a CSS mask)
-    cs2Icons.ts      the list of CS2 pictograms in public/icons/cs2 with each one's aspect ratio (regenerate when adding)
+    cs2Icons.ts      the list of CS2 pictograms in public/images/icons/cs2 with each one's aspect ratio (regenerate when adding)
     tokens.ts        design tokens: every colour, the fonts; applyTokens() writes them to :root, Konva imports the same values
     Board.tsx        Konva stage: radar, overlays, players, routes, utility, bomb, tools, gestures; the overlay slots
                      (.board-ui: HUD, layers menu, killfeed, zoom, grenade feed / card, eval bar, playback dock) around the map
@@ -227,8 +227,12 @@ tools/
   demoparser-node/   Node build of the WebAssembly parser (CI)
   steam.mjs          desktop Steam backend: OpenID, Valve match-history API, replays-folder auto-import, parsed demos (.steam-cache/)
   build-maps.mjs     radar PNG → grid (alpha = floor; small grey shapes = props/walls; dark lines = walls on Nuke/Vertigo)
+  overviews/         Valve's overview .txt per map (pos_x/pos_y/scale, spawns, bomb markers), read by build-maps
 vite.config.ts       dev-server plugins: POST /api/demo parses a demo locally; /api/steam/* (me, status, openid, settings, sync, load…)
-public/maps/         Valve radars + overview .txt (pos_x/pos_y/scale, spawns, bomb markers)
+public/images/       every image the site shows
+  maps/              Valve radars (de_*.png, de_*_lower.png for two-level maps)
+  icons/cs2/         CS2 pictograms (equipment and weapons)
+  logo.svg           site icon
 public/demoparser/   WebAssembly demo parser for the website (built by CI)
 worker/              Cloudflare Worker: Steam OpenID check, sessions, Valve match history with the site's key (worker/README.md)
 server/              demo bot, not hosted (server/README.md)
@@ -251,7 +255,7 @@ server/              demo bot, not hosted (server/README.md)
 - **Callouts:** main callouts show with the Callouts layer; `minor: true` ones (detailed spots) only when zoomed in 1.6× or with "All callout names". Map-control areas use only the main ones. To move or add one, edit its `pos` (radar px) in `callouts.ts` / `catalog.ts`.
 - **Tactical data:** hand-made layers live in `catalog.ts`. Prefer adding callouts/chokepoints there over editing the generator.
 - **Design:** colours only from `ui/tokens.ts` (CSS `var(--…)`, Konva imports `T` / `SIDE_COLOR` / `UTIL_COLOR`). Only team, grenade and grade colours are colourful; the chrome is greyscale and white is the interactive colour. Rajdhani (`var(--font-display)`) for headings and big numbers, Inter for everything else, tabular digits in tables. Anything over the map goes into a `.board-ui` slot, on a solid `var(--overlay)` surface (no backdrop blur over the canvas).
-- **Icons:** only from `ui/Icon.tsx`. Interface icons are Phosphor (bold; filled for playback). Grenades, armour, the bomb, the defuse kit and weapons are CS2's own pictograms (`public/icons/cs2`, from the game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons); the art is Valve's). No emoji anywhere in the UI.
+- **Icons:** only from `ui/Icon.tsx`. Interface icons are Phosphor (bold; filled for playback). Grenades, armour, the bomb, the defuse kit and weapons are CS2's own pictograms (`public/images/icons/cs2`, from the game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons); the art is Valve's). No emoji anywhere in the UI.
 - **Style:** match the surrounding code: small pure functions in `engine/`, short doc comments on the *why*, no new dependencies without asking the user.
 
 ### Testing
