@@ -9,6 +9,8 @@ import { SteamMatches } from './SteamMatches';
 import { DemoFolder } from './DemoFolder';
 import { ONLINE, STEAM_AVAILABLE } from '../env';
 import { DEMO_PASSES, readDemoInBrowser } from './readDemo';
+import { GameIcon, Icon } from './Icon';
+import type { Cs2Icon } from './cs2Icons';
 import { shownNow, useShown } from './shown';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
@@ -79,7 +81,7 @@ export function ReviewStart() {
         onDragLeave={() => setOver(false)}
         onDrop={e => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f && !busy) load(f); }}
       >
-        <div className="dz-icon">{busy ? '⏳' : '⬆'}</div>
+        <div className="dz-icon"><Icon name={busy ? 'hourglass' : 'upload'} size={34} /></div>
         <h2>{busy ? 'Reading your match…' : 'Drop a demo here'}</h2>
         <p>{busy ? status : 'or click to choose a .dem file (or a .json you saved before)'}</p>
         <input ref={input} type="file" accept=".dem,.json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ''; }} />
@@ -137,7 +139,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
         <p className="muted">
           {finished
             ? <>{r.winner ? <b className={r.winner.toLowerCase()}>{r.winner} won</b> : 'Result unknown'}{r.reason ? ` · ${r.reason}` : ''}</>
-            : <>Round in progress · press <b>▶ Play</b> (Space) to watch it unfold</>}
+            : <>Round in progress · press <b>Play</b> (Space) to watch it unfold</>}
           {r.plant !== null && (all || s.time >= r.plant) ? ` · bomb planted ${fmt(r.plant)}` : ''}
         </p>
       </section>
@@ -204,7 +206,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
               <MoveRow m={m} />
             </div>
           ))}
-          {!moves.length && <p className="muted">{all ? 'No moves for this filter.' : 'Nothing has happened yet. Press ▶ Play.'}</p>}
+          {!moves.length && <p className="muted">{all ? 'No moves for this filter.' : 'Nothing has happened yet. Press Play.'}</p>}
         </div>
         {moves.length > 0 && <p className="muted">Newest first. Click a move to jump to it.</p>}
       </section>}
@@ -264,7 +266,7 @@ export function MomentNav({ recap }: { recap: Review }) {
   const watch = () => { if (!cur) return; const st = useStore.getState(); st.setTime(Math.max(0, cur.t - 3)); st.setPlaying(true); };
   return (
     <div className="moment-nav">
-      <button onClick={() => stepMoment(recap, -1)} disabled={first} title="Previous moment (←)">◀</button>
+      <button onClick={() => stepMoment(recap, -1)} disabled={first} title="Previous moment (←)" aria-label="Previous moment"><Icon name="prev" /></button>
       <div className="moment-label">
         {idx < 0
           ? <span className="muted">Round {rv.round + 1} start · {list.length} moments</span>
@@ -272,10 +274,10 @@ export function MomentNav({ recap }: { recap: Review }) {
               <span className="muted">{idx + 1}/{list.length}</span>
               {g && <span className="badge" style={{ background: g.color }}>{g.mark}</span>}
               <span className={atMoment ? '' : 'muted'}>{main?.title}{cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}</span>
-              {cur && <button className="mini" onClick={watch} title="Watch the 3 s leading up to it">↺</button>}
+              {cur && <button className="mini" onClick={watch} title="Watch the 3 s leading up to it" aria-label="Watch the lead-up"><Icon name="rewind" size={12} /></button>}
             </>}
       </div>
-      <button onClick={() => stepMoment(recap, 1)} disabled={last && time >= (list[list.length - 1]?.t ?? 0) + SHOW_AFTER - 0.05} title="Next moment (→)">▶</button>
+      <button onClick={() => stepMoment(recap, 1)} disabled={last && time >= (list[list.length - 1]?.t ?? 0) + SHOW_AFTER - 0.05} title="Next moment (→)" aria-label="Next moment"><Icon name="next" /></button>
     </div>
   );
 }
@@ -293,16 +295,29 @@ function scoreboard(recap: Review, seen: Move[]) {
 
 const BUY_COLOR: Record<string, string> = { 'Full buy': '#3ddc84', 'Force buy': '#ffb020', 'Semi-eco': '#e58f2a', Eco: '#e5483a', 'Pistol round': '#a39b8f' };
 const usd = (v: number) => `$${Math.round(v).toLocaleString('en-US')}`;
-/** Grenades in an inventory as compact icons: S smoke, F flash(es), H HE, M molotov/incendiary. */
-function nadeIcons(weapons: string[]) {
+/** Grenades in an inventory, as CS2's buy-menu pictograms. */
+const NADE_PICS: { re: RegExp; src: Cs2Icon; name: string }[] = [
+  { re: /smoke/, src: 'equipment/smokegrenade', name: 'Smoke' },
+  { re: /flash/, src: 'equipment/flashbang', name: 'Flashbang' },
+  { re: /he ?grenade|hegrenade|high explosive/, src: 'equipment/hegrenade', name: 'HE grenade' },
+  { re: /molotov/, src: 'equipment/molotov', name: 'Molotov' },
+  { re: /incendiary|incgrenade/, src: 'equipment/incgrenade', name: 'Incendiary' },
+  { re: /decoy/, src: 'equipment/decoy', name: 'Decoy' },
+];
+function NadeIcons({ weapons }: { weapons: string[] }) {
   const w = weapons.map(x => x.toLowerCase());
-  const n = (re: RegExp) => w.filter(x => re.test(x)).length;
-  const flashes = n(/flash/), out: string[] = [];
-  if (n(/smoke/)) out.push('S');
-  if (flashes) out.push(flashes > 1 ? `F×${flashes}` : 'F');
-  if (n(/he ?grenade|hegrenade|high explosive/)) out.push('H');
-  if (n(/molotov|incendiary|inferno/)) out.push('M');
-  return out.join(' ');
+  return (
+    <span className="nade-pics">
+      {NADE_PICS.map(n => {
+        const count = w.filter(x => n.re.test(x)).length;
+        return count ? (
+          <span key={n.src} className="nade-pic" title={count > 1 ? `${n.name} ×${count}` : n.name}>
+            {Array.from({ length: count }, (_, i) => <GameIcon key={i} src={n.src} size={15} />)}
+          </span>
+        ) : null;
+      })}
+    </span>
+  );
 }
 
 /** Each team's buy and every player's gun, gear value and bank. Known at round start, so never a spoiler. */
@@ -332,8 +347,8 @@ function Economy({ replay, totalRounds }: { replay: Replay; totalRounds: number 
             return (
               <tr key={id}>
                 <td><b className={side.toLowerCase()}>{replay.names[id] ?? id}</b></td>
-                <td title={e?.weapons.join(', ')} className="loadout">{e ? loadout(e.weapons) : '–'}{e?.helmet ? ' ⛑' : e && e.armor > 0 ? ' 🦺' : ''}{e?.defuser ? ' ✂' : ''}</td>
-                <td className="muted">{e ? nadeIcons(e.weapons) : ''}</td>
+                <td title={e?.weapons.join(', ')} className="loadout">{e ? loadout(e.weapons) : '–'}{e?.helmet ? <Icon name="helmet" size={13} title="Kevlar + helmet" className="inline" /> : e && e.armor > 0 ? <Icon name="vest" size={13} title="Kevlar" className="inline" /> : null}{e?.defuser ? <Icon name="scissors" size={13} title="Defuse kit" className="inline" /> : null}</td>
+                <td>{e ? <NadeIcons weapons={e.weapons} /> : ''}</td>
                 <td>{e ? usd(equipValue(e) ?? 0) : '–'}</td>
                 <td>{e?.money != null ? usd(e.money) : '–'}</td>
               </tr>
@@ -362,7 +377,7 @@ function MoveRow({ m, compact }: { m: Move; compact?: boolean }) {
       <div className="move-head">
         <span className="muted">{fmt(m.t)}</span>
         {death
-          ? <span className="badge death" title="Ordinary deaths aren't marked (only costly untraded ones are); the loss still counts toward impact and the round grade">✝</span>
+          ? <span className="badge death" title="Ordinary deaths aren't marked (only costly untraded ones are); the loss still counts toward impact and the round grade"><Icon name="cross" size={11} /></span>
           : <span className="badge" style={{ background: g.color }} title={g.label}>{g.mark}</span>}
         <b className={m.side.toLowerCase()}>{m.title}</b>
         <span className="pct" style={{ color: m.gain > 0.02 ? '#7fbf4d' : m.gain < -0.02 ? '#e5483a' : 'var(--muted)' }}>{signed(m.gain)}</span>

@@ -9,6 +9,7 @@ import { getEngine } from './map/catalog';
 import { useStore, type Tool } from './store';
 import { Board } from './ui/Board';
 import { AnalysisPanel, Rail } from './ui/Panels';
+import { Icon } from './ui/Icon';
 import { RecapPanel, ReviewStart, stepMoment } from './ui/Recap';
 
 const KEYS: Record<string, Tool> = { v: 'select', c: 'ct', t: 't', s: 'smoke', f: 'flash', m: 'molotov', h: 'he', p: 'path', l: 'lineup', e: 'erase' };
@@ -155,7 +156,7 @@ export function App() {
       <Rail engine={engine} />
       <Board key={`${mapId}:${level}`} timelineEnd={end} analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch?.stats ?? null} recap={recap} />
       <div className="drawer" aria-hidden={!drawerOpen}>
-        <button className="ghost drawer-close" onClick={() => useStore.getState().setDrawerOpen(false)} title="Hide the panel" aria-label="Hide the panel">✕</button>
+        <button className="ghost drawer-close" onClick={() => useStore.getState().setDrawerOpen(false)} title="Hide the panel" aria-label="Hide the panel"><Icon name="close" /></button>
         {recap && replay
           ? <RecapPanel recap={recap} replay={replay} engine={engine} control={control} />
           : <AnalysisPanel analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch} impact={impact} stale={deferred !== board} />}

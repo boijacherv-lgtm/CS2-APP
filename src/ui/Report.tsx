@@ -6,6 +6,7 @@ import { MAPS } from '../map/catalog';
 import { navigate } from '../shell/router';
 import { useStore } from '../store';
 import { ReviewStart } from './Recap';
+import { Icon, type IconName } from './Icon';
 import { steamFetch } from './steamApi';
 
 /**
@@ -109,7 +110,7 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
       <div className="kpi" title={`Normal: ${id === 'impact' ? `${m.baseline}%` : Math.round(m.baseline)}`}>
         <span>{label}</span>
         <b className="num">{value}</b>
-        <i className={z > 0.5 ? 'up' : z < -0.5 ? 'down' : ''}>{z > 0.5 ? '▲ above normal' : z < -0.5 ? '▼ below normal' : '● normal'}</i>
+        <i className={z > 0.5 ? 'up' : z < -0.5 ? 'down' : ''}><Icon name={z > 0.5 ? 'up' : z < -0.5 ? 'down' : 'dot'} size={9} /> {z > 0.5 ? 'above normal' : z < -0.5 ? 'below normal' : 'normal'}</i>
       </div>
     );
   };
@@ -168,7 +169,7 @@ function CoachCard({ p, done, onRound, onHotRound }: { p: PlayerReport; done: bo
         <span className="muted">CT {side(c.sides.CT)} · T {side(c.sides.T)} win chance a round</span>
       </div>
       <p className="coach-summary">{c.summary}{!done && <span className="muted"> (updates while rounds are graded)</span>}</p>
-      <div className="dev-axis muted"><span>◀ worse than normal</span><span>better than normal ▶</span></div>
+      <div className="dev-axis muted"><span><Icon name="prev" size={10} /> worse than normal</span><span>better than normal <Icon name="next" size={10} /></span></div>
       <div className="dev-list">
         {rows.map(d => <DevRow key={d.feature} d={d} open={open === d.feature} onToggle={() => setOpen(open === d.feature ? null : d.feature)}
           onRound={onRound} onHotRound={onHotRound} />)}
@@ -271,7 +272,7 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
   );
 }
 
-const REASON_ICON: Record<string, string> = { ct_killed: '☠', t_killed: '☠', bomb_exploded: '💥', bomb_defused: '✂', target_saved: '⏱' };
+const REASON_ICON: Record<string, IconName> = { ct_killed: 'skull', t_killed: 'skull', bomb_exploded: 'burst', bomb_defused: 'scissors', target_saved: 'timer' };
 
 /** Every player's grade in every round: the focused player's row stands out, a gap marks the side switch. */
 function RoundGrid({ data, players, focus, hot, onPick, onRound }: {
@@ -293,7 +294,7 @@ function RoundGrid({ data, players, focus, hot, onPick, onRound }: {
               {data.rounds.map((r, i) => (
                 <th key={i} className={`${r.winner === 'CT' ? 'ctw' : r.winner === 'T' ? 'tw' : ''} ${swap[i] ? 'half' : ''} ${hot === i ? 'hot' : ''}`}
                   title={`Round ${r.n} · ${r.winner ?? '?'} won${r.reason ? ` (${r.reason.replace(/_/g, ' ')})` : ''}`}>
-                  <span>{r.n}</span><i>{REASON_ICON[r.reason] ?? ''}</i>
+                  <span>{r.n}</span><i>{REASON_ICON[r.reason] && <Icon name={REASON_ICON[r.reason]} size={10} />}</i>
                 </th>
               ))}
             </tr>

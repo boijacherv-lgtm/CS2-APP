@@ -35,9 +35,9 @@ Both read demos with the same parser (LaihoE/demoparser); the website uses a Web
 
 ### Review your match
 1. **Review** tab → drop a `.dem` (or a saved `.json`), or use **Your CS2 demo folder** below. FACEIT/HLTV demos work too (unzip first).
-2. Press **▶ Play** (or Space). The win-chance bar, the timeline and the grades reveal themselves as the round plays. **⏭ Reveal all** (or R) shows everything at once.
-3. **The timeline** at the bottom is the round's story: the win chance as a curve (CT blue above the middle, T yellow below), kills as ticks in the killer's colour, the big moves as their letter (S+ S E F), the smaller ones (A B D) as dots, and 💣 at the plant. Click anywhere, or on a mark, to jump there.
-4. **◀ ▶** (or ← →) step through the key moments of the match, across rounds, like moves in a chess game.
+2. Press **Play** (or Space). The win-chance bar, the timeline and the grades reveal themselves as the round plays. **Reveal all** (or R) shows everything at once.
+3. **The timeline** at the bottom is the round's story: the win chance as a curve (CT blue above the middle, T yellow below), kills as ticks in the killer's colour, the big moves as their letter (S+ S E F), the smaller ones (A B D) as dots, and the bomb icon at the plant. Click anywhere, or on a mark, to jump there.
+4. The **previous / next** arrows (or ← →) step through the key moments of the match, across rounds, like moves in a chess game.
 5. The panel on the right (**Panel** to show or hide it) has the rounds and three tabs: **Moves**, **Economy**, **Players**.
 
 **The letters.** One scale for moves, rounds and the whole match. For a move it's how much it changed the team's chance to win the round:
@@ -46,7 +46,7 @@ Both read demos with the same parser (LaihoE/demoparser); the website uses a Web
 |---|---|---|---|---|---|---|---|
 | +25% or more | +15% | +10% | +3% | neutral (not shown) | −3% | −8% | −15% or worse |
 
-**All / Mine** (in the playback bar) chooses which moves are evaluated on screen: **All** is every move (every kill, every death, every grenade and flash, neutral C too), **Mine** is every move of yours (needs Log in with Steam, and you in the match). The map, the timeline, the killfeed, the cards and ◀ ▶ all follow it, so they always show the same moves. (Elsewhere, like the Players tab counts, only the moves that matter count: deaths only when untraded and −8% or worse.)
+**All / Mine** (in the playback bar) chooses which moves are evaluated on screen: **All** is every move (every kill, every death, every grenade and flash, neutral C too), **Mine** is every move of yours (needs Log in with Steam, and you in the match). The map, the timeline, the killfeed, the cards and previous / next all follow it, so they always show the same moves. (Elsewhere, like the Players tab counts, only the moves that matter count: deaths only when untraded and −8% or worse.)
 
 What you see on the map:
 - **Players** move smoothly, with a view cone and a white arrow for where they look. The top bar shows who's alive, health, score and the round / bomb timer, like in CS2.
@@ -54,9 +54,9 @@ What you see on the map:
 - **Grenades** fly as thrown and grow while they're in the air; then the smoke blooms, the fire burns, the flash bursts, the HE rings, each with its grade.
 - **The bomb:** next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded.
 - **Killfeed** (top right, like CS2's): every kill as killer → weapon → victim, with the killer's letter in front and the victim's after their name. Click a kill to open its card.
-- **Move cards** (bottom left, with a line to the player): while playing, each evaluated move's card opens by itself, one at a time and in order, and the replay goes into slow motion until it's read, so none are skipped. **⏸ Stop to read** freezes on it until **▶ Continue**; clicking the card skips to the next. Paused, a card opens for a kill you click, a moment you step to with ◀ ▶, or the move you stopped on; the players it's about light up and the rest of the map dims, and **‹ ›** pages through moves at the same moment.
+- **Move cards** (bottom left, with a line to the player): while playing, each evaluated move's card opens by itself, one at a time and in order, and the replay goes into slow motion until it's read, so none are skipped. **Stop to read** freezes on it until **Continue**; clicking the card skips to the next. Paused, a card opens for a kill you click, a moment you step to with previous / next, or the move you stopped on; the players it's about light up and the rest of the map dims, and **‹ ›** pages through moves at the same moment.
 - **Win chance** is the bar along the bottom of the map: CT from the left, T from the right.
-- **📖** turns slow motion off (the card then just shows the latest move), and **💬** turns the cards off altogether (remembered in your browser).
+- The **slow-motion** button (stopwatch) turns slow motion off (the card then just shows the latest move), and the **cards** button (speech bubble) turns the cards off altogether (both remembered in your browser).
 
 ### Your CS2 demo folder (website, Chrome / Edge)
 1. **Review** tab → **Choose your Steam folder** → pick the Steam folder where CS2 is installed (e.g. `C:\Program Files (x86)\Steam` or `D:\SteamLibrary`; any folder on the way to `…\csgo\replays` works). A website can't search your disk, so you pick it once.
@@ -80,11 +80,11 @@ What you see on the map:
 5. Valve deletes demos after about a month, so download the ones you want to keep.
 
 ### Plan a round (Tactical)
-1. **☰ Setup** (top of the tool rail on the left) opens the map picker, **CT setups**, **T plays** and line-ups. A default CT setup is already placed.
+1. **Setup** (menu button) (top of the tool rail on the left) opens the map picker, **CT setups**, **T plays** and line-ups. A default CT setup is already placed.
 2. **Move players:** drag them, double-click then click where they go, or select one and right-click the map. Turn them by clicking the white dot or with `[` `]`.
 3. **Routes:** Route tool → click a player → click where they should go (Shift+click adds waypoints).
-4. **Grenades:** Smoke / Flash / Molotov / HE tools, or **Line-up** for real throws. Every tool is on the rail with its key (V, C, T, S, F, M, H, P, L, E); ↶ ↷ undo and redo.
-5. Press **▶ Play** (or Space). The **◧ Standard ▾** menu (top left of the map) chooses how much is drawn (Clean / Standard / Full, keys 1–3) and turns single layers on and off.
+4. **Grenades:** Smoke / Flash / Molotov / HE tools, or **Line-up** for real throws. Every tool is on the rail with its key (V, C, T, S, F, M, H, P, L, E); undo and redo at the bottom.
+5. Press **Play** (or Space). The **Standard** layers menu (top left of the map) chooses how much is drawn (Clean / Standard / Full, keys 1–3) and turns single layers on and off.
 6. The right panel (**Panel** to show or hide it; it slides over the map on smaller screens) explains it. Selecting a player or grenade shows its settings at the top: weakest entrance, likely T plays, kill chances (200 simulated rounds), map control, what each grenade is worth. Select a CT and turn on **Best spots** to see where they should stand.
 
 ## Running it yourself (desktop)
@@ -136,9 +136,9 @@ Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings an
 |---|---|
 | **Maps** | 10 maps: the 9 competitive ones (Mirage, Inferno, Dust II, Nuke, Ancient, Anubis, Overpass, Train, Vertigo) plus Cache, on Valve's radars, with upper/lower levels for Nuke, Train and Vertigo. |
 | **Board** | CT/T players with view cones (106° FOV) and a look arrow; drag, double-click → click to move, right-click to send; turn with the white dot or `[` `]`; smokes, flashes, molotovs, HE grenades. |
-| **Routes & timeline** | Shortest walkable paths with waypoints, leave time, run/walk. Round-time slider and ▶ Play (0.5–4×): positions, smokes, map control and fights all follow the clock. |
+| **Routes & timeline** | Shortest walkable paths with waypoints, leave time, run/walk. Round-time slider and Play (0.5–4×): positions, smokes, map control and fights all follow the clock. |
 | **Guns** | 31 CS2 weapons with price, damage, fire rate, armour pen, movement speed, kill speed and range. Pick the exact gun per player; the simulation uses its stats. |
-| **Combat** | Seeded fight simulation: reaction times, peeker's advantage, crossfires, gun stats, flashes, HE/molotov damage and HP. 🎲 Re-roll for other outcomes. 200-round batches give kill chances and round win rates. |
+| **Combat** | Seeded fight simulation: reaction times, peeker's advantage, crossfires, gun stats, flashes, HE/molotov damage and HP. Re-roll (dice) for other outcomes. 200-round batches give kill chances and round win rates. |
 | **Analysis** | Map control as territory with a front line, entry points (timing, holders, guns, crossfire, T pressure), predicted T plays, best spots for a selected CT, utility value. Hand-made layers for Mirage and Nuke, generated from geometry for the rest (Vertigo is rough). |
 | **Line-ups** | Starter library (Mirage, Dust II) and your own line-ups saved in the browser. "Use" makes the selected player walk to the spot and throw it. |
 | **Match review** | Demo rounds replay with smooth movement, look arrows, bullet tracers, grenades as thrown, the bomb, a CS2-style HUD and a live eval bar. Kills, grenades and costly deaths get a letter (S+ … F, see below) plus context tags; each player gets a round letter and a match letter on the same scale and a role (Entry, Lurk, Support, AWPer, Anchor, Rotator, Rifler). Premier ratings shape the eval and duel grades (UPSET); grades weigh each team's economy and guns. Move windows with a reading queue and slow motion. |
@@ -190,20 +190,23 @@ src/
     lineups.ts       built-in + custom line-ups, flight-time model
     generated/maps.json   walkability grids + overview calibration (built by tools/build-maps.mjs)
   ui/
+    Icon.tsx         <Icon name="play" />: CS2's own pictograms (GAME map) drawn in currentColor with a CSS mask; <GameIcon
+                     src="equipment/ak47" /> for any game icon; a few small markers as line drawings
+    cs2Icons.ts      the list of CS2 pictograms in public/icons/cs2 with each one's aspect ratio (regenerate when adding)
     tokens.ts        design tokens: every colour, the fonts; applyTokens() writes them to :root, Konva imports the same values
     Board.tsx        Konva stage: radar, overlays, players, routes, utility, bomb, tools, gestures; the overlay slots
                      (.board-ui: HUD, layers menu, killfeed, zoom, grenade feed / card, eval bar, playback dock) around the map
     MoveFeed.tsx     Review: KillFeed (every kill with letters, top right) and the move card: opens by itself while playing
-                     (reading queue, slow motion), or on click / ◀ ▶ / ⏸ when paused (store.feedPick); line to the player,
+                     (reading queue, slow motion), or on click / previous-next / Stop to read when paused (store.feedPick); line to the player,
                      who it's about (onFocus dims the rest)
     shown.ts         the one rule for which moves are evaluated on screen (store.evalScope All / Mine, store.me); used by
-                     the map, timeline, killfeed, cards, move list and ◀ ▶
+                     the map, timeline, killfeed, cards, move list and moment stepping
     Shots.tsx        bullet tracers and muzzle flashes in Review
     Nades.tsx        grenade visuals: flights, smoke clouds, fire, flash burst, HE ring, countdowns, grade marks
-    Panels.tsx       the tool rail (+ ☰ Setup flyout) and the right analysis panel (selection editor on top)
+    Panels.tsx       the tool rail (+ Setup flyout) and the right analysis panel (selection editor on top)
     Recap.tsx        review start page (drop zone) + review panel (eval graph, moves, economy, player grades, moment nav)
     Report.tsx       Match recap page: header, Performance + Gauge, CoachCard (deviation bars), Scoreboard, RoundGrid
-    Playback.tsx     CS2-style round HUD and the playback dock (play, speed, 💬, 📖, Review timeline, combat)
+    Playback.tsx     CS2-style round HUD and the playback dock (play, speed, All / Mine, cards, slow motion, Review timeline, combat)
     DemoFolder.tsx   website: CS2 replays folder (File System Access API), auto-read, cache versioned by V
     readDemo.ts      reads a .dem in demoWorker.ts (WebAssembly parser) off the main thread
     localStore.ts    IndexedDB key-value store + gzip helpers (CompressionStream)
@@ -244,6 +247,7 @@ server/              demo bot, not hosted (server/README.md)
 - **Per-level maps:** `getEngine(mapId, level)`. The store keeps a separate board per `map:level`.
 - **Tactical data:** hand-made layers live in `catalog.ts`. Prefer adding callouts/chokepoints there over editing the generator.
 - **Design:** colours only from `ui/tokens.ts` (CSS `var(--…)`, Konva imports `T` / `SIDE_COLOR` / `UTIL_COLOR`). Only team, grenade and grade colours are colourful; the chrome is greyscale and white is the interactive colour. Rajdhani (`var(--font-display)`) for headings and big numbers, Inter for everything else, tabular digits in tables. Anything over the map goes into a `.board-ui` slot, on a solid `var(--overlay)` surface (no backdrop blur over the canvas).
+- **Icons:** only from `ui/Icon.tsx`: CS2's own pictograms (`public/icons/cs2`, from the game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons); the art is Valve's) wherever the game has one. No emoji anywhere in the UI.
 - **Style:** match the surrounding code: small pure functions in `engine/`, short doc comments on the *why*, no new dependencies without asking the user.
 
 ### Testing
@@ -267,4 +271,4 @@ server/              demo bot, not hosted (server/README.md)
 
 ## Credits
 
-Radar images and overview data are © Valve Corporation, taken from the CS2 game files via [MurkyYT/cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons). Demo parsing by [LaihoE/demoparser](https://github.com/LaihoE/demoparser). Counter-Strike is a trademark of Valve Corporation; this project is not affiliated with Valve.
+Radar images and overview data are © Valve Corporation, taken from the CS2 game files via [MurkyYT/cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons). Weapon, equipment and interface pictograms are © Valve Corporation, from the CS2 game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons). Demo parsing by [LaihoE/demoparser](https://github.com/LaihoE/demoparser). Counter-Strike is a trademark of Valve Corporation; this project is not affiliated with Valve.

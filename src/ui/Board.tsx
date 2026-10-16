@@ -23,6 +23,7 @@ import { ENTRY_COLOR, entryClock, entryReports } from '../engine/entries';
 import { BUILTIN_LINEUPS } from '../map/lineups';
 import { bakeRoute, liveState, type BakedRoute } from '../engine/timeline';
 import type { BoardState, Player, Utility, Vec2 } from '../engine/types';
+import { Icon } from './Icon';
 import { useStore } from '../store';
 
 Konva.dragDistance = 4;
@@ -374,7 +375,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                   strokeWidth={(doomed ? 3.5 : 2.2) * k} dash={[7 * k, 4 * k]} pointerLength={7 * k} pointerWidth={7 * k} lineJoin="round" />
                 {p.route!.pts.map((w, i) => <Circle key={i} x={w.x} y={w.y} radius={2.5 * k} fill={col} />)}
                 <RouteTicks route={r} k={k} color={col} />
-                <Text x={end.x + 6 * k} y={end.y - 14 * k} text={`${p.label} · ${fmtTime(r.end)}${r.unreachable ? ' ⚠' : ''}`} fontSize={9 * k}
+                <Text x={end.x + 6 * k} y={end.y - 14 * k} text={`${p.label} · ${fmtTime(r.end)}${r.unreachable ? ' (off the floor)' : ''}`} fontSize={9 * k}
                   fill="#fff" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled fontStyle="bold" />
               </Group>
             );
@@ -595,11 +596,11 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           <div className="tr-buttons">
           {recap && (
             <button className={`reveal-float ${s.reviewSpoilers ? 'on' : ''}`} onClick={() => s.setReviewSpoilers(!s.reviewSpoilers)} title="Shortcut: R">
-              {s.reviewSpoilers ? '◀ Live' : '⏭ Reveal all'}
+              {s.reviewSpoilers ? <><Icon name="prev" /> Live</> : <><Icon name="revealAll" /> Reveal all</>}
             </button>
           )}
           <button className={`drawer-toggle ${s.drawerOpen ? 'on' : ''}`} onClick={() => s.setDrawerOpen(!s.drawerOpen)}
-            title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}>{s.drawerOpen ? 'Panel ⟩' : '⟨ Panel'}</button>
+            title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}><Icon name={s.drawerOpen ? 'panelClose' : 'panelOpen'} /> Panel</button>
           </div>
           {recap && s.review && (
             <KillFeed recap={recap} round={s.review.data.rounds[s.review.round]} time={s.time} names={s.review.data.names} />

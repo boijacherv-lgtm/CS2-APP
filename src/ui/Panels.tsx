@@ -15,6 +15,7 @@ import { Fold } from './Fold';
 import { BUILTIN_LINEUPS, flightTime, type Lineup, type Technique } from '../map/lineups';
 import { DemoLoader } from './Recap';
 import { useEffect, useRef, useState } from 'react';
+import { Icon, type IconName } from './Icon';
 import { threatColor } from './Board';
 
 const TOOLS: { id: Tool; label: string; key: string }[] = [
@@ -30,10 +31,10 @@ const TOOLS: { id: Tool; label: string; key: string }[] = [
   { id: 'erase', label: 'Erase', key: 'E' },
 ];
 
-const TOOL_GLYPH: Partial<Record<Tool, string>> = { select: '↖', path: '⤳', lineup: '◎', erase: '⌫' };
+const TOOL_ICON: Partial<Record<Tool, IconName>> = { select: 'cursor', path: 'route', lineup: 'target', erase: 'eraser' };
 
 /**
- * The thin tool rail on the left of the board: one button per tool (with its key), undo/redo, and ☰, which opens the
+ * The thin tool rail on the left of the board: one button per tool (with its key), undo/redo, and the menu button, which opens the
  * Setup panel (map, CT setups, T plays, line-ups; in Review: the match) over the board. Everything is a click.
  */
 export function Rail({ engine }: { engine: TacticalEngine }) {
@@ -55,20 +56,20 @@ export function Rail({ engine }: { engine: TacticalEngine }) {
       <nav className="rail" aria-label="Tools">
         <button className={`rail-btn ${open ? 'on' : ''}`} onClick={() => setOpen(o => !o)} aria-expanded={open}
           title={review ? 'Match: load another, save' : 'Map, CT setups, T plays and line-ups'}>
-          <span className="rail-ico">☰</span><small>{review ? 'Match' : 'Setup'}</small>
+          <span className="rail-ico"><Icon name="menu" size={18} /></span><small>{review ? 'Match' : 'Setup'}</small>
         </button>
         {!review && <>
           <i className="rail-sep" />
           {TOOLS.map(t => (
             <button key={t.id} className={`rail-btn ${s.tool === t.id ? 'on' : ''}`} onClick={() => s.setTool(t.id)} title={`${t.label} (key ${t.key})`} aria-label={t.label}>
-              {TOOL_GLYPH[t.id] ? <span className="rail-ico">{TOOL_GLYPH[t.id]}</span> : <span className={`dot ${t.id}`} />}
+              {TOOL_ICON[t.id] ? <span className="rail-ico"><Icon name={TOOL_ICON[t.id]!} size={18} /></span> : <span className={`dot ${t.id}`} />}
               <small>{t.key}</small>
               {(t.id === 'ct' || t.id === 't') && <em className="rail-count">{count(t.id === 'ct' ? 'CT' : 'T')}/5</em>}
             </button>
           ))}
           <span className="rail-grow" />
-          <button className="rail-btn" onClick={s.undo} disabled={!s.past.length} title="Undo" aria-label="Undo"><span className="rail-ico">↶</span></button>
-          <button className="rail-btn" onClick={s.redo} disabled={!s.future.length} title="Redo" aria-label="Redo"><span className="rail-ico">↷</span></button>
+          <button className="rail-btn" onClick={s.undo} disabled={!s.past.length} title="Undo" aria-label="Undo"><span className="rail-ico"><Icon name="undo" size={18} /></span></button>
+          <button className="rail-btn" onClick={s.redo} disabled={!s.future.length} title="Redo" aria-label="Redo"><span className="rail-ico"><Icon name="redo" size={18} /></span></button>
         </>}
       </nav>
       {open && <div className="flyout"><SetupPanel engine={engine} /></div>}
@@ -168,8 +169,8 @@ function Selection({ engine }: { engine: TacticalEngine }) {
           value={Math.round((((p.facing ?? engine.facing(p)) * 180) / Math.PI + 360) % 360)}
           onChange={e => s.updatePlayer(p.id, { facing: (+e.target.value * Math.PI) / 180 })} />
         <div className="row">
-          <button onClick={() => s.updatePlayer(p.id, { facing: (p.facing ?? engine.facing(p)) - Math.PI / 12 })} title="Shortcut: [">⟲ 15°</button>
-          <button onClick={() => s.updatePlayer(p.id, { facing: (p.facing ?? engine.facing(p)) + Math.PI / 12 })} title="Shortcut: ]">15° ⟳</button>
+          <button onClick={() => s.updatePlayer(p.id, { facing: (p.facing ?? engine.facing(p)) - Math.PI / 12 })} title="Shortcut: ["><Icon name="rotateLeft" /> 15°</button>
+          <button onClick={() => s.updatePlayer(p.id, { facing: (p.facing ?? engine.facing(p)) + Math.PI / 12 })} title="Shortcut: ]">15° <Icon name="rotateRight" /></button>
           <button onClick={() => s.updatePlayer(p.id, { facing: undefined })} disabled={p.facing === undefined}>Auto</button>
         </div>
       </div>
@@ -418,15 +419,15 @@ function KillFeed({ sim, engine }: { sim: Simulation; engine: TacticalEngine }) 
     <Fold id="feed" defaultOpen={false}
       title="Round events"
       aside={<>alive {fmt(s.time)}: <span className="ct">CT {alive('CT')}</span> vs <span className="t">T {alive('T')}</span></>}>
-      {sim.kills.length === 0 && <p className="muted">No fights yet. Give players routes (or place them in each other's sight) and press ▶ Play.</p>}
+      {sim.kills.length === 0 && <p className="muted">No fights yet. Give players routes (or place them in each other's sight) and press Play.</p>}
       {[
         ...sim.kills.map(k => ({ t: k.t, kind: 'kill' as const, k })),
         ...sim.utilEvents.filter(e => (e.kind === 'blind' && e.amount >= 1) || (e.kind !== 'blind' && e.amount >= 10)).map(e => ({ t: e.t, kind: 'util' as const, e })),
       ].sort((a, b) => a.t - b.t).map((row, i) => row.kind === 'kill' ? (
         <button key={i} className={`kill ${row.k.t <= s.time ? 'past' : ''}`} onClick={() => { s.setPlaying(false); s.setTime(row.k.t + 0.05); }}>
           <span className="muted">{fmt(row.k.t)}</span>
-          {row.k.killer ? <b className={side(row.k.killer).toLowerCase()}>{name(row.k.killer)}</b> : <b>{row.k.cause === 'he' ? '💥 HE' : '🔥 Molotov'}</b>}
-          ✕ <b className={side(row.k.victim).toLowerCase()}>{name(row.k.victim)}</b>
+          {row.k.killer ? <b className={side(row.k.killer).toLowerCase()}>{name(row.k.killer)}</b> : <b>{row.k.cause === 'he' ? <><Icon name="burst" /> HE</> : <><Icon name="flame" /> Molotov</>}</b>}
+          <Icon name="close" size={11} /> <b className={side(row.k.victim).toLowerCase()}>{name(row.k.victim)}</b>
           <span className="muted grow-r">{where(row.k.at)}</span>
         </button>
       ) : (
@@ -436,7 +437,7 @@ function KillFeed({ sim, engine }: { sim: Simulation; engine: TacticalEngine }) 
           <span>{row.e.kind === 'blind' ? `flashed ${row.e.amount.toFixed(1)}s` : row.e.kind === 'he' ? `HE −${Math.round(row.e.amount)} hp` : `burned −${Math.round(row.e.amount)} hp`}</span>
         </button>
       ))}
-      <p className="muted">Click an event to jump there. 🎲 Re-roll plays the same round with different fight luck.</p>
+      <p className="muted">Click an event to jump there. Re-roll (dice) plays the same round with different fight luck.</p>
     </Fold>
   );
 }
@@ -463,7 +464,7 @@ function RouteEditor({ player, engine }: { player: import('../engine/types').Pla
           </select>
         </label>
       </div>
-      {baked && <span className="muted">Arrives {fmt(baked.end)} · {r.pts.length} waypoint{r.pts.length > 1 ? 's' : ''}{baked.unreachable ? ' · ⚠ a waypoint is off the walkable floor' : ''}</span>}
+      {baked && <span className="muted">Arrives {fmt(baked.end)} · {r.pts.length} waypoint{r.pts.length > 1 ? 's' : ''}{baked.unreachable ? <> · <Icon name="warning" size={12} /> a waypoint is off the walkable floor</> : ''}</span>}
       <div className="row">
         <button onClick={() => { s.setTool('path'); s.startRoute(player.id); }}>Redraw</button>
         <button onClick={() => s.updateRoute(player.id, null)}>Delete route</button>
@@ -578,7 +579,7 @@ function Lineups({ engine }: { engine: TacticalEngine }) {
             <b>{l.name}</b>
             <span className="muted">{l.side === 'any' ? '' : l.side}</span>
             <button onClick={() => use(l)} title={sel ? `Thrown when ${sel.side} ${sel.label} can reach the spot` : 'Thrown at the current round time'}>Use</button>
-            {l.custom && <button onClick={() => s.deleteLineup(l.id)} title="Delete this line-up">✕</button>}
+            {l.custom && <button onClick={() => s.deleteLineup(l.id)} title="Delete this line-up" aria-label="Delete this line-up"><Icon name="close" size={12} /></button>}
           </div>
           <div className="meta">{l.technique} · {flightTime(l, engine.map.radar.scale).toFixed(1)}s{l.notes ? ` · ${l.notes}` : ''}</div>
         </div>

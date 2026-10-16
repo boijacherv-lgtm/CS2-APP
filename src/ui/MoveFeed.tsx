@@ -3,14 +3,16 @@ import { simStateAt, type Simulation } from '../engine/combat';
 import { gunFromName } from '../engine/guns';
 import { calloutAt, GRADE_INFO, moveKey, readMs, TAG_INFO, type DemoRound, type Move, type Review } from '../engine/recap';
 import { useStore } from '../store';
+import { GameIcon, Icon } from './Icon';
+import { CS2_ICONS, type Cs2Icon } from './cs2Icons';
 import { useShown } from './shown';
 
 /**
  * Evaluated moves in Review (which ones: every move, or only yours; see ./shown):
  *   kills     the KillFeed (top right, like CS2's): every kill, with the killer's and the victim's letter. Click one
  *             to open its card.
- *   playing   each move's card opens by itself, bottom left, one at a time and in order. With 📖 on, the replay goes
- *             into slow motion until it's read (⏸ stops on it, clicking the card skips to the next); with 📖 off the
+ *   playing   each move's card opens by itself, bottom left, one at a time and in order. With slow motion on, the replay goes
+ *             into slow motion until it's read (Stop to read stops on it, clicking the card skips to the next); with it off the
  *             replay doesn't wait and the card shows the latest move.
  *   paused    the card for a move you clicked, a moment you stepped to with ◀ ▶, or the one you stopped on.
  * The players a card is about are highlighted on the map (onFocus) and a line runs to the player.
@@ -130,7 +132,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
           <span className={`feed-gain ${card.gain >= 0 ? 'up' : 'down'}`} title="Change in their team's win chance">
             {card.gain >= 0 ? '+' : '−'}{Math.abs(Math.round(card.gain * 100))}%
           </span>
-          {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close">✕</button>}
+          {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close"><Icon name="close" /></button>}
         </div>
         <div className="feed-title">{card.title}</div>
         {card.tags.length > 0 && (
@@ -147,9 +149,9 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
               <button onClick={() => setPage((page + 1) % group.length)} aria-label="Next move at this moment">›</button>
             </span>
           )}
-          {reading && !held && <button className="feed-stop" onClick={stop} title="Stop the replay on this move to read it">⏸ Stop to read</button>}
+          {reading && !held && <button className="feed-stop" onClick={stop} title="Stop the replay on this move to read it"><Icon name="pause" size={12} /> Stop to read</button>}
           {reading && !held && <span className="muted">slow motion · click the card to skip</span>}
-          {held && <button className="primary" onClick={resume} title="Carry on (Space)">▶ Continue</button>}
+          {held && <button className="primary" onClick={resume} title="Carry on (Space)"><Icon name="play" size={12} /> Continue</button>}
         </div>
         {reading && !held && readFor > 0 && <i key={`r${cardKey}`} className="feed-read" style={{ animationDuration: `${readFor}ms`, background: g.color }} />}
       </div>
@@ -186,14 +188,14 @@ export function KillFeed({ recap, round, time, names }: { recap: Review; round: 
         const kill = k.attacker && k.attacker !== k.victim && sideOf(k.attacker) ? moveOf('kill', k.attacker, k.t) : undefined;
         const death = moveOf('death', k.victim, k.t);
         const open = kill ?? death;
-        const gun = weaponLabel(k.weapon);
+        const gun = weaponLabel(k.weapon), pic = weaponIcon(k.weapon);
         const on = !!open && picked?.key === moveKey(open) && Math.abs(picked.t - time) < 0.01;
         return (
           <div key={`${k.t}-${k.victim}-${i}`} className={`kf-row ${on ? 'on' : ''} ${time - k.t < 0.6 ? 'new' : ''}`}
             onClick={() => open && openMove(moveKey(open))} title={open ? 'Open this kill' : undefined}>
             {chip(kill)}
             {kill ? who(k.attacker) : null}
-            <span className="kf-gun">{gun}{k.headshot && <i className="kf-hs" title="Headshot">⌖</i>}</span>
+            <span className="kf-gun" title={gun}>{pic ? <GameIcon src={pic} size={15} title={gun} /> : gun}{k.headshot && <Icon name="crosshair" size={14} title="Headshot" className="kf-hs" />}</span>
             {who(k.victim)}
             {chip(death)}
           </div>
@@ -214,4 +216,16 @@ function weaponLabel(w: string): string {
   if (/c4|planted/.test(n)) return 'Bomb';
   if (n === 'world' || n === 'trigger_hurt') return 'Fall';
   return gunFromName(w)?.short ?? n.replace(/_/g, ' ');
+}
+
+/** CS2's killfeed pictogram for a weapon from the demo (weapon_ak47, m4a1_silencer, hegrenade, inferno, knife_t…). */
+function weaponIcon(w: string): Cs2Icon | null {
+  let n = w.toLowerCase().replace(/^weapon_/, '');
+  if (/^knife|bayonet/.test(n)) n = n === 'bayonet' ? 'bayonet' : n === 'knife_t' ? 'knife_t' : 'knife';
+  if (n === 'molotov' || n === 'incgrenade' || n === 'inferno') n = 'inferno';
+  if (n === 'usp_silencer_off') n = 'usp_silencer';
+  if (n === 'm4a1_silencer_off') n = 'm4a1_silencer';
+  if (n === 'planted_c4' || n === 'c4') n = 'planted_c4';
+  const key = `equipment/${n}` as Cs2Icon;
+  return key in CS2_ICONS ? key : null;
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from './Icon';
 import { activeView, useStore, type Overlay, type ViewName } from '../store';
 
 export const VIEWS: { id: ViewName; label: string; key: string; hint: string }[] = [
@@ -62,7 +63,7 @@ export function LayersBar() {
       {/* one compact button (it never gets squeezed); the presets and every layer are in its menu */}
       <button className={`layers-btn ${open ? 'on' : ''}`} onClick={() => setOpen(o => !o)} aria-expanded={open}
         title="How much the map shows (keys 1 2 3), and every layer">
-        <span className="layers-ico" aria-hidden>◧</span> {label} <span aria-hidden>▾</span>
+        <Icon name="layers" className="layers-ico" /> {label} <Icon name="chevronDown" size={8} />
       </button>
       {open && (
         <div className="layers-menu">

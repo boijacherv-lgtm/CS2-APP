@@ -7,6 +7,7 @@ import { SteamAccount } from '../ui/SteamLogin';
 import { finishSteamLogin, steamFetch } from '../ui/steamApi';
 import { useStore } from '../store';
 import { APP_NAME, APP_TAGLINE, LogoMark } from './Logo';
+import { Icon } from '../ui/Icon';
 import { navigate, routeHref, useRoute, type Route } from './router';
 
 interface Game { id: string; name: string; short: string; live: boolean; blurb: string; color: string }
@@ -78,15 +79,15 @@ function NavBar({ route }: { route: Route }) {
         <div className="modes" role="tablist" aria-label="Mode">
           <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
             onClick={() => navigate({ page: 'cs2', mode: 'tactical' })} title="Plan rounds on the board">
-            <span className="mode-ico">▦</span> Tactical
+            <Icon name="grid" className="mode-ico" /> Tactical
           </button>
           <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
             onClick={() => navigate({ page: 'cs2', mode: 'review' })} title="Replay and grade a played match">
-            <span className="mode-ico">▶</span> Review{loaded ? <i className="dot-live" title="A match is loaded" /> : null}
+            <Icon name="play" className="mode-ico" /> Review{loaded ? <i className="dot-live" title="A match is loaded" /> : null}
           </button>
           <button role="tab" aria-selected={route.mode === 'report'} className={route.mode === 'report' ? 'on' : ''}
             onClick={() => navigate({ page: 'cs2', mode: 'report' })} title="The coach's notes, every player's grades and estimated rating for the match">
-            <span className="mode-ico">★</span> Match recap
+            <Icon name="star" className="mode-ico" /> Match recap
           </button>
         </div>
       )}

@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { GRADE_INFO, type DemoData, type DemoRound, type Review } from '../engine/recap';
 import { SIDE_COLOR, T } from './tokens';
 import { useShown } from './shown';
+import { Icon } from './Icon';
 import { useStore } from '../store';
 
 /** CS2's round clock is 1:55 after freeze time. The board's time counts up from 0 at the end of freeze time. */
@@ -61,7 +62,7 @@ export function RoundHud({ players, score, plantedAt }: { players: HudPlayer[]; 
       <div className="hud-alive ct" title="CT players alive">{alive('CT')}</div>
       <div className={`hud-mid ${planted ? 'bomb' : ''} ${left <= 10 ? 'low' : ''}`}>
         {score && <span className="hud-score ct" title="Rounds won by this round's CT team">{score[0]}</span>}
-        <span className="hud-clock">{planted && <span className="hud-bomb" aria-label="Bomb planted">💣</span>}{clock(left)}</span>
+        <span className="hud-clock">{planted && <span className="hud-bomb" aria-label="Bomb planted"><Icon name="bomb" size={15} /></span>}{clock(left)}</span>
         {score && <span className="hud-score t" title="Rounds won by this round's T team">{score[1]}</span>}
       </div>
       <div className="hud-alive t" title="T players alive">{alive('T')}</div>
@@ -80,19 +81,19 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
       <button className={`play-main ${s.playing ? 'on' : ''}`} title="Play / pause (Space)" onClick={() => {
         if (!s.playing && s.time >= end - 0.05) s.setTime(0);
         s.setPlaying(!s.playing);
-      }}>{s.playing ? '❚❚' : '▶'}<span> {s.playing ? 'Pause' : 'Play'}</span></button>
-      <button onClick={() => { s.setPlaying(false); s.setTime(0); }} title="Back to round start">⟲</button>
+      }}><Icon name={s.playing ? 'pause' : 'play'} /><span> {s.playing ? 'Pause' : 'Play'}</span></button>
+      <button onClick={() => { s.setPlaying(false); s.setTime(0); }} title="Back to round start" aria-label="Back to round start"><Icon name="toStart" /></button>
       <select value={s.speed} onChange={e => s.setSpeed(+e.target.value)} title="Playback speed">
         <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
       </select>
       {review && <EvalToggle />}
       {review && (
         <button className={s.popups ? 'on' : ''} onClick={e => { s.setPopups(!s.popups); e.currentTarget.blur(); }}
-          title={s.popups ? 'Move windows: on (a window with the grade and comments for each graded move)' : 'Move windows: off'}>💬</button>
+          title={s.popups ? 'Move windows: on (a window with the grade and comments for each graded move)' : 'Move windows: off'} aria-label="Move windows"><Icon name="chat" /></button>
       )}
       {review && s.popups && (
         <button className={s.readSlow ? 'on' : ''} onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
-          title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'}>📖</button>
+          title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'} aria-label="Slow motion while reading"><Icon name="slow" /></button>
       )}
       {review && recap && round
         ? <Timeline end={end} recap={recap} round={round} time={s.time} spoilers={s.reviewSpoilers} onSeek={t => { s.setPlaying(false); s.setTime(t); }} />
@@ -101,8 +102,8 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
             onChange={e => { s.setPlaying(false); s.setTime(+e.target.value); }} />}
       {!review && (
         <>
-          <button className={s.combat ? 'on' : ''} onClick={() => s.setCombat(!s.combat)} title="Combat: players fight and die">⚔</button>
-          <button onClick={s.reroll} disabled={!s.combat} title="Roll the fights again">🎲</button>
+          <button className={s.combat ? 'on' : ''} onClick={() => s.setCombat(!s.combat)} title="Combat: players fight and die" aria-label="Combat"><Icon name="swords" /></button>
+          <button onClick={s.reroll} disabled={!s.combat} title="Roll the fights again" aria-label="Re-roll the fights"><Icon name="dice" /></button>
         </>
       )}
     </div>
@@ -157,7 +158,7 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
       {kills.map((k, i) => (
         <i key={`k${i}`} className={`tl-kill ${sideOf(k.attacker) === 'CT' ? 'ct' : 't'}`} style={{ left: pct(k.t), background: SIDE_COLOR[sideOf(k.attacker)!] }} />
       ))}
-      {plant !== null && <span className="tl-bomb" style={{ left: pct(plant) }} title={`Bomb planted at ${clock(plant)} into the round`}>💣</span>}
+      {plant !== null && <span className="tl-bomb" style={{ left: pct(plant) }} title={`Bomb planted at ${clock(plant)} into the round`}><Icon name="bomb" size={12} /></span>}
       {moves.map((m, i) => {
         const g = GRADE_INFO[m.grade];
         // the same letter chip as on the map, for every move that's evaluated
@@ -180,7 +181,7 @@ function EvalToggle() {
       <button className={!mine ? 'on' : ''} onClick={() => setScope('all')} title="Evaluate every move: every kill, death, grenade and flash">All</button>
       <button className={mine ? 'on' : ''} disabled={!canMine} onClick={() => setScope('mine')}
         title={canMine ? 'Evaluate only your moves' : 'Log in with Steam (and be in this match) to see only your moves'}>
-        Mine{scope === 'mine' && !canMine ? ' ⚠' : ''}
+        Mine{scope === 'mine' && !canMine ? <Icon name="warning" size={11} /> : null}
       </button>
     </div>
   );

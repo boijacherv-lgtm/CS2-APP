@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import type { SteamMatch, SteamStatus } from '../../tools/steam.mjs';
 import { SteamLoginButton } from './SteamLogin';
 import { steamFetch, steamSignOut } from './steamApi';
+import { Icon } from './Icon';
 import { ONLINE } from '../env';
 
 const SYNC_EVERY = 5 * 60 * 1000; // new games show up by themselves
@@ -210,7 +211,7 @@ function ValveSetup({ st, post, first, onDone }: { st: SteamStatus; post: <T>(ro
   const forget = async () => { try { await post('forget'); onDone(); } catch (x) { setErr(errText(x)); } };
   const row = (k: keyof typeof f, n: string, label: string, ok: boolean, placeholder: string, help: React.ReactNode, secret = false) => (
     <label className="steam-field">
-      <span>{ok ? '✓' : n} {label}</span>
+      <span>{ok ? <Icon name="check" size={12} /> : n} {label}</span>
       <input value={f[k]} onChange={set(k)} placeholder={ok ? 'saved (leave empty to keep)' : placeholder} type={secret ? 'password' : 'text'} autoComplete="off" spellCheck={false} />
       <small className="muted">{help}</small>
     </label>
@@ -226,13 +227,13 @@ function ValveSetup({ st, post, first, onDone }: { st: SteamStatus; post: <T>(ro
       )}
       <div className="steam-paste">
         <div className={`step ${c.authCode && c.knownCode ? 'done' : ''}`}>
-          <b>{c.authCode && c.knownCode ? '✓' : '1.'}</b>
+          <b>{c.authCode && c.knownCode ? <Icon name="check" size={13} /> : '1.'}</b>
           <a className="btn" href="https://help.steampowered.com/en/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noreferrer">Open Steam Support (CS2 codes)</a>
           <span className="muted">create the code if asked, then select the whole page (Ctrl/Cmd+A), copy it, paste below</span>
         </div>
         {/* the website uses its own Web API key (kept in the Worker); only the desktop version needs yours */}
         {!ONLINE && <div className={`step ${c.apiKey ? 'done' : ''}`}>
-          <b>{c.apiKey ? '✓' : '2.'}</b>
+          <b>{c.apiKey ? <Icon name="check" size={13} /> : '2.'}</b>
           <a className="btn" href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noreferrer">Open your API key page</a>
           <span className="muted">no key yet? register one with domain <code>localhost</code>; then copy the whole page and paste below</span>
         </div>}

@@ -71,7 +71,7 @@ interface Store {
   slowUntil: number;
   /** How slow (× the chosen speed) while reading: slower still when more moves are waiting. */
   slowSpeed: number;
-  /** Stopped on a move's window to read it (⏸ in the window); ▶ Continue goes on to the next one. */
+  /** Stopped on a move's window to read it (Stop to read on the card); Continue goes on to the next one. */
   readHold: boolean;
   /** Review: a move opened from the killfeed or the ticker, while the replay stays on that time `t`. */
   feedPick: { key: string; t: number } | null;

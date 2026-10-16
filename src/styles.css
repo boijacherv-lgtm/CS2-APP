@@ -9,6 +9,10 @@ html, body, #root { height: 100%; margin: 0; }
 body { background: var(--bg-0); color: var(--text-1); font: 13px/1.4 var(--font-ui); -webkit-font-smoothing: antialiased; }
 .num, table, .hud, .timeline { font-variant-numeric: tabular-nums; }
 .display { font-family: var(--font-display); letter-spacing: .02em; }
+.icon { display: inline-block; vertical-align: -0.18em; flex: none; }
+.gicon { background: currentColor; -webkit-mask: center / contain no-repeat; mask: center / contain no-repeat; }
+.icon.inline { margin-left: 4px; color: var(--text-2); }
+button .icon + span, button > .icon { pointer-events: none; }
 button, select, input { font: inherit; color: inherit; }
 button { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; cursor: pointer; text-align: left;
   transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out),
@@ -604,6 +608,10 @@ a.btn:hover { border-color: #45505e; }
 .kf-row.new { border-color: #ffffff59; }
 .kf-row.on { border-color: var(--text-1); background: var(--surface-3); }
 .kf-row b { overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
-.kf-gun { color: var(--text-2); font-size: 11.5px; display: inline-flex; align-items: center; gap: 4px; }
+.kf-gun { color: var(--text-1); font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px; }
 .kf-hs { font-style: normal; color: var(--text-1); font-size: 13px; }
 .kf-mark { min-width: 20px; height: 18px; padding: 0 3px; border-radius: 4px; display: grid; place-items: center; color: #111; font-weight: 900; font-size: 10.5px; }
+
+/* grenades in the Economy table: CS2's buy-menu pictograms */
+.nade-pics { display: inline-flex; gap: 4px; justify-content: flex-end; align-items: center; color: var(--text-1); }
+.nade-pic { display: inline-flex; gap: 1px; align-items: center; }
