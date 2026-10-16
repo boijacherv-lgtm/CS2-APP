@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { UTIL_FLIGHT } from './engine/grid';
 import type { RoundSummary } from './engine/match';
-import type { DemoData } from './engine/recap';
+import type { DemoData, EvalScope } from './engine/recap';
 import { presetsFor, tPlaysFor } from './map/catalog';
 import { loadCustomLineups, saveCustomLineups, type Lineup } from './map/lineups';
 import type { BoardState, Player, RoundContext, Route, Side, UtilType, Utility, Vec2, Weapon } from './engine/types';
@@ -36,7 +36,7 @@ export function activeView(o: Record<Overlay, boolean>): ViewName | null {
   return null;
 }
 
-const LS_OVERLAYS = 'stratboard.overlays', LS_FOLDED = 'stratboard.folded', LS_POPUPS = 'stratboard.popups', LS_DRAWER = 'stratboard.drawer';
+const LS_OVERLAYS = 'stratboard.overlays', LS_FOLDED = 'stratboard.folded', LS_POPUPS = 'stratboard.popups', LS_DRAWER = 'stratboard.drawer', LS_EVAL = 'stratboard.evalScope';
 function loadJson<T>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? { ...fallback, ...JSON.parse(raw) } : fallback; } catch { return fallback; }
 }
@@ -75,6 +75,11 @@ interface Store {
   readHold: boolean;
   /** Review: a move opened from the killfeed or the ticker, while the replay stays on that time `t`. */
   feedPick: { key: string; t: number } | null;
+  /** Review: evaluate every move ('all') or only the signed-in player's ('mine'). Remembered. */
+  evalScope: EvalScope;
+  /** SteamID of the signed-in player (null when not logged in with Steam). */
+  me: string | null;
+  setEvalScope(scope: EvalScope): void;
   /** Players fight and die during the timeline. */
   combat: boolean;
   /** Seed for fight outcomes; re-roll to see another way the round can go. */
@@ -200,6 +205,9 @@ export const useStore = create<Store>((set, get) => {
     slowSpeed: 0.3,
     readHold: false,
     feedPick: null,
+    evalScope: loadJson<{ v: EvalScope }>(LS_EVAL, { v: 'all' }).v,
+    me: null,
+    setEvalScope: evalScope => { saveJson(LS_EVAL, { v: evalScope }); set({ evalScope, slowUntil: 0, readHold: false, feedPick: null }); },
     combat: true,
     seed: 1,
     autoRoute: true,

@@ -46,18 +46,17 @@ Both read demos with the same parser (LaihoE/demoparser); the website uses a Web
 |---|---|---|---|---|---|---|---|
 | +25% or more | +15% | +10% | +3% | neutral (not shown) | −3% | −8% | −15% or worse |
 
-Deaths only get a letter when they cost the team: not traded and −8% or worse (E or F). Ordinary deaths stay unmarked but still count toward the round letter.
+**All / Mine** (in the playback bar) chooses which moves are evaluated on screen: **All** is every move (every kill, every death, every grenade and flash, neutral C too), **Mine** is every move of yours (needs Log in with Steam, and you in the match). The map, the timeline, the killfeed, the cards and ◀ ▶ all follow it, so they always show the same moves. (Elsewhere, like the Players tab counts, only the moves that matter count: deaths only when untraded and −8% or worse.)
 
 What you see on the map:
 - **Players** move smoothly, with a view cone and a white arrow for where they look. The top bar shows who's alive, health, score and the round / bomb timer, like in CS2.
 - **Shots:** every bullet is a muzzle flash and a tracer, to whoever it hit or toward the wall it hit.
 - **Grenades** fly as thrown and grow while they're in the air; then the smoke blooms, the fire burns, the flash bursts, the HE rings, each with its grade.
 - **The bomb:** next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded.
-- **Killfeed** (top right, like CS2's): every kill as killer → weapon → victim, with the killer's letter in front and the victim's after their name when the death cost the team. Click a kill to open its card.
-- **Grenades and flashes** come up in the bottom-left corner, one line each, the newest with a line to the player. They come one at a time, in order, and the replay goes into slow motion until each one is read, so none are skipped. **⏸** on the line stops on it.
-- **The card** (bottom left) has the letter, every comment, tags and **‹ ›** for moves at the same moment; the players it's about light up and the rest of the map dims. It opens only when you ask: a kill or grenade you click, a moment you step to with ◀ ▶, or ⏸. **▶ Continue** carries on after ⏸.
+- **Killfeed** (top right, like CS2's): every kill as killer → weapon → victim, with the killer's letter in front and the victim's after their name. Click a kill to open its card.
+- **Move cards** (bottom left, with a line to the player): while playing, each evaluated move's card opens by itself, one at a time and in order, and the replay goes into slow motion until it's read, so none are skipped. **⏸ Stop to read** freezes on it until **▶ Continue**; clicking the card skips to the next. Paused, a card opens for a kill you click, a moment you step to with ◀ ▶, or the move you stopped on; the players it's about light up and the rest of the map dims, and **‹ ›** pages through moves at the same moment.
 - **Win chance** is the bar along the bottom of the map: CT from the left, T from the right.
-- **📖** turns slow motion off, and **💬** turns the grenade lines and cards off altogether (remembered in your browser).
+- **📖** turns slow motion off (the card then just shows the latest move), and **💬** turns the cards off altogether (remembered in your browser).
 
 ### Your CS2 demo folder (website, Chrome / Edge)
 1. **Review** tab → **Choose your Steam folder** → pick the Steam folder where CS2 is installed (e.g. `C:\Program Files (x86)\Steam` or `D:\SteamLibrary`; any folder on the way to `…\csgo\replays` works). A website can't search your disk, so you pick it once.
@@ -194,9 +193,11 @@ src/
     tokens.ts        design tokens: every colour, the fonts; applyTokens() writes them to :root, Konva imports the same values
     Board.tsx        Konva stage: radar, overlays, players, routes, utility, bomb, tools, gestures; the overlay slots
                      (.board-ui: HUD, layers menu, killfeed, zoom, grenade feed / card, eval bar, playback dock) around the map
-    MoveFeed.tsx     Review: KillFeed (every kill with letters, top right), the grenade ticker (reading queue, slow
-                     motion), the move card (opened by click, ◀ ▶ or ⏸; store.feedPick), the line to the player and who
-                     it's about (onFocus dims the rest)
+    MoveFeed.tsx     Review: KillFeed (every kill with letters, top right) and the move card: opens by itself while playing
+                     (reading queue, slow motion), or on click / ◀ ▶ / ⏸ when paused (store.feedPick); line to the player,
+                     who it's about (onFocus dims the rest)
+    shown.ts         the one rule for which moves are evaluated on screen (store.evalScope All / Mine, store.me); used by
+                     the map, timeline, killfeed, cards, move list and ◀ ▶
     Shots.tsx        bullet tracers and muzzle flashes in Review
     Nades.tsx        grenade visuals: flights, smoke clouds, fire, flash burst, HE ring, countdowns, grade marks
     Panels.tsx       the tool rail (+ ☰ Setup flyout) and the right analysis panel (selection editor on top)

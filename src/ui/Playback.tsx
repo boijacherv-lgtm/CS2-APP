@@ -1,6 +1,7 @@
 import { useRef } from 'react';
-import { GRADE_INFO, isMarked, type DemoData, type DemoRound, type Review } from '../engine/recap';
+import { GRADE_INFO, type DemoData, type DemoRound, type Review } from '../engine/recap';
 import { SIDE_COLOR, T } from './tokens';
+import { useShown } from './shown';
 import { useStore } from '../store';
 
 /** CS2's round clock is 1:55 after freeze time. The board's time counts up from 0 at the end of freeze time. */
@@ -84,6 +85,7 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
       <select value={s.speed} onChange={e => s.setSpeed(+e.target.value)} title="Playback speed">
         <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
       </select>
+      {review && <EvalToggle />}
       {review && (
         <button className={s.popups ? 'on' : ''} onClick={e => { s.setPopups(!s.popups); e.currentTarget.blur(); }}
           title={s.popups ? 'Move windows: on (a window with the grade and comments for each graded move)' : 'Move windows: off'}>💬</button>
@@ -107,13 +109,12 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
   );
 }
 
-const BIG = new Set(['S+', 'S', 'E', 'F']); // shown as their letter; A, B and D are dots
 const W = 1000, H = 40;
 
 /**
  * The round as a timeline: the win chance as a filled curve behind the track (CT blue above the middle, T yellow
  * below), every kill as a tick in the killer's colour (CT from the top, T from the bottom), the big graded moves as
- * their letter (S+ S E F) and the small ones (A B D) as dots, and the bomb plant with the post-plant stretch tinted red. Like the
+ * their letter (the same chip as on the map, for every move that's evaluated), and the bomb plant with the post-plant stretch tinted red. Like the
  * rest of the review it only shows what has happened so far, unless Reveal all is on. Click anywhere (or a mark) to
  * jump there; dragging scrubs too.
  */
@@ -135,7 +136,8 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
     : '';
   const sideOf = (id: string) => round.frames.players[id]?.side;
   const kills = round.kills.filter(k => k.t <= until && sideOf(k.attacker));
-  const moves = recap.moves.filter(m => isMarked(m) && m.t <= until);
+  const { shown } = useShown();
+  const moves = recap.moves.filter(m => shown(m) && m.t <= until);
   const plant = round.plant !== null && round.plant <= until ? round.plant : null;
   return (
     <div className="tl" ref={track} role="slider" aria-label="Round timeline" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(time)}
@@ -158,13 +160,28 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
       {plant !== null && <span className="tl-bomb" style={{ left: pct(plant) }} title={`Bomb planted at ${clock(plant)} into the round`}>💣</span>}
       {moves.map((m, i) => {
         const g = GRADE_INFO[m.grade];
-        return BIG.has(m.grade)
-          ? <button key={`m${i}`} className="tl-mark" style={{ left: pct(m.t), background: g.color }} title={`${g.mark} ${m.title}`}
-              onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }}>{g.mark}</button>
-          : <button key={`m${i}`} className="tl-dot" style={{ left: pct(m.t), background: g.color }} title={`${g.mark} ${m.title}`}
-              onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }} />;
+        // the same letter chip as on the map, for every move that's evaluated
+        return (
+          <button key={`m${i}`} className="tl-mark" style={{ left: pct(m.t), background: g.color }} title={`${g.mark} · ${m.title}`}
+            onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }}>{g.mark}</button>
+        );
       })}
       <i className="tl-head" style={{ left: pct(time) }} />
+    </div>
+  );
+}
+
+/** Evaluate every move, or only the signed-in player's ("Mine" needs Steam login and being in this match). */
+function EvalToggle() {
+  const scope = useStore(s => s.evalScope), setScope = useStore(s => s.setEvalScope);
+  const { mine, canMine } = useShown();
+  return (
+    <div className="seg-mini eval-toggle" role="group" aria-label="Whose moves are evaluated">
+      <button className={!mine ? 'on' : ''} onClick={() => setScope('all')} title="Evaluate every move: every kill, death, grenade and flash">All</button>
+      <button className={mine ? 'on' : ''} disabled={!canMine} onClick={() => setScope('mine')}
+        title={canMine ? 'Evaluate only your moves' : 'Log in with Steam (and be in this match) to see only your moves'}>
+        Mine{scope === 'mine' && !canMine ? ' ⚠' : ''}
+      </button>
     </div>
   );
 }

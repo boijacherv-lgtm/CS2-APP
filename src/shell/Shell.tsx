@@ -4,7 +4,7 @@ import type { RoundSummary } from '../engine/match';
 import type { MatchWorkerIn, MatchWorkerOut } from '../engine/match.worker';
 import { MatchReportPage } from '../ui/Report';
 import { SteamAccount } from '../ui/SteamLogin';
-import { finishSteamLogin } from '../ui/steamApi';
+import { finishSteamLogin, steamFetch } from '../ui/steamApi';
 import { useStore } from '../store';
 import { APP_NAME, APP_TAGLINE, LogoMark } from './Logo';
 import { navigate, routeHref, useRoute, type Route } from './router';
@@ -26,7 +26,11 @@ export function Shell() {
   useEffect(() => { if (route.page === 'cs2' && route.mode !== 'report') setMode(route.mode); }, [route, setMode]);
   useMatchGrader();
   // website: Steam just sent us back from its login page → finish the login (once)
-  useEffect(() => { finishSteamLogin(); }, []);
+  useEffect(() => {
+    // after a Steam login comes back, learn who you are (Review can evaluate only your moves)
+    finishSteamLogin().then(() => steamFetch('/me')).then(r => (r.ok ? r.json() : null))
+      .then(j => useStore.setState({ me: j?.me?.steamId ?? null })).catch(() => {});
+  }, []);
 
   return (
     <div className="shell">

@@ -9,6 +9,7 @@ import { SteamMatches } from './SteamMatches';
 import { DemoFolder } from './DemoFolder';
 import { ONLINE, STEAM_AVAILABLE } from '../env';
 import { DEMO_PASSES, readDemoInBrowser } from './readDemo';
+import { shownNow, useShown } from './shown';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
@@ -110,13 +111,14 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   const r = replay.round;
   const all = s.reviewSpoilers;
   const [filter, setFilter] = useState<'all' | 'key' | string>('key');
+  const { shown } = useShown();
   const names = replay.names;
   const sideOf = (id: string) => replay.board.players.find(p => p.id === id)?.side ?? 'CT';
   // Like a chess game review: only what has happened so far, unless "show whole round" is on.
   const seen = movesUntil(recap, s.time, all);
   const finished = all || s.time >= r.duration - 0.3;
-  const moves = seen.filter(m => filter === 'all' ? true : filter === 'key' ? isMarked(m) : filter === 'util' ? !!m.util : m.player === filter);
-  const latest = [...seen].reverse().find(isMarked);
+  const moves = seen.filter(m => filter === 'all' ? true : filter === 'key' ? shown(m) : filter === 'util' ? !!m.util : m.player === filter);
+  const latest = [...seen].reverse().find(shown);
   const jump = (t: number) => { s.setPlaying(false); s.setTime(Math.max(0, t - 1.5)); };
   const players = scoreboard(recap, seen);
   const tp = recap.turningPoint && (all || recap.turningPoint.t <= s.time) ? recap.turningPoint : null;
@@ -227,7 +229,7 @@ export function stepMoment(recap: Review, dir: 1 | -1) {
   const st = useStore.getState();
   const rv = st.review;
   if (!rv) return;
-  const list = moments(recap);
+  const list = moments(recap, shownNow());
   const now = st.time;
   st.setPlaying(false);
   if (dir > 0) {
@@ -250,7 +252,8 @@ export function stepMoment(recap: Review, dir: 1 | -1) {
 export function MomentNav({ recap }: { recap: Review }) {
   const time = useStore(s => s.time);
   const rv = useStore(s => s.review);
-  const list = moments(recap);
+  const { shown } = useShown();
+  const list = moments(recap, shown);
   if (!rv) return null;
   const idx = list.reduce((a, m, i) => (m.t + SHOW_AFTER <= time + 0.05 ? i : a), -1);
   const cur: Moment | undefined = list[idx];
@@ -353,7 +356,7 @@ function loadout(weapons: string[]) {
 
 function MoveRow({ m, compact }: { m: Move; compact?: boolean }) {
   const g = GRADE_INFO[m.grade];
-  const death = m.kind === 'death' && !isMarked(m); // ordinary deaths: no letter, only the win-chance change
+  const death = false; // every listed move shows its letter (deaths too)
   return (
     <>
       <div className="move-head">

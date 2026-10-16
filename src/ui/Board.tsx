@@ -13,6 +13,7 @@ import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
 import { Gunfire } from './Shots';
 import { KillFeed, MoveFeed } from './MoveFeed';
+import { useShown } from './shown';
 import { SIDE_COLOR, T as TOK, UTIL_COLOR } from './tokens';
 import { MomentNav } from './Recap';
 import { LayersBar } from './Layers';
@@ -248,8 +249,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const selectedRaw = s.board.players.find(p => p.id === s.selectedId);
   const selected = selectedRaw && !isDead(selectedRaw) ? livePlayer(selectedRaw) : undefined;
   const smokesNow = activeSmokes(s.board.utility, s.time, UNITS_PER_PX);
-  // review: each grenade's letter (not C, neutral), shown on the grenade itself
-  const nadeGrades = useMemo(() => new Map((recap?.moves ?? []).filter(m => m.util && m.grade !== 'C').map(m => [m.util!, m.grade])), [recap]);
+  // review: each grenade's letter (when it's evaluated: every move, or only yours), shown on the grenade itself
+  const { shown } = useShown();
+  const nadeGrades = useMemo(() => new Map((recap?.moves ?? []).filter(m => m.util && shown(m)).map(m => [m.util!, m.grade])), [recap, shown]);
   const losPoly = useMemo(
     () => (selected && s.overlays.los ? engine.grid.visibilityPolygon(selected.pos, smokesNow, [engine.facing(selected), FOV]) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -532,7 +534,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               </Group>
             );
           })()}
-          {recap && sim && recap.moves.filter(m => isMarked(m) && s.time >= m.t && s.time - m.t < BADGE_SECS).map((m, i) => {
+          {recap && sim && recap.moves.filter(m => shown(m) && s.time >= m.t && s.time - m.t < BADGE_SECS).map((m, i) => {
             const pi = sim.ids.indexOf(m.player);
             if (pi < 0) return null;
             const step = Math.min(sim.steps - 1, Math.round((m.kind === 'death' ? m.t : s.time) / 0.1));

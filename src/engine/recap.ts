@@ -365,11 +365,21 @@ export function letterGrade(moves: Move[]): { letter: Letter; points: number } {
  */
 export const isMarked = (m: Move) => m.grade !== 'C' && (m.kind !== 'death' || (!m.tags.includes('TRADED') && (m.grade === 'E' || m.grade === 'F')));
 
+/**
+ * Which moves get evaluated on screen (letters on the map and the timeline, the killfeed letters, the move cards and
+ * ◀ ▶), so they always agree. 'all' is every move: every kill, every death, every grenade and flash, neutral C too.
+ * 'mine' is every move of one player (you, when you're logged in with Steam).
+ */
+export type EvalScope = 'all' | 'mine';
+export function evaluated(scope: EvalScope, me: string | null): (m: Move) => boolean {
+  return scope === 'mine' && me ? m => m.player === me : () => true;
+}
+
 /** Key moments of a round, like the moves of a chess game: every kill and marked move, simultaneous ones grouped. */
 export interface Moment { t: number; moves: Move[] }
-export function moments(rv: Review): Moment[] {
+export function moments(rv: Review, shown: (m: Move) => boolean = m => isMarked(m) || m.kind === 'kill'): Moment[] {
   const out: Moment[] = [];
-  for (const m of rv.moves.filter(m => isMarked(m) || m.kind === 'kill')) { // every kill is a moment, even a quiet one
+  for (const m of rv.moves.filter(shown)) { // by default every kill is a moment, even a quiet one
     const last = out[out.length - 1];
     if (last && m.t - last.t <= 0.15) last.moves.push(m);
     else out.push({ t: m.t, moves: [m] });
@@ -396,9 +406,10 @@ export const moveKey = (m: Move) => `${m.t}-${m.player}-${m.kind}-${m.util ?? ''
  *     order, so none are skipped however close together they happen; `backlog` = more are waiting behind it.
  *   otherwise: the latest moment (graded moves and every kill); moves at the same instant are paged (`page`).
  */
-export function calloutAt(moves: Move[], time: number, queueing: boolean, read: Set<string>, page: number) {
-  const waiting = queueing ? moves.filter(x => isMarked(x) && x.t <= time && time - x.t < QUEUE_SECS && !read.has(moveKey(x))) : [];
-  const recent = moves.filter(x => (isMarked(x) || x.kind === 'kill') && x.t <= time && time - x.t < CALLOUT_SECS);
+export function calloutAt(moves: Move[], time: number, queueing: boolean, read: Set<string>, page: number,
+  shown: (m: Move) => boolean = m => isMarked(m) || m.kind === 'kill') {
+  const waiting = queueing ? moves.filter(x => shown(x) && x.t <= time && time - x.t < QUEUE_SECS && !read.has(moveKey(x))) : [];
+  const recent = moves.filter(x => shown(x) && x.t <= time && time - x.t < CALLOUT_SECS);
   const latest = recent.at(-1);
   const group = latest ? recent.filter(x => latest.t - x.t <= 0.15) : [];
   const pending = waiting[0];
