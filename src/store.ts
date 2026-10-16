@@ -36,7 +36,7 @@ export function activeView(o: Record<Overlay, boolean>): ViewName | null {
   return null;
 }
 
-const LS_OVERLAYS = 'stratboard.overlays', LS_FOLDED = 'stratboard.folded';
+const LS_OVERLAYS = 'stratboard.overlays', LS_FOLDED = 'stratboard.folded', LS_POPUPS = 'stratboard.popups';
 function loadJson<T>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? { ...fallback, ...JSON.parse(raw) } : fallback; } catch { return fallback; }
 }
@@ -63,6 +63,8 @@ interface Store {
   speed: number;
   /** Review: slow the replay down while a graded move's window is up, so it can be read. */
   readSlow: boolean;
+  /** Review: show a window for each graded move (remembered in this browser). Off = no windows, no slow motion. */
+  popups: boolean;
   /** Until when (performance.now ms) the replay runs in slow motion for reading; 0 = not. */
   slowUntil: number;
   /** How slow (× the chosen speed) while reading: slower still when more moves are waiting. */
@@ -132,6 +134,7 @@ interface Store {
   routeTo(playerId: string, p: Vec2): void;
   setSpeed(x: number): void;
   setReadSlow(on: boolean): void;
+  setPopups(on: boolean): void;
   loadPreset(name: string): void;
   /** Replace the T side with a scripted T play (CTs stay). */
   loadTPlay(name: string | null): void;
@@ -186,6 +189,7 @@ export const useStore = create<Store>((set, get) => {
     playing: false,
     speed: 1,
     readSlow: true,
+    popups: loadJson<{ on: boolean }>(LS_POPUPS, { on: true }).on,
     slowUntil: 0,
     slowSpeed: 0.3,
     readHold: false,
@@ -351,6 +355,10 @@ export const useStore = create<Store>((set, get) => {
         players: b.players.map(q => (q.id !== playerId ? q : { ...q, route: { pts: [p], start: q.route?.start ?? 0, mode: q.route?.mode ?? 'run' } })),
       })),
     setSpeed: speed => set({ speed }),
+    setPopups: popups => {
+      saveJson(LS_POPUPS, { on: popups });
+      set({ popups, ...(popups ? {} : { slowUntil: 0, readHold: false }) });
+    },
     setReadSlow: readSlow => set({ readSlow, ...(readSlow ? {} : { slowUntil: 0 }) }),
     loadPreset: name => {
       const preset = presetsFor(get().mapId, get().level)[name];

@@ -83,6 +83,10 @@ export function PlaybackBar({ end }: { end: number }) {
         <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
       </select>
       {review && (
+        <button className={s.popups ? 'on' : ''} onClick={e => { s.setPopups(!s.popups); e.currentTarget.blur(); }}
+          title={s.popups ? 'Move windows: on (a window with the grade and comments for each graded move)' : 'Move windows: off'}>💬</button>
+      )}
+      {review && s.popups && (
         <button className={s.readSlow ? 'on' : ''} onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
           title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'}>📖</button>
       )}

@@ -587,7 +587,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           {s.reviewSpoilers ? '◀ Live' : '⏭ Reveal all'}
         </button>
       )}
-      {recap && sim && <MoveCallout recap={recap} sim={sim} time={s.time} view={view} size={size} names={s.review?.data.names ?? {}} />}
+      {recap && sim && s.popups && <MoveCallout recap={recap} sim={sim} time={s.time} view={view} size={size} names={s.review?.data.names ?? {}} />}
       {recap && <MomentNav recap={recap} />}
       <div className={`hint ${s.notice ? 'notice' : aiming || carry || s.draftRoute ? 'carry' : ''}`} style={recap ? { display: 'none' } : undefined}>
         {s.notice ?? (aiming ? 'Move the mouse to aim · click to set the direction · Esc cancels'

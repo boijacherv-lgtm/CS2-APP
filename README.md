@@ -45,7 +45,7 @@ What you see on the map:
 - **The bomb:** next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded.
 - **Move windows:** each graded move pops out next to the player, joined to them by a line, with every comment on it.
   - While playing, the moves come up one at a time, in order, and the replay goes into slow motion until each one is read, so none are skipped.
-  - **⏸ Stop to read** freezes the replay on that move until **▶ Continue**. Click the window to skip ahead. **📖** turns slow motion off.
+  - **⏸ Stop to read** freezes the replay on that move until **▶ Continue**. Click the window to skip ahead. **📖** turns slow motion off, and **💬** turns the move windows off altogether (remembered in your browser).
   - Paused, moves at the same moment are paged with **‹ ›**.
 
 ### Your CS2 demo folder (website, Chrome / Edge)
