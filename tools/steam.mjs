@@ -221,6 +221,25 @@ async function publicProfile(steamId) {
     return value;
   } catch { return { name: null, avatar: null }; }
 }
+/** Public names + avatars of a match's players (up to 20 SteamIDs), from their public profile pages, kept a day. */
+const avatarCache = new Map();
+export async function profiles(raw) {
+  const ids = [...new Set(String(raw ?? '').split(',').map(s => s.trim()).filter(s => /^7656\d{13}$/.test(s)))].slice(0, 20);
+  const out = {};
+  await Promise.all(ids.map(async id => {
+    const c = avatarCache.get(id);
+    if (c && Date.now() - c.at < 86400e3) { out[id] = c.value; return; }
+    try {
+      const xml = await (await fetch(`https://steamcommunity.com/profiles/${id}/?xml=1`)).text();
+      const tag = t => xml.match(new RegExp(`<${t}><!\\[CDATA\\[(.*?)\\]\\]></${t}>`))?.[1] ?? xml.match(new RegExp(`<${t}>(.*?)</${t}>`))?.[1] ?? null;
+      const value = { name: tag('steamID'), avatar: tag('avatarMedium') };
+      avatarCache.set(id, { at: Date.now(), value });
+      out[id] = value;
+    } catch { /* skip */ }
+  }));
+  return out;
+}
+
 export async function me() {
   const id = settings().steamId;
   if (!id) return null;

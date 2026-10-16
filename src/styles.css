@@ -405,6 +405,9 @@ td.loadout { white-space: nowrap; }
 .hud-tile.t { background: color-mix(in srgb, var(--t) 18%, transparent); border: 1px solid color-mix(in srgb, var(--t) 45%, transparent); color: #ffe9c7; }
 .hud-tile i { position: absolute; left: 0; bottom: 0; height: 3px; width: var(--hp); background: #3ddc84; transition: width var(--motion-smooth) var(--ease-out), height var(--motion-smooth) var(--ease-out); }
 .hud-tile i.low { background: #ff5a4d; }
+.hud-tile.pic { width: 30px; height: 30px; padding: 0; }
+.hud-tile.pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hud-tile.pic i { height: 4px; box-shadow: 0 -1px 0 #000a; }
 .hud-tile.dead { opacity: .3; filter: grayscale(1); }
 .hud-tile.dead::after { content: ''; position: absolute; inset: 0;
   background: linear-gradient(to top right, transparent 45%, #ff5a4dcc 47%, #ff5a4dcc 53%, transparent 55%); }
@@ -424,6 +427,9 @@ td.loadout { white-space: nowrap; }
   .hud-team { gap: 3px; }
   .hud-tile { width: 9px; height: 24px; border-radius: 3px; }
   .hud-tile b { display: none; }
+  /* with avatars there's room for a small picture each */
+  .hud-tile.pic { width: 24px; height: 24px; border-radius: 4px; }
+  .hud-tile.pic i { width: var(--hp); height: 3px; }
   .hud-tile i { width: 100%; height: var(--hp); opacity: .9; }
   .hud-tile.ct { background: color-mix(in srgb, var(--ct) 15%, transparent); } .hud-tile.t { background: color-mix(in srgb, var(--t) 15%, transparent); }
   .hud-tile.ct i { background: var(--ct); } .hud-tile.t i { background: var(--t); }

@@ -33,7 +33,7 @@ export function scoreBefore(data: DemoData, idx: number): [number, number] {
   return [ct, t];
 }
 
-export interface HudPlayer { id: string; side: 'CT' | 'T'; label: string; name: string; alive: boolean; hp: number }
+export interface HudPlayer { id: string; side: 'CT' | 'T'; label: string; name: string; alive: boolean; hp: number; avatar?: string }
 
 /**
  * Top-centre HUD like CS2's: each team's players as small tiles (health bar under each, dimmed and
@@ -50,8 +50,8 @@ export function RoundHud({ players, score, plantedAt }: { players: HudPlayer[]; 
     const list = team(side);
     // CT tiles read right-to-left towards the clock, like the game
     return (side === 'CT' ? [...list].reverse() : list).map(p => (
-      <span key={p.id} className={`hud-tile ${side.toLowerCase()} ${p.alive ? '' : 'dead'}`} title={`${p.name}${p.alive ? ` · ${Math.round(p.hp)} hp` : ' · dead'}`}>
-        <b>{p.label}</b>
+      <span key={p.id} className={`hud-tile ${side.toLowerCase()} ${p.alive ? '' : 'dead'} ${p.avatar ? 'pic' : ''}`} title={`${p.name}${p.alive ? ` · ${Math.round(p.hp)} hp` : ' · dead'}`}>
+        {p.avatar ? <img src={p.avatar} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <b>{p.label}</b>}
         <i style={{ '--hp': `${p.alive ? Math.max(0, Math.min(100, p.hp)) : 0}%` } as React.CSSProperties} className={p.hp <= 30 ? 'low' : ''} />
       </span>
     ));

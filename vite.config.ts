@@ -59,6 +59,7 @@ function steamApi(): Plugin {
           const route = (req.url ?? '/').split('?')[0];
           if (req.method === 'GET' && route === '/status') return send(res, 200, steam.status());
           if (req.method === 'GET' && route === '/me') return send(res, 200, { me: await steam.me() });
+          if (req.method === 'GET' && route === '/profiles') return send(res, 200, { profiles: await steam.profiles(new URLSearchParams((req.url ?? '').split('?')[1] ?? '').get('ids')) });
           // "Sign in through Steam" (OpenID): Steam's own login page, back here with a signed SteamID
           if (req.method === 'GET' && route.startsWith('/openid/')) {
             const host = req.headers.host ?? '';

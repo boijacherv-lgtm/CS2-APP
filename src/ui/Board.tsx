@@ -24,12 +24,38 @@ import { BUILTIN_LINEUPS } from '../map/lineups';
 import { bakeRoute, liveState, type BakedRoute } from '../engine/timeline';
 import type { BoardState, Player, Utility, Vec2 } from '../engine/types';
 import { Icon } from './Icon';
+import { useAvatars } from './avatars';
 import { useStore } from '../store';
 
 Konva.dragDistance = 4;
 
 const COLORS = { ...SIDE_COLOR, bg: TOK.bg0 };
 const TOKEN_R = 11;
+/** On-screen size of the nickname under a player in Review. */
+const NAME_PX = 10;
+const NAME_MAX = 14;
+
+const measureCtx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+const textWidth = (text: string, fs: number) => {
+  if (!measureCtx) return text.length * fs * 0.6;
+  measureCtx.font = `bold ${fs}px Arial`; // Konva's default face
+  return measureCtx.measureText(text).width;
+};
+
+/** A player's nickname in a small dark tag under their token, with their side's colour on the left. */
+function NameTag({ name, side, fs, y, strong, dead }: { name: string; side: 'CT' | 'T'; fs: number; y: number; strong?: boolean; dead?: boolean }) {
+  const text = name.length > NAME_MAX ? `${name.slice(0, NAME_MAX - 1)}…` : name;
+  const padX = fs * 0.45, bar = fs * 0.22, h = fs * 1.45;
+  const w = textWidth(text, fs) + padX * 2 + bar;
+  return (
+    <Group y={y} x={-w / 2} listening={false} opacity={dead ? 0.6 : strong ? 1 : 0.88}>
+      <Rect width={w} height={h} cornerRadius={h * 0.3} fill={strong ? 'rgba(0,0,0,0.95)' : 'rgba(11,14,18,0.82)'} stroke={strong ? '#fff' : undefined} strokeWidth={fs * 0.1} />
+      <Rect width={bar} height={h} cornerRadius={[h * 0.3, 0, 0, h * 0.3]} fill={SIDE_COLOR[side]} />
+      <Text text={text} x={bar + padX} y={(h - fs) / 2 + fs * 0.05} fontSize={fs} fontStyle="bold" fill={dead ? '#8a929e' : '#fff'}
+        textDecoration={dead ? 'line-through' : ''} wrap="none" />
+    </Group>
+  );
+}
 const PICK_SCREEN_PX = 14;
 const ERASE = '#ff4d4d';
 const FOV_DEG = (FOV * 180) / Math.PI;
@@ -79,6 +105,10 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const k = tokenPx / (TOKEN_R * view.scale);
   // zoomed in (1.6× the whole-map view or more): room for names, guns and the detailed callouts
   const zoomedIn = view.scale >= fitView(size.w, size.h).scale * ZOOM_DETAIL;
+  // Review: each player's nickname in a tag under their token, always 10 px on screen (sizes below are in token units)
+  const names = s.mode === 'review' ? s.review?.data.names ?? null : null;
+  const nameFs = NAME_PX * TOKEN_R / tokenPx;
+  const avatars = useAvatars(names ? s.board.players.map(p => p.id) : []);
   const utilR = (u: Utility) =>
     u.type === 'smoke' ? SMOKE_RADIUS_UNITS / UNITS_PER_PX : u.type === 'molotov' ? 120 / UNITS_PER_PX : u.type === 'he' ? 8 * k : 7 * k;
 
@@ -454,7 +484,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 <Circle radius={TOKEN_R * 0.85} fill="#2a2f36" stroke={COLORS[p.side]} strokeWidth={1.5} />
                 <Line points={[-5, -5, 5, 5]} stroke={COLORS[p.side]} strokeWidth={2.2} lineCap="round" />
                 <Line points={[-5, 5, 5, -5]} stroke={COLORS[p.side]} strokeWidth={2.2} lineCap="round" />
-                <Text text={p.label} fontSize={8} fill={COLORS[p.side]} x={7} y={-12} fontStyle="bold" />
+                {names ? <NameTag name={names[p.id] ?? p.label} side={p.side} fs={nameFs} y={TOKEN_R * 0.85 + 3} dead />
+                  : <Text text={p.label} fontSize={8} fill={COLORS[p.side]} x={7} y={-12} fontStyle="bold" />}
               </Group>
             );
           })}
@@ -500,12 +531,13 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 {focus?.includes(p.id) && <Circle radius={TOKEN_R + 4} stroke="#fff" strokeWidth={2} listening={false} />}
                 <Circle radius={TOKEN_R} hitStrokeWidth={18} fill={eraseTarget === p.id ? ERASE : COLORS[p.side]}
                   stroke={s.selectedId === p.id ? '#fff' : '#000a'} strokeWidth={s.selectedId === p.id ? 2.5 : 1.5} />
-                <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />
-                {s.mode === 'review' && s.review && (zoomedIn || hoverPlayer === p.id || s.selectedId === p.id || focus?.includes(p.id)) && <Text text={s.review.data.names[p.id] ?? ''} fontSize={7} fill="#c8ced8" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled width={60} x={-30} y={21} align="center" fontStyle="bold" listening={false} />}
+                {/* in Review the nickname goes in the tag underneath; the plan's numbers stay in the circle */}
+                {!names && <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />}
+                {names && <NameTag name={names[p.id] ?? p.label} side={p.side} fs={nameFs} y={TOKEN_R + 3} strong={hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)} />}
                 {s.overlays.playerInfo && (zoomedIn || hoverPlayer === p.id || s.selectedId === p.id) && <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? '#ffd23f' : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
-                  width={40} x={-20} y={13} align="center" fontStyle="bold" listening={false} />}
+                  width={40} x={-20} y={names ? TOKEN_R + 5 + nameFs * 1.5 : 13} align="center" fontStyle="bold" listening={false} />}
                 {s.overlays.playerInfo && batch?.players[p.id] && (
-                  <Text text={`${Math.round(batch.players[p.id].pKill * 100)}% K`} fontSize={8} fontStyle="bold" width={40} x={-20} y={s.mode === 'review' ? 29 : 21} align="center"
+                  <Text text={`${Math.round(batch.players[p.id].pKill * 100)}% K`} fontSize={8} fontStyle="bold" width={40} x={-20} y={names ? TOKEN_R + 13 + nameFs * 1.5 : 21} align="center"
                     fill={killColor(batch.players[p.id].pKill)} stroke="#000" strokeWidth={2.2} fillAfterStrokeEnabled />
                 )}
               </Group>
@@ -599,7 +631,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           <RoundHud
             players={s.board.players.map(p => ({
               id: p.id, side: p.side, label: p.label, name: s.mode === 'review' ? s.review?.data.names[p.id] ?? p.label : `${p.side} ${p.label}`,
-              alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100,
+              alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100, avatar: avatars[p.id],
             }))}
             score={recap && s.review ? scoreBefore(s.review.data, s.review.round) : null}
             plantedAt={recap && s.review ? s.review.data.rounds[s.review.round]?.plant ?? null : null} />

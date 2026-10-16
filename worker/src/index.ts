@@ -59,6 +59,8 @@ export default {
       if (req.method === 'POST' && path === '/openid/verify') return json(await verifyLogin(env, await body(req)));
       if (path.startsWith('/internal/')) return await internal(req, env, path, json);
 
+      if (req.method === 'GET' && path === '/profiles') return json({ profiles: await profiles(env, new URL(req.url).searchParams.get('ids') ?? '') });
+
       // everything else needs a logged-in user
       const token = req.headers.get('Authorization')?.match(/^Bearer ([\w-]{20,})$/)?.[1];
       const steamId = token ? await env.SB.get(`session:${token}`) : null;
@@ -132,6 +134,32 @@ async function publicProfile(env: Env, steamId: string): Promise<{ name: string 
     await env.SB.put(`profile:${steamId}`, JSON.stringify(value), { expirationTtl: 3600 });
     return value;
   } catch { return { name: null, avatar: null }; }
+}
+
+/**
+ * Public names + avatars of the players in a match (up to 20 SteamIDs, comma-separated). Avatars are public even
+ * on private profiles. One GetPlayerSummaries call for the ones not cached; each is kept a day.
+ */
+async function profiles(env: Env, raw: string): Promise<Record<string, { name: string | null; avatar: string | null }>> {
+  const ids = [...new Set(raw.split(',').map(s => s.trim()).filter(s => /^7656\d{13}$/.test(s)))].slice(0, 20);
+  const out: Record<string, { name: string | null; avatar: string | null }> = {};
+  const missing: string[] = [];
+  await Promise.all(ids.map(async id => {
+    const c = await env.SB.get(`avatar:${id}`, 'json') as { name: string | null; avatar: string | null } | null;
+    if (c) out[id] = c; else missing.push(id);
+  }));
+  if (missing.length && env.STEAM_API_KEY) {
+    try {
+      const res = await fetch(`${STEAM_API}/ISteamUser/GetPlayerSummaries/v2/?key=${encodeURIComponent(env.STEAM_API_KEY)}&steamids=${missing.join(',')}`);
+      const list = res.ok ? ((await res.json()) as { response?: { players?: { steamid: string; personaname?: string; avatarmedium?: string }[] } }).response?.players ?? [] : [];
+      await Promise.all(list.map(async pl => {
+        const v = { name: pl.personaname ?? null, avatar: pl.avatarmedium ?? null };
+        out[pl.steamid] = v;
+        await env.SB.put(`avatar:${pl.steamid}`, JSON.stringify(v), { expirationTtl: 24 * 3600 });
+      }));
+    } catch { /* no avatars this time */ }
+  }
+  return out;
 }
 
 // ---- the user's match list --------------------------------------------------------------------------
