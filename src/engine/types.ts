@@ -45,8 +45,6 @@ export interface Callout {
   name: string;
   pos: Vec2;
   size?: number;
-  /** A detailed spot (Boost, 90, Default…): its label shows only when zoomed in or with "All callout names" on. */
-  minor?: boolean;
 }
 
 export interface MapDefinition {

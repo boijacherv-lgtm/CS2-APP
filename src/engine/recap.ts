@@ -493,30 +493,10 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     return sim.ids.filter((id, j) => j !== i && sideOf.get(id) === mySide && alive(j, t - 0.05)
       && (Math.hypot(posAt(j, t).x - me.x, posAt(j, t).y - me.y) * scale < 600 || g.lineOfSight(posAt(j, t), me))).length;
   };
-  /**
-   * The callout a spot belongs to: the nearest one you can see from there (not one behind a wall), a detailed spot
-   * (Boost, Default…) only when it's right there, and the plain nearest one as a fallback.
-   */
-  const placeOf = (p: Vec2): string => {
-    const g = engine.grid;
-    let best = '', bd = Infinity;
-    for (const c of engine.map.callouts) {
-      const d = Math.hypot(c.pos.x - p.x, c.pos.y - p.y);
-      const limit = c.minor ? 45 : 170;
-      if (d < limit && d < bd && g.lineOfSight(p, c.pos)) { bd = d; best = c.name; }
-    }
-    if (best) return best;
-    for (const c of engine.map.callouts) { const d = Math.hypot(c.pos.x - p.x, c.pos.y - p.y); if (!c.minor && d < 120 && d < bd) { bd = d; best = c.name; } }
-    return best;
-  };
-  const where = (p: Vec2) => { const pl = placeOf(p); return pl ? ` at ${pl}` : ''; };
-  /** Distance between two radar points, in metres (1 game unit ≈ 2.54 cm). */
-  const metres = (a: Vec2, b: Vec2) => Math.round(Math.hypot(a.x - b.x, a.y - b.y) * scale * 0.0254);
-  /** " (from Jungle, 14 m)" when the other end of a fight is somewhere else. */
-  const from = (a: Vec2 | null, b: Vec2) => {
-    if (!a) return '';
-    const pa = placeOf(a), pb = placeOf(b), m = metres(a, b);
-    return pa && pa !== pb ? ` (from ${pa}, ${m} m)` : m >= 3 ? ` (${m} m)` : '';
+  const where = (p: Vec2) => {
+    let best = '', bd = 110;
+    for (const c of engine.map.callouts) { const d = Math.hypot(c.pos.x - p.x, c.pos.y - p.y); if (d < bd) { bd = d; best = c.name; } }
+    return best ? ` at ${best}` : '';
   };
 
   /** Grenades a player bought but hadn't thrown by time t. */
@@ -529,16 +509,12 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   sim.kills.forEach((k, n) => {
     const dk = demoKill(k);
     const kGun = dk ? gunFromName(dk.weapon) : undefined;
-    const withGun = kGun ? ` with ${kGun.name}${dk?.headshot ? ' (headshot)' : ''}`
-      : k.cause === 'he' ? ' with an HE grenade' : k.cause === 'molotov' ? ' with fire' : dk?.headshot ? ' (headshot)' : '';
+    const withGun = kGun ? ` with ${kGun.name}${dk?.headshot ? ' (headshot)' : ''}` : dk?.headshot ? ' (headshot)' : '';
     const before = stateAt(k.t - 0.05), after = stateAt(k.t + 0.05);
     const ctDelta = after - before;
     const vi = idx(k.victim);
     const vSide = sideOf.get(k.victim)!;
     const firstKill = n === 0;
-    const ki = k.killer ? idx(k.killer) : -1;
-    const killerAt = ki >= 0 ? posAt(ki, k.t) : null;
-    const cause = k.cause === 'he' ? 'HE grenade' : k.cause === 'molotov' ? 'fire' : kGun?.name ?? '';
 
     // the victim
     const traded = k.killer && sim.kills.some(o => o.victim === k.killer && o.t > k.t && o.t - k.t <= 5 && sideOf.get(o.killer) === vSide);
@@ -586,9 +562,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (postPlant) vTags.push('POST-PLANT');
     moves.push({
       t: k.t, player: k.victim, side: vSide, kind: 'death', gain: loss, grade: grade(loss),
-      title: `${name(k.victim)} died${where(k.at)}${k.killer && k.killer !== k.victim
-        ? `: ${name(k.killer)}${killerAt && placeOf(killerAt) !== placeOf(k.at) ? ` from ${placeOf(killerAt)}` : ''}${cause ? `, ${cause}${dk?.headshot ? ' (headshot)' : ''}` : ''}`
-        : cause ? ` (${cause})` : ''}`, why, tags: vTags,
+      title: `${name(k.victim)} died${where(k.at)}${kGun ? ` (${kGun.name})` : ''}`, why, tags: vTags,
     });
 
     // the killer
@@ -634,7 +608,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (postPlant) aTags.push('POST-PLANT');
       moves.push({
         t: k.t, player: k.killer, side: aSide, kind: 'kill', gain, grade: grade(gain),
-        title: `${name(k.killer)} killed ${name(k.victim)}${where(k.at)}${from(killerAt, k.at)}${withGun}`, why: awhy, tags: aTags,
+        title: `${name(k.killer)} killed ${name(k.victim)}${withGun}${where(k.at)}`, why: awhy, tags: aTags,
       });
     }
   });
@@ -725,15 +699,6 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     return { gain, grade: grade(gain), why, tags };
   };
 
-  /** " (thrown from Top Mid)" when the grenade was thrown from another area. */
-  const thrownFrom = (u: DemoRound['util'][number]) => {
-    const w = u.path?.[0] ?? u.from;
-    if (!w) return '';
-    const a = worldToRadar({ x: w[0], y: w[1] }, engine.map.radar), b = worldToRadar({ x: u.x, y: u.y }, engine.map.radar);
-    const pa = placeOf(a);
-    return pa && pa !== placeOf(b) ? ` (thrown from ${pa})` : '';
-  };
-
   // flashes: enemies blinded, teammates blinded, and whether it led to a kill
   r.util.forEach((u, ui) => {
     if (!u.thrower || !sideOf.has(u.thrower)) return;
@@ -742,7 +707,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const ev = gradeNade(ui);
       moves.push({
         t: u.t, player: u.thrower, side: s, kind: 'utility', util: `u${ui}`, gain: ev.gain, grade: ev.grade, tags: ev.tags,
-        title: `${name(u.thrower)}: ${u.type === 'molotov' ? 'molotov' : u.type === 'he' ? 'HE grenade' : 'smoke'}${where(worldToRadar({ x: u.x, y: u.y }, engine.map.radar))}${thrownFrom(u)}`,
+        title: `${name(u.thrower)}: ${u.type === 'molotov' ? 'molotov' : u.type === 'he' ? 'HE grenade' : 'smoke'}${where(worldToRadar({ x: u.x, y: u.y }, engine.map.radar))}`,
         why: ev.why,
       });
       return;
@@ -762,7 +727,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (!hits.length) tags.push('WASTED');
     moves.push({
       t: u.t, player: u.thrower, side: s, kind: 'flash', util: `u${ui}`, gain, grade: hits.length ? grade(gain) : 'D',
-      title: `${name(u.thrower)}: flash${where(worldToRadar({ x: u.x, y: u.y }, engine.map.radar))}${thrownFrom(u)}`, why, tags,
+      title: `${name(u.thrower)}: flash${where(worldToRadar({ x: u.x, y: u.y }, engine.map.radar))}`, why, tags,
     });
   });
 

@@ -106,8 +106,7 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: v
 .coords { background: var(--overlay); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-variant-numeric: tabular-nums; }
 .hint.carry { color: #fff; background: #1f4f8acc; }
 .hint.notice { color: #fff; background: #b3261ecc; }
-.hint.faded { opacity: 0; }
-.hint { transition: opacity .6s var(--ease-out); background: var(--overlay); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.hint { background: var(--overlay); padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--muted); white-space: nowrap; }
 
 .summary { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .summary p { margin: 3px 0; }
@@ -394,12 +393,12 @@ td.loadout { white-space: nowrap; }
 .hud-tile.t { background: color-mix(in srgb, var(--t) 18%, transparent); border: 1px solid color-mix(in srgb, var(--t) 45%, transparent); color: #ffe9c7; }
 .hud-tile i { position: absolute; left: 0; bottom: 0; height: 3px; width: var(--hp); background: #3ddc84; transition: width var(--motion-smooth) var(--ease-out), height var(--motion-smooth) var(--ease-out); }
 .hud-tile i.low { background: #ff5a4d; }
-.hud-tile.pic { width: 30px; height: 30px; padding: 0; }
-.hud-tile.pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.hud-tile.pic i { height: 4px; box-shadow: 0 -1px 0 #000a; }
 .hud-tile.dead { opacity: .3; filter: grayscale(1); }
 .hud-tile.dead::after { content: ''; position: absolute; inset: 0;
   background: linear-gradient(to top right, transparent 45%, #ff5a4dcc 47%, #ff5a4dcc 53%, transparent 55%); }
+.hud-alive { min-width: 24px; height: 26px; padding: 0 4px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 900; color: #0b0e12; pointer-events: auto; }
+.hud-alive.ct { background: var(--ct); } .hud-alive.t { background: var(--t); }
 .hud-mid { display: flex; align-items: center; gap: 7px; padding: 0 5px; }
 .hud-clock { min-width: 50px; text-align: center; font-size: 19px; font-weight: 800; letter-spacing: .02em; line-height: 26px; display: inline-flex; align-items: center; justify-content: center; }
 .hud-mid.low .hud-clock, .hud-mid.bomb .hud-clock { color: #ff5a4d; }
@@ -413,9 +412,6 @@ td.loadout { white-space: nowrap; }
   .hud-team { gap: 3px; }
   .hud-tile { width: 9px; height: 24px; border-radius: 3px; }
   .hud-tile b { display: none; }
-  /* with avatars there's room for a small picture each */
-  .hud-tile.pic { width: 24px; height: 24px; border-radius: 4px; }
-  .hud-tile.pic i { width: var(--hp); height: 3px; }
   .hud-tile i { width: 100%; height: var(--hp); opacity: .9; }
   .hud-tile.ct { background: color-mix(in srgb, var(--ct) 15%, transparent); } .hud-tile.t { background: color-mix(in srgb, var(--t) 15%, transparent); }
   .hud-tile.ct i { background: var(--ct); } .hud-tile.t i { background: var(--t); }

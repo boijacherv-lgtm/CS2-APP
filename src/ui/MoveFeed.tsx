@@ -134,13 +134,13 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
           </span>
           {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close"><Icon name="close" /></button>}
         </div>
-        <div className="feed-title">{brief(card.title)}</div>
+        <div className="feed-title">{card.title}</div>
         {card.tags.length > 0 && (
           <div className="feed-tags">
             {card.tags.map(t => <span key={t} className="tag" title={TAG_INFO[t].tip} style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }}>{t}</span>)}
           </div>
         )}
-        {card.why.length > 0 && <ul>{card.why.map((w, i) => <li key={i}>{brief(w)}</li>)}</ul>}
+        {card.why.length > 0 && <ul>{card.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}
         <div className="feed-card-foot" onClick={e => e.stopPropagation()}>
           {!playing && !picked && !held && group.length > 1 && (
             <span className="feed-pager">
@@ -235,6 +235,3 @@ function signedPct(gain: number) {
   const p = Math.round(gain * 100);
   return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)}%`;
 }
-
-/** The pop-up's short form: drops every "(...)" aside, e.g. "(from Jungle, 14 m)" or "(headshot)". */
-export const brief = (s: string) => s.replace(/\s*\([^()]*\)/g, '').trim();

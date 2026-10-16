@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { ONLINE } from '../env';
 
 const SYNC_EVERY = 5 * 60 * 1000; // new games show up by themselves
+const SHOW = 5; // the page lists only your latest games
 
 /** What the website shows before you log in (the Worker answers 401 until then). */
 const LOGGED_OUT: SteamStatus = {
@@ -148,8 +149,8 @@ export function SteamMatches() {
           </p>
           <table className="steam-list">
             <tbody>
-              {st.matches.map(m => (
-                <tr key={m.code} className={m.result ?? ''} style={{ '--radar': m.map ? `url(/images/maps/${m.map}.png)` : 'none' } as React.CSSProperties}>
+              {st.matches.slice(0, SHOW).map(m => (
+                <tr key={m.code} className={m.result ?? ''} style={{ '--radar': m.map ? `url(/maps/${m.map}.png)` : 'none' } as React.CSSProperties}>
                   <td>{m.time ? new Date(m.time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
                     : m.loadedAt ? <span className="muted">loaded {fmtDay(m.loadedAt)}</span>
                     : m.foundAt ? <span className="muted">found {fmtDay(m.foundAt)}</span> : ''}</td>
