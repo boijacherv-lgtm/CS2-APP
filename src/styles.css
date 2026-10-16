@@ -7,7 +7,7 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body { background: var(--bg-0); color: var(--text-1); font: 13px/1.4 var(--font-ui); -webkit-font-smoothing: antialiased; }
-.num, table, .hud, .tl { font-variant-numeric: tabular-nums; }
+.num, table, .hud, .timeline { font-variant-numeric: tabular-nums; }
 .display { font-family: var(--font-display); letter-spacing: .02em; }
 button, select, input { font: inherit; color: inherit; }
 button { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; cursor: pointer; text-align: left;
@@ -489,15 +489,15 @@ a.btn:hover { border-color: #45505e; }
 
 
 /* review timeline: win-chance curve, kills, graded moves, bomb */
-.tl { position: relative; flex: 1; min-width: 80px; height: 40px; margin: 0 6px; border-radius: 6px; background: var(--bg-1);
+.timeline { position: relative; flex: 1; min-width: 80px; height: 40px; margin: 0 6px; border-radius: 6px; background: var(--bg-1);
   border: 1px solid var(--border); cursor: pointer; touch-action: none; overflow: hidden; }
 .tl-curve { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .tl-kill { position: absolute; width: 2px; height: 9px; transform: translateX(-1px); pointer-events: none; border-radius: 1px; }
 .tl-kill.ct { top: 0; } .tl-kill.t { bottom: 0; }
-.tl .tl-mark { position: absolute; top: 50%; transform: translate(-50%, -50%); min-width: 15px; height: 14px; padding: 0 2px; border: 1px solid #000a;
+.timeline .tl-mark { position: absolute; top: 50%; transform: translate(-50%, -50%); min-width: 15px; height: 14px; padding: 0 2px; border: 1px solid #000a;
   border-radius: 3px; color: #111; font-size: 9px; font-weight: 900; line-height: 12px; text-align: center; z-index: 1; }
-.tl .tl-dot { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 7px; height: 7px; padding: 0; border-radius: 50%; border: 1px solid #000a; }
-.tl .tl-mark:hover, .tl .tl-dot:hover { transform: translate(-50%, -50%) scale(1.25); z-index: 2; }
+.timeline .tl-dot { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 7px; height: 7px; padding: 0; border-radius: 50%; border: 1px solid #000a; }
+.timeline .tl-mark:hover, .timeline .tl-dot:hover { transform: translate(-50%, -50%) scale(1.25); z-index: 2; }
 .tl-bomb { position: absolute; top: 1px; transform: translateX(-50%); font-size: 11px; pointer-events: auto; }
 .tl-head { position: absolute; top: -1px; bottom: -1px; width: 2px; transform: translateX(-1px); background: var(--text-1); box-shadow: 0 0 6px #fff8; pointer-events: none; z-index: 3; }
 

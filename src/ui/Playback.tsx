@@ -140,7 +140,7 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
   const moves = recap.moves.filter(m => shown(m) && m.t <= until);
   const plant = round.plant !== null && round.plant <= until ? round.plant : null;
   return (
-    <div className="tl" ref={track} role="slider" aria-label="Round timeline" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(time)}
+    <div className="timeline" ref={track} role="slider" aria-label="Round timeline" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(time)}
       onPointerDown={e => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); seekAt(e.clientX); }}
       onPointerMove={e => { if (e.buttons & 1) seekAt(e.clientX); }}>
       <svg className="tl-curve" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden>
