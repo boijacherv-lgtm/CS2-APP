@@ -129,8 +129,8 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
         <div className="feed-card-head">
           <span className="feed-mark" style={{ background: g.color }}>{g.mark}</span>
           <div className="feed-who"><b style={{ color: g.color }}>{g.label}</b><span className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</span></div>
-          <span className={`feed-gain ${card.gain >= 0 ? 'up' : 'down'}`} title="Change in their team's win chance">
-            {card.gain >= 0 ? '+' : '−'}{Math.abs(Math.round(card.gain * 100))}%
+          <span className={`feed-gain ${Math.round(card.gain * 100) > 0 ? 'up' : Math.round(card.gain * 100) < 0 ? 'down' : 'flat'}`} title="Change in their team's win chance">
+            {signedPct(card.gain)}
           </span>
           {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close"><Icon name="close" /></button>}
         </div>
@@ -179,7 +179,7 @@ export function KillFeed({ recap, round, time, names }: { recap: Review; round: 
   if (!rows.length) return null;
   const moveOf = (kind: 'kill' | 'death', id: string, t: number) => recap.moves.find(m => m.kind === kind && m.player === id && Math.abs(m.t - t) < 0.06);
   const chip = (m: Move | undefined) => m && shown(m)
-    ? <span className="kf-mark" style={{ background: GRADE_INFO[m.grade].color }} title={`${GRADE_INFO[m.grade].label}: ${m.gain >= 0 ? '+' : '−'}${Math.abs(Math.round(m.gain * 100))}% win chance`}>{GRADE_INFO[m.grade].mark}</span>
+    ? <span className="kf-mark" style={{ background: GRADE_INFO[m.grade].color }} title={`${GRADE_INFO[m.grade].label}: ${signedPct(m.gain)} win chance`}>{GRADE_INFO[m.grade].mark}</span>
     : null;
   const who = (id: string) => <b className={sideOf(id) === 'CT' ? 'ct' : 't'}>{names[id] ?? '?'}</b>;
   return (
@@ -228,4 +228,10 @@ function weaponIcon(w: string): Cs2Icon | null {
   if (n === 'planted_c4' || n === 'c4') n = 'planted_c4';
   const key = `equipment/${n}` as Cs2Icon;
   return key in CS2_ICONS ? key : null;
+}
+
+/** A win-chance change as shown: +12%, −3%, or 0% (never "−0%"). */
+function signedPct(gain: number) {
+  const p = Math.round(gain * 100);
+  return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)}%`;
 }

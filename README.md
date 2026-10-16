@@ -190,8 +190,9 @@ src/
     lineups.ts       built-in + custom line-ups, flight-time model
     generated/maps.json   walkability grids + overview calibration (built by tools/build-maps.mjs)
   ui/
-    Icon.tsx         <Icon name="play" />: CS2's own pictograms (GAME map) drawn in currentColor with a CSS mask; <GameIcon
-                     src="equipment/ak47" /> for any game icon; a few small markers as line drawings
+    Icon.tsx         <Icon name="play" />: interface icons from Phosphor (@phosphor-icons/react, bold / filled); equipment
+                     (grenades, armour, bomb, defuse kit) as CS2's own pictograms; <GameIcon src="equipment/ak47" /> for
+                     any game pictogram (drawn in currentColor with a CSS mask)
     cs2Icons.ts      the list of CS2 pictograms in public/icons/cs2 with each one's aspect ratio (regenerate when adding)
     tokens.ts        design tokens: every colour, the fonts; applyTokens() writes them to :root, Konva imports the same values
     Board.tsx        Konva stage: radar, overlays, players, routes, utility, bomb, tools, gestures; the overlay slots
@@ -247,7 +248,7 @@ server/              demo bot, not hosted (server/README.md)
 - **Per-level maps:** `getEngine(mapId, level)`. The store keeps a separate board per `map:level`.
 - **Tactical data:** hand-made layers live in `catalog.ts`. Prefer adding callouts/chokepoints there over editing the generator.
 - **Design:** colours only from `ui/tokens.ts` (CSS `var(--…)`, Konva imports `T` / `SIDE_COLOR` / `UTIL_COLOR`). Only team, grenade and grade colours are colourful; the chrome is greyscale and white is the interactive colour. Rajdhani (`var(--font-display)`) for headings and big numbers, Inter for everything else, tabular digits in tables. Anything over the map goes into a `.board-ui` slot, on a solid `var(--overlay)` surface (no backdrop blur over the canvas).
-- **Icons:** only from `ui/Icon.tsx`: CS2's own pictograms (`public/icons/cs2`, from the game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons); the art is Valve's) wherever the game has one. No emoji anywhere in the UI.
+- **Icons:** only from `ui/Icon.tsx`. Interface icons are Phosphor (bold; filled for playback). Grenades, armour, the bomb, the defuse kit and weapons are CS2's own pictograms (`public/icons/cs2`, from the game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons); the art is Valve's). No emoji anywhere in the UI.
 - **Style:** match the surrounding code: small pure functions in `engine/`, short doc comments on the *why*, no new dependencies without asking the user.
 
 ### Testing
@@ -271,4 +272,4 @@ server/              demo bot, not hosted (server/README.md)
 
 ## Credits
 
-Radar images and overview data are © Valve Corporation, taken from the CS2 game files via [MurkyYT/cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons). Weapon, equipment and interface pictograms are © Valve Corporation, from the CS2 game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons). Demo parsing by [LaihoE/demoparser](https://github.com/LaihoE/demoparser). Counter-Strike is a trademark of Valve Corporation; this project is not affiliated with Valve.
+Radar images and overview data are © Valve Corporation, taken from the CS2 game files via [MurkyYT/cs2-map-icons](https://github.com/MurkyYT/cs2-map-icons). Weapon and equipment pictograms are © Valve Corporation, from the CS2 game files via [Juknum/counter-strike-icons](https://github.com/Juknum/counter-strike-icons). Demo parsing by [LaihoE/demoparser](https://github.com/LaihoE/demoparser). Interface icons by [Phosphor Icons](https://phosphoricons.com) (MIT). Counter-Strike is a trademark of Valve Corporation; this project is not affiliated with Valve.

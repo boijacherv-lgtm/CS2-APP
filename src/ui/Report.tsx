@@ -272,7 +272,7 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
   );
 }
 
-const REASON_ICON: Record<string, IconName> = { ct_killed: 'skull', t_killed: 'skull', bomb_exploded: 'burst', bomb_defused: 'scissors', target_saved: 'timer' };
+const REASON_ICON: Record<string, IconName> = { ct_killed: 'skull', t_killed: 'skull', bomb_exploded: 'bomb', bomb_defused: 'scissors', target_saved: 'timer' };
 
 /** Every player's grade in every round: the focused player's row stands out, a gap marks the side switch. */
 function RoundGrid({ data, players, focus, hot, onPick, onRound }: {

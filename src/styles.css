@@ -225,7 +225,7 @@ td.warn, b.warn { color: #ffb020; }
 .feed-line-title { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
 .feed-mark { min-width: 22px; height: 20px; padding: 0 3px; border-radius: 4px; display: grid; place-items: center; color: #111; font-weight: 900; font-size: 11px; flex: none; }
 .feed-gain { font-weight: 800; font-size: 12px; padding: 1px 6px; border-radius: 4px; flex: none; }
-.feed-gain.up { background: #1f3a20; color: #8fdc6a; } .feed-gain.down { background: #3a1f1f; color: #ff7a6e; }
+.feed-gain.up { background: #1f3a20; color: #8fdc6a; } .feed-gain.down { background: #3a1f1f; color: #ff7a6e; } .feed-gain.flat { background: var(--surface-3); color: var(--text-2); }
 .feed-card.reading { cursor: pointer; }
 .feed-card .feed-stop { padding: 3px 9px; font-size: 11.5px; font-weight: 700; white-space: nowrap; flex: none; }
 .eval-toggle { flex: none; background: var(--bg-1); border: 1px solid var(--border); border-radius: 7px; padding: 2px; }
