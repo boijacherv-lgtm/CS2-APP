@@ -33,7 +33,7 @@ export function scoreBefore(data: DemoData, idx: number): [number, number] {
   return [ct, t];
 }
 
-export interface HudPlayer { id: string; side: 'CT' | 'T'; label: string; name: string; alive: boolean; hp: number }
+export interface HudPlayer { id: string; side: 'CT' | 'T'; label: string; name: string; alive: boolean; hp: number; avatar?: string }
 
 /**
  * Top-centre HUD like CS2's: each team's players as small tiles (health bar under each, dimmed and
@@ -45,13 +45,12 @@ export function RoundHud({ players, score, plantedAt }: { players: HudPlayer[]; 
   const planted = plantedAt != null && time >= plantedAt;
   const left = planted ? BOMB_SECONDS - (time - plantedAt!) : ROUND_SECONDS - time;
   const team = (side: 'CT' | 'T') => players.filter(p => p.side === side).slice(0, 5);
-  const alive = (side: 'CT' | 'T') => team(side).filter(p => p.alive).length;
   const tiles = (side: 'CT' | 'T') => {
     const list = team(side);
     // CT tiles read right-to-left towards the clock, like the game
     return (side === 'CT' ? [...list].reverse() : list).map(p => (
-      <span key={p.id} className={`hud-tile ${side.toLowerCase()} ${p.alive ? '' : 'dead'}`} title={`${p.name}${p.alive ? ` · ${Math.round(p.hp)} hp` : ' · dead'}`}>
-        <b>{p.label}</b>
+      <span key={p.id} className={`hud-tile ${side.toLowerCase()} ${p.alive ? '' : 'dead'} ${p.avatar ? 'pic' : ''}`} title={`${p.name}${p.alive ? ` · ${Math.round(p.hp)} hp` : ' · dead'}`}>
+        {p.avatar ? <img src={p.avatar} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <b>{p.label}</b>}
         <i style={{ '--hp': `${p.alive ? Math.max(0, Math.min(100, p.hp)) : 0}%` } as React.CSSProperties} className={p.hp <= 30 ? 'low' : ''} />
       </span>
     ));
@@ -59,13 +58,11 @@ export function RoundHud({ players, score, plantedAt }: { players: HudPlayer[]; 
   return (
     <div className="hud" title={`${clock(time)} into the round`}>
       <div className="hud-team ct">{tiles('CT')}</div>
-      <div className="hud-alive ct" title="CT players alive">{alive('CT')}</div>
       <div className={`hud-mid ${planted ? 'bomb' : ''} ${left <= 10 ? 'low' : ''}`}>
         {score && <span className="hud-score ct" title="Rounds won by this round's CT team">{score[0]}</span>}
         <span className="hud-clock">{planted && <span className="hud-bomb" aria-label="Bomb planted"><Icon name="bomb" size={15} /></span>}{clock(left)}</span>
         {score && <span className="hud-score t" title="Rounds won by this round's T team">{score[1]}</span>}
       </div>
-      <div className="hud-alive t" title="T players alive">{alive('T')}</div>
       <div className="hud-team t">{tiles('T')}</div>
     </div>
   );

@@ -21,7 +21,8 @@ const GROUPS: { title: string; items: { id: Overlay; label: string; review?: boo
   {
     title: 'Labels',
     items: [
-      { id: 'callouts', label: 'Callout names' },
+      { id: 'callouts', label: 'Callout names (main)' },
+      { id: 'calloutsAll', label: 'All callout names (detailed spots)' },
       { id: 'threat', label: 'Entry lines (who holds what)', review: false },
       { id: 'entryCards', label: 'Entry cards with details', review: false },
       { id: 'playerInfo', label: 'Gun and kill chance on players' },

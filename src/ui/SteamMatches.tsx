@@ -149,7 +149,7 @@ export function SteamMatches() {
           <table className="steam-list">
             <tbody>
               {st.matches.map(m => (
-                <tr key={m.code} className={m.result ?? ''} style={{ '--radar': m.map ? `url(/maps/${m.map}.png)` : 'none' } as React.CSSProperties}>
+                <tr key={m.code} className={m.result ?? ''} style={{ '--radar': m.map ? `url(/images/maps/${m.map}.png)` : 'none' } as React.CSSProperties}>
                   <td>{m.time ? new Date(m.time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
                     : m.loadedAt ? <span className="muted">loaded {fmtDay(m.loadedAt)}</span>
                     : m.foundAt ? <span className="muted">found {fmtDay(m.foundAt)}</span> : ''}</td>

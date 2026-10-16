@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
+import { brief } from './MoveFeed';
 import type { TacticalEngine } from '../engine/predict';
 import { equipValue, GRADE_INFO, isMarked, moments, type Moment, LETTER_COLOR, letterGrade, movesUntil, TAG_INFO, teamEconomy, type DemoData, type Grade, type Move, type Replay, type Review, type Tag } from '../engine/recap';
 import { MAPS } from '../map/catalog';
@@ -283,7 +284,7 @@ export function MomentNav({ recap }: { recap: Review }) {
           : <>
               <span className="muted">{idx + 1}/{list.length}</span>
               {g && <span className="badge" style={{ background: g.color }}>{g.mark}</span>}
-              <span className={atMoment ? '' : 'muted'}>{main?.title}{cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}</span>
+              <span className={atMoment ? '' : 'muted'}>{main && brief(main.title)}{cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}</span>
               {cur && <button className="mini" onClick={watch} title="Watch the 3 s leading up to it" aria-label="Watch the lead-up"><Icon name="rewind" size={12} /></button>}
             </>}
       </div>

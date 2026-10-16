@@ -9,7 +9,7 @@ import { CS2_ICONS, type Cs2Icon } from './cs2Icons';
 /**
  * The app's icons, in two families:
  *   interface   Phosphor icons (bold, or filled for the playback controls), drawn in the text colour
- *   equipment   CS2's own pictograms for grenades, armour, the bomb, the defuse kit and weapons (public/icons/cs2,
+ *   equipment   CS2's own pictograms for grenades, armour, the bomb, the defuse kit and weapons (public/images/icons/cs2,
  *               from the game files), drawn in the text colour with a CSS mask; see GameIcon
  * No emoji anywhere.
  */
@@ -40,7 +40,7 @@ export type IconName = keyof typeof ICONS;
 
 /** One of CS2's pictograms, `size` px tall (wide ones like guns get wider), in the text colour. */
 export function GameIcon({ src, size = 14, title, className }: { src: Cs2Icon; size?: number; title?: string; className?: string }) {
-  const url = `url(/icons/cs2/${src}.svg)`;
+  const url = `url(/images/icons/cs2/${src}.svg)`;
   return (
     <span className={`icon gicon ${className ?? ''}`} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true} title={title}
       style={{ width: size * CS2_ICONS[src], height: size, WebkitMaskImage: url, maskImage: url }} />
