@@ -452,8 +452,8 @@ function Positions({ engine, replay, until, focus, onJump }: { engine: TacticalE
           <li key={i} className="pos-row" onClick={() => onJump(r.t + 1.5)} title="Watch it">
             <div className="pos-top">
               <span className="muted num">{fmt(r.t)}</span>
-              <b>{r.kind === 'hold' ? `Held ${r.h.place}` : `${r.m.from} → ${r.m.to}`}</b>
-              {r.kind === 'hold' && <span className="muted num">{Math.round(r.h.to - r.h.from)} s</span>}
+              <b>{r.kind === 'hold' ? `${r.h.contact ? 'Fought at' : 'Held'} ${r.h.place}` : `${r.m.from} → ${r.m.to}`}</b>
+              {r.kind === 'hold' && !r.h.contact && <span className="muted num">{Math.round(r.h.to - r.h.from)} s</span>}
               {r.e
                 ? <span className="usual" style={{ color: CLASS_COLOR[r.e.cls], borderColor: CLASS_COLOR[r.e.cls] }} title={`Accuracy ${r.e.accuracy}`}>{r.e.cls}</span>
                 : <span className="usual" style={{ color: USUAL_COLOR[r.v.kind], borderColor: USUAL_COLOR[r.v.kind] }} title={r.v.basis}>{USUAL_LABEL[r.v.kind]}</span>}

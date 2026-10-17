@@ -1,6 +1,6 @@
 import type { Hold, Move } from './situations';
 import { PHASE_LABEL } from './situations';
-import { advantageOf, proMoves, proReactions, proRisk, proSituationSpots, proSpots, type ProRisk, type ProSpot } from '../map/positions';
+import { advantageOf, proMoves, proReaction, proRisk, proSituationSpots, proSpots, type ProRisk, type ProSpot } from '../map/positions';
 
 /**
  * Step 2 of the decision coach: each of a player's decisions next to what FACEIT level-10 players do in the same
@@ -47,7 +47,7 @@ export function judgeHold(map: string, h: Hold): HoldVerdict {
   const { reasons, flags, fallback } = holdReasons(map, h);
   if (kind === 'unusual') flags.push('off-meta');
   const text = [
-    `Held ${h.place} (${advWord(h.alive)}${h.target ? `, team going ${h.target}` : ''}).`,
+    `${h.contact ? 'Fought at' : 'Held'} ${h.place} (${advWord(h.alive)}${h.target ? `, team going ${h.target}` : ''}).`,
     mine ? `${pct(mine.share)} of ${basis} are here (they win ${pct(mine.winRate)} of those rounds).` : `Level-10 players almost never stand here at this point; they're at ${top}.`,
     mine && kind !== 'common' ? `Most are at ${top}.` : '',
     better ? `${better.place} wins more: ${pct(better.winRate)}${mine ? ` vs ${pct(mine.winRate)}` : ''}.` : '',
@@ -58,7 +58,7 @@ export function judgeHold(map: string, h: Hold): HoldVerdict {
 
 /** A move against where level-10 players go from the same spot (after the same trigger when there's data for it). */
 export function judgeMove(map: string, m: Move): MoveVerdict {
-  const reaction = m.trigger ? proReactions(map, m.side).find(r => r.from === m.from && r.trigger === m.trigger && r.n >= 5) : undefined;
+  const reaction = m.trigger ? proReaction(map, m.side, m.from, m.trigger, m.phase, 5) : undefined;
   let pros: { place: string; share: number }[], samples: number, basis: string;
   if (reaction) {
     samples = reaction.n;
@@ -71,12 +71,14 @@ export function judgeMove(map: string, m: Move): MoveVerdict {
     basis = `level-10 ${SIDE_WORD[m.side]} leaving ${m.from}`;
   }
   if (samples < 5) return { kind: 'unknown', pros, basis, samples, text: `Moved ${m.from} → ${m.to}${m.trigger ? ` after "${m.trigger}"` : ''}. Not enough level-10 data for this spot yet.` };
-  const mine = pros.find(p => p.place === m.to);
+  // going *through* where pros go counts: they stop there, you kept going
+  const path = [...(m.via ?? []), m.to];
+  const mine = pros.filter(p => path.includes(p.place)).sort((a, b) => b.share - a.share)[0];
   const kind: Usual = mine ? (mine.share >= 0.15 ? 'common' : 'rare') : samples >= 20 ? 'unusual' : 'rare';
   const top = pros.slice(0, 3).map(p => `${p.place} ${pct(p.share)}`).join(', ');
   const text = [
     `Moved ${m.from} → ${m.to}${m.trigger ? ` right after "${m.trigger}"` : ''}.`,
-    mine ? `${pct(mine.share)} of ${basis} do the same (${samples} times seen).` : `${basis[0].toUpperCase()}${basis.slice(1)} go elsewhere: ${top} (${samples} times seen).`,
+    mine ? `${pct(mine.share)} of ${basis} ${mine.place === m.to ? 'do the same' : `go to ${mine.place}, which you went through`} (${samples} times seen).` : `${basis[0].toUpperCase()}${basis.slice(1)} go elsewhere: ${top} (${samples} times seen).`,
     mine && kind !== 'common' ? `More often: ${top}.` : '',
   ].filter(Boolean).join(' ');
   return { kind, pros, basis, samples, text };

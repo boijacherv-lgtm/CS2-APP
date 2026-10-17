@@ -10,7 +10,7 @@ import type { Side } from '../engine/types';
 /** `gain`: how much choosing it changed the round for level-10 players (round won − win chance when chosen, shrunk); `n`: choices measured. */
 export interface ProSpot { place: string; share: number; winRate: number; rounds: number; gain?: number; n?: number }
 export interface ProMove { from: string; to: string; count: number; phases: Partial<Record<Phase, number>>; triggers: { why: string; n: number }[]; gain?: number }
-export interface ProReaction { from: string; trigger: string; n: number; to: { place: string; n: number; gain?: number }[] }
+export interface ProReaction { from: string; trigger: string; phase?: Phase; n: number; to: { place: string; n: number; gain?: number }[] }
 interface MapPositions {
   demos: number; rounds: number;
   spots: Record<Side, Partial<Record<Phase, ProSpot[]>>>;
@@ -44,4 +44,9 @@ export const proSituationSpots = (map: string, side: Side, phase: Phase, adv: Ad
   return sit[`${phase}|${adv}`] ?? null;
 };
 export const proReactions = (map: string, side: Side): ProReaction[] => DATA[map]?.reactions?.[side] ?? [];
+/** What level-10 players do from a spot after a trigger: in the same phase of the round when there's enough data, else overall. */
+export const proReaction = (map: string, side: Side, from: string, trigger: string, phase: Phase, minN: number): ProReaction | undefined => {
+  const all = proReactions(map, side).filter(r => r.from === from && r.trigger === trigger);
+  return all.find(r => r.phase === phase && r.n >= minN) ?? all.find(r => !r.phase && r.n >= minN);
+};
 export const proMoves = (map: string, side: Side): ProMove[] => DATA[map]?.moves[side] ?? [];

@@ -30,6 +30,2313 @@
      "n": 730,
      "tradedRate": 0.04
     }
+   ],
+   "spots": [
+    {
+     "death": "CT Mid",
+     "n": 275,
+     "tradedRate": 0.17,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "CT Mid",
+       "chances": 63,
+       "conv": 0.17,
+       "dist": 8
+      },
+      {
+       "place": "B Window",
+       "chances": 14,
+       "conv": 0.36,
+       "dist": 18
+      },
+      {
+       "place": "Top Mid",
+       "chances": 5,
+       "conv": 0.6,
+       "dist": 48
+      },
+      {
+       "place": "Zig",
+       "chances": 10,
+       "conv": 0.4,
+       "dist": 24
+      }
+     ]
+    },
+    {
+     "death": "CT Spawn",
+     "n": 233,
+     "tradedRate": 0.24,
+     "avgTime": 1.9,
+     "traders": [
+      {
+       "place": "CT Spawn",
+       "chances": 75,
+       "conv": 0.24,
+       "dist": 5
+      },
+      {
+       "place": "Elevator",
+       "chances": 12,
+       "conv": 0.42,
+       "dist": 15
+      },
+      {
+       "place": "A Short",
+       "chances": 53,
+       "conv": 0.17,
+       "dist": 9
+      },
+      {
+       "place": "Jumper",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 7
+      }
+     ]
+    },
+    {
+     "death": "Stairs",
+     "n": 203,
+     "tradedRate": 0.23,
+     "avgTime": 2.2,
+     "traders": [
+      {
+       "place": "Stairs",
+       "chances": 29,
+       "conv": 0.41,
+       "dist": 6
+      },
+      {
+       "place": "Tetris",
+       "chances": 34,
+       "conv": 0.21,
+       "dist": 11
+      },
+      {
+       "place": "Jungle",
+       "chances": 27,
+       "conv": 0.22,
+       "dist": 16
+      },
+      {
+       "place": "Connector",
+       "chances": 17,
+       "conv": 0.24,
+       "dist": 11
+      }
+     ]
+    },
+    {
+     "death": "Xbox",
+     "n": 194,
+     "tradedRate": 0.23,
+     "avgTime": 2.5,
+     "traders": [
+      {
+       "place": "Xbox",
+       "chances": 37,
+       "conv": 0.3,
+       "dist": 6
+      },
+      {
+       "place": "Top Mid",
+       "chances": 8,
+       "conv": 0.38,
+       "dist": 22
+      },
+      {
+       "place": "Zig",
+       "chances": 29,
+       "conv": 0.17,
+       "dist": 11
+      },
+      {
+       "place": "Palm",
+       "chances": 12,
+       "conv": 0.25,
+       "dist": 14
+      }
+     ]
+    },
+    {
+     "death": "Top Mid",
+     "n": 186,
+     "tradedRate": 0.18,
+     "avgTime": 2.1,
+     "traders": [
+      {
+       "place": "Top Mid",
+       "chances": 89,
+       "conv": 0.19,
+       "dist": 7
+      },
+      {
+       "place": "Lower B Tunnels",
+       "chances": 7,
+       "conv": 0.57,
+       "dist": 30
+      },
+      {
+       "place": "CT Mid",
+       "chances": 10,
+       "conv": 0.2,
+       "dist": 48
+      },
+      {
+       "place": "Outside Long",
+       "chances": 19,
+       "conv": 0.11,
+       "dist": 14
+      }
+     ]
+    },
+    {
+     "death": "Blue",
+     "n": 178,
+     "tradedRate": 0.28,
+     "avgTime": 1.2,
+     "traders": [
+      {
+       "place": "Blue",
+       "chances": 165,
+       "conv": 0.22,
+       "dist": 5
+      },
+      {
+       "place": "Long Corner",
+       "chances": 20,
+       "conv": 0.2,
+       "dist": 9
+      },
+      {
+       "place": "Long Doors",
+       "chances": 77,
+       "conv": 0.08,
+       "dist": 10
+      },
+      {
+       "place": "Side Pit",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 6
+      }
+     ]
+    },
+    {
+     "death": "B Doors",
+     "n": 177,
+     "tradedRate": 0.3,
+     "avgTime": 2.2,
+     "traders": [
+      {
+       "place": "B Doors",
+       "chances": 35,
+       "conv": 0.37,
+       "dist": 9
+      },
+      {
+       "place": "B Window",
+       "chances": 23,
+       "conv": 0.43,
+       "dist": 14
+      },
+      {
+       "place": "Car",
+       "chances": 42,
+       "conv": 0.24,
+       "dist": 8
+      },
+      {
+       "place": "Close",
+       "chances": 9,
+       "conv": 0.33,
+       "dist": 7
+      }
+     ]
+    },
+    {
+     "death": "A Long",
+     "n": 163,
+     "tradedRate": 0.19,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "A Long",
+       "chances": 62,
+       "conv": 0.24,
+       "dist": 8
+      },
+      {
+       "place": "Pit",
+       "chances": 17,
+       "conv": 0.24,
+       "dist": 19
+      },
+      {
+       "place": "A Site",
+       "chances": 7,
+       "conv": 0.29,
+       "dist": 14
+      },
+      {
+       "place": "Long Corner",
+       "chances": 14,
+       "conv": 0.14,
+       "dist": 9
+      }
+     ]
+    },
+    {
+     "death": "A Site",
+     "n": 162,
+     "tradedRate": 0.23,
+     "avgTime": 1.5,
+     "traders": [
+      {
+       "place": "Goose",
+       "chances": 5,
+       "conv": 0.6,
+       "dist": 15
+      },
+      {
+       "place": "A Site",
+       "chances": 28,
+       "conv": 0.25,
+       "dist": 7
+      },
+      {
+       "place": "Main",
+       "chances": 15,
+       "conv": 0.27,
+       "dist": 13
+      },
+      {
+       "place": "Elevator",
+       "chances": 11,
+       "conv": 0.18,
+       "dist": 10
+      }
+     ]
+    },
+    {
+     "death": "Mid Doors",
+     "n": 159,
+     "tradedRate": 0.17,
+     "avgTime": 2,
+     "traders": [
+      {
+       "place": "Mid Doors",
+       "chances": 20,
+       "conv": 0.3,
+       "dist": 4
+      },
+      {
+       "place": "CT Mid",
+       "chances": 28,
+       "conv": 0.18,
+       "dist": 16
+      },
+      {
+       "place": "Close Mid Doors",
+       "chances": 11,
+       "conv": 0.27,
+       "dist": 5
+      },
+      {
+       "place": "Xbox",
+       "chances": 28,
+       "conv": 0.14,
+       "dist": 8
+      }
+     ]
+    },
+    {
+     "death": "Mid",
+     "n": 154,
+     "tradedRate": 0.22,
+     "avgTime": 2,
+     "traders": [
+      {
+       "place": "Short",
+       "chances": 22,
+       "conv": 0.32,
+       "dist": 11
+      },
+      {
+       "place": "CT Mid",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 31
+      },
+      {
+       "place": "Mid",
+       "chances": 28,
+       "conv": 0.14,
+       "dist": 7
+      },
+      {
+       "place": "Palm",
+       "chances": 8,
+       "conv": 0.25,
+       "dist": 7
+      }
+     ]
+    },
+    {
+     "death": "Upper B Tunnels",
+     "n": 152,
+     "tradedRate": 0.13,
+     "avgTime": 2.2,
+     "traders": [
+      {
+       "place": "Upper B Tunnels",
+       "chances": 63,
+       "conv": 0.14,
+       "dist": 6
+      },
+      {
+       "place": "Car",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 10
+      },
+      {
+       "place": "Lower B Tunnels",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 14
+      },
+      {
+       "place": "Outside Tunnels",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 15
+      }
+     ]
+    },
+    {
+     "death": "Long Doors",
+     "n": 143,
+     "tradedRate": 0.15,
+     "avgTime": 1.8,
+     "traders": [
+      {
+       "place": "Long Doors",
+       "chances": 83,
+       "conv": 0.16,
+       "dist": 6
+      },
+      {
+       "place": "Blue",
+       "chances": 29,
+       "conv": 0.14,
+       "dist": 7
+      },
+      {
+       "place": "Outside Long",
+       "chances": 34,
+       "conv": 0.12,
+       "dist": 14
+      }
+     ]
+    },
+    {
+     "death": "Main",
+     "n": 140,
+     "tradedRate": 0.25,
+     "avgTime": 2.4,
+     "traders": [
+      {
+       "place": "Main",
+       "chances": 57,
+       "conv": 0.35,
+       "dist": 7
+      },
+      {
+       "place": "Hut",
+       "chances": 17,
+       "conv": 0.24,
+       "dist": 12
+      },
+      {
+       "place": "Fountain",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 14
+      },
+      {
+       "place": "A Site",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 13
+      }
+     ]
+    },
+    {
+     "death": "A Ramp",
+     "n": 137,
+     "tradedRate": 0.18,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "A Long",
+       "chances": 5,
+       "conv": 0.6,
+       "dist": 17
+      },
+      {
+       "place": "A Site",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 10
+      },
+      {
+       "place": "A Ramp",
+       "chances": 47,
+       "conv": 0.11,
+       "dist": 6
+      },
+      {
+       "place": "A Cross",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 12
+      }
+     ]
+    },
+    {
+     "death": "Tetris",
+     "n": 136,
+     "tradedRate": 0.22,
+     "avgTime": 2,
+     "traders": [
+      {
+       "place": "Tetris",
+       "chances": 94,
+       "conv": 0.14,
+       "dist": 4
+      },
+      {
+       "place": "A Ramp",
+       "chances": 41,
+       "conv": 0.15,
+       "dist": 11
+      },
+      {
+       "place": "Stairs",
+       "chances": 18,
+       "conv": 0.22,
+       "dist": 12
+      },
+      {
+       "place": "Connector",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 21
+      }
+     ]
+    },
+    {
+     "death": "Lower B Tunnels",
+     "n": 135,
+     "tradedRate": 0.16,
+     "avgTime": 1.8,
+     "traders": [
+      {
+       "place": "Lower B Tunnels",
+       "chances": 27,
+       "conv": 0.3,
+       "dist": 6
+      },
+      {
+       "place": "Xbox",
+       "chances": 8,
+       "conv": 0.5,
+       "dist": 13
+      },
+      {
+       "place": "Upper B Tunnels",
+       "chances": 29,
+       "conv": 0.1,
+       "dist": 13
+      },
+      {
+       "place": "CT Mid",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 22
+      }
+     ]
+    },
+    {
+     "death": "Short",
+     "n": 134,
+     "tradedRate": 0.23,
+     "avgTime": 2.4,
+     "traders": [
+      {
+       "place": "Mid",
+       "chances": 22,
+       "conv": 0.27,
+       "dist": 8
+      },
+      {
+       "place": "Mid Bench",
+       "chances": 6,
+       "conv": 0.5,
+       "dist": 11
+      },
+      {
+       "place": "Connector",
+       "chances": 12,
+       "conv": 0.33,
+       "dist": 17
+      },
+      {
+       "place": "Xbox",
+       "chances": 17,
+       "conv": 0.12,
+       "dist": 8
+      }
+     ]
+    },
+    {
+     "death": "B Apps",
+     "n": 132,
+     "tradedRate": 0.18,
+     "avgTime": 2.2,
+     "traders": [
+      {
+       "place": "B Apps",
+       "chances": 74,
+       "conv": 0.15,
+       "dist": 8
+      },
+      {
+       "place": "Apps",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 16
+      },
+      {
+       "place": "B Short",
+       "chances": 10,
+       "conv": 0.2,
+       "dist": 15
+      },
+      {
+       "place": "Bench",
+       "chances": 13,
+       "conv": 0.15,
+       "dist": 12
+      }
+     ]
+    },
+    {
+     "death": "Start",
+     "n": 122,
+     "tradedRate": 0.21,
+     "avgTime": 2.1,
+     "traders": [
+      {
+       "place": "Mid",
+       "chances": 6,
+       "conv": 0.67,
+       "dist": 13
+      },
+      {
+       "place": "Start",
+       "chances": 84,
+       "conv": 0.15,
+       "dist": 8
+      },
+      {
+       "place": "Short",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 20
+      }
+     ]
+    },
+    {
+     "death": "B Window",
+     "n": 121,
+     "tradedRate": 0.26,
+     "avgTime": 2.4,
+     "traders": [
+      {
+       "place": "CT Spawn",
+       "chances": 7,
+       "conv": 0.57,
+       "dist": 40
+      },
+      {
+       "place": "B Doors",
+       "chances": 21,
+       "conv": 0.29,
+       "dist": 10
+      },
+      {
+       "place": "Upper B Tunnels",
+       "chances": 9,
+       "conv": 0.44,
+       "dist": 35
+      },
+      {
+       "place": "Car",
+       "chances": 6,
+       "conv": 0.5,
+       "dist": 26
+      }
+     ]
+    },
+    {
+     "death": "Zig",
+     "n": 116,
+     "tradedRate": 0.18,
+     "avgTime": 2,
+     "traders": [
+      {
+       "place": "Zig",
+       "chances": 23,
+       "conv": 0.39,
+       "dist": 5
+      },
+      {
+       "place": "A Short",
+       "chances": 9,
+       "conv": 0.22,
+       "dist": 12
+      },
+      {
+       "place": "Stairs",
+       "chances": 11,
+       "conv": 0.18,
+       "dist": 8
+      },
+      {
+       "place": "CT Spawn",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 18
+      }
+     ]
+    },
+    {
+     "death": "Water",
+     "n": 115,
+     "tradedRate": 0.21,
+     "avgTime": 1.7,
+     "traders": [
+      {
+       "place": "Water",
+       "chances": 24,
+       "conv": 0.25,
+       "dist": 8
+      },
+      {
+       "place": "Double Doors",
+       "chances": 12,
+       "conv": 0.25,
+       "dist": 11
+      },
+      {
+       "place": "Start",
+       "chances": 14,
+       "conv": 0.21,
+       "dist": 12
+      },
+      {
+       "place": "E Box",
+       "chances": 7,
+       "conv": 0.29,
+       "dist": 19
+      }
+     ]
+    },
+    {
+     "death": "Bridge",
+     "n": 113,
+     "tradedRate": 0.32,
+     "avgTime": 1.8,
+     "traders": [
+      {
+       "place": "Bridge",
+       "chances": 76,
+       "conv": 0.29,
+       "dist": 3
+      },
+      {
+       "place": "Double Doors",
+       "chances": 18,
+       "conv": 0.22,
+       "dist": 8
+      },
+      {
+       "place": "Water",
+       "chances": 39,
+       "conv": 0.1,
+       "dist": 7
+      },
+      {
+       "place": "Top Mid",
+       "chances": 14,
+       "conv": 0.14,
+       "dist": 16
+      }
+     ]
+    },
+    {
+     "death": "Car",
+     "n": 108,
+     "tradedRate": 0.28,
+     "avgTime": 2.1,
+     "traders": [
+      {
+       "place": "Car",
+       "chances": 22,
+       "conv": 0.32,
+       "dist": 4
+      },
+      {
+       "place": "Close",
+       "chances": 5,
+       "conv": 0.6,
+       "dist": 7
+      },
+      {
+       "place": "B Window",
+       "chances": 9,
+       "conv": 0.33,
+       "dist": 25
+      },
+      {
+       "place": "B Doors",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 10
+      }
+     ]
+    },
+    {
+     "death": "Jungle",
+     "n": 106,
+     "tradedRate": 0.28,
+     "avgTime": 2.5,
+     "traders": [
+      {
+       "place": "Jungle",
+       "chances": 16,
+       "conv": 0.31,
+       "dist": 12
+      },
+      {
+       "place": "Connector",
+       "chances": 17,
+       "conv": 0.24,
+       "dist": 14
+      },
+      {
+       "place": "Stairs",
+       "chances": 14,
+       "conv": 0.21,
+       "dist": 13
+      },
+      {
+       "place": "Default",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 23
+      }
+     ]
+    },
+    {
+     "death": "A Short",
+     "n": 105,
+     "tradedRate": 0.22,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "Stairs",
+       "chances": 13,
+       "conv": 0.38,
+       "dist": 8
+      },
+      {
+       "place": "A Short",
+       "chances": 43,
+       "conv": 0.16,
+       "dist": 4
+      },
+      {
+       "place": "CT Spawn",
+       "chances": 15,
+       "conv": 0.13,
+       "dist": 8
+      },
+      {
+       "place": "Zig",
+       "chances": 8,
+       "conv": 0.13,
+       "dist": 12
+      }
+     ]
+    },
+    {
+     "death": "Connector",
+     "n": 103,
+     "tradedRate": 0.29,
+     "avgTime": 2,
+     "traders": [
+      {
+       "place": "Connector",
+       "chances": 21,
+       "conv": 0.38,
+       "dist": 6
+      },
+      {
+       "place": "Mid",
+       "chances": 16,
+       "conv": 0.25,
+       "dist": 10
+      },
+      {
+       "place": "Tetris",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 18
+      },
+      {
+       "place": "Short",
+       "chances": 15,
+       "conv": 0.2,
+       "dist": 17
+      }
+     ]
+    },
+    {
+     "death": "B Site",
+     "n": 87,
+     "tradedRate": 0.29,
+     "avgTime": 2.2,
+     "traders": [
+      {
+       "place": "Car",
+       "chances": 5,
+       "conv": 0.6,
+       "dist": 20
+      },
+      {
+       "place": "B Doors",
+       "chances": 6,
+       "conv": 0.5,
+       "dist": 15
+      },
+      {
+       "place": "B Site",
+       "chances": 7,
+       "conv": 0.29,
+       "dist": 7
+      },
+      {
+       "place": "B Plat",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 11
+      }
+     ]
+    },
+    {
+     "death": "Under Palace",
+     "n": 86,
+     "tradedRate": 0.26,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "Stairs",
+       "chances": 14,
+       "conv": 0.36,
+       "dist": 18
+      },
+      {
+       "place": "Under Palace",
+       "chances": 9,
+       "conv": 0.33,
+       "dist": 3
+      },
+      {
+       "place": "Tetris",
+       "chances": 29,
+       "conv": 0.17,
+       "dist": 12
+      },
+      {
+       "place": "Firebox",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 15
+      }
+     ]
+    },
+    {
+     "death": "Bench",
+     "n": 86,
+     "tradedRate": 0.22,
+     "avgTime": 2.1,
+     "traders": [
+      {
+       "place": "B Short",
+       "chances": 6,
+       "conv": 0.67,
+       "dist": 19
+      },
+      {
+       "place": "Mid",
+       "chances": 9,
+       "conv": 0.33,
+       "dist": 9
+      },
+      {
+       "place": "B Apps",
+       "chances": 25,
+       "conv": 0.08,
+       "dist": 13
+      },
+      {
+       "place": "Bench",
+       "chances": 13,
+       "conv": 0.08,
+       "dist": 7
+      }
+     ]
+    },
+    {
+     "death": "B Short",
+     "n": 82,
+     "tradedRate": 0.22,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "Kitchen Door",
+       "chances": 6,
+       "conv": 0.5,
+       "dist": 28
+      },
+      {
+       "place": "B Apps",
+       "chances": 18,
+       "conv": 0.28,
+       "dist": 13
+      },
+      {
+       "place": "B Short",
+       "chances": 9,
+       "conv": 0.22,
+       "dist": 10
+      },
+      {
+       "place": "Bench",
+       "chances": 10,
+       "conv": 0.1,
+       "dist": 16
+      }
+     ]
+    },
+    {
+     "death": "E Box",
+     "n": 81,
+     "tradedRate": 0.16,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "Water",
+       "chances": 6,
+       "conv": 0.83,
+       "dist": 16
+      },
+      {
+       "place": "Pillar",
+       "chances": 8,
+       "conv": 0.25,
+       "dist": 9
+      },
+      {
+       "place": "E Box",
+       "chances": 11,
+       "conv": 0.18,
+       "dist": 5
+      },
+      {
+       "place": "B Site",
+       "chances": 12,
+       "conv": 0.08,
+       "dist": 14
+      }
+     ]
+    },
+    {
+     "death": "Middle",
+     "n": 79,
+     "tradedRate": 0.25,
+     "avgTime": 1.7,
+     "traders": [
+      {
+       "place": "Double Doors",
+       "chances": 11,
+       "conv": 0.36,
+       "dist": 10
+      },
+      {
+       "place": "A Connector",
+       "chances": 7,
+       "conv": 0.43,
+       "dist": 12
+      },
+      {
+       "place": "Middle",
+       "chances": 38,
+       "conv": 0.18,
+       "dist": 6
+      }
+     ]
+    },
+    {
+     "death": "B Plat",
+     "n": 77,
+     "tradedRate": 0.34,
+     "avgTime": 1.8,
+     "traders": [
+      {
+       "place": "Car",
+       "chances": 19,
+       "conv": 0.32,
+       "dist": 12
+      },
+      {
+       "place": "B Doors",
+       "chances": 17,
+       "conv": 0.29,
+       "dist": 14
+      },
+      {
+       "place": "Upper B Tunnels",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 17
+      },
+      {
+       "place": "B Plat",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 5
+      }
+     ]
+    },
+    {
+     "death": "Double Doors",
+     "n": 75,
+     "tradedRate": 0.09,
+     "avgTime": 2.1,
+     "traders": [
+      {
+       "place": "Double Doors",
+       "chances": 11,
+       "conv": 0.18,
+       "dist": 4
+      },
+      {
+       "place": "E Box",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 23
+      },
+      {
+       "place": "Bridge",
+       "chances": 25,
+       "conv": 0.08,
+       "dist": 9
+      }
+     ]
+    },
+    {
+     "death": "Suicide",
+     "n": 72,
+     "tradedRate": 0.11,
+     "avgTime": 2.8,
+     "traders": [
+      {
+       "place": "Outside Long",
+       "chances": 34,
+       "conv": 0.09,
+       "dist": 17
+      },
+      {
+       "place": "Top Mid",
+       "chances": 27,
+       "conv": 0.07,
+       "dist": 18
+      },
+      {
+       "place": "Suicide",
+       "chances": 20,
+       "conv": 0.05,
+       "dist": 4
+      }
+     ]
+    },
+    {
+     "death": "Long Corner",
+     "n": 71,
+     "tradedRate": 0.25,
+     "avgTime": 2.1,
+     "traders": [
+      {
+       "place": "Blue",
+       "chances": 24,
+       "conv": 0.21,
+       "dist": 10
+      },
+      {
+       "place": "Pit",
+       "chances": 9,
+       "conv": 0.22,
+       "dist": 13
+      },
+      {
+       "place": "A Long",
+       "chances": 22,
+       "conv": 0.14,
+       "dist": 10
+      },
+      {
+       "place": "Long Corner",
+       "chances": 12,
+       "conv": 0.17,
+       "dist": 4
+      }
+     ]
+    },
+    {
+     "death": "Default",
+     "n": 69,
+     "tradedRate": 0.28,
+     "avgTime": 1.9,
+     "traders": [
+      {
+       "place": "Tetris",
+       "chances": 7,
+       "conv": 0.43,
+       "dist": 11
+      },
+      {
+       "place": "B Site",
+       "chances": 7,
+       "conv": 0.29,
+       "dist": 10
+      },
+      {
+       "place": "Stairs",
+       "chances": 12,
+       "conv": 0.17,
+       "dist": 16
+      },
+      {
+       "place": "Ticket",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 16
+      }
+     ]
+    },
+    {
+     "death": "Gate",
+     "n": 67,
+     "tradedRate": 0.21,
+     "avgTime": 1.9,
+     "traders": [
+      {
+       "place": "Gate",
+       "chances": 17,
+       "conv": 0.29,
+       "dist": 4
+      },
+      {
+       "place": "Ivy",
+       "chances": 11,
+       "conv": 0.36,
+       "dist": 8
+      },
+      {
+       "place": "Street",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 18
+      },
+      {
+       "place": "B Long",
+       "chances": 12,
+       "conv": 0.17,
+       "dist": 9
+      }
+     ]
+    },
+    {
+     "death": "Goose",
+     "n": 67,
+     "tradedRate": 0.12,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "CT Spawn",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 15
+      },
+      {
+       "place": "Goose",
+       "chances": 8,
+       "conv": 0.13,
+       "dist": 6
+      },
+      {
+       "place": "Elevator",
+       "chances": 9,
+       "conv": 0.11,
+       "dist": 10
+      }
+     ]
+    },
+    {
+     "death": "Pillar",
+     "n": 65,
+     "tradedRate": 0.29,
+     "avgTime": 1.9,
+     "traders": [
+      {
+       "place": "Pillar",
+       "chances": 10,
+       "conv": 0.3,
+       "dist": 4
+      },
+      {
+       "place": "E Box",
+       "chances": 20,
+       "conv": 0.2,
+       "dist": 9
+      },
+      {
+       "place": "Corner",
+       "chances": 7,
+       "conv": 0.29,
+       "dist": 14
+      },
+      {
+       "place": "Gate",
+       "chances": 13,
+       "conv": 0.15,
+       "dist": 11
+      }
+     ]
+    },
+    {
+     "death": "Arches",
+     "n": 65,
+     "tradedRate": 0.17,
+     "avgTime": 1.3,
+     "traders": [
+      {
+       "place": "Water",
+       "chances": 10,
+       "conv": 0.4,
+       "dist": 11
+      },
+      {
+       "place": "Wood",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 10
+      },
+      {
+       "place": "Arches",
+       "chances": 15,
+       "conv": 0.2,
+       "dist": 5
+      },
+      {
+       "place": "Double Doors",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 11
+      }
+     ]
+    },
+    {
+     "death": "Elevator",
+     "n": 65,
+     "tradedRate": 0.22,
+     "avgTime": 1.7,
+     "traders": [
+      {
+       "place": "A Site",
+       "chances": 9,
+       "conv": 0.22,
+       "dist": 7
+      },
+      {
+       "place": "Gandalf",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 11
+      }
+     ]
+    },
+    {
+     "death": "Underpass",
+     "n": 64,
+     "tradedRate": 0.14,
+     "avgTime": 2,
+     "traders": [
+      {
+       "place": "B Short",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 9
+      },
+      {
+       "place": "B Apps",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 19
+      },
+      {
+       "place": "Start",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 37
+      }
+     ]
+    },
+    {
+     "death": "Ticket",
+     "n": 61,
+     "tradedRate": 0.2,
+     "avgTime": 2.6,
+     "traders": [
+      {
+       "place": "Stairs",
+       "chances": 11,
+       "conv": 0.27,
+       "dist": 21
+      },
+      {
+       "place": "Jungle",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 26
+      },
+      {
+       "place": "Default",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 14
+      }
+     ]
+    },
+    {
+     "death": "A Cross",
+     "n": 59,
+     "tradedRate": 0.19,
+     "avgTime": 1.6,
+     "traders": [
+      {
+       "place": "A Default Plant",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 14
+      },
+      {
+       "place": "A Long",
+       "chances": 14,
+       "conv": 0.21,
+       "dist": 10
+      },
+      {
+       "place": "A Ramp",
+       "chances": 7,
+       "conv": 0.29,
+       "dist": 12
+      },
+      {
+       "place": "A Site",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 9
+      }
+     ]
+    },
+    {
+     "death": "Window",
+     "n": 59,
+     "tradedRate": 0.1,
+     "avgTime": 1.5,
+     "traders": [
+      {
+       "place": "Window",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 4
+      },
+      {
+       "place": "Mid",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 14
+      },
+      {
+       "place": "Short",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 12
+      },
+      {
+       "place": "Jungle",
+       "chances": 10,
+       "conv": 0.1,
+       "dist": 12
+      }
+     ]
+    },
+    {
+     "death": "Palace",
+     "n": 57,
+     "tradedRate": 0.18,
+     "avgTime": 3,
+     "traders": []
+    },
+    {
+     "death": "Outside Long",
+     "n": 54,
+     "tradedRate": 0.2,
+     "avgTime": 2,
+     "traders": [
+      {
+       "place": "Outside Long",
+       "chances": 25,
+       "conv": 0.32,
+       "dist": 7
+      },
+      {
+       "place": "Taxi",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 9
+      }
+     ]
+    },
+    {
+     "death": "Street",
+     "n": 53,
+     "tradedRate": 0.15,
+     "avgTime": 1.7,
+     "traders": [
+      {
+       "place": "Street",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 10
+      },
+      {
+       "place": "Pillar",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 13
+      }
+     ]
+    },
+    {
+     "death": "Gandalf",
+     "n": 52,
+     "tradedRate": 0.19,
+     "avgTime": 1.5,
+     "traders": [
+      {
+       "place": "Elevator",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 13
+      },
+      {
+       "place": "A Short",
+       "chances": 7,
+       "conv": 0.29,
+       "dist": 17
+      },
+      {
+       "place": "Gandalf",
+       "chances": 8,
+       "conv": 0.25,
+       "dist": 7
+      },
+      {
+       "place": "CT Spawn",
+       "chances": 15,
+       "conv": 0.13,
+       "dist": 12
+      }
+     ]
+    },
+    {
+     "death": "Palm",
+     "n": 51,
+     "tradedRate": 0.14,
+     "avgTime": 1.9,
+     "traders": [
+      {
+       "place": "Mid",
+       "chances": 16,
+       "conv": 0.19,
+       "dist": 6
+      },
+      {
+       "place": "Palm",
+       "chances": 8,
+       "conv": 0.25,
+       "dist": 4
+      },
+      {
+       "place": "Xbox",
+       "chances": 9,
+       "conv": 0.11,
+       "dist": 17
+      }
+     ]
+    },
+    {
+     "death": "A Connector",
+     "n": 42,
+     "tradedRate": 0.24,
+     "avgTime": 3.1,
+     "traders": [
+      {
+       "place": "A Connector",
+       "chances": 7,
+       "conv": 0.57,
+       "dist": 5
+      },
+      {
+       "place": "Middle",
+       "chances": 10,
+       "conv": 0.1,
+       "dist": 9
+      }
+     ]
+    },
+    {
+     "death": "A Default Plant",
+     "n": 41,
+     "tradedRate": 0.39,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "Goose",
+       "chances": 9,
+       "conv": 0.44,
+       "dist": 10
+      },
+      {
+       "place": "A Site",
+       "chances": 11,
+       "conv": 0.18,
+       "dist": 7
+      }
+     ]
+    },
+    {
+     "death": "Ninja",
+     "n": 39,
+     "tradedRate": 0.33,
+     "avgTime": 2.7,
+     "traders": [
+      {
+       "place": "Default",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 5
+      },
+      {
+       "place": "Tetris",
+       "chances": 7,
+       "conv": 0.29,
+       "dist": 15
+      }
+     ]
+    },
+    {
+     "death": "Close Mid Doors",
+     "n": 39,
+     "tradedRate": 0.18,
+     "avgTime": 1.9,
+     "traders": [
+      {
+       "place": "CT Mid",
+       "chances": 7,
+       "conv": 0.43,
+       "dist": 14
+      }
+     ]
+    },
+    {
+     "death": "Firebox",
+     "n": 39,
+     "tradedRate": 0.26,
+     "avgTime": 2.2,
+     "traders": [
+      {
+       "place": "Ticket",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 12
+      },
+      {
+       "place": "Stairs",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 10
+      }
+     ]
+    },
+    {
+     "death": "A Heaven",
+     "n": 37,
+     "tradedRate": 0.14,
+     "avgTime": 0.8,
+     "traders": [
+      {
+       "place": "A Site",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 14
+      }
+     ]
+    },
+    {
+     "death": "CT",
+     "n": 36,
+     "tradedRate": 0.36,
+     "avgTime": 2.2,
+     "traders": [
+      {
+       "place": "CT",
+       "chances": 27,
+       "conv": 0.33,
+       "dist": 5
+      }
+     ]
+    },
+    {
+     "death": "Right Side Mid",
+     "n": 35,
+     "tradedRate": 0.23,
+     "avgTime": 2.2,
+     "traders": [
+      {
+       "place": "Palm",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 13
+      },
+      {
+       "place": "Top Mid",
+       "chances": 12,
+       "conv": 0.17,
+       "dist": 12
+      }
+     ]
+    },
+    {
+     "death": "Pit",
+     "n": 35,
+     "tradedRate": 0.2,
+     "avgTime": 1.4,
+     "traders": [
+      {
+       "place": "Blue",
+       "chances": 16,
+       "conv": 0.13,
+       "dist": 9
+      },
+      {
+       "place": "Long Corner",
+       "chances": 10,
+       "conv": 0.1,
+       "dist": 12
+      },
+      {
+       "place": "A Long",
+       "chances": 11,
+       "conv": 0.09,
+       "dist": 16
+      }
+     ]
+    },
+    {
+     "death": "Jumper",
+     "n": 34,
+     "tradedRate": 0.21,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "Goose",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 15
+      }
+     ]
+    },
+    {
+     "death": "Mid Bench",
+     "n": 34,
+     "tradedRate": 0.32,
+     "avgTime": 1.3,
+     "traders": [
+      {
+       "place": "Mid Bench",
+       "chances": 7,
+       "conv": 0.57,
+       "dist": 3
+      },
+      {
+       "place": "Start",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 35
+      },
+      {
+       "place": "Window",
+       "chances": 7,
+       "conv": 0.29,
+       "dist": 8
+      },
+      {
+       "place": "Mid",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 10
+      }
+     ]
+    },
+    {
+     "death": "Plateau",
+     "n": 33,
+     "tradedRate": 0.21,
+     "avgTime": 1.7,
+     "traders": [
+      {
+       "place": "A Connector",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 7
+      },
+      {
+       "place": "Plateau",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 6
+      },
+      {
+       "place": "A Site",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 11
+      },
+      {
+       "place": "Main",
+       "chances": 8,
+       "conv": 0.13,
+       "dist": 20
+      }
+     ]
+    },
+    {
+     "death": "Close",
+     "n": 33,
+     "tradedRate": 0.24,
+     "avgTime": 2.3,
+     "traders": [
+      {
+       "place": "B Doors",
+       "chances": 9,
+       "conv": 0.33,
+       "dist": 10
+      },
+      {
+       "place": "Car",
+       "chances": 15,
+       "conv": 0.13,
+       "dist": 5
+      }
+     ]
+    },
+    {
+     "death": "Kitchen",
+     "n": 29,
+     "tradedRate": 0.07,
+     "avgTime": 1.7,
+     "traders": []
+    },
+    {
+     "death": "B Long",
+     "n": 28,
+     "tradedRate": 0.32,
+     "avgTime": 1.8,
+     "traders": [
+      {
+       "place": "B Heaven",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 12
+      },
+      {
+       "place": "B Long",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 8
+      },
+      {
+       "place": "Gate",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 8
+      }
+     ]
+    },
+    {
+     "death": "Hut",
+     "n": 28,
+     "tradedRate": 0.36,
+     "avgTime": 1.9,
+     "traders": [
+      {
+       "place": "Hut",
+       "chances": 12,
+       "conv": 0.25,
+       "dist": 8
+      },
+      {
+       "place": "A site",
+       "chances": 7,
+       "conv": 0.29,
+       "dist": 15
+      },
+      {
+       "place": "Main",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 10
+      },
+      {
+       "place": "Lobby",
+       "chances": 8,
+       "conv": 0.13,
+       "dist": 15
+      }
+     ]
+    },
+    {
+     "death": "Boat",
+     "n": 26,
+     "tradedRate": 0.23,
+     "avgTime": 1.9,
+     "traders": [
+      {
+       "place": "Boat",
+       "chances": 5,
+       "conv": 0.6,
+       "dist": 5
+      },
+      {
+       "place": "Stairs",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 15
+      },
+      {
+       "place": "Arches",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 9
+      }
+     ]
+    },
+    {
+     "death": "Ivy",
+     "n": 26,
+     "tradedRate": 0.04,
+     "avgTime": 3.6,
+     "traders": []
+    },
+    {
+     "death": "Corner",
+     "n": 23,
+     "tradedRate": 0.35,
+     "avgTime": 2.2,
+     "traders": [
+      {
+       "place": "Gate",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 9
+      }
+     ]
+    },
+    {
+     "death": "Fountain",
+     "n": 21,
+     "tradedRate": 0.14,
+     "avgTime": 2,
+     "traders": []
+    },
+    {
+     "death": "T Spawn",
+     "n": 21,
+     "tradedRate": 0.29,
+     "avgTime": 1.3,
+     "traders": [
+      {
+       "place": "T Spawn",
+       "chances": 7,
+       "conv": 0.43,
+       "dist": 8
+      }
+     ]
+    },
+    {
+     "death": "B Back Site",
+     "n": 21,
+     "tradedRate": 0.14,
+     "avgTime": 1.1,
+     "traders": [
+      {
+       "place": "B Window",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 10
+      }
+     ]
+    },
+    {
+     "death": "Fence",
+     "n": 20,
+     "tradedRate": 0.15,
+     "avgTime": 2.4,
+     "traders": [
+      {
+       "place": "Car",
+       "chances": 6,
+       "conv": 0.33,
+       "dist": 13
+      }
+     ]
+    },
+    {
+     "death": "A Car",
+     "n": 20,
+     "tradedRate": 0.1,
+     "avgTime": 1,
+     "traders": []
+    },
+    {
+     "death": "B Default Plant",
+     "n": 20,
+     "tradedRate": 0.3,
+     "avgTime": 1.4,
+     "traders": [
+      {
+       "place": "B Doors",
+       "chances": 5,
+       "conv": 0.4,
+       "dist": 12
+      }
+     ]
+    },
+    {
+     "death": "Chair",
+     "n": 19,
+     "tradedRate": 0.37,
+     "avgTime": 2.6,
+     "traders": [
+      {
+       "place": "Mid",
+       "chances": 7,
+       "conv": 0.43,
+       "dist": 8
+      }
+     ]
+    },
+    {
+     "death": "Short Boost",
+     "n": 17,
+     "tradedRate": 0.35,
+     "avgTime": 1.7,
+     "traders": []
+    },
+    {
+     "death": "Ladder Room",
+     "n": 17,
+     "tradedRate": 0.12,
+     "avgTime": 2,
+     "traders": []
+    },
+    {
+     "death": "Red",
+     "n": 17,
+     "tradedRate": 0.24,
+     "avgTime": 1.8,
+     "traders": [
+      {
+       "place": "Red",
+       "chances": 14,
+       "conv": 0.14,
+       "dist": 11
+      },
+      {
+       "place": "White",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 14
+      }
+     ]
+    },
+    {
+     "death": "Barrels",
+     "n": 16,
+     "tradedRate": 0.19,
+     "avgTime": 2.8,
+     "traders": []
+    },
+    {
+     "death": "Double Stack",
+     "n": 16,
+     "tradedRate": 0.19,
+     "avgTime": 0.6,
+     "traders": []
+    },
+    {
+     "death": "B Closet",
+     "n": 14,
+     "tradedRate": 0.21,
+     "avgTime": 1.6,
+     "traders": [
+      {
+       "place": "B Window",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 28
+      }
+     ]
+    },
+    {
+     "death": "Banana",
+     "n": 14,
+     "tradedRate": 0.43,
+     "avgTime": 0.9,
+     "traders": [
+      {
+       "place": "Banana",
+       "chances": 11,
+       "conv": 0.45,
+       "dist": 6
+      }
+     ]
+    },
+    {
+     "death": "Outside Tunnels",
+     "n": 13,
+     "tradedRate": 0,
+     "avgTime": 0,
+     "traders": []
+    },
+    {
+     "death": "Taxi",
+     "n": 13,
+     "tradedRate": 0.23,
+     "avgTime": 1.1,
+     "traders": [
+      {
+       "place": "Outside Long",
+       "chances": 9,
+       "conv": 0.22,
+       "dist": 5
+      },
+      {
+       "place": "Long Doors",
+       "chances": 9,
+       "conv": 0.11,
+       "dist": 4
+      }
+     ]
+    },
+    {
+     "death": "Ruins",
+     "n": 12,
+     "tradedRate": 0,
+     "avgTime": 0,
+     "traders": []
+    },
+    {
+     "death": "Alley",
+     "n": 12,
+     "tradedRate": 0.33,
+     "avgTime": 3,
+     "traders": []
+    },
+    {
+     "death": "Back Plat",
+     "n": 12,
+     "tradedRate": 0.17,
+     "avgTime": 2.3,
+     "traders": []
+    },
+    {
+     "death": "Apps",
+     "n": 12,
+     "tradedRate": 0.08,
+     "avgTime": 0.4,
+     "traders": []
+    },
+    {
+     "death": "Kitchen Door",
+     "n": 12,
+     "tradedRate": 0.08,
+     "avgTime": 1.9,
+     "traders": []
+    },
+    {
+     "death": "Heaven",
+     "n": 12,
+     "tradedRate": 0.17,
+     "avgTime": 2.6,
+     "traders": []
+    },
+    {
+     "death": "A site",
+     "n": 12,
+     "tradedRate": 0.17,
+     "avgTime": 1,
+     "traders": [
+      {
+       "place": "Hut",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 13
+      }
+     ]
+    },
+    {
+     "death": "Drop",
+     "n": 11,
+     "tradedRate": 0.18,
+     "avgTime": 2.1,
+     "traders": []
+    },
+    {
+     "death": "Back Site",
+     "n": 11,
+     "tradedRate": 0.45,
+     "avgTime": 1.6,
+     "traders": []
+    },
+    {
+     "death": "Lobby",
+     "n": 10,
+     "tradedRate": 0.4,
+     "avgTime": 1.8,
+     "traders": [
+      {
+       "place": "A site",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 13
+      }
+     ]
+    },
+    {
+     "death": "T Ramp",
+     "n": 9,
+     "tradedRate": 0.22,
+     "avgTime": 1.3,
+     "traders": []
+    },
+    {
+     "death": "Wood",
+     "n": 8,
+     "tradedRate": 0.13,
+     "avgTime": 0.8,
+     "traders": []
+    },
+    {
+     "death": "Tunnel",
+     "n": 8,
+     "tradedRate": 0.13,
+     "avgTime": 1.2,
+     "traders": []
+    },
+    {
+     "death": "Big Box",
+     "n": 8,
+     "tradedRate": 0.13,
+     "avgTime": 0.5,
+     "traders": []
+    },
+    {
+     "death": "Kitchen Window",
+     "n": 8,
+     "tradedRate": 0.13,
+     "avgTime": 3.5,
+     "traders": []
+    }
+   ],
+   "within": [
+    {
+     "s": 1,
+     "share": 0.3
+    },
+    {
+     "s": 2,
+     "share": 0.55
+    },
+    {
+     "s": 3,
+     "share": 0.73
+    },
+    {
+     "s": 5,
+     "share": 1
+    }
+   ],
+   "byDist": [
+    {
+     "bucket": "under 8 m",
+     "chances": 1495,
+     "conv": 0.258
+    },
+    {
+     "bucket": "8–20 m",
+     "chances": 1488,
+     "conv": 0.249
+    },
+    {
+     "bucket": "20–38 m",
+     "chances": 751,
+     "conv": 0.253
+    },
+    {
+     "bucket": "over 38 m",
+     "chances": 195,
+     "conv": 0.195
+    }
    ]
   },
   "duels": {
@@ -699,6 +3006,639 @@
       "n": 125,
       "tradedRate": 0
      }
+    ],
+    "spots": [
+     {
+      "death": "Bridge",
+      "n": 113,
+      "tradedRate": 0.32,
+      "avgTime": 1.8,
+      "traders": [
+       {
+        "place": "Bridge",
+        "chances": 76,
+        "conv": 0.29,
+        "dist": 3
+       },
+       {
+        "place": "Double Doors",
+        "chances": 18,
+        "conv": 0.22,
+        "dist": 8
+       },
+       {
+        "place": "Water",
+        "chances": 39,
+        "conv": 0.1,
+        "dist": 7
+       },
+       {
+        "place": "Top Mid",
+        "chances": 14,
+        "conv": 0.14,
+        "dist": 16
+       }
+      ]
+     },
+     {
+      "death": "Main",
+      "n": 109,
+      "tradedRate": 0.24,
+      "avgTime": 2.4,
+      "traders": [
+       {
+        "place": "Main",
+        "chances": 46,
+        "conv": 0.37,
+        "dist": 7
+       },
+       {
+        "place": "Fountain",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 14
+       },
+       {
+        "place": "A Site",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 13
+       },
+       {
+        "place": "Plateau",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 19
+       }
+      ]
+     },
+     {
+      "death": "Water",
+      "n": 84,
+      "tradedRate": 0.2,
+      "avgTime": 1.6,
+      "traders": [
+       {
+        "place": "Water",
+        "chances": 24,
+        "conv": 0.25,
+        "dist": 8
+       },
+       {
+        "place": "Double Doors",
+        "chances": 12,
+        "conv": 0.25,
+        "dist": 11
+       },
+       {
+        "place": "E Box",
+        "chances": 7,
+        "conv": 0.29,
+        "dist": 19
+       },
+       {
+        "place": "Arches",
+        "chances": 11,
+        "conv": 0.18,
+        "dist": 12
+       }
+      ]
+     },
+     {
+      "death": "E Box",
+      "n": 81,
+      "tradedRate": 0.16,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "Water",
+        "chances": 6,
+        "conv": 0.83,
+        "dist": 16
+       },
+       {
+        "place": "Pillar",
+        "chances": 8,
+        "conv": 0.25,
+        "dist": 9
+       },
+       {
+        "place": "E Box",
+        "chances": 11,
+        "conv": 0.18,
+        "dist": 5
+       },
+       {
+        "place": "B Site",
+        "chances": 12,
+        "conv": 0.08,
+        "dist": 14
+       }
+      ]
+     },
+     {
+      "death": "Middle",
+      "n": 79,
+      "tradedRate": 0.25,
+      "avgTime": 1.7,
+      "traders": [
+       {
+        "place": "Double Doors",
+        "chances": 11,
+        "conv": 0.36,
+        "dist": 10
+       },
+       {
+        "place": "A Connector",
+        "chances": 7,
+        "conv": 0.43,
+        "dist": 12
+       },
+       {
+        "place": "Middle",
+        "chances": 38,
+        "conv": 0.18,
+        "dist": 6
+       }
+      ]
+     },
+     {
+      "death": "Double Doors",
+      "n": 75,
+      "tradedRate": 0.09,
+      "avgTime": 2.1,
+      "traders": [
+       {
+        "place": "Double Doors",
+        "chances": 11,
+        "conv": 0.18,
+        "dist": 4
+       },
+       {
+        "place": "E Box",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 23
+       },
+       {
+        "place": "Bridge",
+        "chances": 25,
+        "conv": 0.08,
+        "dist": 9
+       }
+      ]
+     },
+     {
+      "death": "A Site",
+      "n": 67,
+      "tradedRate": 0.19,
+      "avgTime": 1.4,
+      "traders": [
+       {
+        "place": "Main",
+        "chances": 15,
+        "conv": 0.27,
+        "dist": 13
+       },
+       {
+        "place": "A Site",
+        "chances": 14,
+        "conv": 0.21,
+        "dist": 7
+       },
+       {
+        "place": "A Heaven",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 14
+       },
+       {
+        "place": "Fountain",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 11
+       }
+      ]
+     },
+     {
+      "death": "Gate",
+      "n": 67,
+      "tradedRate": 0.21,
+      "avgTime": 1.9,
+      "traders": [
+       {
+        "place": "Gate",
+        "chances": 17,
+        "conv": 0.29,
+        "dist": 4
+       },
+       {
+        "place": "Ivy",
+        "chances": 11,
+        "conv": 0.36,
+        "dist": 8
+       },
+       {
+        "place": "Street",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 18
+       },
+       {
+        "place": "B Long",
+        "chances": 12,
+        "conv": 0.17,
+        "dist": 9
+       }
+      ]
+     },
+     {
+      "death": "Pillar",
+      "n": 65,
+      "tradedRate": 0.29,
+      "avgTime": 1.9,
+      "traders": [
+       {
+        "place": "Pillar",
+        "chances": 10,
+        "conv": 0.3,
+        "dist": 4
+       },
+       {
+        "place": "E Box",
+        "chances": 20,
+        "conv": 0.2,
+        "dist": 9
+       },
+       {
+        "place": "Corner",
+        "chances": 7,
+        "conv": 0.29,
+        "dist": 14
+       },
+       {
+        "place": "Gate",
+        "chances": 13,
+        "conv": 0.15,
+        "dist": 11
+       }
+      ]
+     },
+     {
+      "death": "Arches",
+      "n": 65,
+      "tradedRate": 0.17,
+      "avgTime": 1.3,
+      "traders": [
+       {
+        "place": "Water",
+        "chances": 10,
+        "conv": 0.4,
+        "dist": 11
+       },
+       {
+        "place": "Wood",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 10
+       },
+       {
+        "place": "Arches",
+        "chances": 15,
+        "conv": 0.2,
+        "dist": 5
+       },
+       {
+        "place": "Double Doors",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 11
+       }
+      ]
+     },
+     {
+      "death": "Street",
+      "n": 53,
+      "tradedRate": 0.15,
+      "avgTime": 1.7,
+      "traders": [
+       {
+        "place": "Street",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 10
+       },
+       {
+        "place": "Pillar",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 13
+       }
+      ]
+     },
+     {
+      "death": "B Site",
+      "n": 47,
+      "tradedRate": 0.17,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "B Site",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 7
+       },
+       {
+        "place": "Back Site",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 7
+       },
+       {
+        "place": "Pillar",
+        "chances": 10,
+        "conv": 0.1,
+        "dist": 12
+       }
+      ]
+     },
+     {
+      "death": "Top Mid",
+      "n": 43,
+      "tradedRate": 0.14,
+      "avgTime": 3.3,
+      "traders": [
+       {
+        "place": "Top Mid",
+        "chances": 29,
+        "conv": 0.14,
+        "dist": 6
+       }
+      ]
+     },
+     {
+      "death": "A Connector",
+      "n": 42,
+      "tradedRate": 0.24,
+      "avgTime": 3.1,
+      "traders": [
+       {
+        "place": "A Connector",
+        "chances": 7,
+        "conv": 0.57,
+        "dist": 5
+       },
+       {
+        "place": "Middle",
+        "chances": 10,
+        "conv": 0.1,
+        "dist": 9
+       }
+      ]
+     },
+     {
+      "death": "A Heaven",
+      "n": 37,
+      "tradedRate": 0.14,
+      "avgTime": 0.8,
+      "traders": [
+       {
+        "place": "A Site",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 14
+       }
+      ]
+     },
+     {
+      "death": "Plateau",
+      "n": 33,
+      "tradedRate": 0.21,
+      "avgTime": 1.7,
+      "traders": [
+       {
+        "place": "A Connector",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 7
+       },
+       {
+        "place": "Plateau",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 6
+       },
+       {
+        "place": "A Site",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 11
+       },
+       {
+        "place": "Main",
+        "chances": 8,
+        "conv": 0.13,
+        "dist": 20
+       }
+      ]
+     },
+     {
+      "death": "B Long",
+      "n": 28,
+      "tradedRate": 0.32,
+      "avgTime": 1.8,
+      "traders": [
+       {
+        "place": "B Heaven",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 12
+       },
+       {
+        "place": "B Long",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 8
+       },
+       {
+        "place": "Gate",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 8
+       }
+      ]
+     },
+     {
+      "death": "Boat",
+      "n": 26,
+      "tradedRate": 0.23,
+      "avgTime": 1.9,
+      "traders": [
+       {
+        "place": "Boat",
+        "chances": 5,
+        "conv": 0.6,
+        "dist": 5
+       },
+       {
+        "place": "Stairs",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 15
+       },
+       {
+        "place": "Arches",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 9
+       }
+      ]
+     },
+     {
+      "death": "Ivy",
+      "n": 26,
+      "tradedRate": 0.04,
+      "avgTime": 3.6,
+      "traders": []
+     },
+     {
+      "death": "Palace",
+      "n": 25,
+      "tradedRate": 0.24,
+      "avgTime": 2.7,
+      "traders": []
+     },
+     {
+      "death": "Default",
+      "n": 25,
+      "tradedRate": 0.32,
+      "avgTime": 1.4,
+      "traders": [
+       {
+        "place": "B Site",
+        "chances": 7,
+        "conv": 0.29,
+        "dist": 10
+       }
+      ]
+     },
+     {
+      "death": "Corner",
+      "n": 23,
+      "tradedRate": 0.35,
+      "avgTime": 2.2,
+      "traders": [
+       {
+        "place": "Gate",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 9
+       }
+      ]
+     },
+     {
+      "death": "Fountain",
+      "n": 20,
+      "tradedRate": 0.15,
+      "avgTime": 2,
+      "traders": []
+     },
+     {
+      "death": "Ruins",
+      "n": 12,
+      "tradedRate": 0,
+      "avgTime": 0,
+      "traders": []
+     },
+     {
+      "death": "Alley",
+      "n": 12,
+      "tradedRate": 0.33,
+      "avgTime": 3,
+      "traders": []
+     },
+     {
+      "death": "Stairs",
+      "n": 11,
+      "tradedRate": 0,
+      "avgTime": 0,
+      "traders": []
+     },
+     {
+      "death": "Drop",
+      "n": 11,
+      "tradedRate": 0.18,
+      "avgTime": 2.1,
+      "traders": []
+     },
+     {
+      "death": "Back Site",
+      "n": 11,
+      "tradedRate": 0.45,
+      "avgTime": 1.6,
+      "traders": []
+     },
+     {
+      "death": "Ninja",
+      "n": 8,
+      "tradedRate": 0.13,
+      "avgTime": 2.8,
+      "traders": []
+     },
+     {
+      "death": "Wood",
+      "n": 8,
+      "tradedRate": 0.13,
+      "avgTime": 0.8,
+      "traders": []
+     },
+     {
+      "death": "Tunnel",
+      "n": 8,
+      "tradedRate": 0.13,
+      "avgTime": 1.2,
+      "traders": []
+     }
+    ],
+    "within": [
+     {
+      "s": 1,
+      "share": 0.31
+     },
+     {
+      "s": 2,
+      "share": 0.56
+     },
+     {
+      "s": 3,
+      "share": 0.75
+     },
+     {
+      "s": 5,
+      "share": 1
+     }
+    ],
+    "byDist": [
+     {
+      "bucket": "under 8 m",
+      "chances": 278,
+      "conv": 0.263
+     },
+     {
+      "bucket": "8–20 m",
+      "chances": 216,
+      "conv": 0.319
+     },
+     {
+      "bucket": "20–38 m",
+      "chances": 92,
+      "conv": 0.261
+     },
+     {
+      "bucket": "over 38 m",
+      "chances": 10,
+      "conv": 0.3
+     }
     ]
    },
    "duels": {
@@ -1138,6 +4078,1163 @@
       "bucket": "over 38 m",
       "n": 406,
       "tradedRate": 0.05
+     }
+    ],
+    "spots": [
+     {
+      "death": "CT Mid",
+      "n": 275,
+      "tradedRate": 0.17,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "CT Mid",
+        "chances": 63,
+        "conv": 0.17,
+        "dist": 8
+       },
+       {
+        "place": "B Window",
+        "chances": 14,
+        "conv": 0.36,
+        "dist": 18
+       },
+       {
+        "place": "Top Mid",
+        "chances": 5,
+        "conv": 0.6,
+        "dist": 48
+       },
+       {
+        "place": "Zig",
+        "chances": 10,
+        "conv": 0.4,
+        "dist": 24
+       }
+      ]
+     },
+     {
+      "death": "CT Spawn",
+      "n": 208,
+      "tradedRate": 0.23,
+      "avgTime": 1.8,
+      "traders": [
+       {
+        "place": "CT Spawn",
+        "chances": 70,
+        "conv": 0.21,
+        "dist": 5
+       },
+       {
+        "place": "Elevator",
+        "chances": 12,
+        "conv": 0.42,
+        "dist": 15
+       },
+       {
+        "place": "A Short",
+        "chances": 53,
+        "conv": 0.17,
+        "dist": 9
+       },
+       {
+        "place": "Jumper",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 7
+       }
+      ]
+     },
+     {
+      "death": "Xbox",
+      "n": 194,
+      "tradedRate": 0.23,
+      "avgTime": 2.5,
+      "traders": [
+       {
+        "place": "Xbox",
+        "chances": 37,
+        "conv": 0.3,
+        "dist": 6
+       },
+       {
+        "place": "Top Mid",
+        "chances": 8,
+        "conv": 0.38,
+        "dist": 22
+       },
+       {
+        "place": "Zig",
+        "chances": 29,
+        "conv": 0.17,
+        "dist": 11
+       },
+       {
+        "place": "Palm",
+        "chances": 12,
+        "conv": 0.25,
+        "dist": 14
+       }
+      ]
+     },
+     {
+      "death": "Blue",
+      "n": 178,
+      "tradedRate": 0.28,
+      "avgTime": 1.2,
+      "traders": [
+       {
+        "place": "Blue",
+        "chances": 165,
+        "conv": 0.22,
+        "dist": 5
+       },
+       {
+        "place": "Long Corner",
+        "chances": 20,
+        "conv": 0.2,
+        "dist": 9
+       },
+       {
+        "place": "Long Doors",
+        "chances": 77,
+        "conv": 0.08,
+        "dist": 10
+       },
+       {
+        "place": "Side Pit",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 6
+       }
+      ]
+     },
+     {
+      "death": "B Doors",
+      "n": 177,
+      "tradedRate": 0.3,
+      "avgTime": 2.2,
+      "traders": [
+       {
+        "place": "B Doors",
+        "chances": 35,
+        "conv": 0.37,
+        "dist": 9
+       },
+       {
+        "place": "B Window",
+        "chances": 23,
+        "conv": 0.43,
+        "dist": 14
+       },
+       {
+        "place": "Car",
+        "chances": 42,
+        "conv": 0.24,
+        "dist": 8
+       },
+       {
+        "place": "Close",
+        "chances": 9,
+        "conv": 0.33,
+        "dist": 7
+       }
+      ]
+     },
+     {
+      "death": "Mid Doors",
+      "n": 159,
+      "tradedRate": 0.17,
+      "avgTime": 2,
+      "traders": [
+       {
+        "place": "Mid Doors",
+        "chances": 20,
+        "conv": 0.3,
+        "dist": 4
+       },
+       {
+        "place": "CT Mid",
+        "chances": 28,
+        "conv": 0.18,
+        "dist": 16
+       },
+       {
+        "place": "Close Mid Doors",
+        "chances": 11,
+        "conv": 0.27,
+        "dist": 5
+       },
+       {
+        "place": "Xbox",
+        "chances": 28,
+        "conv": 0.14,
+        "dist": 8
+       }
+      ]
+     },
+     {
+      "death": "A Long",
+      "n": 157,
+      "tradedRate": 0.18,
+      "avgTime": 2.1,
+      "traders": [
+       {
+        "place": "A Long",
+        "chances": 61,
+        "conv": 0.25,
+        "dist": 7
+       },
+       {
+        "place": "Pit",
+        "chances": 17,
+        "conv": 0.24,
+        "dist": 19
+       },
+       {
+        "place": "Long Corner",
+        "chances": 14,
+        "conv": 0.14,
+        "dist": 9
+       },
+       {
+        "place": "A Site",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 14
+       }
+      ]
+     },
+     {
+      "death": "Upper B Tunnels",
+      "n": 152,
+      "tradedRate": 0.13,
+      "avgTime": 2.2,
+      "traders": [
+       {
+        "place": "Upper B Tunnels",
+        "chances": 63,
+        "conv": 0.14,
+        "dist": 6
+       },
+       {
+        "place": "Car",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 10
+       },
+       {
+        "place": "Lower B Tunnels",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 14
+       },
+       {
+        "place": "Outside Tunnels",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 15
+       }
+      ]
+     },
+     {
+      "death": "Long Doors",
+      "n": 143,
+      "tradedRate": 0.15,
+      "avgTime": 1.8,
+      "traders": [
+       {
+        "place": "Long Doors",
+        "chances": 83,
+        "conv": 0.16,
+        "dist": 6
+       },
+       {
+        "place": "Blue",
+        "chances": 29,
+        "conv": 0.14,
+        "dist": 7
+       },
+       {
+        "place": "Outside Long",
+        "chances": 34,
+        "conv": 0.12,
+        "dist": 14
+       }
+      ]
+     },
+     {
+      "death": "Lower B Tunnels",
+      "n": 135,
+      "tradedRate": 0.16,
+      "avgTime": 1.8,
+      "traders": [
+       {
+        "place": "Lower B Tunnels",
+        "chances": 27,
+        "conv": 0.3,
+        "dist": 6
+       },
+       {
+        "place": "Xbox",
+        "chances": 8,
+        "conv": 0.5,
+        "dist": 13
+       },
+       {
+        "place": "Upper B Tunnels",
+        "chances": 29,
+        "conv": 0.1,
+        "dist": 13
+       },
+       {
+        "place": "CT Mid",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 22
+       }
+      ]
+     },
+     {
+      "death": "Top Mid",
+      "n": 132,
+      "tradedRate": 0.19,
+      "avgTime": 1.9,
+      "traders": [
+       {
+        "place": "Lower B Tunnels",
+        "chances": 7,
+        "conv": 0.57,
+        "dist": 30
+       },
+       {
+        "place": "Top Mid",
+        "chances": 54,
+        "conv": 0.2,
+        "dist": 7
+       },
+       {
+        "place": "CT Mid",
+        "chances": 10,
+        "conv": 0.2,
+        "dist": 48
+       },
+       {
+        "place": "Outside Long",
+        "chances": 19,
+        "conv": 0.11,
+        "dist": 14
+       }
+      ]
+     },
+     {
+      "death": "B Window",
+      "n": 121,
+      "tradedRate": 0.26,
+      "avgTime": 2.4,
+      "traders": [
+       {
+        "place": "CT Spawn",
+        "chances": 7,
+        "conv": 0.57,
+        "dist": 40
+       },
+       {
+        "place": "B Doors",
+        "chances": 21,
+        "conv": 0.29,
+        "dist": 10
+       },
+       {
+        "place": "Upper B Tunnels",
+        "chances": 9,
+        "conv": 0.44,
+        "dist": 35
+       },
+       {
+        "place": "Car",
+        "chances": 6,
+        "conv": 0.5,
+        "dist": 26
+       }
+      ]
+     },
+     {
+      "death": "Zig",
+      "n": 116,
+      "tradedRate": 0.18,
+      "avgTime": 2,
+      "traders": [
+       {
+        "place": "Zig",
+        "chances": 23,
+        "conv": 0.39,
+        "dist": 5
+       },
+       {
+        "place": "A Short",
+        "chances": 9,
+        "conv": 0.22,
+        "dist": 12
+       },
+       {
+        "place": "Stairs",
+        "chances": 11,
+        "conv": 0.18,
+        "dist": 8
+       },
+       {
+        "place": "CT Spawn",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 18
+       }
+      ]
+     },
+     {
+      "death": "A Short",
+      "n": 98,
+      "tradedRate": 0.21,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "Stairs",
+        "chances": 13,
+        "conv": 0.38,
+        "dist": 8
+       },
+       {
+        "place": "A Short",
+        "chances": 40,
+        "conv": 0.17,
+        "dist": 4
+       },
+       {
+        "place": "CT Spawn",
+        "chances": 15,
+        "conv": 0.13,
+        "dist": 8
+       },
+       {
+        "place": "Zig",
+        "chances": 8,
+        "conv": 0.13,
+        "dist": 12
+       }
+      ]
+     },
+     {
+      "death": "Car",
+      "n": 98,
+      "tradedRate": 0.31,
+      "avgTime": 2.1,
+      "traders": [
+       {
+        "place": "Car",
+        "chances": 19,
+        "conv": 0.37,
+        "dist": 3
+       },
+       {
+        "place": "Close",
+        "chances": 5,
+        "conv": 0.6,
+        "dist": 7
+       },
+       {
+        "place": "B Window",
+        "chances": 9,
+        "conv": 0.33,
+        "dist": 25
+       },
+       {
+        "place": "B Doors",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 10
+       }
+      ]
+     },
+     {
+      "death": "A Site",
+      "n": 88,
+      "tradedRate": 0.23,
+      "avgTime": 1.8,
+      "traders": [
+       {
+        "place": "Goose",
+        "chances": 5,
+        "conv": 0.6,
+        "dist": 15
+       },
+       {
+        "place": "A Site",
+        "chances": 12,
+        "conv": 0.25,
+        "dist": 6
+       },
+       {
+        "place": "Elevator",
+        "chances": 11,
+        "conv": 0.18,
+        "dist": 10
+       },
+       {
+        "place": "A Long",
+        "chances": 12,
+        "conv": 0.17,
+        "dist": 14
+       }
+      ]
+     },
+     {
+      "death": "B Plat",
+      "n": 77,
+      "tradedRate": 0.34,
+      "avgTime": 1.8,
+      "traders": [
+       {
+        "place": "Car",
+        "chances": 19,
+        "conv": 0.32,
+        "dist": 12
+       },
+       {
+        "place": "B Doors",
+        "chances": 17,
+        "conv": 0.29,
+        "dist": 14
+       },
+       {
+        "place": "Upper B Tunnels",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 17
+       },
+       {
+        "place": "B Plat",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 5
+       }
+      ]
+     },
+     {
+      "death": "Suicide",
+      "n": 72,
+      "tradedRate": 0.11,
+      "avgTime": 2.8,
+      "traders": [
+       {
+        "place": "Outside Long",
+        "chances": 34,
+        "conv": 0.09,
+        "dist": 17
+       },
+       {
+        "place": "Top Mid",
+        "chances": 27,
+        "conv": 0.07,
+        "dist": 18
+       },
+       {
+        "place": "Suicide",
+        "chances": 20,
+        "conv": 0.05,
+        "dist": 4
+       }
+      ]
+     },
+     {
+      "death": "Long Corner",
+      "n": 68,
+      "tradedRate": 0.25,
+      "avgTime": 2,
+      "traders": [
+       {
+        "place": "Blue",
+        "chances": 24,
+        "conv": 0.21,
+        "dist": 10
+       },
+       {
+        "place": "Pit",
+        "chances": 9,
+        "conv": 0.22,
+        "dist": 13
+       },
+       {
+        "place": "A Long",
+        "chances": 22,
+        "conv": 0.14,
+        "dist": 10
+       },
+       {
+        "place": "Long Corner",
+        "chances": 12,
+        "conv": 0.17,
+        "dist": 4
+       }
+      ]
+     },
+     {
+      "death": "Goose",
+      "n": 67,
+      "tradedRate": 0.12,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "CT Spawn",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 15
+       },
+       {
+        "place": "Goose",
+        "chances": 8,
+        "conv": 0.13,
+        "dist": 6
+       },
+       {
+        "place": "Elevator",
+        "chances": 9,
+        "conv": 0.11,
+        "dist": 10
+       }
+      ]
+     },
+     {
+      "death": "Elevator",
+      "n": 65,
+      "tradedRate": 0.22,
+      "avgTime": 1.7,
+      "traders": [
+       {
+        "place": "A Site",
+        "chances": 9,
+        "conv": 0.22,
+        "dist": 7
+       },
+       {
+        "place": "Gandalf",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 11
+       }
+      ]
+     },
+     {
+      "death": "Mid",
+      "n": 59,
+      "tradedRate": 0.25,
+      "avgTime": 2,
+      "traders": [
+       {
+        "place": "CT Mid",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 31
+       },
+       {
+        "place": "Palm",
+        "chances": 8,
+        "conv": 0.25,
+        "dist": 7
+       },
+       {
+        "place": "Xbox",
+        "chances": 8,
+        "conv": 0.25,
+        "dist": 11
+       },
+       {
+        "place": "Mid",
+        "chances": 10,
+        "conv": 0.2,
+        "dist": 6
+       }
+      ]
+     },
+     {
+      "death": "A Cross",
+      "n": 59,
+      "tradedRate": 0.19,
+      "avgTime": 1.6,
+      "traders": [
+       {
+        "place": "A Default Plant",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 14
+       },
+       {
+        "place": "A Long",
+        "chances": 14,
+        "conv": 0.21,
+        "dist": 10
+       },
+       {
+        "place": "A Ramp",
+        "chances": 7,
+        "conv": 0.29,
+        "dist": 12
+       },
+       {
+        "place": "A Site",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 9
+       }
+      ]
+     },
+     {
+      "death": "Outside Long",
+      "n": 54,
+      "tradedRate": 0.2,
+      "avgTime": 2,
+      "traders": [
+       {
+        "place": "Outside Long",
+        "chances": 25,
+        "conv": 0.32,
+        "dist": 7
+       },
+       {
+        "place": "Taxi",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 9
+       }
+      ]
+     },
+     {
+      "death": "Gandalf",
+      "n": 52,
+      "tradedRate": 0.19,
+      "avgTime": 1.5,
+      "traders": [
+       {
+        "place": "Elevator",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 13
+       },
+       {
+        "place": "A Short",
+        "chances": 7,
+        "conv": 0.29,
+        "dist": 17
+       },
+       {
+        "place": "Gandalf",
+        "chances": 8,
+        "conv": 0.25,
+        "dist": 7
+       },
+       {
+        "place": "CT Spawn",
+        "chances": 15,
+        "conv": 0.13,
+        "dist": 12
+       }
+      ]
+     },
+     {
+      "death": "A Ramp",
+      "n": 52,
+      "tradedRate": 0.31,
+      "avgTime": 2.6,
+      "traders": [
+       {
+        "place": "A Long",
+        "chances": 5,
+        "conv": 0.6,
+        "dist": 17
+       },
+       {
+        "place": "A Site",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 10
+       },
+       {
+        "place": "A Ramp",
+        "chances": 12,
+        "conv": 0.17,
+        "dist": 6
+       },
+       {
+        "place": "A Cross",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 12
+       }
+      ]
+     },
+     {
+      "death": "Palm",
+      "n": 51,
+      "tradedRate": 0.14,
+      "avgTime": 1.9,
+      "traders": [
+       {
+        "place": "Mid",
+        "chances": 16,
+        "conv": 0.19,
+        "dist": 6
+       },
+       {
+        "place": "Palm",
+        "chances": 8,
+        "conv": 0.25,
+        "dist": 4
+       },
+       {
+        "place": "Xbox",
+        "chances": 9,
+        "conv": 0.11,
+        "dist": 17
+       }
+      ]
+     },
+     {
+      "death": "Stairs",
+      "n": 48,
+      "tradedRate": 0.15,
+      "avgTime": 2.4,
+      "traders": [
+       {
+        "place": "Zig",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 10
+       }
+      ]
+     },
+     {
+      "death": "Short",
+      "n": 43,
+      "tradedRate": 0.21,
+      "avgTime": 2.6,
+      "traders": [
+       {
+        "place": "Mid",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 10
+       },
+       {
+        "place": "Xbox",
+        "chances": 17,
+        "conv": 0.12,
+        "dist": 8
+       },
+       {
+        "place": "Zig",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 10
+       }
+      ]
+     },
+     {
+      "death": "A Default Plant",
+      "n": 41,
+      "tradedRate": 0.39,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "Goose",
+        "chances": 9,
+        "conv": 0.44,
+        "dist": 10
+       },
+       {
+        "place": "A Site",
+        "chances": 11,
+        "conv": 0.18,
+        "dist": 7
+       }
+      ]
+     },
+     {
+      "death": "Close Mid Doors",
+      "n": 39,
+      "tradedRate": 0.18,
+      "avgTime": 1.9,
+      "traders": [
+       {
+        "place": "CT Mid",
+        "chances": 7,
+        "conv": 0.43,
+        "dist": 14
+       }
+      ]
+     },
+     {
+      "death": "B Site",
+      "n": 35,
+      "tradedRate": 0.43,
+      "avgTime": 1.9,
+      "traders": [
+       {
+        "place": "B Doors",
+        "chances": 6,
+        "conv": 0.5,
+        "dist": 15
+       },
+       {
+        "place": "B Plat",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 11
+       }
+      ]
+     },
+     {
+      "death": "Right Side Mid",
+      "n": 35,
+      "tradedRate": 0.23,
+      "avgTime": 2.2,
+      "traders": [
+       {
+        "place": "Palm",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 13
+       },
+       {
+        "place": "Top Mid",
+        "chances": 12,
+        "conv": 0.17,
+        "dist": 12
+       }
+      ]
+     },
+     {
+      "death": "Jumper",
+      "n": 34,
+      "tradedRate": 0.21,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "Goose",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 15
+       }
+      ]
+     },
+     {
+      "death": "Close",
+      "n": 33,
+      "tradedRate": 0.24,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "B Doors",
+        "chances": 9,
+        "conv": 0.33,
+        "dist": 10
+       },
+       {
+        "place": "Car",
+        "chances": 15,
+        "conv": 0.13,
+        "dist": 5
+       }
+      ]
+     },
+     {
+      "death": "Pit",
+      "n": 32,
+      "tradedRate": 0.16,
+      "avgTime": 1.3,
+      "traders": [
+       {
+        "place": "Blue",
+        "chances": 16,
+        "conv": 0.13,
+        "dist": 9
+       },
+       {
+        "place": "A Long",
+        "chances": 10,
+        "conv": 0.1,
+        "dist": 15
+       },
+       {
+        "place": "Long Corner",
+        "chances": 10,
+        "conv": 0.1,
+        "dist": 12
+       }
+      ]
+     },
+     {
+      "death": "B Back Site",
+      "n": 21,
+      "tradedRate": 0.14,
+      "avgTime": 1.1,
+      "traders": [
+       {
+        "place": "B Window",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 10
+       }
+      ]
+     },
+     {
+      "death": "Fence",
+      "n": 20,
+      "tradedRate": 0.15,
+      "avgTime": 2.4,
+      "traders": [
+       {
+        "place": "Car",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 13
+       }
+      ]
+     },
+     {
+      "death": "A Car",
+      "n": 20,
+      "tradedRate": 0.1,
+      "avgTime": 1,
+      "traders": []
+     },
+     {
+      "death": "B Default Plant",
+      "n": 20,
+      "tradedRate": 0.3,
+      "avgTime": 1.4,
+      "traders": [
+       {
+        "place": "B Doors",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 12
+       }
+      ]
+     },
+     {
+      "death": "Short Boost",
+      "n": 17,
+      "tradedRate": 0.35,
+      "avgTime": 1.7,
+      "traders": []
+     },
+     {
+      "death": "Barrels",
+      "n": 16,
+      "tradedRate": 0.19,
+      "avgTime": 2.8,
+      "traders": []
+     },
+     {
+      "death": "Double Stack",
+      "n": 16,
+      "tradedRate": 0.19,
+      "avgTime": 0.6,
+      "traders": []
+     },
+     {
+      "death": "B Closet",
+      "n": 14,
+      "tradedRate": 0.21,
+      "avgTime": 1.6,
+      "traders": [
+       {
+        "place": "B Window",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 28
+       }
+      ]
+     },
+     {
+      "death": "Outside Tunnels",
+      "n": 13,
+      "tradedRate": 0,
+      "avgTime": 0,
+      "traders": []
+     },
+     {
+      "death": "Taxi",
+      "n": 13,
+      "tradedRate": 0.23,
+      "avgTime": 1.1,
+      "traders": [
+       {
+        "place": "Outside Long",
+        "chances": 9,
+        "conv": 0.22,
+        "dist": 5
+       },
+       {
+        "place": "Long Doors",
+        "chances": 9,
+        "conv": 0.11,
+        "dist": 4
+       }
+      ]
+     },
+     {
+      "death": "Back Plat",
+      "n": 12,
+      "tradedRate": 0.17,
+      "avgTime": 2.3,
+      "traders": []
+     },
+     {
+      "death": "Big Box",
+      "n": 8,
+      "tradedRate": 0.13,
+      "avgTime": 0.5,
+      "traders": []
+     }
+    ],
+    "within": [
+     {
+      "s": 1,
+      "share": 0.32
+     },
+     {
+      "s": 2,
+      "share": 0.56
+     },
+     {
+      "s": 3,
+      "share": 0.74
+     },
+     {
+      "s": 5,
+      "share": 1
+     }
+    ],
+    "byDist": [
+     {
+      "bucket": "under 8 m",
+      "chances": 829,
+      "conv": 0.258
+     },
+     {
+      "bucket": "8–20 m",
+      "chances": 765,
+      "conv": 0.216
+     },
+     {
+      "bucket": "20–38 m",
+      "chances": 414,
+      "conv": 0.232
+     },
+     {
+      "bucket": "over 38 m",
+      "chances": 133,
+      "conv": 0.128
      }
     ]
    },
@@ -1736,6 +5833,694 @@
       "n": 186,
       "tradedRate": 0.04
      }
+    ],
+    "spots": [
+     {
+      "death": "Stairs",
+      "n": 144,
+      "tradedRate": 0.28,
+      "avgTime": 2.1,
+      "traders": [
+       {
+        "place": "Stairs",
+        "chances": 24,
+        "conv": 0.42,
+        "dist": 6
+       },
+       {
+        "place": "Tetris",
+        "chances": 34,
+        "conv": 0.21,
+        "dist": 11
+       },
+       {
+        "place": "Jungle",
+        "chances": 27,
+        "conv": 0.22,
+        "dist": 16
+       },
+       {
+        "place": "Connector",
+        "chances": 17,
+        "conv": 0.24,
+        "dist": 11
+       }
+      ]
+     },
+     {
+      "death": "Tetris",
+      "n": 136,
+      "tradedRate": 0.22,
+      "avgTime": 2,
+      "traders": [
+       {
+        "place": "Tetris",
+        "chances": 94,
+        "conv": 0.14,
+        "dist": 4
+       },
+       {
+        "place": "A Ramp",
+        "chances": 41,
+        "conv": 0.15,
+        "dist": 11
+       },
+       {
+        "place": "Stairs",
+        "chances": 18,
+        "conv": 0.22,
+        "dist": 12
+       },
+       {
+        "place": "Connector",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 21
+       }
+      ]
+     },
+     {
+      "death": "B Apps",
+      "n": 132,
+      "tradedRate": 0.18,
+      "avgTime": 2.2,
+      "traders": [
+       {
+        "place": "B Apps",
+        "chances": 74,
+        "conv": 0.15,
+        "dist": 8
+       },
+       {
+        "place": "Apps",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 16
+       },
+       {
+        "place": "B Short",
+        "chances": 10,
+        "conv": 0.2,
+        "dist": 15
+       },
+       {
+        "place": "Bench",
+        "chances": 13,
+        "conv": 0.15,
+        "dist": 12
+       }
+      ]
+     },
+     {
+      "death": "Start",
+      "n": 122,
+      "tradedRate": 0.21,
+      "avgTime": 2.1,
+      "traders": [
+       {
+        "place": "Mid",
+        "chances": 6,
+        "conv": 0.67,
+        "dist": 13
+       },
+       {
+        "place": "Start",
+        "chances": 84,
+        "conv": 0.15,
+        "dist": 8
+       },
+       {
+        "place": "Short",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 20
+       }
+      ]
+     },
+     {
+      "death": "Jungle",
+      "n": 106,
+      "tradedRate": 0.28,
+      "avgTime": 2.5,
+      "traders": [
+       {
+        "place": "Jungle",
+        "chances": 16,
+        "conv": 0.31,
+        "dist": 12
+       },
+       {
+        "place": "Connector",
+        "chances": 17,
+        "conv": 0.24,
+        "dist": 14
+       },
+       {
+        "place": "Stairs",
+        "chances": 14,
+        "conv": 0.21,
+        "dist": 13
+       },
+       {
+        "place": "Default",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 23
+       }
+      ]
+     },
+     {
+      "death": "Connector",
+      "n": 103,
+      "tradedRate": 0.29,
+      "avgTime": 2,
+      "traders": [
+       {
+        "place": "Connector",
+        "chances": 21,
+        "conv": 0.38,
+        "dist": 6
+       },
+       {
+        "place": "Mid",
+        "chances": 16,
+        "conv": 0.25,
+        "dist": 10
+       },
+       {
+        "place": "Tetris",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 18
+       },
+       {
+        "place": "Short",
+        "chances": 15,
+        "conv": 0.2,
+        "dist": 17
+       }
+      ]
+     },
+     {
+      "death": "Short",
+      "n": 91,
+      "tradedRate": 0.24,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "Mid Bench",
+        "chances": 6,
+        "conv": 0.5,
+        "dist": 11
+       },
+       {
+        "place": "Connector",
+        "chances": 12,
+        "conv": 0.33,
+        "dist": 17
+       },
+       {
+        "place": "Mid",
+        "chances": 16,
+        "conv": 0.25,
+        "dist": 8
+       },
+       {
+        "place": "Start",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 15
+       }
+      ]
+     },
+     {
+      "death": "Mid",
+      "n": 89,
+      "tradedRate": 0.18,
+      "avgTime": 1.8,
+      "traders": [
+       {
+        "place": "Short",
+        "chances": 15,
+        "conv": 0.4,
+        "dist": 12
+       },
+       {
+        "place": "Start",
+        "chances": 9,
+        "conv": 0.22,
+        "dist": 22
+       },
+       {
+        "place": "Mid",
+        "chances": 14,
+        "conv": 0.14,
+        "dist": 9
+       },
+       {
+        "place": "Connector",
+        "chances": 9,
+        "conv": 0.11,
+        "dist": 11
+       }
+      ]
+     },
+     {
+      "death": "Under Palace",
+      "n": 86,
+      "tradedRate": 0.26,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "Stairs",
+        "chances": 14,
+        "conv": 0.36,
+        "dist": 18
+       },
+       {
+        "place": "Under Palace",
+        "chances": 9,
+        "conv": 0.33,
+        "dist": 3
+       },
+       {
+        "place": "Tetris",
+        "chances": 29,
+        "conv": 0.17,
+        "dist": 12
+       },
+       {
+        "place": "Firebox",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 15
+       }
+      ]
+     },
+     {
+      "death": "A Ramp",
+      "n": 85,
+      "tradedRate": 0.09,
+      "avgTime": 1.7,
+      "traders": [
+       {
+        "place": "A Ramp",
+        "chances": 35,
+        "conv": 0.09,
+        "dist": 7
+       }
+      ]
+     },
+     {
+      "death": "B Short",
+      "n": 82,
+      "tradedRate": 0.22,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "Kitchen Door",
+        "chances": 6,
+        "conv": 0.5,
+        "dist": 28
+       },
+       {
+        "place": "B Apps",
+        "chances": 18,
+        "conv": 0.28,
+        "dist": 13
+       },
+       {
+        "place": "B Short",
+        "chances": 9,
+        "conv": 0.22,
+        "dist": 10
+       },
+       {
+        "place": "Bench",
+        "chances": 10,
+        "conv": 0.1,
+        "dist": 16
+       }
+      ]
+     },
+     {
+      "death": "Bench",
+      "n": 81,
+      "tradedRate": 0.2,
+      "avgTime": 2.1,
+      "traders": [
+       {
+        "place": "B Short",
+        "chances": 6,
+        "conv": 0.67,
+        "dist": 19
+       },
+       {
+        "place": "B Apps",
+        "chances": 25,
+        "conv": 0.08,
+        "dist": 13
+       },
+       {
+        "place": "Bench",
+        "chances": 10,
+        "conv": 0.1,
+        "dist": 9
+       }
+      ]
+     },
+     {
+      "death": "Underpass",
+      "n": 64,
+      "tradedRate": 0.14,
+      "avgTime": 2,
+      "traders": [
+       {
+        "place": "B Short",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 9
+       },
+       {
+        "place": "B Apps",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 19
+       },
+       {
+        "place": "Start",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 37
+       }
+      ]
+     },
+     {
+      "death": "Ticket",
+      "n": 61,
+      "tradedRate": 0.2,
+      "avgTime": 2.6,
+      "traders": [
+       {
+        "place": "Stairs",
+        "chances": 11,
+        "conv": 0.27,
+        "dist": 21
+       },
+       {
+        "place": "Jungle",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 26
+       },
+       {
+        "place": "Default",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 14
+       }
+      ]
+     },
+     {
+      "death": "Window",
+      "n": 59,
+      "tradedRate": 0.1,
+      "avgTime": 1.5,
+      "traders": [
+       {
+        "place": "Window",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 4
+       },
+       {
+        "place": "Mid",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 14
+       },
+       {
+        "place": "Short",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 12
+       },
+       {
+        "place": "Jungle",
+        "chances": 10,
+        "conv": 0.1,
+        "dist": 12
+       }
+      ]
+     },
+     {
+      "death": "Default",
+      "n": 44,
+      "tradedRate": 0.25,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "Tetris",
+        "chances": 7,
+        "conv": 0.43,
+        "dist": 11
+       },
+       {
+        "place": "Stairs",
+        "chances": 12,
+        "conv": 0.17,
+        "dist": 16
+       },
+       {
+        "place": "Ticket",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 16
+       },
+       {
+        "place": "Under Palace",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 9
+       }
+      ]
+     },
+     {
+      "death": "Firebox",
+      "n": 39,
+      "tradedRate": 0.26,
+      "avgTime": 2.2,
+      "traders": [
+       {
+        "place": "Ticket",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 12
+       },
+       {
+        "place": "Stairs",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 10
+       }
+      ]
+     },
+     {
+      "death": "Mid Bench",
+      "n": 34,
+      "tradedRate": 0.32,
+      "avgTime": 1.3,
+      "traders": [
+       {
+        "place": "Mid Bench",
+        "chances": 7,
+        "conv": 0.57,
+        "dist": 3
+       },
+       {
+        "place": "Start",
+        "chances": 5,
+        "conv": 0.4,
+        "dist": 35
+       },
+       {
+        "place": "Window",
+        "chances": 7,
+        "conv": 0.29,
+        "dist": 8
+       },
+       {
+        "place": "Mid",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 10
+       }
+      ]
+     },
+     {
+      "death": "CT",
+      "n": 33,
+      "tradedRate": 0.39,
+      "avgTime": 2.2,
+      "traders": [
+       {
+        "place": "CT",
+        "chances": 27,
+        "conv": 0.33,
+        "dist": 5
+       }
+      ]
+     },
+     {
+      "death": "Palace",
+      "n": 32,
+      "tradedRate": 0.13,
+      "avgTime": 3.3,
+      "traders": []
+     },
+     {
+      "death": "Ninja",
+      "n": 31,
+      "tradedRate": 0.39,
+      "avgTime": 2.7,
+      "traders": [
+       {
+        "place": "Default",
+        "chances": 6,
+        "conv": 0.33,
+        "dist": 5
+       },
+       {
+        "place": "Tetris",
+        "chances": 7,
+        "conv": 0.29,
+        "dist": 15
+       }
+      ]
+     },
+     {
+      "death": "Water",
+      "n": 31,
+      "tradedRate": 0.23,
+      "avgTime": 1.9,
+      "traders": [
+       {
+        "place": "Start",
+        "chances": 14,
+        "conv": 0.21,
+        "dist": 12
+       },
+       {
+        "place": "Mid",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 13
+       }
+      ]
+     },
+     {
+      "death": "Kitchen",
+      "n": 29,
+      "tradedRate": 0.07,
+      "avgTime": 1.7,
+      "traders": []
+     },
+     {
+      "death": "Chair",
+      "n": 19,
+      "tradedRate": 0.37,
+      "avgTime": 2.6,
+      "traders": [
+       {
+        "place": "Mid",
+        "chances": 7,
+        "conv": 0.43,
+        "dist": 8
+       }
+      ]
+     },
+     {
+      "death": "Ladder Room",
+      "n": 17,
+      "tradedRate": 0.12,
+      "avgTime": 2,
+      "traders": []
+     },
+     {
+      "death": "CT Spawn",
+      "n": 17,
+      "tradedRate": 0.24,
+      "avgTime": 1.9,
+      "traders": []
+     },
+     {
+      "death": "Apps",
+      "n": 12,
+      "tradedRate": 0.08,
+      "avgTime": 0.4,
+      "traders": []
+     },
+     {
+      "death": "Kitchen Door",
+      "n": 12,
+      "tradedRate": 0.08,
+      "avgTime": 1.9,
+      "traders": []
+     },
+     {
+      "death": "T Spawn",
+      "n": 10,
+      "tradedRate": 0.4,
+      "avgTime": 0.9,
+      "traders": []
+     },
+     {
+      "death": "Kitchen Window",
+      "n": 8,
+      "tradedRate": 0.13,
+      "avgTime": 3.5,
+      "traders": []
+     }
+    ],
+    "within": [
+     {
+      "s": 1,
+      "share": 0.26
+     },
+     {
+      "s": 2,
+      "share": 0.52
+     },
+     {
+      "s": 3,
+      "share": 0.7
+     },
+     {
+      "s": 5,
+      "share": 1
+     }
+    ],
+    "byDist": [
+     {
+      "bucket": "under 8 m",
+      "chances": 315,
+      "conv": 0.241
+     },
+     {
+      "bucket": "8–20 m",
+      "chances": 424,
+      "conv": 0.276
+     },
+     {
+      "bucket": "20–38 m",
+      "chances": 215,
+      "conv": 0.298
+     },
+     {
+      "bucket": "over 38 m",
+      "chances": 44,
+      "conv": 0.364
+     }
     ]
    },
    "duels": {
@@ -2201,6 +6986,155 @@
       "n": 6,
       "tradedRate": 0
      }
+    ],
+    "spots": [
+     {
+      "death": "Main",
+      "n": 31,
+      "tradedRate": 0.29,
+      "avgTime": 2.3,
+      "traders": [
+       {
+        "place": "Hut",
+        "chances": 17,
+        "conv": 0.24,
+        "dist": 12
+       },
+       {
+        "place": "Main",
+        "chances": 11,
+        "conv": 0.27,
+        "dist": 9
+       }
+      ]
+     },
+     {
+      "death": "Hut",
+      "n": 28,
+      "tradedRate": 0.36,
+      "avgTime": 1.9,
+      "traders": [
+       {
+        "place": "Hut",
+        "chances": 12,
+        "conv": 0.25,
+        "dist": 8
+       },
+       {
+        "place": "A site",
+        "chances": 7,
+        "conv": 0.29,
+        "dist": 15
+       },
+       {
+        "place": "Main",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 10
+       },
+       {
+        "place": "Lobby",
+        "chances": 8,
+        "conv": 0.13,
+        "dist": 15
+       }
+      ]
+     },
+     {
+      "death": "Red",
+      "n": 17,
+      "tradedRate": 0.24,
+      "avgTime": 1.8,
+      "traders": [
+       {
+        "place": "Red",
+        "chances": 14,
+        "conv": 0.14,
+        "dist": 11
+       },
+       {
+        "place": "White",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 14
+       }
+      ]
+     },
+     {
+      "death": "Heaven",
+      "n": 12,
+      "tradedRate": 0.17,
+      "avgTime": 2.6,
+      "traders": []
+     },
+     {
+      "death": "A site",
+      "n": 12,
+      "tradedRate": 0.17,
+      "avgTime": 1,
+      "traders": [
+       {
+        "place": "Hut",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 13
+       }
+      ]
+     },
+     {
+      "death": "Lobby",
+      "n": 10,
+      "tradedRate": 0.4,
+      "avgTime": 1.8,
+      "traders": [
+       {
+        "place": "A site",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 13
+       }
+      ]
+     }
+    ],
+    "within": [
+     {
+      "s": 1,
+      "share": 0.31
+     },
+     {
+      "s": 2,
+      "share": 0.54
+     },
+     {
+      "s": 3,
+      "share": 0.74
+     },
+     {
+      "s": 5,
+      "share": 1
+     }
+    ],
+    "byDist": [
+     {
+      "bucket": "under 8 m",
+      "chances": 33,
+      "conv": 0.333
+     },
+     {
+      "bucket": "8–20 m",
+      "chances": 58,
+      "conv": 0.172
+     },
+     {
+      "bucket": "20–38 m",
+      "chances": 24,
+      "conv": 0.125
+     },
+     {
+      "bucket": "over 38 m",
+      "chances": 5,
+      "conv": 0.2
+     }
     ]
    },
    "duels": {
@@ -2347,6 +7281,69 @@
       "bucket": "over 38 m",
       "n": 7,
       "tradedRate": 0
+     }
+    ],
+    "spots": [
+     {
+      "death": "Banana",
+      "n": 14,
+      "tradedRate": 0.43,
+      "avgTime": 0.9,
+      "traders": [
+       {
+        "place": "Banana",
+        "chances": 11,
+        "conv": 0.45,
+        "dist": 6
+       }
+      ]
+     },
+     {
+      "death": "Car",
+      "n": 10,
+      "tradedRate": 0,
+      "avgTime": 0,
+      "traders": []
+     }
+    ],
+    "within": [
+     {
+      "s": 1,
+      "share": 0.39
+     },
+     {
+      "s": 2,
+      "share": 0.58
+     },
+     {
+      "s": 3,
+      "share": 0.69
+     },
+     {
+      "s": 5,
+      "share": 1
+     }
+    ],
+    "byDist": [
+     {
+      "bucket": "under 8 m",
+      "chances": 40,
+      "conv": 0.275
+     },
+     {
+      "bucket": "8–20 m",
+      "chances": 25,
+      "conv": 0.36
+     },
+     {
+      "bucket": "20–38 m",
+      "chances": 6,
+      "conv": 0.5
+     },
+     {
+      "bucket": "over 38 m",
+      "chances": 3,
+      "conv": 0.333
      }
     ]
    },

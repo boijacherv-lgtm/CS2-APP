@@ -9,7 +9,8 @@ import { isDecision, placeOf as calloutOfSpot, roundDecisions } from './situatio
 import { engineHold, engineLine, engineMove, type EngineVerdict } from './engineEval';
 import { analyzeRound } from './analyst';
 import { controlCounts, learnedLogit, tradePending, WIN_MODEL } from './winprob';
-import { proTradeConversion } from './analystModel';
+import { analystBench, proTradeConversion } from './analystModel';
+import { tradeSpotOf } from './analystBench';
 import type { BoardState, Player, Side, Utility, UtilType, Vec2, Weapon } from './types';
 
 /**
@@ -1034,15 +1035,25 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   // the analyst's view (analyst.ts): missed trades and bad rotations become the responsible player's move
   try {
     const an = analyzeRound(engine, r);
+    const bench = analystBench(engine.map.id);
     for (const tr of an.trades) {
       if (tr.traded) continue;
+      // where level-10 teams trade a death at this spot (for the victim's card and the missed trades below)
+      const sp = tradeSpotOf(bench, tr.place);
+      const spotLine = sp && sp.traders.length
+        ? `Level-10 teams trade ${Math.round(sp.tradedRate * 100)}% of deaths at ${tr.place}, mostly from ${sp.traders.slice(0, 2).map(t => `${t.place} ${Math.round(t.conv * 100)}% of the time, about ${t.dist} m away`).join(', or ')}; usually within ${sp.avgTime.toFixed(1)} s.`
+        : null;
+      const death = moves.find(m => m.kind === 'death' && m.player === tr.victim && Math.abs(m.t - tr.t) < 0.06);
+      if (death && spotLine) death.why.push(spotLine);
       for (const c of tr.chances) {
         if (!c.sees || c.traded || c.diedAfter || c.dist >= 1500 || !sideOf.has(c.mate)) continue;
         moves.push({
           t: Math.min(r.duration, tr.t + 2), player: c.mate, side: sideOf.get(c.mate)!, kind: 'teamplay', gain: 0, note: '?', tags: ['NO TRADE'],
           title: `${name(c.mate)} didn't trade ${name(tr.victim)}${tr.place ? ` at ${tr.place}` : ''}`,
           why: [`${name(tr.victim)} died ${Math.round(c.dist * 0.0254)} m from you and you could see ${name(tr.killer)} within 3 s, but didn't take the trade.`,
-            `Level-10 players take ${Math.round(proTradeConversion() * 100)}% of those chances.`],
+            (() => { const at = sp?.traders.find(t => t.place === c.place); return at ? `Level-10 players at ${c.place} trade a death at ${tr.place} ${Math.round(at.conv * 100)}% of the time.` : `Level-10 players take ${Math.round(proTradeConversion() * 100)}% of those chances.`; })(),
+            ...(spotLine ? [spotLine] : []),
+            'Swing right away: the killer is reloading or turning, and the trade window closes in about 2 s.'],
         });
       }
     }
@@ -1086,7 +1097,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     for (const h of dec.holds) {
       if (!isDecision(h) || !sideOf.has(h.player)) continue;
       const v = engineHold(engine.map.id, h);
-      if (v) moves.push({ t: h.from, player: h.player, side: h.side, kind: 'position', gain: -v.loss, note: noteOf(v), tags: [], title: `${name(h.player)} held ${h.place}`, why: why(v, 'hold', h.place) });
+      if (v) moves.push({ t: h.from, player: h.player, side: h.side, kind: 'position', gain: -v.loss, note: noteOf(v), tags: [], title: `${name(h.player)} ${h.contact ? 'fought at' : 'held'} ${h.place}`, why: why(v, 'hold', h.place) });
     }
     for (const m of dec.moves) {
       if (!isDecision({ place: m.from, from: m.t }) || !sideOf.has(m.player)) continue;

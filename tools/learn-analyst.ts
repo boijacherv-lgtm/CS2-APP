@@ -24,7 +24,7 @@ if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run learn:ana
 const OUT = path.resolve(import.meta.dirname, '../src/engine/models/analyst.json');
 const WIN_OUT = path.resolve(import.meta.dirname, '../src/engine/models/winprob.json');
 const CACHE = path.join(folder, '.stratboard-analyst-cache.json');
-const CACHE_V = 3; // 2: control leaves out the sites · 3: fights (duel details) + win-chance samples
+const CACHE_V = 4; // + trade geometry: where teammates stood, where traders shot from
 
 type Cached = { map: string | null; rounds: AnalystRound[]; win?: { x: number[][]; y: number[]; base: number[] }; error?: string };
 const stored = fs.existsSync(CACHE) ? JSON.parse(fs.readFileSync(CACHE, 'utf8')) : {};

@@ -11,9 +11,19 @@ const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.le
 const rate = (n: number, d: number) => (d ? n / d : 0);
 const SPACING = [[0, 300, 'under 8 m'], [300, 800, '8–20 m'], [800, 1500, '20–38 m'], [1500, Infinity, 'over 38 m']] as const;
 
+export interface TradeSpot { death: string; n: number; tradedRate: number; avgTime: number; traders: { place: string; chances: number; conv: number; dist: number }[] }
+
 export interface Bench {
   demos: number; rounds: number;
-  trades: { deaths: number; tradedRate: number; avgTradeTime: number; chanceConversion: number; spacing: { bucket: string; n: number; tradedRate: number }[] };
+  trades: {
+    deaths: number; tradedRate: number; avgTradeTime: number; chanceConversion: number; spacing: { bucket: string; n: number; tradedRate: number }[];
+    /** Where: for a death at each spot, how often it's traded, how fast, and which teammate spots trade it (conversion = trades / chances there). */
+    spots?: TradeSpot[];
+    /** When: share of traded deaths traded within 1, 2, 3 and 5 s. */
+    within?: { s: number; share: number }[];
+    /** A teammate with sight of the killer, by distance: how often they take the trade. */
+    byDist?: { bucket: string; chances: number; conv: number }[];
+  };
   duels: {
     n: number; peekWin: number; firstHitWin: number; flashedShare: number; behindShare: number; avgTtk: number; ranges: Record<string, { n: number; avg: number }>;
     /** From the fight samples: median time to first shot after seeing the enemy, median crosshair distance (°) from their head when they appeared, share of first shots fired while moving, and how often whoever spotted first won. */
@@ -54,6 +64,33 @@ function duelDetailStats(xs: { d: DuelFact; as: 'killer' | 'victim' | 'both' }[]
     spottedFirstWin: +rate(firstWon, first).toFixed(3),
   };
 }
+
+/** Per death spot: how often it's traded, how fast, and the teammate spots that trade it best. */
+function tradeSpots(trades: AnalystRound['trades']): TradeSpot[] {
+  const by = new Map<string, AnalystRound['trades']>();
+  for (const t of trades) if (t.place) by.set(t.place, [...(by.get(t.place) ?? []), t]);
+  const out: TradeSpot[] = [];
+  for (const [death, ts] of by) {
+    if (ts.length < 8) continue;
+    const at = new Map<string, { c: number; tr: number; d: number }>();
+    for (const t of ts) for (const c of t.chances) {
+      if (!c.place || !(c.sees || c.dist < 800)) continue;
+      const x = at.get(c.place) ?? { c: 0, tr: 0, d: 0 };
+      x.c++; if (c.traded) x.tr++; x.d += c.dist;
+      at.set(c.place, x);
+    }
+    const traded = ts.filter(t => t.traded);
+    out.push({
+      death, n: ts.length, tradedRate: +rate(traded.length, ts.length).toFixed(2),
+      avgTime: +avg(traded.map(t => t.tradeTime!)).toFixed(1),
+      traders: [...at].filter(([, x]) => x.c >= 5 && x.tr >= 1)
+        .map(([place, x]) => ({ place, chances: x.c, conv: +(x.tr / x.c).toFixed(2), dist: Math.round((x.d / x.c) * 0.0254) }))
+        .sort((a, b) => b.conv * Math.sqrt(b.chances) - a.conv * Math.sqrt(a.chances)).slice(0, 4),
+    });
+  }
+  return out.sort((a, b) => b.n - a.n);
+}
+export const tradeSpotOf = (bench: Bench | null, death: string) => bench?.trades.spots?.find(s => s.death === death) ?? null;
 
 /** Peeking won / (peeking won + peeking lost), from a list of duels seen from both sides. */
 const peekWin = (won: DuelFact[], lost: DuelFact[]) => rate(won.filter(d => d.style === 'peeked').length, won.filter(d => d.style === 'peeked').length + lost.filter(d => d.style === 'held').length);
@@ -98,6 +135,9 @@ export function benchmarks(rounds: AnalystRound[], demos: number): Bench {
       avgTradeTime: +avg(trades.filter(t => t.tradeTime !== null).map(t => t.tradeTime!)).toFixed(2),
       chanceConversion: +rate(chances.filter(c => c.traded).length, chances.length).toFixed(3),
       spacing: SPACING.map(([lo, hi, bucket]) => { const xs = trades.filter(t => t.nearestMate !== null && t.nearestMate >= lo && t.nearestMate < hi); return { bucket, n: xs.length, tradedRate: +rate(xs.filter(t => t.traded).length, xs.length).toFixed(2) }; }),
+      spots: tradeSpots(trades),
+      within: [1, 2, 3, 5].map(sec => ({ s: sec, share: +rate(trades.filter(t => t.traded && t.tradeTime! <= sec).length, trades.filter(t => t.traded).length).toFixed(2) })),
+      byDist: SPACING.map(([lo, hi, bucket]) => { const cs = chances.filter(c => c.dist >= lo && c.dist < hi); return { bucket, chances: cs.length, conv: +rate(cs.filter(c => c.traded).length, cs.length).toFixed(3) }; }),
     },
     duels: {
       n: duels.length, peekWin: +peekWin(duels, duels).toFixed(3), firstHitWin: +firstHitWin(duels, duels).toFixed(3),
@@ -156,6 +196,7 @@ export interface AnalystReport { stats: Record<Topic, Stat[]>; findings: Finding
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const s1 = (v: number) => `${v.toFixed(1)}`;
+const times = (n: number) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`);
 
 /**
  * One player's match through the analyst's eyes: their trades, duels, openings and rotations, and their team's
@@ -179,16 +220,45 @@ export function analystReport(rounds: (AnalystRound | null | undefined)[], playe
     { label: 'Your deaths traded', you: pct(tradedMine), pro: pct(bench.trades.tradedRate), better: cmp(tradedMine, bench.trades.tradedRate) },
     { label: 'Trades taken when you could', you: `${pct(conv)} (${myChances.filter(c => c.traded).length}/${myChances.length})`, pro: pct(bench.trades.chanceConversion), better: cmp(conv, bench.trades.chanceConversion) },
     { label: 'Time to trade', you: myTradeTimes.length ? `${s1(avg(myTradeTimes))} s` : '–', pro: `${s1(bench.trades.avgTradeTime)} s`, better: myTradeTimes.length ? cmp(avg(myTradeTimes), bench.trades.avgTradeTime, false, 0.3) : null },
+    ...(bench.trades.within ? [{ label: 'Trades within 2 s', you: myTradeTimes.length ? pct(rate(myTradeTimes.filter(t => t <= 2).length, myTradeTimes.length)) : '–', pro: pct(bench.trades.within.find(w => w.s === 2)?.share ?? 0), better: null }] : []),
+    ...(bench.trades.byDist ? [{ label: 'Trades taken within 20 m', you: (() => { const near = myChances.filter(c => c.dist < 800); return near.length ? `${pct(rate(near.filter(c => c.traded).length, near.length))} (${near.filter(c => c.traded).length}/${near.length})` : '–'; })(),
+      pro: pct(rate(bench.trades.byDist.slice(0, 2).reduce((a, b) => a + b.conv * b.chances, 0), bench.trades.byDist.slice(0, 2).reduce((a, b) => a + b.chances, 0))), better: null }] : []),
   ];
+  // where and when: each missed chance and each untraded death against how level-10 teams trade that spot
   const missed = myChances.filter(c => !c.traded && !c.diedAfter && c.dist < 1500);
-  if (missed.length >= 2 && conv < bench.trades.chanceConversion - 0.05)
+  const fast = bench.trades.within?.find(w => w.s === 2);
+  if (missed.length >= 2 && conv < bench.trades.chanceConversion - 0.05) {
+    const spotLines = [...new Set(missed.map(c => c.t.place))].slice(0, 3).map(place => {
+      const sp = tradeSpotOf(bench, place), mine = missed.filter(c => c.t.place === place);
+      const from = [...new Set(mine.map(c => c.place).filter(Boolean))].join(' / ') || 'nearby';
+      const yours = sp?.traders.find(t => t.place === mine[0].place);
+      const best = sp?.traders[0];
+      return `${place}: you were at ${from}${yours ? ` (level-10 players there trade ${pct(yours.conv)})` : ''}${best && best.place !== mine[0].place ? `; the best spot to trade it is ${best.place} (${pct(best.conv)}, ~${best.dist} m away)` : ''}`;
+    });
     findings.push({ topic: 'Trades', good: false, weight: 3 + missed.length, rounds: [...new Set(missed.map(c => c.i))],
-      title: 'Trade your teammates', detail: `${missed.length} times a teammate died near you while you could see the killer, and you didn't trade. Level-10 players take ${pct(bench.trades.chanceConversion)} of those chances, you took ${pct(conv)}. Stay in sight of your entry and swing as soon as they fight.` });
+      title: 'Trade your teammates', detail: `${missed.length} times a teammate died near you while you could see the killer, and you didn't trade. Level-10 players take ${pct(bench.trades.chanceConversion)} of those chances, you took ${pct(conv)}${fast ? `; ${pct(fast.share)} of their trades come within 2 s, so swing as soon as your teammate fights` : ''}. ${spotLines.join('. ')}.` });
+  }
   const lonely = myDeaths.filter(d => !d.traded && (d.nearestMate ?? Infinity) >= 1500);
   if (lonely.length >= 3) {
     const far = bench.trades.spacing.find(b => b.bucket === 'over 38 m'), mid = bench.trades.spacing.find(b => b.bucket === '8–20 m');
     findings.push({ topic: 'Trades', good: false, weight: 2 + lonely.length, rounds: [...new Set(lonely.map(d => d.i))],
       title: 'Too far from your team', detail: `${lonely.length} of your deaths came with no teammate within 38 m. Level-10 deaths are traded ${pct(mid?.tradedRate ?? 0)} of the time at 8–20 m from a teammate, ${pct(far?.tradedRate ?? 0)} beyond 38 m.` });
+  }
+  // your untraded deaths at spots level-10 teams do trade: where your trader should have been
+  const untraded = myDeaths.filter(d => !d.traded);
+  const fixable = [...new Set(untraded.map(d => d.place))].map(place => ({ place, sp: tradeSpotOf(bench, place), ds: untraded.filter(d => d.place === place) }))
+    .filter(x => x.sp && x.sp.traders.length && x.sp.tradedRate >= 0.2);
+  if (fixable.length && untraded.length >= 3)
+    findings.push({ topic: 'Trades', good: false, weight: 2 + fixable.reduce((a, x) => a + x.ds.length, 0), rounds: [...new Set(fixable.flatMap(x => x.ds.map(d => d.i)))],
+      title: `Bring a trader to ${fixable.slice(0, 2).map(x => x.place).join(' and ')}`, detail: fixable.slice(0, 3).map(x => `${x.place} (you died there untraded ${times(x.ds.length)}): level-10 teams trade ${pct(x.sp!.tradedRate)} of deaths there, mostly from ${x.sp!.traders.slice(0, 2).map(t => `${t.place} (${pct(t.conv)})`).join(' or ')}, in about ${x.sp!.avgTime.toFixed(1)} s`).join('. ') + '. Play these spots with a teammate there, or don\u2019t take the fight until they are.' });
+  // where to trade on this map: the spots the player's team died at most, against level-10
+  const teamDeaths = rs.flatMap(x => x.r.trades.filter(t => t.side === x.side));
+  const counts = new Map<string, { n: number; tr: number }>();
+  for (const t of teamDeaths) { const c = counts.get(t.place) ?? { n: 0, tr: 0 }; c.n++; if (t.traded) c.tr++; counts.set(t.place, c); }
+  for (const [place, c] of [...counts].sort((a, b) => b[1].n - a[1].n).slice(0, 4)) {
+    const sp = tradeSpotOf(bench, place);
+    if (!sp || !place) continue;
+    stats.Trades.push({ label: `Deaths at ${place} traded`, you: `${c.tr}/${c.n}`, pro: `${pct(sp.tradedRate)}${sp.traders[0] ? ` · from ${sp.traders.slice(0, 2).map(t => `${t.place} ${pct(t.conv)}`).join(', ')}` : ''}`, better: c.n >= 3 ? cmp(c.tr / c.n, sp.tradedRate, true, 0.1) : null });
   }
   if (tradedMine >= bench.trades.tradedRate + 0.1 && myDeaths.length >= 6)
     findings.push({ topic: 'Trades', good: true, weight: 2, rounds: [], title: 'You die where you can be traded', detail: `${pct(tradedMine)} of your deaths were traded (level-10: ${pct(bench.trades.tradedRate)}).` });

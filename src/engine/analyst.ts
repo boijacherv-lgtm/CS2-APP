@@ -22,7 +22,11 @@ import type { Side, Vec2, Weapon } from './types';
  */
 
 /** A teammate's chance to trade a death: close enough and able to see the killer in the next 3 s. */
-export interface TradeChance { mate: string; dist: number; sees: boolean; traded: boolean; diedAfter: boolean }
+export interface TradeChance {
+  mate: string; dist: number; sees: boolean; traded: boolean; diedAfter: boolean;
+  /** Where the teammate was when it happened (callout). */
+  place?: string;
+}
 export interface TradeFact {
   t: number; victim: string; killer: string; side: Side; place: string;
   traded: boolean; tradeTime: number | null; tradedBy: string | null;
@@ -30,6 +34,8 @@ export interface TradeFact {
   chances: TradeChance[];
   /** Distance to the nearest living teammate when they died (game units). */
   nearestMate: number | null;
+  /** Where the killer shot from, and where the teammate who traded stood when they did. */
+  killerPlace?: string; traderPlace?: string;
 }
 export type DuelStyle = 'peeked' | 'held' | 'both moving' | 'both still';
 export interface DuelFact {
@@ -172,12 +178,14 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
       let saw = false;
       for (let dt = 0; dt <= 3 && !saw; dt += 0.5) if (alive(m, k.t + dt) && alive(k.attacker, k.t + dt) && sees(pos(m, k.t + dt), pos(k.attacker, k.t + dt))) saw = true;
       if (d < 800 || saw)
-        chances.push({ mate: m, dist: Math.round(d), sees: saw, traded: revenge?.attacker === m, diedAfter: kills.some(o => o.victim === m && o.t > k.t && o.t - k.t <= 5) });
+        chances.push({ mate: m, dist: Math.round(d), sees: saw, traded: revenge?.attacker === m, diedAfter: kills.some(o => o.victim === m && o.t > k.t && o.t - k.t <= 5), place: place(mp) });
     }
     return {
       t: k.t, victim: k.victim, killer: k.attacker, side: s, place: place({ x: k.x, y: k.y }) || place(killerAt),
       traded: !!revenge, tradeTime: revenge ? +(revenge.t - k.t).toFixed(2) : null, tradedBy: revenge?.attacker ?? null,
       chances, nearestMate: nearest === null ? null : Math.round(nearest),
+      killerPlace: place(killerAt),
+      ...(revenge ? { traderPlace: place({ x: revenge.ax || pos(revenge.attacker, revenge.t).x, y: revenge.ay || pos(revenge.attacker, revenge.t).y }) } : {}),
     };
   });
 

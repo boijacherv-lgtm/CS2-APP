@@ -27,7 +27,7 @@ const only = opt('map');
 if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run learn:positions -- <folder with demos> [--map de_dust2]'); process.exit(1); }
 const OUT = path.resolve(import.meta.dirname, '../src/map/generated/positions.json');
 const CACHE = path.join(folder, '.stratboard-positions-cache.json');
-const CACHE_V = 5; // + ev: the win chance at every decision, for valuing choices
+const CACHE_V = 7; // + paths only the first 8 s after leaving a spot
 
 type Round = { winner: 'CT' | 'T' | null; holds: Hold[]; moves: Move[] };
 type Cached = { map: string | null; rounds: Round[]; error?: string };
@@ -93,7 +93,7 @@ files.forEach((f, i) => {
  */
 type SpotStat = { place: string; share: number; winRate: number; rounds: number; gain?: number; n?: number };
 type MoveStat = { from: string; to: string; count: number; phases: Partial<Record<Phase, number>>; triggers: { why: string; n: number }[]; gain?: number };
-type Reaction = { from: string; trigger: string; n: number; to: { place: string; n: number; gain?: number }[] };
+type Reaction = { from: string; trigger: string; phase?: Phase; n: number; to: { place: string; n: number; gain?: number }[] };
 const SHRINK = 20;
 const gainOf = (diffs: number[]) => (diffs.length ? +(diffs.reduce((a, b) => a + b, 0) / (diffs.length + SHRINK)).toFixed(3) : undefined);
 type MapStats = {
@@ -200,7 +200,8 @@ for (const [map, demos] of byMap) {
         if (m.side !== side) continue;
         const key = `${m.from}→${m.to}`;
         if (m.ev !== undefined && r.winner) moveDiffs.set(key, [...(moveDiffs.get(key) ?? []), won(r) - m.ev]);
-        if (m.ev !== undefined && r.winner && m.trigger) { const rk = `${m.from}|${m.trigger}|${m.to}`; reactDiffs.set(rk, [...(reactDiffs.get(rk) ?? []), won(r) - m.ev]); }
+        if (m.ev !== undefined && r.winner && m.trigger)
+          for (const ph of ['', m.phase]) { const rk = `${m.from}|${m.trigger}|${ph}|${m.to}`; reactDiffs.set(rk, [...(reactDiffs.get(rk) ?? []), won(r) - m.ev]); }
         const x = mv.get(key) ?? { from: m.from, to: m.to, count: 0, phases: {}, triggers: [], why: new Map() };
         x.count++;
         x.phases[m.phase] = (x.phases[m.phase] ?? 0) + 1;
@@ -212,15 +213,18 @@ for (const [map, demos] of byMap) {
     for (const r of rounds)
       for (const m of r.moves) {
         if (m.side !== side || !m.trigger) continue;
-        const key = `${m.from}|${m.trigger}`;
-        const x = re.get(key) ?? { from: m.from, trigger: m.trigger, n: 0, to: [] };
-        x.n++;
-        const d = x.to.find(y => y.place === m.to);
-        if (d) d.n++; else x.to.push({ place: m.to, n: 1 });
-        re.set(key, x);
+        // the same trigger means something else before and after the plant: keep both the phase's and the overall view
+        for (const phase of [undefined, m.phase]) {
+          const key = `${m.from}|${m.trigger}|${phase ?? ''}`;
+          const x = re.get(key) ?? { from: m.from, trigger: m.trigger, n: 0, to: [], ...(phase ? { phase } : {}) };
+          x.n++;
+          const d = x.to.find(y => y.place === m.to);
+          if (d) d.n++; else x.to.push({ place: m.to, n: 1 });
+          re.set(key, x);
+        }
       }
     stats.reactions[side] = [...re.values()].filter(x => x.n >= 3)
-      .map(x => ({ ...x, to: x.to.sort((a, b) => b.n - a.n).slice(0, 8).map(d => ({ ...d, gain: gainOf(reactDiffs.get(`${x.from}|${x.trigger}|${d.place}`) ?? []) })) }))
+      .map(x => ({ ...x, to: x.to.sort((a, b) => b.n - a.n).slice(0, 8).map(d => ({ ...d, gain: gainOf(reactDiffs.get(`${x.from}|${x.trigger}|${x.phase ?? ''}|${d.place}`) ?? []) })) }))
       .sort((a, b) => b.n - a.n);
     stats.moves[side] = [...mv.values()].filter(x => x.count >= 2).sort((a, b) => b.count - a.count).slice(0, 400)
       .map(({ why, ...x }) => ({ ...x, gain: gainOf(moveDiffs.get(`${x.from}→${x.to}`) ?? []), triggers: [...why].map(([w, n]) => ({ why: w, n })).sort((a, b) => b.n - a.n).slice(0, 4) }));

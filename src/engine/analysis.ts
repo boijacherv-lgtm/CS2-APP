@@ -155,7 +155,7 @@ export function matchAnalysis(map: string, player: string, rounds: ({ holds: Hol
   for (const y of engined) classes[y.e!.cls] = (classes[y.e!.cls] ?? 0) + 1;
   const worst = engined.filter(y => y.e!.loss >= 0.05).sort((a, b) => b.e!.loss - a.e!.loss).slice(0, 5).map(y => ({
     round: y.x.round, t: y.x.kind === 'hold' ? y.x.h.from : y.x.m.t,
-    what: y.x.kind === 'hold' ? `Held ${y.x.h.place}` : `${y.x.m.from} → ${y.x.m.to}`,
+    what: y.x.kind === 'hold' ? `${y.x.h.contact ? 'Fought at' : 'Held'} ${y.x.h.place}` : `${y.x.m.from} → ${y.x.m.to}`,
     best: y.e!.best!.place, loss: y.e!.loss, cls: y.e!.cls,
   }));
   const engineLine = accuracy === null ? '' : `Positioning accuracy ${accuracy} (${(['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'] as MoveClass[]).filter(c => classes[c]).map(c => `${classes[c]} ${classes[c]! > 1 ? PLURAL[c] : c.toLowerCase()}`).join(', ')}).`;

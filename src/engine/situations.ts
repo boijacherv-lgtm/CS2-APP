@@ -57,6 +57,8 @@ export interface Hold {
   target?: 'A' | 'B';
   /** Their side's learned win chance when they took the spot (training data only; see winprob.roundWinChance). */
   ev?: number;
+  /** Not a hold: the spot of their first fight, for a round where they never stood still long enough to hold one. */
+  contact?: boolean;
 }
 export interface Move {
   player: string; side: Side; from: string; to: string; t: number; phase: Phase;
@@ -64,12 +66,14 @@ export interface Move {
   trigger: string | null;
   /** Their side's learned win chance when they left (training data only). */
   ev?: number;
+  /** Callouts they passed through on the way (without stopping), in order. */
+  via?: string[];
 }
 
 /** Seconds a player has to stay at one callout for it to count as holding it… */
 const HOLD_SECS = 4;
-/** …moving slower than a walk on average (game units a second; running is ~250, walking ~130). */
-const HOLD_SPEED = 110;
+/** …standing, not walking: under this average speed (game units a second; running is ~250, shift-walking ~130). */
+const HOLD_SPEED = 70;
 
 /**
  * Whether a hold is a real decision: standing in your own spawn in the first 20 s is just the round starting
@@ -169,6 +173,27 @@ export function roundDecisions(engine: TacticalEngine, r: DemoRound): { holds: H
       return len / Math.max(1, x.to - x.from);
     };
     const kept = runs.filter(x => x.place && x.to - x.from >= HOLD_SECS && speed(x) <= HOLD_SPEED);
+    // a round with no hold (kept moving, or died early): the spot of their first fight is the decision to judge
+    if (!kept.length) {
+      const fights = [...(r.hits ?? []).filter(x => x.attacker === id || x.victim === id).map(x => x.t), ...r.kills.filter(k => k.attacker === id || k.victim === id).map(k => k.t)];
+      const tf = fights.length ? Math.min(...fights) : null;
+      const s0 = tf === null ? null : samples[Math.min(samples.length - 1, Math.max(0, Math.floor(tf) - 1))];
+      const pl = s0?.place.get(id);
+      if (s0 && pl) {
+        const me = s0.st.get(id)!.pos;
+        const died = r.kills.some(k => k.victim === id && k.t <= (tf ?? 0) + 3);
+        holds.push({
+          player: id, side: side(id), place: pl, from: s0.t, to: s0.t, phase: phaseOf(s0.t, r.plant),
+          ended: died ? 'died' : 'round end', contact: true,
+          alive: [aliveCount(side(id), s0.t), aliveCount(side(id) === 'CT' ? 'T' : 'CT', s0.t)],
+          seen: seenPlaces(side(id), s0.t), pressure: [...s0.seenBy[side(id)]].filter(e => units(s0.st.get(e)!.pos, me) < 600).length,
+          alone: !ids.some(o => o !== id && side(o) === side(id) && s0.st.get(o)!.alive && units(s0.st.get(o)!.pos, me) < 400),
+          mateDown: false,
+          ...(site && phaseOf(s0.t, r.plant) === 'post-plant' ? { site } : {}),
+          ...(side(id) === 'T' && phaseOf(s0.t, r.plant) !== 'post-plant' && targetAt(Math.min(end, s0.t + 10)) ? { target: targetAt(Math.min(end, s0.t + 10)) } : {}),
+        });
+      }
+    }
     kept.forEach((h, i) => {
       const next = kept[i + 1];
       const died = !samples[Math.min(samples.length - 1, h.to + 1)]?.st.get(id)?.alive;
@@ -191,8 +216,12 @@ export function roundDecisions(engine: TacticalEngine, r: DemoRound): { holds: H
         ...(site && phase === 'post-plant' ? { site } : {}),
         pressure, alone, mateDown, ...(target ? { target } : {}),
       });
-      if (next && next.place !== h.place)
-        moves.push({ player: id, side: side(id), from: h.place, to: next.place, t: h.to, phase: phaseOf(h.to, r.plant), trigger: triggerAt(id, h.to + 1) });
+      if (next && next.place !== h.place) {
+        const via: string[] = [];
+        // the first 8 s after leaving: where they were heading, not a whole rotation
+        for (let t = h.to + 1; t < next.from && t <= h.to + 8 && t < samples.length; t++) { const pl = samples[t].place.get(id); if (pl && pl !== h.place && pl !== next.place && via.at(-1) !== pl) via.push(pl); }
+        moves.push({ player: id, side: side(id), from: h.place, to: next.place, t: h.to, phase: phaseOf(h.to, r.plant), trigger: triggerAt(id, h.to + 1), ...(via.length ? { via } : {}) });
+      }
     });
   }
   return { holds, moves };

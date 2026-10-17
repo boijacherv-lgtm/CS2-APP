@@ -163,6 +163,10 @@ trained it uses hand-set Premier numbers. To train it:
    benchmarks in `analystBench.ts`) into `src/engine/models/analyst.json`, per map and over all maps:
    - **Trades:** every death, whether it was traded and how fast, and which teammates had the chance (close, or could
      see the killer within 3 s); how often a chance is taken; how spacing to the nearest teammate changes it.
+     **Where and when to trade:** for a death at each spot, how often level-10 teams trade it, how fast, and which
+     teammate spots trade it best (e.g. a death at B Doors on Dust 2 is traded best from B Window); how many trades
+     come within 1 / 2 / 3 s; how the chance falls with distance. Missed trades, untraded deaths ("Bring a trader to
+     …"), the Trades tab's per-spot rows and the NO TRADE / death cards in Review say where the trader should have been.
    - **Duels:** who peeked and who held (speed at the kill), who hit first, time to kill, range per weapon, flashed,
      from behind; **openings:** who wins the first kill, where, with a flash, and the round after it.
    - **Map control:** the areas each side held at 0:20 and 0:40, and the areas that win rounds when Ts hold them.
@@ -191,6 +195,10 @@ trained it uses hand-set Premier numbers. To train it:
    samples; learned by `learn:positions`). It picks the best option, compares the player's choice with it (eval
    loss), classes it **Best · Excellent · Good · Inaccuracy (?!) · Mistake (?) · Blunder (??)** and gives an
    accuracy like chess.com's; for holds it also looks ahead (where level-10 players go next from there).
+   When the exact situation has too little data it widens step by step (same part of the round and numbers → same
+   part of the round; for moves: same spot and trigger → same spot → where they went, judged as a spot), so every
+   decision gets a verdict; in a round where a player never held a spot (kept moving, died early) the spot of their
+   first fight is judged ("Fought at …").
    `tools/calibrate-engine.ts` (run by `learn:positions`) calibrates it on level-10 play itself: the classes are
    percentiles of their own eval loss (a Blunder is worse than 95% of level-10 decisions) and a typical level-10
    decision scores about 88. It shows in the Positions tab (class, options, accuracy for the round), in Match
