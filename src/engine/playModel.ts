@@ -1,6 +1,6 @@
 import { worldToRadar } from './coords';
 import type { TacticalEngine } from './predict';
-import { bombAt, equipValue, FL, type DemoRound } from './recap';
+import { bombAt, equipValue, FL, gearAt, type DemoRound } from './recap';
 import { roundWinChance } from './winprob';
 import type { Side, Vec2 } from './types';
 import MODEL from './models/play.json';
@@ -26,6 +26,7 @@ export const PLAY_FEATURES = [
   'bias', 'men up', 'team alive', 'health', 'equipment', 'T side', 'early', 'mid', 'late', 'post-plant', 'T after plant', 'time left',
   'enemies spotted near', 'enemies spotted', 'nearest known enemy', 'spotted', 'teammates near', 'trade window', 'distance to a site',
   'grenades left', 'has the bomb', 'AWP', 'low health', 'speed now', 'closing in',
+  'armour', 'main gun', 'smoke or flash',
 ];
 export interface Moment { t: number; player: string; side: Side; f: number[]; a: number; /** log-odds the player's side wins, from the win model */ wl: number }
 
@@ -52,10 +53,8 @@ export function roundMoments(engine: TacticalEngine, r: DemoRound, every = 2, wi
     const me = worldToRadar(pos(id, t), engine.map.radar);
     return ids.some(o => side(o) !== side(id) && alive(o, t) && engine.grid.lineOfSight(worldToRadar(pos(o, t), engine.map.radar), me));
   };
-  const nades = (id: string, t: number) => {
-    const bought = (r.econ?.[id]?.weapons ?? []).filter(w => NADE.test(w)).length;
-    return Math.max(0, bought - r.util.filter(u => u.thrower === id && (u.throwT ?? u.t - 1.5) <= t).length);
-  };
+  // what they carry right then (the demo's gear log; older parses: the buy minus grenades thrown)
+  const MAIN = /ak-?47|m4a|galil|famas|sg ?55|aug|awp|ssg|g3sg1|scar|mp9|mac-?10|mp7|mp5|ump|p90|bizon|nova|xm1014|mag-?7|sawed|m249|negev/i;
   const out: Moment[] = [];
   for (let t = 2; t < r.duration - 3; t += every) {
     const plantNow = r.plant !== null && t >= r.plant;
@@ -76,6 +75,8 @@ export function roundMoments(engine: TacticalEngine, r: DemoRound, every = 2, wi
       const rp = worldToRadar(me, engine.map.radar);
       const toSite = sites.length ? Math.min(...sites.map(x => Math.hypot(x.center.x - rp.x, x.center.y - rp.y))) * scale : 3000;
       const f = r.frames.players[id], k = idx(t);
+      const gear = gearAt(r, id, t);
+      const inv = gear?.inv ?? [];
       const hp = f.hp[k] ?? 100;
       const eq = equipValue(r.econ?.[id]);
       const timeLeft = plantNow ? (40 - (t - r.plant!)) / 10 : (115 - t) / 30;
@@ -86,11 +87,12 @@ export function roundMoments(engine: TacticalEngine, r: DemoRound, every = 2, wi
         Math.min(3, spotted.filter(o => d(me, pos(o, t)) < NEAR).length), Math.min(5, spotted.length) / 2,
         Math.min(4, nearestKnown / 1000), spottedAt(id, t) ? 1 : 0,
         Math.min(3, mates.filter(o => o !== id && d(me, pos(o, t)) < MATE).length), trade ? 1 : 0,
-        Math.min(4, toSite / 1000), Math.min(4, nades(id, t)) / 2,
+        Math.min(4, toSite / 1000), Math.min(4, inv.filter(w => NADE.test(w)).length) / 2,
         bomb?.kind === 'carry' && bomb.id === id ? 1 : 0, (f.w?.[k] ?? '') === 'awp' ? 1 : 0, hp < 40 ? 1 : 0,
         // what they were already doing: speed over the last second, and closing on (+) or backing off (−) the enemies over the last 2 s
         Math.min(1.2, d(me, pos(id, Math.max(0, t - 1))) / 250),
         (() => { const back = pos(id, Math.max(0, t - 2)); const near = (p: Vec2) => Math.min(...foes.map(o => d(p, pos(o, t)))); return Math.max(-1, Math.min(1, (near(back) - near(me)) / 500)); })(),
+        (gear?.armor ?? 0) > 0 ? 1 : 0, inv.some(w => MAIN.test(w)) ? 1 : 0, inv.some(w => /smoke|flash/i.test(w)) ? 1 : 0,
       ];
       const pCT = winCT === null ? 0.5 : Math.min(0.99, Math.max(0.01, winCT));
       const pMe = s === 'CT' ? pCT : 1 - pCT;
@@ -186,6 +188,12 @@ export function situationText(m: Moment): string {
   if (f[17]) parts.push('a teammate just died next to you');
   parts.push(f[16] ? `${f[16]} teammate${f[16] === 1 ? '' : 's'} near` : 'alone');
   if (f[22]) parts.push('low on health');
+  if (f.length > 25) {
+    if (!f[25]) parts.push('no armour');
+    if (!f[26]) parts.push('pistol only');
+    const n = Math.round(f[19] * 2);
+    parts.push(n ? `${n} grenade${n === 1 ? '' : 's'} left` : 'no grenades');
+  }
   if (f[20]) parts.push('with the bomb');
   parts.push(f[9] ? 'after the plant' : f[6] ? 'early round' : f[7] ? 'mid round' : 'late round');
   return parts.join(', ');

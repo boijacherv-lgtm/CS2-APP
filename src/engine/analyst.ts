@@ -1,6 +1,6 @@
 import { worldToRadar } from './coords';
 import type { TacticalEngine } from './predict';
-import { teamEconomy, type BuyType, type DemoRound, type Fight, type FightTrack } from './recap';
+import { gearAt, teamEconomy, type BuyType, type DemoRound, type Fight, type FightTrack } from './recap';
 import { gunFromName } from './guns';
 import { placeOf } from './situations';
 import { analyzeMicro, type MicroFacts } from './micro';
@@ -186,7 +186,7 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
       const i = Math.round((t - f.t0) / f.dt), j = Math.max(0, i - 2);
       if (i > 0 && Number.isFinite(tr.x[i]) && Number.isFinite(tr.x[j])) sp = Math.hypot(tr.x[i] - tr.x[j], tr.y[i] - tr.y[j]) / ((i - j) * f.dt);
     }
-    const e = r.econ?.[id];
+    const e = gearAt(r, id, Math.min(t, hpT));
     const me = pos(id, t);
     return {
       hp: fr.hp[idx(Math.min(t, hpT))] ?? 100, armor: (e?.armor ?? 0) > 0, helmet: !!e?.helmet, w: fr.w?.[k] ?? '',

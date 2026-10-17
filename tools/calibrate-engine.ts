@@ -10,12 +10,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { engineHold, engineMove } from '../src/engine/engineEval';
 import { isDecision, type Hold, type Move } from '../src/engine/situations';
+import { readCache } from './learn-lib';
 
 const folder = process.argv.slice(2).filter(a => a !== '--')[0];
-const CACHE = folder && path.join(folder, '.stratboard-positions-cache.json');
-if (!CACHE || !fs.existsSync(CACHE)) { console.error('Usage: npm run calibrate:engine -- <folder with the positions cache>'); process.exit(1); }
+if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run calibrate:engine -- <folder with the positions cache>'); process.exit(1); }
 const OUT = path.resolve(import.meta.dirname, '../src/engine/models/engine-calibration.json');
-const cache = JSON.parse(fs.readFileSync(CACHE, 'utf8')).demos as Record<string, { map: string | null; rounds: { holds: Hold[]; moves: Move[] }[] }>;
+const cache = readCache<{ map: string | null; rounds: { holds: Hold[]; moves: Move[] }[] }>(folder, 'positions');
 
 const losses: number[] = [];
 for (const c of Object.values(cache)) {

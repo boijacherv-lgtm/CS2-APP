@@ -72,6 +72,12 @@ export function buildDemoData(parser, input, progress = () => {}) {
       break; // first candidate that works
     }
 
+  // gear over the round, once a second: inventory (guns, grenades, knife, bomb), armour, helmet, kit, money
+  const gearTicks = wanted.filter((_, i) => i % 4 === 0);
+  const gearRows = gearTicks.length ? safe(() => p.parseTicks(input, ['inventory', 'armor_value', 'has_helmet', 'has_defuser', 'balance'], gearTicks)) ?? [] : [];
+  const gearAt = new Map(); // tick -> rows
+  for (const row of gearRows) { const t = num(row.tick); if (!gearAt.has(t)) gearAt.set(t, []); gearAt.get(t).push(row); }
+
   const deaths = p.parseEvent(input, 'player_death', ['X', 'Y', 'team_num'], []) ?? [];
   // fights: both players' position and aim at 16 samples a second for the 3 s before every kill (spotting, reaction
   // time, crosshair placement, shooting while moving)
@@ -229,10 +235,25 @@ export function buildDemoData(parser, input, progress = () => {}) {
       : before && (before.kind === 'carry' || before.kind === 'drop') ? before : null;
     const bomb = [...(start ? [{ ...start, tick: r.start }] : []), ...inRoundBomb]
       .map(e => ({ t: round2(tOf(e.tick)), kind: e.kind, id: e.id, x: round1(e.x), y: round1(e.y) }));
+    // each player's gear, only when it changes: [t, inventory, armour, helmet, kit, money]
+    const gear = {};
+    if (gearRows.length)
+      for (const tick of gearTicks) {
+        if (!inRound(tick)) continue;
+        for (const row of gearAt.get(tick) ?? []) {
+          const id = sid(pick(row, 'steamid', 'player_steamid'));
+          if (!id || !frames.players[id]) continue;
+          const inv = Array.isArray(row.inventory) ? row.inventory.map(String) : [];
+          const g = [round2(tOf(tick)), inv, num(row.armor_value) || 0, row.has_helmet ? 1 : 0, row.has_defuser ? 1 : 0, Number.isFinite(num(row.balance)) ? num(row.balance) : -1];
+          const list = (gear[id] ??= []), last = list.at(-1);
+          if (!last || last[1].join('|') !== inv.join('|') || last[2] !== g[2] || last[3] !== g[3] || last[4] !== g[4] || last[5] !== g[5]) list.push(g);
+        }
+      }
     return {
       n: idx + 1, winner: r.winner, reason: r.reason, duration: tOf(r.end),
       plant: plant !== undefined ? tOf(plant) : null,
       frames, kills, util, blind, econ: roundEcon, nadeDamage, shots, hits, bomb, fights,
+      ...(Object.keys(gear).length ? { gear } : {}),
     };
   });
   // Premier / competitive rating of every player, read once early in the match (rank type 11 = Premier)

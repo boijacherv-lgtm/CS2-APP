@@ -49,6 +49,8 @@ export interface DemoRound {
   blind: { t: number; victim: string; attacker: string; dur: number }[];
   /** Each player's economy a few seconds into the round (after buying). */
   econ?: Record<string, PlayerEcon>;
+  /** Newer parses: each player's gear once a second, only when it changed: [t, inventory, armour, helmet, kit, money (−1 unknown)]. */
+  gear?: Record<string, GearPoint[]>;
   /** What happens to the bomb (world x/y = the player's position); older parses don't have it. */
   bomb?: BombEvent[];
   /**
@@ -88,6 +90,31 @@ export function bombAt(r: DemoRound, t: number): BombState | null {
   }
   return state;
 }
+
+export type GearPoint = [number, string[], number, 0 | 1, 0 | 1, number];
+
+/** What a player carries at time t: the gear log when the parse has it, else the buy (minus grenades thrown since). */
+export interface Gear { inv: string[]; armor: number; helmet: boolean; kit: boolean; money: number | null; exact: boolean }
+const NADE_NAME = /grenade|flashbang|molotov|incendiary|decoy/i;
+const UTIL_NAME: Record<string, RegExp> = { smoke: /smoke/i, flash: /flash/i, he: /high explosive|hegrenade/i, molotov: /molotov|incendiary|incgrenade/i };
+export function gearAt(r: DemoRound, id: string, t: number): Gear | null {
+  const log = r.gear?.[id];
+  if (log?.length) {
+    let g = log[0];
+    for (const x of log) { if (x[0] <= t + 0.01) g = x; else break; }
+    return { inv: g[1], armor: g[2], helmet: !!g[3], kit: !!g[4], money: g[5] >= 0 ? g[5] : null, exact: true };
+  }
+  const e = r.econ?.[id];
+  if (!e) return null;
+  // older parses: what they bought, minus the grenades they've thrown since
+  const inv = [...e.weapons];
+  for (const u of r.util.filter(u => u.thrower === id && (u.throwT ?? u.t - 1.5) <= t)) {
+    const i = inv.findIndex(w => NADE_NAME.test(w) && UTIL_NAME[u.type]?.test(w));
+    if (i >= 0) inv.splice(i, 1);
+  }
+  return { inv, armor: e.armor, helmet: e.helmet, kit: e.defuser, money: e.money, exact: false };
+}
+export const isGrenade = (w: string) => NADE_NAME.test(w);
 
 export interface PlayerEcon {
   money: number | null; // cash left after buying

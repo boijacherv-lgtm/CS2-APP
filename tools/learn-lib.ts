@@ -20,9 +20,9 @@ import { roundMoments } from '../src/engine/playModel';
 // ---- cache versions: bump when that learner's per-demo numbers are computed differently -----------------------
 export const COACH_V = 3; // 3: impact leaves out positioning decisions
 export const POSITIONS_V = 7; // + paths only the first 8 s after leaving a spot
-export const ANALYST_V = 9; // + every player's moments (play model)
+export const ANALYST_V = 10; // + real gear at each moment (armour, guns, grenades)
 /** Bump when tools/demo-core.mjs reads demos differently (new fields), so saved reads are redone. */
-export const PARSE_V = 5; // 5: micro detail (pitch, stance, weapon, ammo; shot speed)
+export const PARSE_V = 6; // 6: gear over the round (inventory, armour, kit, money once a second)
 
 // ---- the demo folder -------------------------------------------------------------------------------------
 /** Demos in a folder (and one level of subfolders), as paths relative to it. */
@@ -160,6 +160,9 @@ export function winSamples(engine: ReturnType<typeof getEngine>, d: DemoData) {
 }
 
 // ---- the learners' caches ---------------------------------------------------------------------------------
+// One small gzipped file per demo and learner, in <folder>/.stratboard-cache/<learner>/ (one big JSON per learner
+// stopped working past a few hundred demos: a string that size is more than Node can hold). A learner's folder has
+// its version in version.json; when that changes, its old entries are dropped.
 export const CACHES = {
   coach: { file: '.stratboard-coach-cache.json', v: COACH_V },
   spots: { file: '.stratboard-spots-cache.json', v: null },
@@ -167,17 +170,79 @@ export const CACHES = {
   analyst: { file: '.stratboard-analyst-cache.json', v: ANALYST_V },
 } as const;
 export type Learner = keyof typeof CACHES;
-/** A learner's cache: { key: per-demo result } (empty when its version changed). */
+const cacheDir = (folder: string, l: Learner) => path.join(folder, '.stratboard-cache', l);
+// the file name is the demo's key, base64url-encoded (so the keys can be listed without reading the files)
+const entryFile = (folder: string, l: Learner, key: string) => path.join(cacheDir(folder, l), `${Buffer.from(key).toString('base64url')}.json.gz`);
+const keyOfEntry = (f: string) => Buffer.from(f.replace(/\.json\.gz$/, ''), 'base64url').toString('utf8');
+/** Opens a learner's cache folder: drops it when its version changed, and moves an old single-file cache into it. */
+function openCache(folder: string, l: Learner) {
+  const dir = cacheDir(folder, l), vf = path.join(dir, 'version.json'), v = CACHES[l].v ?? 0;
+  if (fs.existsSync(dir) && (!fs.existsSync(vf) || JSON.parse(fs.readFileSync(vf, 'utf8')).v !== v)) fs.rmSync(dir, { recursive: true, force: true });
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(vf, JSON.stringify({ v }));
+    const old = path.join(folder, CACHES[l].file);
+    if (fs.existsSync(old)) {
+      try {
+        const j = JSON.parse(fs.readFileSync(old, 'utf8'));
+        const demos = CACHES[l].v === null ? j : j.v === CACHES[l].v ? j.demos : {};
+        for (const [k, val] of Object.entries(demos)) writeCacheEntry(folder, l, k, val);
+      } catch { /* an unreadable old cache is just read again */ }
+      fs.rmSync(old, { force: true });
+    }
+  }
+  return dir;
+}
+/** Every cached demo of a learner, one at a time (keeps memory low for big folders). */
+export function* eachCached<T>(folder: string, l: Learner): Generator<[string, T]> {
+  const dir = openCache(folder, l);
+  // in demo-name order, so what's learned doesn't depend on how the disk lists files
+  const names = fs.readdirSync(dir).filter(f => f.endsWith('.json.gz')).sort((a, b) => (keyOfEntry(a) < keyOfEntry(b) ? -1 : 1));
+  for (const f of names) {
+    try { const e = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(dir, f))).toString('utf8')); yield [e.key, e.value]; } catch { /* skip a broken entry */ }
+  }
+}
+/** A learner's cache: { key: per-demo result }. */
 export function readCache<T>(folder: string, l: Learner): Record<string, T> {
-  const p = path.join(folder, CACHES[l].file);
-  if (!fs.existsSync(p)) return {};
-  const j = JSON.parse(fs.readFileSync(p, 'utf8'));
-  const v = CACHES[l].v;
-  return v === null ? j : j.v === v ? j.demos : {};
+  const out: Record<string, T> = {};
+  for (const [k, v] of eachCached<T>(folder, l)) out[k] = v;
+  return out;
+}
+/** Keys a learner has cached, without reading the entries. */
+export function cachedKeys(folder: string, l: Learner): Set<string> {
+  return new Set(fs.readdirSync(openCache(folder, l)).filter(f => f.endsWith('.json.gz')).map(keyOfEntry));
+}
+/** One demo's cached result for a learner (undefined when there's none). */
+export function readCacheEntry<T>(folder: string, l: Learner, key: string): T | undefined {
+  const f = entryFile(folder, l, key);
+  if (!fs.existsSync(f)) return undefined;
+  try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(f)).toString('utf8')).value; } catch { return undefined; }
+}
+export function writeCacheEntry(folder: string, l: Learner, key: string, value: unknown) {
+  const f = entryFile(folder, l, key);
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  fs.writeFileSync(f, zlib.gzipSync(JSON.stringify({ key, value })));
+  // demos that failed, by key, so learn:all knows what to retry without opening every entry
+  const ef = path.join(path.dirname(f), 'errors.json');
+  const errors = readErrors(ef);
+  const err = (value as { error?: string } | null)?.error;
+  if (err) errors[key] = err; else if (!(key in errors)) return; else delete errors[key];
+  // write-then-rename, so a worker never reads a half-written file
+  const tmp = `${ef}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(errors));
+  fs.renameSync(tmp, ef);
+}
+const readErrors = (ef: string): Record<string, string> => { try { return fs.existsSync(ef) ? JSON.parse(fs.readFileSync(ef, 'utf8')) : {}; } catch { return {}; } };
+/** Whether a learner should (re)read a demo: never read, or failed for a reason other than a broken file. */
+export function needsRead(folder: string, l: Learner): (key: string) => boolean {
+  const keys = cachedKeys(folder, l);
+  const ef = path.join(cacheDir(folder, l), 'errors.json');
+  const errors = readErrors(ef);
+  return key => !keys.has(key) || (!!errors[key] && !/MalformedMessage/.test(errors[key]));
 }
 export function writeCache(folder: string, l: Learner, demos: Record<string, unknown>) {
-  const v = CACHES[l].v;
-  fs.writeFileSync(path.join(folder, CACHES[l].file), JSON.stringify(v === null ? demos : { v, demos }));
+  openCache(folder, l);
+  for (const [k, v] of Object.entries(demos)) writeCacheEntry(folder, l, k, v);
 }
 /** A cached result that should be redone: an error other than a broken file. */
 export const retry = (c: { error?: string } | undefined) => !c || (!!c.error && !/MalformedMessage/.test(c.error));

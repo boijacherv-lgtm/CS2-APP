@@ -5,12 +5,12 @@
 //
 //   npm run learn:analyst -- <folder>
 //
-// Each demo's facts are cached in <folder>/.stratboard-analyst-cache.json; adding demos later only reads the new ones.
+// Each demo's facts are cached in <folder>/.stratboard-cache/analyst; adding demos later only reads the new ones.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { analystFromDemo, ANALYST_V, loadDemo } from './learn-lib';
+import { analystFromDemo, cachedKeys, eachCached, keyOf as keyOfDemo, listDemos, loadDemo, needsRead, writeCacheEntry } from './learn-lib';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { equipValue, evalState, type DemoData } from '../src/engine/recap';
 import { worldToRadar } from '../src/engine/coords';
@@ -27,46 +27,55 @@ const OUT = path.resolve(import.meta.dirname, '../src/engine/models/analyst.json
 const WIN_OUT = path.resolve(import.meta.dirname, '../src/engine/models/winprob.json');
 const PLAY_OUT = path.resolve(import.meta.dirname, '../src/engine/models/play.json');
 const DUEL_OUT = path.resolve(import.meta.dirname, '../src/engine/models/duel.json');
-const CACHE = path.join(folder, '.stratboard-analyst-cache.json');
-const CACHE_V = ANALYST_V;
 
 type Cached = { map: string | null; rounds: AnalystRound[]; win?: { x: number[][]; y: number[]; base: number[] }; play?: { x: number[][]; a: number[]; wl: number[]; y: number[]; t: number[] }; error?: string };
-const stored = fs.existsSync(CACHE) ? JSON.parse(fs.readFileSync(CACHE, 'utf8')) : {};
-const cache: Record<string, Cached> = stored.v === CACHE_V ? stored.demos : {};
-const save = () => fs.writeFileSync(CACHE, JSON.stringify({ v: CACHE_V, demos: cache }));
 
-const files = fs.readdirSync(folder).filter(f => /\.dem(\.gz|\.zst)?$/i.test(f)).sort();
-const keyOf = (f: string) => `${f.replace(/ \(\d+\)(?=\.dem)/, '')}|${fs.statSync(path.join(folder, f)).size}`;
-const seen = new Set<string>();
-
-const read = (f: string): Cached => analystFromDemo(loadDemo(folder, f));
-
+// read the demos the cache doesn't have yet (learn:all normally did that already, in parallel)
+const files = listDemos(folder);
+const keys = new Map<string, string>();
+for (const f of files) { const k = keyOfDemo(folder, f); if (!keys.has(k)) keys.set(k, f); }
 const t0 = Date.now();
-files.forEach((f, i) => {
-  const key = keyOf(f);
-  if (seen.has(key)) return;
-  seen.add(key);
-  if (cache[key] && !(cache[key].error && !/MalformedMessage/.test(cache[key].error!))) return;
+const need = needsRead(folder, 'analyst');
+let i0 = 0;
+for (const [key, f] of keys) {
+  i0++;
+  if (!need(key)) continue;
   const t = Date.now();
-  try { cache[key] = read(f); } catch (e) { cache[key] = { map: null, rounds: [], error: e instanceof Error ? e.message : String(e) }; }
-  const c = cache[key];
-  console.log(`[${i + 1}/${files.length}] ${f}  ${c.error ? `skipped: ${c.error}` : `${c.map}, ${c.rounds.length} rounds`}  ${((Date.now() - t) / 1000).toFixed(0)} s`);
-  save();
-});
+  let c: Cached;
+  try { c = analystFromDemo(loadDemo(folder, f)); } catch (e) { c = { map: null, rounds: [], error: e instanceof Error ? e.message : String(e) }; }
+  writeCacheEntry(folder, 'analyst', key, c);
+  console.log(`[${i0}/${keys.size}] ${f}  ${c.error ? `skipped: ${c.error}` : `${c.map}, ${c.rounds.length} rounds`}  ${((Date.now() - t) / 1000).toFixed(0)} s`);
+}
 
+// one pass over the cache, one demo at a time, keeping only what each model needs. Every 5th demo is held out to
+// check the duel and play models on demos they didn't learn from. With many demos the play moments are thinned
+// (every k-th) to about PLAY_CAP, which is plenty for a model this size and fits in memory.
+const PLAY_CAP = 600_000;
+const inFolder = [...cachedKeys(folder, 'analyst')].filter(k => keys.has(k)).length;
+const stride = Math.max(1, Math.ceil((inFolder * 3300) / PLAY_CAP));
 const byMap: Record<string, AnalystRound[]> = {};
 const demos: Record<string, number> = {};
-for (const [k, c] of Object.entries(cache)) {
-  if (!seen.has(k) || !c.map || !c.rounds.length) continue;
+const dTrain: number[][] = [], yTrain: number[] = [], dTest: number[][] = [], yTest: number[] = [];
+const wx: number[][] = [], wy: number[] = [], wb: number[] = [];
+type Play = { x: number[][]; a: number[]; wl: number[]; y: number[]; t: number[] };
+const empty = (): Play => ({ x: [], a: [], wl: [], y: [], t: [] });
+const tr = empty(), te = empty();
+let used = 0;
+for (const [k, c] of eachCached<Cached>(folder, 'analyst')) {
+  if (!keys.has(k) || !c.map || !c.rounds.length) continue;
+  const test = used++ % 5 === 4;
   (byMap[c.map] ??= []).push(...c.rounds);
   demos[c.map] = (demos[c.map] ?? 0) + 1;
-}
-// the duel model: who wins a fight from first contact; checked on demos it didn't learn from (every 5th demo)
-const dTrain: number[][] = [], yTrain: number[] = [], dTest: number[][] = [], yTest: number[] = [];
-Object.entries(cache).filter(([k, c]) => seen.has(k) && c.rounds.length).forEach(([, c], i) => {
   const s = duelSamples(c.rounds.flatMap(r => r.duels));
-  (i % 5 === 4 ? dTest : dTrain).push(...s.x); (i % 5 === 4 ? yTest : yTrain).push(...s.y);
-});
+  (test ? dTest : dTrain).push(...s.x); (test ? yTest : yTrain).push(...s.y);
+  if (c.win) { wx.push(...c.win.x); wy.push(...c.win.y); wb.push(...c.win.base); }
+  if (c.play) {
+    const to = test ? te : tr, p = c.play;
+    for (let i = 0; i < p.x.length; i += stride) { to.x.push(p.x[i]); to.a.push(p.a[i]); to.wl.push(p.wl[i]); to.y.push(p.y[i]); to.t.push(p.t[i]); }
+  }
+}
+if (stride > 1) console.log(`${used} demos: play moments thinned to every ${stride}th.`);
+
 let duelModel: DuelModel | null = null;
 if (dTrain.length > 1000) {
   const check = fitLogistic(dTrain, yTrain, DUEL_FEATURES, 1500, 0.3);
@@ -91,8 +100,6 @@ const out = {
 fs.writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n');
 
 // the learned win chance
-const wx: number[][] = [], wy: number[] = [], wb: number[] = [];
-for (const [k, c] of Object.entries(cache)) if (seen.has(k) && c.win) { wx.push(...c.win.x); wy.push(...c.win.y); wb.push(...c.win.base); }
 if (wx.length > 1000) {
   const model = fitWin(wx, wy);
   const baseline = wb.reduce((a, p, i) => { const q = Math.min(1 - 1e-6, Math.max(1e-6, p)); return a - (wy[i] ? Math.log(q) : Math.log(1 - q)); }, 0) / wb.length;
@@ -102,11 +109,6 @@ if (wx.length > 1000) {
 }
 // the play model ("what would a level-10 player do now"): policy + value, checked on every 5th demo
 {
-  const tr = { x: [] as number[][], a: [] as number[], wl: [] as number[], y: [] as number[], t: [] as number[] }, te = { x: [] as number[][], a: [] as number[], wl: [] as number[], y: [] as number[], t: [] as number[] };
-  Object.entries(cache).filter(([k, c]) => seen.has(k) && c.play).forEach(([, c], i) => {
-    const to = i % 5 === 4 ? te : tr;
-    to.x.push(...c.play!.x); to.a.push(...c.play!.a); to.wl.push(...c.play!.wl); to.y.push(...c.play!.y); to.t.push(...c.play!.t);
-  });
   if (tr.x.length > 5000) {
     const t1 = Date.now();
     const w = fitPolicy(tr.x, tr.a);

@@ -7,13 +7,13 @@
 //
 //   npm run learn:positions -- <folder> [--map de_dust2]
 //
-// Each demo's decisions are cached in <folder>/.stratboard-positions-cache.json; adding demos later only reads the new ones.
+// Each demo's decisions are cached in <folder>/.stratboard-cache/positions; adding demos later only reads the new ones.
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { loadDemo, positionsFromDemo, POSITIONS_V } from './learn-lib';
+import { keyOf as keyOfDemo, listDemos, loadDemo, positionsFromDemo, readCache, writeCacheEntry } from './learn-lib';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { equipValue, type DemoData } from '../src/engine/recap';
 import { worldToRadar } from '../src/engine/coords';
@@ -26,21 +26,17 @@ const folder = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWi
 const only = opt('map');
 if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run learn:positions -- <folder with demos> [--map de_dust2]'); process.exit(1); }
 const OUT = path.resolve(import.meta.dirname, '../src/map/generated/positions.json');
-const CACHE = path.join(folder, '.stratboard-positions-cache.json');
-const CACHE_V = POSITIONS_V;
 
 type Round = { winner: 'CT' | 'T' | null; holds: Hold[]; moves: Move[] };
 type Cached = { map: string | null; rounds: Round[]; error?: string };
-const stored = fs.existsSync(CACHE) ? JSON.parse(fs.readFileSync(CACHE, 'utf8')) : {};
-const cache: Record<string, Cached> = stored.v === CACHE_V ? stored.demos : {};
-const save = () => fs.writeFileSync(CACHE, JSON.stringify({ v: CACHE_V, demos: cache }));
+const cache = readCache<Cached>(folder, 'positions');
+const save = (k: string) => writeCacheEntry(folder, 'positions', k, cache[k]);
 
 // the map of each demo is cheap to read from the spots cache when it's there, so --map can skip the others
-const spotsCache = fs.existsSync(path.join(folder, '.stratboard-spots-cache.json'))
-  ? JSON.parse(fs.readFileSync(path.join(folder, '.stratboard-spots-cache.json'), 'utf8')) as Record<string, { map: string | null }> : {};
+const spotsCache = readCache<{ map: string | null }>(folder, 'spots');
 
-const files = fs.readdirSync(folder).filter(f => /\.dem(\.gz|\.zst)?$/i.test(f)).sort();
-const keyOf = (f: string) => `${f.replace(/ \(\d+\)(?=\.dem)/, '')}|${fs.statSync(path.join(folder, f)).size}`;
+const files = listDemos(folder);
+const keyOf = (f: string) => keyOfDemo(folder, f);
 const seen = new Set<string>();
 
 const read = (f: string): Cached => positionsFromDemo(loadDemo(folder, f));
@@ -57,7 +53,7 @@ files.forEach((f, i) => {
   try { cache[key] = read(f); } catch (e) { cache[key] = { map: null, rounds: [], error: e instanceof Error ? e.message : String(e) }; }
   const c = cache[key];
   console.log(`[${i + 1}/${files.length}] ${f}  ${c.error ? `skipped: ${c.error}` : `${c.map}, ${c.rounds.length} rounds`}  ${((Date.now() - t) / 1000).toFixed(0)} s`);
-  save();
+  save(key);
 });
 
 // ---- learn -------------------------------------------------------------------------------------------

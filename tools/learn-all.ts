@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
-import { CACHES, keyOf, listDemos, readCache, retry, writeCache, type Learner } from './learn-lib';
+import { CACHES, keyOf, listDemos, needsRead, type Learner } from './learn-lib';
 
 const args = process.argv.slice(2).filter(a => a !== '--');
 const opt = (k: string) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : undefined; };
@@ -28,23 +28,22 @@ const files = listDemos(folder);
 const byKey = new Map<string, string>();
 for (const f of files) { const k = keyOf(folder, f); if (!byKey.has(k)) byKey.set(k, f); }
 const learners = Object.keys(CACHES) as Learner[];
-const caches = Object.fromEntries(learners.map(l => [l, readCache<{ error?: string }>(folder, l)])) as Record<Learner, Record<string, { error?: string }>>;
-const todo = [...byKey].filter(([k]) => learners.some(l => retry(caches[l][k])));
-const needs = learners.filter(l => todo.some(([k]) => retry(caches[l][k])));
+const need = Object.fromEntries(learners.map(l => [l, needsRead(folder, l)])) as Record<Learner, (key: string) => boolean>;
+const todo = [...byKey].filter(([k]) => learners.some(l => need[l](k)));
+const needs = learners.filter(l => todo.some(([k]) => need[l](k)));
 console.log(`${byKey.size} demos (${files.length - byKey.size} duplicates skipped); ${todo.length} to read for: ${needs.join(', ') || 'nothing'}; ${workers} workers.`);
 
 // 2. read them in parallel
 async function run() {
   if (todo.length) {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'stratboard-learn-'));
     // biggest demos first, dealt round-robin, so the workers finish close together
     const sorted = todo.sort((a, b) => Number(b[0].split('|').pop()) - Number(a[0].split('|').pop()));
     const shards: string[][] = Array.from({ length: Math.min(workers, sorted.length) }, () => []);
     sorted.forEach(([, f], i) => shards[i % shards.length].push(f));
     let done = 0;
     await Promise.all(shards.map((shard, w) => new Promise<void>((resolve, reject) => {
-      const out = path.join(tmp, `worker-${w}.json`);
-      const child = spawn('npx', ['vite-node', path.join(import.meta.dirname, 'learn-worker.ts'), folder!, out, needs.join(','), ...shard], { stdio: ['ignore', 'pipe', 'inherit'] });
+      // each worker writes its results straight into the learners' caches (one file per demo)
+      const child = spawn('npx', ['vite-node', path.join(import.meta.dirname, 'learn-worker.ts'), folder!, needs.join(','), ...shard], { stdio: ['ignore', 'pipe', 'inherit'] });
       let buf = '';
       child.stdout.on('data', (c: Buffer) => {
         buf += c.toString();
@@ -53,19 +52,14 @@ async function run() {
       });
       child.on('exit', code => (code === 0 ? resolve() : reject(new Error(`worker ${w} exited with ${code}`))));
     })));
-    // 3a. merge into the learners' caches
-    for (const w of fs.readdirSync(tmp)) {
-      const results = JSON.parse(fs.readFileSync(path.join(tmp, w), 'utf8')) as Record<string, Partial<Record<Learner, { error?: string }>>>;
-      for (const [k, r] of Object.entries(results)) for (const l of needs) if (r[l] && retry(caches[l][k])) caches[l][k] = r[l]!;
-    }
-    for (const l of needs) writeCache(folder!, l, caches[l]);
-    fs.rmSync(tmp, { recursive: true, force: true });
     console.log(`\nRead ${todo.length} demos in ${((Date.now() - t0) / 60000).toFixed(1)} min.\n`);
   }
   // 3b. every learner aggregates from its (now complete) cache; learn-positions also calibrates the engine
   for (const tool of ['train-coach', 'learn-spots', 'learn-positions', 'learn-analyst']) {
     console.log(`\n=== ${tool}`);
-    execFileSync('npx', ['vite-node', path.join(import.meta.dirname, `${tool}.ts`), folder!], { stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 64 * 1024 * 1024 })
+    // aggregating thousands of demos needs more than Node's default heap
+    execFileSync('npx', ['vite-node', path.join(import.meta.dirname, `${tool}.ts`), folder!], { stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 64 * 1024 * 1024,
+      env: { ...process.env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --max-old-space-size=${Math.max(4096, Math.floor(os.totalmem() / 1024 ** 2 / 2))}` } })
       .toString().split('\n').filter(l => l && !l.startsWith('[')).forEach(l => console.log(l));
   }
   console.log(`\nAll trained in ${((Date.now() - t0) / 60000).toFixed(1)} min.`);

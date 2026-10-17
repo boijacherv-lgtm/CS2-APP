@@ -1,13 +1,15 @@
 // Fetches good players' demos from FACEIT with its official API, for training the coach:
 //   - the FACEIT leaderboard per region: the very top (--pro-top, default 30: mostly pros and FPL players, whose
 //     history includes their FPL matches) is the pro tier; the rest of the top N is level 10
-//   - each player's most recent 5v5 matches (--per-player), newest first
+//   - every 5v5 match each player finished in the last --days (or only the newest --per-player)
 //   - optionally a hub's matches (--hubs <ids>, from the hub page URL); FACEIT's official FPL hub isn't listed in
 //     the public API, so it isn't searched for
-// It keeps a target per map (fills the maps with fewest demos first), skips matches it already has, then trains
-// everything (learn:all) on the level-10 folder.
+// By default there's no cap per map or per run: it takes every match it finds, skips the ones it already has, and
+// stops only when the disk gets low (--min-free-gb, default 30; a demo is ~180 MB), then trains everything
+// (learn:all) on the level-10 folder. --per-map / --max / --per-player put caps back.
 //
-//   npm run fetch:faceit -- [--top 100] [--pro-top 30] [--per-player 8] [--regions EU,NA] [--per-map 50] [--max 200] [--days 30]
+//   npm run fetch:faceit -- [--top 500] [--pro-top 30] [--per-player N] [--regions EU,NA] [--per-map N] [--max N] [--days 30]
+//                           [--min-free-gb 30]
 //                           [--folder ~/Desktop/APPS/faceit-demos] [--pro-folder ~/Desktop/APPS/pro-demos]
 //                           [--hubs <hub ids>] [--no-pro] [--no-train] [--dry-run]
 //
@@ -31,12 +33,13 @@ const args = process.argv.slice(2).filter(a => a !== '--');
 const opt = (k: string, d?: string) => { const i = args.indexOf(`--${k}`); return i >= 0 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : d; };
 const flag = (k: string) => args.includes(`--${k}`);
 const home = (p: string) => p.replace(/^~(?=\/|$)/, os.homedir());
-const TOP = Number(opt('top', '100'));
+const TOP = Number(opt('top', '500'));
 const PRO_TOP = Number(opt('pro-top', '30'));
-const PER_PLAYER = Number(opt('per-player', '8'));
+const PER_PLAYER = Number(opt('per-player', 'Infinity'));
 const REGIONS = opt('regions', 'EU,NA')!.split(',').map(s => s.trim()).filter(Boolean);
-const PER_MAP = Number(opt('per-map', '50'));
-const MAX = Number(opt('max', '200'));
+const PER_MAP = Number(opt('per-map', 'Infinity'));
+const MAX = Number(opt('max', 'Infinity'));
+const MIN_FREE = Number(opt('min-free-gb', '30')) * 1e9;
 const DAYS = Number(opt('days', '30'));
 const FOLDER = home(opt('folder', '~/Desktop/APPS/faceit-demos')!);
 const PRO_FOLDER = home(opt('pro-folder', '~/Desktop/APPS/pro-demos')!);
@@ -95,7 +98,7 @@ const supported = new Set(MAPS.map(m => m.id));
 function perMap(folder: string): Record<string, number> {
   const counts: Record<string, number> = {};
   if (!fs.existsSync(folder)) return counts;
-  const cache = readCache<{ map: string | null; error?: string }>(folder, 'analyst');
+  const cache = readCache<{ map: string | null; error?: string }>(folder, 'spots'); // small: just each demo's map
   const read = new Set<string>();
   for (const f of listDemos(folder)) { const k = keyOf(folder, f); const c = cache[k]; if (c?.map && !c.error) { counts[c.map] = (counts[c.map] ?? 0) + 1; read.add(path.join(folder, f)); } }
   for (const s of Object.values(state.seen)) if (s.got && s.map && path.dirname(s.got) === folder && fs.existsSync(s.got) && !read.has(s.got)) counts[s.map] = (counts[s.map] ?? 0) + 1;
@@ -115,11 +118,19 @@ async function topPlayers(): Promise<{ id: string; nick: string; rank: number }[
 }
 async function playerMatches(id: string): Promise<string[]> {
   const from = Math.floor(Date.now() / 1000) - DAYS * 86400;
-  const h = await api<History>(`/players/${id}/history`, { game: 'cs2', from, offset: 0, limit: 100 });
+  const items: History['items'] = [];
+  // every page of their history in the window (100 a page)
+  for (let offset = 0; items.length < PER_PLAYER; offset += 100) {
+    const h = await api<History>(`/players/${id}/history`, { game: 'cs2', from, offset, limit: 100 });
+    items.push(...h.items);
+    if (h.items.length < 100 || offset >= 900) break;
+  }
   // finished 5v5 matches only (matchmaking queues and hubs; not wingman or 1v1)
-  return h.items.filter(m => (!m.game_mode || /5v5/i.test(m.game_mode)) && (!m.status || /finished/i.test(m.status)))
+  return items.filter(m => (!m.game_mode || /5v5/i.test(m.game_mode)) && (!m.status || /finished/i.test(m.status)))
     .sort((a, b) => (b.finished_at ?? 0) - (a.finished_at ?? 0)).slice(0, PER_PLAYER).map(m => m.match_id);
 }
+/** Free space on the disk the folder is on (bytes). */
+const freeBytes = (folder: string) => { try { const s = fs.statfsSync(folder); return s.bavail * s.bsize; } catch { return Infinity; } };
 /** Hubs given with --hubs (their id is in the hub page URL on faceit.com). */
 const proHubs = (): string[] => (opt('hubs') ?? '').split(',').map(s => s.trim()).filter(Boolean);
 async function hubMatches(hub: string): Promise<string[]> {
@@ -158,14 +169,18 @@ async function main() {
     const counts = perMap(folder);
     const todo = [...new Set(matchIds)].filter(id => !state.seen[id]);
     console.log(`\n${label}: ${matchIds.length} matches found, ${todo.length} new. Demos per map now: ${Object.entries(counts).map(([m, n]) => `${m.replace('de_', '')} ${n}`).join(', ') || 'none'}`);
-    const full = () => [...supported].every(m => (counts[m] ?? 0) >= PER_MAP);
+    const full = () => Number.isFinite(PER_MAP) && [...supported].every(m => (counts[m] ?? 0) >= PER_MAP);
     for (const id of todo) {
       if (got >= MAX || full()) break;
+      if (DL_TOKEN && !DRY && freeBytes(folder) < MIN_FREE) {
+        console.log(`\nStopping: under ${(MIN_FREE / 1e9).toFixed(0)} GB free on the disk (--min-free-gb). Free some space, or lower it, and run again: it continues where it stopped.`);
+        break;
+      }
       let m: Match;
       try { m = await api<Match>(`/matches/${id}`); } catch (e) { console.log(`  ${id}: ${(e as Error).message}`); continue; }
       const map = m.voting?.map?.pick?.[0];
       const demo = m.demo_url?.[0];
-      const skip = !map ? 'no map' : !supported.has(map) ? `${map} isn't supported` : !demo ? 'no demo (yet)' : (counts[map] ?? 0) >= PER_MAP ? `${map} has ${PER_MAP} already` : null;
+      const skip = !map ? 'no map' : !supported.has(map) ? `${map} isn't supported` : !demo ? 'no demo (yet)' : Number.isFinite(PER_MAP) && (counts[map] ?? 0) >= PER_MAP ? `${map} has ${PER_MAP} already` : null;
       if (skip) { if (skip !== 'no demo (yet)' && !/already/.test(skip)) state.seen[id] = { map, skip, at: Date.now() }; continue; }
       const ext = /\.zst$/i.test(demo!) ? '.dem.zst' : /\.gz$/i.test(demo!) ? '.dem.gz' : '.dem';
       const file = path.join(folder, `faceit-${id}${ext}`);

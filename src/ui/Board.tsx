@@ -26,6 +26,7 @@ import { bakeRoute, liveState, type BakedRoute } from '../engine/timeline';
 import type { BoardState, Player, Utility, Vec2 } from '../engine/types';
 import { Icon } from './Icon';
 import { useAvatars } from './avatars';
+import { TeamRoster } from './Roster';
 import { proSpots } from '../map/positions';
 import { phaseOf } from '../engine/situations';
 import { useStore } from '../store';
@@ -280,6 +281,14 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
       return [p.id, { ...liveState(p, baked.get(p.id) ?? null, s.time), alive: true, hp: 100, blind: false }];
     })),
     [s.board.players, baked, s.time, sim],
+  );
+  // review: each team's players down the sides with their health and gear (the top bar then only has the clock)
+  const rosterRound = recap && s.review ? s.review.data.rounds[s.review.round] ?? null : null;
+  const roster = (side: 'CT' | 'T') => rosterRound && (
+    <TeamRoster side={side} round={rosterRound} time={s.time}
+      players={s.board.players.filter(p => p.side === side).slice(0, 5).map(p => ({
+        id: p.id, name: s.review?.data.names[p.id] ?? p.label, alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100, avatar: avatars[p.id],
+      }))} />
   );
   const livePlayer = (p: Player): Player => {
     if (drag?.id === p.id) return { ...p, pos: drag.pos ?? p.pos, facing: drag.facing ?? p.facing };
@@ -652,7 +661,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         <div className="slot tl"><LayersBar /></div>
         <div className="slot top">
           <RoundHud
-            players={s.board.players.map(p => ({
+            players={rosterRound ? [] : s.board.players.map(p => ({
               id: p.id, side: p.side, label: p.label, name: s.mode === 'review' ? s.review?.data.names[p.id] ?? p.label : `${p.side} ${p.label}`,
               alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100, avatar: avatars[p.id],
             }))}
@@ -683,7 +692,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             <KillFeed recap={recap} round={s.review.data.rounds[s.review.round]} time={s.time} names={s.review.data.names} />
           )}
         </div>
+        {rosterRound && <div className="slot left">{roster('CT')}</div>}
         <div className="slot right">
+          {rosterRound && roster('T')}
           <div className="zoom">
             <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>
             <button onClick={() => zoomAt(0.8)} title="Zoom out">−</button>

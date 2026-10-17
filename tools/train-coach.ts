@@ -5,12 +5,12 @@
 //   npm run train:coach -- <folder> [--name faceit10] [--label "FACEIT level 10"] [--min-rounds 12]
 //
 // Reads .dem, .dem.gz and .dem.zst (FACEIT's download format) directly, no unpacking needed. Each demo's numbers
-// are cached in <folder>/.stratboard-coach-cache.json, so adding demos later only reads the new ones.
+// are cached in <folder>/.stratboard-cache/coach, so adding demos later only reads the new ones.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { coachFromDemo, COACH_V, loadDemo } from './learn-lib';
+import { coachFromDemo, loadDemo, readCache, writeCacheEntry } from './learn-lib';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { buildReplay, reviewRound, type DemoData, type Role } from '../src/engine/recap';
 import { buildMatchReport, summarizeRound, type RoundSummary } from '../src/engine/match';
@@ -28,15 +28,12 @@ const name = opt('name', 'faceit10').replace(/[^\w-]/g, '');
 const label = opt('label', 'FACEIT level 10');
 const minRounds = Number(opt('min-rounds', '12'));
 const OUT = path.resolve(import.meta.dirname, `../src/engine/models/${name}.json`);
-const CACHE = path.join(folder, '.stratboard-coach-cache.json');
 const CONTEXT: BoardState['context'] = { userSide: 'CT', phase: 'early', economy: { user: 'full', enemy: 'full' } };
 
 type Cached = { map: string | null; samples: (Sample & { rounds: number })[]; error?: string };
 // bump when the numbers are computed differently, so cached demos are read again
-const CACHE_V = COACH_V;
-const stored = fs.existsSync(CACHE) ? JSON.parse(fs.readFileSync(CACHE, 'utf8')) : {};
-const cache: Record<string, Cached> = stored.v === CACHE_V ? stored.demos : {};
-const saveCache = () => fs.writeFileSync(CACHE, JSON.stringify({ v: CACHE_V, demos: cache }));
+const cache = readCache<Cached>(folder, 'coach');
+const saveCache = (k: string) => writeCacheEntry(folder, 'coach', k, cache[k]);
 
 // demos in the folder and one level of subfolders
 const files = fs.readdirSync(folder, { withFileTypes: true }).flatMap(d =>
@@ -62,7 +59,7 @@ files.forEach((f, i) => {
   try { cache[key] = readDemo(f); } catch (e) { cache[key] = { map: null, samples: [], error: e instanceof Error ? e.message : String(e) }; }
   const c = cache[key];
   console.log(`${tag}  ${c.error ? `skipped: ${c.error}` : `${c.map}, ${c.samples.length} players`}  ${((Date.now() - s) / 1000).toFixed(0)} s`);
-  saveCache();
+  saveCache(key);
 });
 
 // only the demos that are still in the folder
