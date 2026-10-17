@@ -1,5 +1,6 @@
 import { isDecision, type Hold, type Move } from './situations';
 import { judgeHold, judgeMove, type HoldVerdict, type MoveVerdict } from './positioning';
+import { engineHold, engineMove, type MoveClass } from './engineEval';
 import { proPositions } from '../map/positions';
 
 /**
@@ -19,12 +20,18 @@ export interface MatchAnalysis {
   likePros: number | null;
   mostCommon: number | null;
   demos: number;
+  /** The engine's view (engineEval.ts): positioning accuracy over the match (0–100) and how many moves of each class. */
+  accuracy: number | null;
+  classes: Partial<Record<MoveClass, number>>;
+  /** The worst positional moves, with the best alternative. */
+  worst: { round: number; t: number; what: string; best: string; loss: number; cls: MoveClass }[];
 }
 
 type Judged =
   | { round: number; kind: 'hold'; h: Hold; v: HoldVerdict }
   | { round: number; kind: 'move'; m: Move; v: MoveVerdict };
 
+const PLURAL: Record<MoveClass, string> = { Best: 'best', Excellent: 'excellent', Good: 'good', Inaccuracy: 'inaccuracies', Mistake: 'mistakes', Blunder: 'blunders' };
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 /** "Try X…" → "try X…" inside a sentence, but place names (Big Box…) keep their capitals. */
 const lower = (t: string) => (/^(Try|Don't|Fall|After|You) /.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t);
@@ -141,7 +148,18 @@ export function matchAnalysis(map: string, player: string, rounds: ({ holds: Hol
     work[1] ? `Also: ${lower(work[1].title)}.` : '',
     good[0] ? `Keep it up: ${lower(good[0].title)}.` : '',
   ].filter(Boolean).join(' ');
-  return { summary, work: work.slice(0, 5), good: good.slice(0, 3), decisions: known.length, likePros, mostCommon, demos: pos.demos };
+  // the engine: every decision against the best level-10 option
+  const engined = all.map(x => ({ x, e: x.kind === 'hold' ? engineHold(map, x.h) : engineMove(map, x.m) })).filter(y => y.e);
+  const accuracy = engined.length ? +(engined.reduce((a, y) => a + y.e!.accuracy, 0) / engined.length).toFixed(1) : null;
+  const classes: Partial<Record<MoveClass, number>> = {};
+  for (const y of engined) classes[y.e!.cls] = (classes[y.e!.cls] ?? 0) + 1;
+  const worst = engined.filter(y => y.e!.loss >= 0.05).sort((a, b) => b.e!.loss - a.e!.loss).slice(0, 5).map(y => ({
+    round: y.x.round, t: y.x.kind === 'hold' ? y.x.h.from : y.x.m.t,
+    what: y.x.kind === 'hold' ? `Held ${y.x.h.place}` : `${y.x.m.from} → ${y.x.m.to}`,
+    best: y.e!.best!.place, loss: y.e!.loss, cls: y.e!.cls,
+  }));
+  const engineLine = accuracy === null ? '' : `Positioning accuracy ${accuracy} (${(['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'] as MoveClass[]).filter(c => classes[c]).map(c => `${classes[c]} ${classes[c]! > 1 ? PLURAL[c] : c.toLowerCase()}`).join(', ')}).`;
+  return { summary: [engineLine, summary].filter(Boolean).join(' '), work: work.slice(0, 5), good: good.slice(0, 3), decisions: known.length, likePros, mostCommon, demos: pos.demos, accuracy, classes, worst };
 }
 
 /** One paragraph about a player's positioning in one round (the Positions tab). */

@@ -9,12 +9,15 @@
 //
 // Each demo's decisions are cached in <folder>/.stratboard-positions-cache.json; adding demos later only reads the new ones.
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { parseDemo } from './demo.mjs';
 import { getEngine, MAPS } from '../src/map/catalog';
-import type { DemoData } from '../src/engine/recap';
+import { equipValue, type DemoData } from '../src/engine/recap';
+import { worldToRadar } from '../src/engine/coords';
+import { roundWinChance } from '../src/engine/winprob';
 import { isDecision, PHASES, roundDecisions, type Hold, type Move, type Phase } from '../src/engine/situations';
 
 const args = process.argv.slice(2).filter(a => a !== '--');
@@ -24,7 +27,7 @@ const only = opt('map');
 if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run learn:positions -- <folder with demos> [--map de_dust2]'); process.exit(1); }
 const OUT = path.resolve(import.meta.dirname, '../src/map/generated/positions.json');
 const CACHE = path.join(folder, '.stratboard-positions-cache.json');
-const CACHE_V = 4; // 2: holds must be standing, not running through · 3: post-plant site · 4: pressure, alone, target
+const CACHE_V = 5; // + ev: the win chance at every decision, for valuing choices
 
 type Round = { winner: 'CT' | 'T' | null; holds: Hold[]; moves: Move[] };
 type Cached = { map: string | null; rounds: Round[]; error?: string };
@@ -52,7 +55,18 @@ function read(file: string): Cached {
     const d: DemoData = parseDemo(p);
     if (!MAPS.some(m => m.id === d.map)) return { map: d.map, rounds: [], error: `map ${d.map} isn't supported` };
     const engine = getEngine(d.map, 0);
-    return { map: d.map, rounds: d.rounds.map(r => ({ winner: r.winner, ...roundDecisions(engine, r) })) };
+    return {
+      map: d.map,
+      rounds: d.rounds.map(r => {
+        const dec = roundDecisions(engine, r);
+        // the side's win chance at each decision (CT's chance from the learned model, flipped for Ts)
+        const p = roundWinChance(engine, r, id => equipValue(r.econ?.[id]), w => worldToRadar(w, engine.map.radar));
+        const forSide = (side: 'CT' | 'T', t: number) => { const v = p(t); return v === null ? undefined : +(side === 'CT' ? v : 1 - v).toFixed(3); };
+        for (const h of dec.holds) h.ev = forSide(h.side, h.from);
+        for (const m of dec.moves) m.ev = forSide(m.side, m.t);
+        return { winner: r.winner, ...dec };
+      }),
+    };
   } finally { if (temp) fs.rmSync(p, { force: true }); }
 }
 
@@ -72,9 +86,16 @@ files.forEach((f, i) => {
 });
 
 // ---- learn -------------------------------------------------------------------------------------------
-type SpotStat = { place: string; share: number; winRate: number; rounds: number };
-type MoveStat = { from: string; to: string; count: number; phases: Partial<Record<Phase, number>>; triggers: { why: string; n: number }[] };
-type Reaction = { from: string; trigger: string; n: number; to: { place: string; n: number }[] };
+/**
+ * `gain` = how much a choice changed the round for the players who made it: the average of (round won − the
+ * side's win chance when they chose it), shrunk toward 0 by SHRINK virtual neutral examples so a handful of lucky
+ * rounds can't look brilliant; `n` = how many choices it's measured on. This is what the "best move" ranks by.
+ */
+type SpotStat = { place: string; share: number; winRate: number; rounds: number; gain?: number; n?: number };
+type MoveStat = { from: string; to: string; count: number; phases: Partial<Record<Phase, number>>; triggers: { why: string; n: number }[]; gain?: number };
+type Reaction = { from: string; trigger: string; n: number; to: { place: string; n: number; gain?: number }[] };
+const SHRINK = 20;
+const gainOf = (diffs: number[]) => (diffs.length ? +(diffs.reduce((a, b) => a + b, 0) / (diffs.length + SHRINK)).toFixed(3) : undefined);
 type MapStats = {
   demos: number; rounds: number;
   spots: Record<'CT' | 'T', Partial<Record<Phase, SpotStat[]>>>;
@@ -109,11 +130,12 @@ for (const [map, demos] of byMap) {
   const stats: MapStats = { demos: demos.length, rounds: rounds.length, spots: { CT: {}, T: {} }, situations: { CT: {}, T: {} }, moves: { CT: [], T: [] }, reactions: { CT: [], T: [] }, risks: { CT: {}, T: {} } };
   /** Each callout's share of a group of holds, with the rounds it appeared in and how often the side won those. */
   const spotStats = (side: 'CT' | 'T', keep: (h: Hold) => boolean): SpotStat[] => {
-    const secs = new Map<string, number>(), inRounds = new Map<string, Set<number>>();
+    const secs = new Map<string, number>(), inRounds = new Map<string, Set<number>>(), diffs = new Map<string, number[]>();
     let total = 0;
     rounds.forEach((r, ri) => {
       for (const h of r.holds) {
         if (h.side !== side || !keep(h)) continue;
+        if (h.ev !== undefined && r.winner) diffs.set(h.place, [...(diffs.get(h.place) ?? []), (r.winner === side ? 1 : 0) - h.ev]);
         const d = h.to - h.from;
         secs.set(h.place, (secs.get(h.place) ?? 0) + d);
         total += d;
@@ -123,7 +145,8 @@ for (const [map, demos] of byMap) {
     return [...secs]
       .map(([place, sec]) => {
         const rs = [...inRounds.get(place)!];
-        return { place, share: +(sec / (total || 1)).toFixed(3), rounds: rs.length, winRate: +(rs.filter(ri => rounds[ri].winner === side).length / rs.length).toFixed(2) };
+        const df = diffs.get(place) ?? [];
+        return { place, share: +(sec / (total || 1)).toFixed(3), rounds: rs.length, winRate: +(rs.filter(ri => rounds[ri].winner === side).length / rs.length).toFixed(2), gain: gainOf(df), n: df.length };
       })
       .filter(x => x.share >= 0.01 && x.rounds >= 2)
       .sort((a, b) => b.share - a.share);
@@ -170,10 +193,14 @@ for (const [map, demos] of byMap) {
     });
     for (const [k, x] of risks) if (x.n >= 5) stats.risks[side][k] = { ...x, to: x.to.sort((a, b) => b.n - a.n).slice(0, 3) };
     const mv = new Map<string, MoveStat & { why: Map<string, number> }>();
+    const moveDiffs = new Map<string, number[]>(), reactDiffs = new Map<string, number[]>();
+    const won = (r: { winner: 'CT' | 'T' | null }) => (r.winner === side ? 1 : 0);
     for (const r of rounds)
       for (const m of r.moves) {
         if (m.side !== side) continue;
         const key = `${m.from}→${m.to}`;
+        if (m.ev !== undefined && r.winner) moveDiffs.set(key, [...(moveDiffs.get(key) ?? []), won(r) - m.ev]);
+        if (m.ev !== undefined && r.winner && m.trigger) { const rk = `${m.from}|${m.trigger}|${m.to}`; reactDiffs.set(rk, [...(reactDiffs.get(rk) ?? []), won(r) - m.ev]); }
         const x = mv.get(key) ?? { from: m.from, to: m.to, count: 0, phases: {}, triggers: [], why: new Map() };
         x.count++;
         x.phases[m.phase] = (x.phases[m.phase] ?? 0) + 1;
@@ -192,9 +219,11 @@ for (const [map, demos] of byMap) {
         if (d) d.n++; else x.to.push({ place: m.to, n: 1 });
         re.set(key, x);
       }
-    stats.reactions[side] = [...re.values()].filter(x => x.n >= 3).map(x => ({ ...x, to: x.to.sort((a, b) => b.n - a.n).slice(0, 8) })).sort((a, b) => b.n - a.n);
+    stats.reactions[side] = [...re.values()].filter(x => x.n >= 3)
+      .map(x => ({ ...x, to: x.to.sort((a, b) => b.n - a.n).slice(0, 8).map(d => ({ ...d, gain: gainOf(reactDiffs.get(`${x.from}|${x.trigger}|${d.place}`) ?? []) })) }))
+      .sort((a, b) => b.n - a.n);
     stats.moves[side] = [...mv.values()].filter(x => x.count >= 2).sort((a, b) => b.count - a.count).slice(0, 400)
-      .map(({ why, ...x }) => ({ ...x, triggers: [...why].map(([w, n]) => ({ why: w, n })).sort((a, b) => b.n - a.n).slice(0, 4) }));
+      .map(({ why, ...x }) => ({ ...x, gain: gainOf(moveDiffs.get(`${x.from}→${x.to}`) ?? []), triggers: [...why].map(([w, n]) => ({ why: w, n })).sort((a, b) => b.n - a.n).slice(0, 4) }));
   }
   out[map] = stats;
 }
@@ -210,3 +239,7 @@ for (const [map, s] of Object.entries(out)) {
   }
 }
 console.log(`\nSaved ${path.relative(process.cwd(), OUT)} in ${((Date.now() - t0) / 60000).toFixed(1)} min.`);
+
+// calibrate the positioning engine on these same decisions (a separate process, so it reads the new positions.json)
+try { execFileSync('npx', ['vite-node', path.join(import.meta.dirname, 'calibrate-engine.ts'), folder], { stdio: 'inherit' }); }
+catch { console.error('Calibration failed: run npm run calibrate:engine -- <folder> by hand.'); }

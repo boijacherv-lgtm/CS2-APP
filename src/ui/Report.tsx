@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { coach, modelFor, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
+import { CLASS_COLOR } from '../engine/engineEval';
 import { analystReport, type Finding, type Topic } from '../engine/analystBench';
 import { analystBench } from '../engine/analystModel';
 import { matchAnalysis, type AnalysisItem } from '../engine/analysis';
@@ -325,9 +326,22 @@ function PositioningCard({ data, rounds, player, done, onRound, onHotRound }: {
     <section className="recap-card positioning">
       <div className="coach-head">
         <h2 className="display">Positioning</h2>
-        <span className="muted">vs FACEIT level 10 in the same situations · {a.demos} matches on this map{a.likePros !== null ? ` · ${Math.round(a.likePros * 100)}% level-10 decisions` : ''}</span>
+        <span className="muted">vs FACEIT level 10 in the same situations · {a.demos} matches on this map{a.accuracy !== null ? ` · accuracy ${a.accuracy}` : ''}{a.likePros !== null ? ` · ${Math.round(a.likePros * 100)}% level-10 decisions` : ''}</span>
       </div>
       <p className="coach-summary">{a.summary}{!done && <span className="muted"> (updates while rounds are graded)</span>}</p>
+      {a.worst.length > 0 && (
+        <><h3>Biggest positional mistakes</h3>
+          <div className="pos-worst">
+            {a.worst.map((w, i) => (
+              <button key={i} className="ghost" onClick={() => onRound(w.round)} onMouseEnter={() => onHotRound(w.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">
+                <span className="muted num">R{w.round + 1} {Math.floor(w.t / 60)}:{String(Math.floor(w.t % 60)).padStart(2, '0')}</span>
+                <b>{w.what}</b>
+                <span className="usual" style={{ color: CLASS_COLOR[w.cls], borderColor: CLASS_COLOR[w.cls] }}>{w.cls} −{Math.round(w.loss * 1000) / 10}%</span>
+                <span className="muted">best: {w.best}</span>
+              </button>
+            ))}
+          </div></>
+      )}
       {a.work.length > 0 && <><h3>Work on</h3><div className="pos-items">{a.work.map(x => item(x, 'work'))}</div></>}
       {a.good.length > 0 && <><h3>Keep</h3><div className="pos-items">{a.good.map(x => item(x, 'good'))}</div></>}
     </section>

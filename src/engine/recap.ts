@@ -5,7 +5,8 @@ import { gunFromName, primaryGun } from './guns';
 import { lifeOf, segmentHitsCircle, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
 import type { TacticalEngine } from './predict';
 import UTIL_SPOTS from '../map/generated/util-spots.json';
-import { placeOf as calloutOfSpot } from './situations';
+import { isDecision, placeOf as calloutOfSpot, roundDecisions } from './situations';
+import { engineHold, engineLine, engineMove, type EngineVerdict } from './engineEval';
 import { analyzeRound } from './analyst';
 import { controlCounts, learnedLogit, tradePending, WIN_MODEL } from './winprob';
 import { proTradeConversion } from './analystModel';
@@ -349,12 +350,13 @@ export function standardSpot(map: string, type: UtilType, side: Side, x: number,
 export const knowsSpots = (map: string, type: UtilType, side: Side) => (SPOTS[map] ?? []).filter(sp => sp.type === type && sp.side === side).length >= 5;
 
 /** A move's annotation, as in chess. */
-export type Annotation = '!!' | '!' | 'book' | '?' | '??';
-export const NOTES: Annotation[] = ['!!', '!', 'book', '?', '??'];
+export type Annotation = '!!' | '!' | 'book' | '?!' | '?' | '??';
+export const NOTES: Annotation[] = ['!!', '!', 'book', '?!', '?', '??'];
 export const NOTE_INFO: Record<Annotation, { mark: string; label: string; color: string; tip: string }> = {
   '!!': { mark: '!!', label: 'Brilliant', color: '#1baca6', tip: 'Exceptional, statistically unlikely: a 1v3 clutch, a ninja defuse, a solo anchor, a pistol beating full gear' },
   '!': { mark: '!', label: 'Good move', color: '#5c9ced', tip: 'Swung the round: a quick trade, a multi-kill, the opening kill, a flash or HE that won fights' },
   book: { mark: '', label: 'Book', color: '#a88865', tip: 'The expected, sound play: a standard smoke, an ordinary kill or grenade' },
+  '?!': { mark: '?!', label: 'Inaccuracy', color: '#f7c045', tip: 'Not the best: a level-10 player would have played it a little better' },
   '?': { mark: '?', label: 'Mistake', color: '#e58f2a', tip: 'Cost the team: an untraded opening or isolated death, a team flash, dying with utility' },
   '??': { mark: '??', label: 'Blunder', color: '#ca3431', tip: 'A round-losing error: a team kill, a team flash that got a teammate killed, dying to an eco with full gear and grenades unused' },
 };
@@ -406,7 +408,7 @@ export interface Move {
   t: number;
   player: string;
   side: Side;
-  kind: 'kill' | 'death' | 'flash' | 'utility' | 'objective' | 'teamplay';
+  kind: 'kill' | 'death' | 'flash' | 'utility' | 'objective' | 'teamplay' | 'position';
   /** The grenade this move is about (Utility id in the replay board). */
   util?: string;
   /** Change in this player's team win chance (e.g. +0.12 = +12%). */
@@ -453,7 +455,9 @@ export interface RoundFacts {
  *   D   no impact kill and a mistake (?) or an early untraded death
  *   F   a blunder (??: team kill, dying to an eco with full utility) with fewer than two kills
  */
-export function roundGrade(moves: Move[], f: RoundFacts): { letter: Letter; points: number; why: string } {
+export function roundGrade(all: Move[], f: RoundFacts): { letter: Letter; points: number; why: string } {
+  // positioning decisions are judged in the Positions tab, not in the round grade
+  const moves = all.filter(m => m.kind !== 'position');
   const points = impactPoints(moves);
   const kills = moves.filter(m => m.kind === 'kill' && !m.tags.includes('TEAM KILL'));
   const impactKills = kills.filter(m => m.gain >= 0.03).length;
@@ -524,13 +528,15 @@ export function roundFacts(r: DemoRound, id: string, upTo = Infinity): RoundFact
 export const isMarked = (m: Move) => m.note !== 'book';
 
 /**
- * Which moves get evaluated on screen (letters on the map and the timeline, the killfeed letters, the move cards and
- * ◀ ▶), so they always agree. 'all' is every move: every kill, every death, every grenade and flash, neutral C too.
- * 'mine' is every move of one player (you, when you're logged in with Steam).
+ * Which moves get evaluated on screen (marks on the map and the timeline, the killfeed marks, the move cards and
+ * ◀ ▶), so they always agree.
+ *   'all'   every kill, grenade, flash, plant / defuse and team play of everyone; deaths and positioning decisions
+ *           are left out (the killer's move already tells the story, and ten players' positions would flood it)
+ *   'mine'  everything of one player (you, when you're logged in with Steam), deaths and positioning included
  */
 export type EvalScope = 'all' | 'mine';
 export function evaluated(scope: EvalScope, me: string | null): (m: Move) => boolean {
-  return scope === 'mine' && me ? m => m.player === me : () => true;
+  return scope === 'mine' && me ? m => m.player === me : m => m.kind !== 'death' && m.kind !== 'position';
 }
 
 /** Key moments of a round, like the moves of a chess game: every kill and marked move, simultaneous ones grouped. */
@@ -1059,12 +1065,42 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     }
   } catch { /* the analyst is extra */ }
 
+  // positioning decisions, like a chess engine's verdict on each move (shown with "Mine")
+  try {
+    const dec = roundDecisions(engine, r);
+    const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 1000) / 10)}%`;
+    const noteOf = (v: EngineVerdict): Annotation => {
+      if (v.cls === 'Blunder') return '??';
+      if (v.cls === 'Mistake') return '?';
+      if (v.cls === 'Inaccuracy') return '?!';
+      // the best move when it isn't the obvious one (not what most level-10 players do, and clearly better)
+      const common = v.candidates.reduce((a, c) => (c.share > a.share ? c : a), v.candidates[0]);
+      return v.cls === 'Best' && common.place !== v.best!.place && v.best!.gain - (v.candidates[1]?.gain ?? 0) >= 0.03 ? '!' : 'book';
+    };
+    const why = (v: EngineVerdict, what: 'hold' | 'move', chosen: string) => [
+      `Engine: ${v.cls}, accuracy ${Math.round(v.accuracy)}.`,
+      engineLine(v, what, chosen),
+      `Options: ${v.candidates.slice(0, 4).map(c => `${c.place} ${pct(c.gain)}`).join(', ')}.`,
+      ...(v.next.length ? [`Next, level-10 players usually go: ${v.next.map(c => `${c.place} ${Math.round(c.share * 100)}% of the time`).join(', ')}.`] : []),
+    ];
+    for (const h of dec.holds) {
+      if (!isDecision(h) || !sideOf.has(h.player)) continue;
+      const v = engineHold(engine.map.id, h);
+      if (v) moves.push({ t: h.from, player: h.player, side: h.side, kind: 'position', gain: -v.loss, note: noteOf(v), tags: [], title: `${name(h.player)} held ${h.place}`, why: why(v, 'hold', h.place) });
+    }
+    for (const m of dec.moves) {
+      if (!isDecision({ place: m.from, from: m.t }) || !sideOf.has(m.player)) continue;
+      const v = engineMove(engine.map.id, m);
+      if (v) moves.push({ t: m.t, player: m.player, side: m.side, kind: 'position', gain: -v.loss, note: noteOf(v), tags: [], title: `${name(m.player)}: ${m.from} → ${m.to}${m.trigger ? ` after "${m.trigger}"` : ''}`, why: why(v, 'move', m.to) });
+    }
+  } catch { /* positions are extra */ }
+
   moves.sort((a, b) => a.t - b.t || (a.kind === 'kill' ? -1 : 1));
   const players: Review['players'] = {};
-  for (const id of sim.ids) players[id] = { impact: 0, counts: { '!!': 0, '!': 0, book: 0, '?': 0, '??': 0 } };
+  for (const id of sim.ids) players[id] = { impact: 0, counts: { '!!': 0, '!': 0, book: 0, '?!': 0, '?': 0, '??': 0 } };
   for (const m of moves) {
     if (!players[m.player]) continue;
-    players[m.player].impact += m.gain;
+    if (m.kind !== 'position') players[m.player].impact += m.gain;
     players[m.player].counts[m.note]++;
   }
   const turningPoint = moves.filter(m => m.kind !== 'death').reduce<Move | null>((best, m) => (!best || Math.abs(m.gain) > Math.abs(best.gain) ? m : best), null);

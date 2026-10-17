@@ -10,6 +10,7 @@ export function moveLook(m: Pick<Move, 'note' | 'kind'>): { label: string; color
   if (m.note !== 'book') return { label: n.label, color: n.color, mark: n.mark, tip: n.tip };
   if (m.kind === 'kill') return { label: 'Kill', color: PLAIN, mark: '', icon: 'crosshair', tip: 'An ordinary kill: nothing special either way' };
   if (m.kind === 'death') return { label: 'Death', color: PLAIN, mark: '', icon: 'skull', tip: 'An ordinary death: not a mistake' };
+  if (m.kind === 'position') return { label: 'Good position', color: PLAIN, mark: '', icon: 'target', tip: 'A sound positioning choice: close to what level-10 players do here' };
   return { label: m.kind === 'objective' ? 'Standard' : 'Book', color: n.color, mark: '', icon: 'book', tip: n.tip };
 }
 

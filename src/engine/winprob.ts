@@ -114,3 +114,36 @@ export function tradePending(kills: { t: number; killer: string; victim: string 
   }
   return { ct, t: tt };
 }
+
+/**
+ * The learned CT win chance at any moment of a demo round (from its frames), for valuing decisions: how much a
+ * choice changed the win chance compared with what was expected when it was made. Needs the trained model.
+ */
+export function roundWinChance(engine: TacticalEngine, r: {
+  frames: { t: number[]; players: Record<string, { side: Side; x: number[]; y: number[]; hp: number[]; alive: number[] }> };
+  kills: { t: number; attacker: string; victim: string }[]; duration: number; plant: number | null;
+  econ?: Record<string, { equip?: number | null } | undefined>;
+}, equipOf: (id: string) => number | null, toRadar: (w: Vec2) => Vec2): (t: number) => number | null {
+  if (!WIN_MODEL) return () => null;
+  const ids = Object.keys(r.frames.players);
+  const sideOf = (id: string) => r.frames.players[id]?.side;
+  const ft = r.frames.t;
+  const k = (t: number) => { let i = 0; while (i < ft.length - 1 && ft[i + 1] <= t) i++; return i; };
+  const alive = (id: string, t: number) => { const f = r.frames.players[id]; return !!f && !!f.alive[k(t)] && !r.kills.some(q => q.victim === id && q.t <= t); };
+  const where = (id: string, t: number) => { if (!alive(id, t)) return null; const f = r.frames.players[id], i = k(t); return toRadar({ x: f.x[i], y: f.y[i] }); };
+  const areas = controlCounts(engine, ids, sideOf, where, Math.ceil(r.duration));
+  const kills = r.kills.map(q => ({ t: q.t, killer: q.attacker, victim: q.victim }));
+  return (t: number) => {
+    const live = ids.filter(id => alive(id, t));
+    const ct = live.filter(id => sideOf(id) === 'CT'), tt = live.filter(id => sideOf(id) === 'T');
+    if (!ct.length) return 0;
+    if (!tt.length) return r.plant !== null && t >= r.plant ? null : 1;
+    const hp = (xs: string[]) => xs.reduce((a, id) => a + (r.frames.players[id].hp[k(t)] ?? 100), 0);
+    const eq = (xs: string[]) => { const v = xs.map(equipOf).filter((e): e is number => e !== null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+    const s = Math.min(areas.ct.length - 1, Math.max(0, Math.floor(t)));
+    const tp = tradePending(kills, ids, sideOf, where, t, engine.map.radar.scale);
+    const z = learnedLogit({ ct: ct.length, t: tt.length, ctHp: hp(ct), tHp: hp(tt), ctEquip: eq(ct), tEquip: eq(tt), planted: r.plant !== null && t >= r.plant ? r.plant : null, time: t,
+      ctAreas: areas.ct[s], tAreas: areas.t[s], tradeCT: tp.ct, tradeT: tp.t });
+    return z === null ? null : 1 / (1 + Math.exp(-z));
+  };
+}

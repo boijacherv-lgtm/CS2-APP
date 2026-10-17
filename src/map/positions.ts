@@ -7,9 +7,10 @@ import type { Side } from '../engine/types';
  * (tools/learn-positions.ts → generated/positions.json): per map, side and phase of the round, each callout's share
  * of their time there and how often that side went on to win the round.
  */
-export interface ProSpot { place: string; share: number; winRate: number; rounds: number }
-export interface ProMove { from: string; to: string; count: number; phases: Partial<Record<Phase, number>>; triggers: { why: string; n: number }[] }
-export interface ProReaction { from: string; trigger: string; n: number; to: { place: string; n: number }[] }
+/** `gain`: how much choosing it changed the round for level-10 players (round won − win chance when chosen, shrunk); `n`: choices measured. */
+export interface ProSpot { place: string; share: number; winRate: number; rounds: number; gain?: number; n?: number }
+export interface ProMove { from: string; to: string; count: number; phases: Partial<Record<Phase, number>>; triggers: { why: string; n: number }[]; gain?: number }
+export interface ProReaction { from: string; trigger: string; n: number; to: { place: string; n: number; gain?: number }[] }
 interface MapPositions {
   demos: number; rounds: number;
   spots: Record<Side, Partial<Record<Phase, ProSpot[]>>>;

@@ -113,6 +113,7 @@ npm run train:coach -- <folder>   # train the coach on a folder of demos (see Tr
 npm run learn:spots -- <folder>   # learn the standard smoke / molotov spots from the same demos
 npm run learn:positions -- <folder>   # learn where level-10 players stand and why they move (Pro positions layer)
 npm run learn:analyst -- <folder>   # learn the analyst benchmarks: trades, duels, control, rotations, plans, economy…
+npm run calibrate:engine -- <folder>   # re-calibrate the positioning engine (learn:positions runs it)
 npm run build:maps   # regenerate src/map/generated/maps.json from public/images/maps/*.png (only after changing radars or tools/build-maps.mjs)
 ```
 
@@ -184,6 +185,19 @@ trained it uses hand-set Premier numbers. To train it:
      every level-10 round every 2 s (men alive, health, equipment, the bomb and its timer, time running out, map
      control = areas each side held, and trades about to happen) instead of hand-set weights. The run prints how
      much better it predicts than the old formula; until it's trained, the old formula is used.
+7. **The positioning engine** (`src/engine/engineEval.ts`), like Stockfish for positions: at each decision (a spot
+   held, a move, a reaction) it lists what level-10 players do in that situation and values each option by how
+   much it changed the round for them (round won − the learned win chance when they chose it, shrunk for small
+   samples; learned by `learn:positions`). It picks the best option, compares the player's choice with it (eval
+   loss), classes it **Best · Excellent · Good · Inaccuracy (?!) · Mistake (?) · Blunder (??)** and gives an
+   accuracy like chess.com's; for holds it also looks ahead (where level-10 players go next from there).
+   `tools/calibrate-engine.ts` (run by `learn:positions`) calibrates it on level-10 play itself: the classes are
+   percentiles of their own eval loss (a Blunder is worse than 95% of level-10 decisions) and a typical level-10
+   decision scores about 88. It shows in the Positions tab (class, options, accuracy for the round), in Match
+   recap's Positioning card (match accuracy, moves per class, biggest positional mistakes) and as positioning moves
+   in Review with **Mine** (they don't change round grades or impact).
+   With **All**, deaths and positioning moves aren't evaluated on screen (the killer's move already tells it);
+   with **Mine** you see all of yours.
 
 Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings and imported matches stay in `.steam-cache/` (never committed).
 

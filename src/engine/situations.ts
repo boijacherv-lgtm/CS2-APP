@@ -55,11 +55,15 @@ export interface Hold {
   mateDown: boolean;
   /** Ts only, before the plant: the site the team went for (where the bomb went down, else where the team was). */
   target?: 'A' | 'B';
+  /** Their side's learned win chance when they took the spot (training data only; see winprob.roundWinChance). */
+  ev?: number;
 }
 export interface Move {
   player: string; side: Side; from: string; to: string; t: number; phase: Phase;
   /** What happened in the 5 s before they left: the likely reason (null = nothing visible to them). */
   trigger: string | null;
+  /** Their side's learned win chance when they left (training data only). */
+  ev?: number;
 }
 
 /** Seconds a player has to stay at one callout for it to count as holding it… */

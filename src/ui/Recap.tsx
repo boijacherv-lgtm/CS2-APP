@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
 import { isDecision, roundDecisions } from '../engine/situations';
 import { judgeHold, judgeMove, USUAL_LABEL, type Usual } from '../engine/positioning';
+import { CLASS_COLOR, engineHold, engineLine, engineMove } from '../engine/engineEval';
 import { roundAnalysis } from '../engine/analysis';
 import { proPositions } from '../map/positions';
 import { moveLook, NoteMark } from './NoteMark';
@@ -305,8 +306,8 @@ const COUNTED: Annotation[] = NOTES.filter(n => n !== 'book');
 /** Impact and grade counts from the moves seen so far. */
 function scoreboard(recap: Review, seen: Move[]) {
   const out: Review['players'] = {};
-  for (const id of Object.keys(recap.players)) out[id] = { impact: 0, counts: { '!!': 0, '!': 0, book: 0, '?': 0, '??': 0 } };
-  for (const m of seen) if (out[m.player]) { out[m.player].impact += m.gain; out[m.player].counts[m.note]++; }
+  for (const id of Object.keys(recap.players)) out[id] = { impact: 0, counts: { '!!': 0, '!': 0, book: 0, '?!': 0, '?': 0, '??': 0 } };
+  for (const m of seen) if (out[m.player]) { if (m.kind !== 'position') out[m.player].impact += m.gain; out[m.player].counts[m.note]++; }
   return out;
 }
 
@@ -428,9 +429,11 @@ function Positions({ engine, replay, until, focus, onJump }: { engine: TacticalE
   const dec = useMemo(() => roundDecisions(engine, replay.round), [engine, replay.round]);
   const known = !!proPositions(engine.map.id);
   const rows = [
-    ...dec.holds.filter(h => h.player === id && h.from <= until && isDecision(h)).map(h => ({ t: h.from, kind: 'hold' as const, h, v: judgeHold(engine.map.id, h) })),
-    ...dec.moves.filter(m => m.player === id && m.t <= until && isDecision({ place: m.from, from: m.t })).map(m => ({ t: m.t, kind: 'move' as const, m, v: judgeMove(engine.map.id, m) })),
+    ...dec.holds.filter(h => h.player === id && h.from <= until && isDecision(h)).map(h => ({ t: h.from, kind: 'hold' as const, h, v: judgeHold(engine.map.id, h), e: engineHold(engine.map.id, h) })),
+    ...dec.moves.filter(m => m.player === id && m.t <= until && isDecision({ place: m.from, from: m.t })).map(m => ({ t: m.t, kind: 'move' as const, m, v: judgeMove(engine.map.id, m), e: engineMove(engine.map.id, m) })),
   ].sort((a, b) => a.t - b.t);
+  const judged = rows.filter(r => r.e);
+  const accuracy = judged.length ? judged.reduce((a, r) => a + r.e!.accuracy, 0) / judged.length : null;
   const side = replay.board.players.find(p => p.id === id)?.side ?? 'CT';
   return (
     <section className="positions">
@@ -439,6 +442,7 @@ function Positions({ engine, replay, until, focus, onJump }: { engine: TacticalE
           {ids.map(x => <option key={x} value={x}>{replay.names[x] ?? x}</option>)}
         </select>
         <span className={`muted ${side.toLowerCase()}`}>{side}</span>
+        {accuracy !== null && <span className="pos-acc" title="Positioning accuracy this round, like a chess engine's: how close each choice was to the best level-10 option (100 = always the best)">Accuracy <b className="num">{accuracy.toFixed(1)}</b></span>}
       </div>
       {(() => { const t = roundAnalysis(engine.map.id, id, dec, until); return t ? <p className="pos-summary">{t}</p> : null; })()}
       {!known && <p className="muted">No level-10 positions for {engine.map.name} yet: run <code>npm run learn:positions</code> on demos of this map.</p>}
@@ -450,8 +454,23 @@ function Positions({ engine, replay, until, focus, onJump }: { engine: TacticalE
               <span className="muted num">{fmt(r.t)}</span>
               <b>{r.kind === 'hold' ? `Held ${r.h.place}` : `${r.m.from} → ${r.m.to}`}</b>
               {r.kind === 'hold' && <span className="muted num">{Math.round(r.h.to - r.h.from)} s</span>}
-              <span className="usual" style={{ color: USUAL_COLOR[r.v.kind], borderColor: USUAL_COLOR[r.v.kind] }} title={r.v.basis}>{USUAL_LABEL[r.v.kind]}</span>
+              {r.e
+                ? <span className="usual" style={{ color: CLASS_COLOR[r.e.cls], borderColor: CLASS_COLOR[r.e.cls] }} title={`Accuracy ${r.e.accuracy}`}>{r.e.cls}</span>
+                : <span className="usual" style={{ color: USUAL_COLOR[r.v.kind], borderColor: USUAL_COLOR[r.v.kind] }} title={r.v.basis}>{USUAL_LABEL[r.v.kind]}</span>}
             </div>
+            {r.e && (
+              <div className="pos-engine">
+                <span>{engineLine(r.e, r.kind, r.kind === 'hold' ? r.h.place : r.m.to)}</span>
+                <span className="pos-cands">
+                  {r.e.candidates.slice(0, 4).map(c => (
+                    <i key={c.place} className={c.place === r.e!.best!.place ? 'best' : ''} title={`${Math.round(c.share * 100)}% of level-10 players, measured on ${c.n}`}>
+                      {c.place} <b className="num">{c.gain >= 0 ? '+' : '−'}{Math.abs(Math.round(c.gain * 1000) / 10)}%</b>
+                    </i>
+                  ))}
+                </span>
+                {r.e.next.length > 0 && <span className="muted">Next, level-10 players go: {r.e.next.map(c => `${c.place} ${Math.round(c.share * 100)}%`).join(', ')}</span>}
+              </div>
+            )}
             <p>{r.v.text}</p>
           </li>
         ))}
