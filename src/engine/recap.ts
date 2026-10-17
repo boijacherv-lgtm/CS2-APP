@@ -8,6 +8,8 @@ import UTIL_SPOTS from '../map/generated/util-spots.json';
 import { isDecision, placeOf as calloutOfSpot, roundDecisions } from './situations';
 import { engineHold, engineLine, engineMove, type EngineVerdict } from './engineEval';
 import { analyzeRound } from './analyst';
+import { duelOdds as duelModelOdds, pctOdds } from './duelModel';
+import { ACTION_TEXT, judgeMoment, keyMoments, momentLine, pctPlay, PLAY_MODEL, roundMoments, type Action, type MomentVerdict } from './playModel';
 import { controlCounts, learnedLogit, tradePending, WIN_MODEL } from './winprob';
 import { analystBench, proTradeConversion } from './analystModel';
 import { tradeSpotOf } from './analystBench';
@@ -379,7 +381,7 @@ export type Tag =
   | 'FLASH ASSIST' | 'NADE ASSIST' | 'BLIND' | 'LOW HP' | 'TEAM FLASH' | 'TEAM DAMAGE' | 'WASTED' | 'DENIED' | 'POST-PLANT' | 'UNUSED UTIL' | 'WHIFF' | 'UPSET'
   | 'FLANK' | 'ANCHOR' | 'TEAM KILL' | 'ECO DEATH' | 'PLANT' | 'DEFUSE' | 'NINJA'
   | 'NO TRADE' | 'LATE ROTATION' | 'OVER-ROTATION' | 'DRY PEEK'
-  | 'KNIFE OUT' | 'NO AMMO' | 'MOVING SHOT' | 'LOUD';
+  | 'KNIFE OUT' | 'NO AMMO' | 'MOVING SHOT' | 'LOUD' | 'BAD PEEK' | 'LONG ODDS';
 const GOOD = '#22c55e', BAD = '#ef4444', UTIL = '#3b82f6', INFO = '#a39b8f';
 export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   OPENING: { color: INFO, tip: 'First kill of the round.' },
@@ -419,6 +421,8 @@ export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   'NO AMMO': { color: BAD, tip: 'Died with 3 bullets or fewer in the magazine: should have reloaded in cover first.' },
   'MOVING SHOT': { color: BAD, tip: 'Their first shot was fired while moving too fast to be accurate (no counter-strafe).' },
   LOUD: { color: BAD, tip: 'Was running (footsteps) right before dying with the enemy close: they heard them coming.' },
+  'BAD PEEK': { color: BAD, tip: 'Peeked into a fight level-10 players lose most of the time from there (behind on health, armour or gun): wait, fall back or bring a flash.' },
+  'LONG ODDS': { color: GOOD, tip: 'Won a fight level-10 players usually lose from that situation.' },
 };
 
 export interface Move {
@@ -604,6 +608,15 @@ export interface Review {
   players: Record<string, { impact: number; counts: Record<Annotation, number> }>;
   roles: Record<string, PlayerRole>;
   turningPoint: Move | null;
+  /** The play model (playModel.ts): every player's moments against level-10 choices. */
+  play?: RoundPlay;
+}
+export interface PlayKey { t: number; player: string; did: Action; best: Action; /** level-10 share of what they did, and of the usual choice */ share: number; agree: number }
+export interface RoundPlay {
+  /** Per player: moments judged, and how many were a usual level-10 choice. */
+  stats: Record<string, { n: number; usual: number }>;
+  /** The clearest off-level-10 choices of the round. */
+  key: PlayKey[];
 }
 
 
@@ -1100,6 +1113,26 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const killer = r.frames.players[d.killer];
       if (loud >= 4 && killer && Math.hypot(killer.x[k] - f.x[k], killer.y[k] - f.y[k]) < 1100) { death.tags.push('LOUD'); death.why.push('Was running (footsteps) toward an enemy close enough to hear it.'); }
     }
+    // the duel model: each fight's odds at first contact, for the winner and the loser
+    const RANK: Annotation[] = ['!!', '!', 'book', '?!', '?', '??'];
+    const atLeast = (m: Move, n: Annotation) => { if (RANK.indexOf(m.note) < RANK.indexOf(n)) m.note = n; };
+    for (const d of an.duels) {
+      const death = moves.find(m => m.kind === 'death' && m.player === d.victim && Math.abs(m.t - d.t) < 0.06);
+      const kill = moves.find(m => m.kind === 'kill' && m.player === d.killer && Math.abs(m.t - d.t) < 0.06);
+      const lost = duelModelOdds(d, 'victim'), won = duelModelOdds(d, 'killer');
+      if (death && lost) {
+        death.why.push(`Duel odds: level-10 players win this fight ${pctOdds(lost.p)} of the time from where it started.`);
+        if (lost.peek !== null && lost.held !== null) death.why.push(`With this health, guns and help, a level-10 peek here wins ${pctOdds(lost.peek)}; holding still for the enemy to come wins ${pctOdds(lost.held)}.`);
+        if (lost.peek !== null && lost.peek < 0.35 && lost.p < 0.4 && !d.withFlash) {
+          death.tags.push('BAD PEEK');
+          atLeast(death, '?!');
+        }
+      }
+      if (kill && won) {
+        kill.why.push(`Duel odds: ${pctOdds(won.p)} going into it${won.peek !== null && won.held !== null ? ` (a level-10 peek here: ${pctOdds(won.peek)}, holding still: ${pctOdds(won.held)})` : ''}.`);
+        if (won.p < 0.3) { kill.tags.push('LONG ODDS'); if (kill.note === 'book') kill.note = '!'; }
+      }
+    }
     // a death from swinging into a held angle without a flash
     for (const d of an.duels) {
       if (d.style !== 'held' || d.flashed) continue;
@@ -1139,6 +1172,22 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     }
   } catch { /* positions are extra */ }
 
+  // step 4, "what would a level-10 player do now": every 2 s of every player against the level-10 choices
+  let play: RoundPlay | undefined;
+  try {
+    if (PLAY_MODEL) {
+      const vs = roundMoments(engine, r, 2).map(m => judgeMoment(m, PLAY_MODEL!)).filter((v): v is MomentVerdict => !!v && sideOf.has(v.player));
+      const stats: RoundPlay['stats'] = {};
+      for (const v of vs) { const x = (stats[v.player] ??= { n: 0, usual: 0 }); x.n++; if (v.usual) x.usual++; }
+      const key = keyMoments(vs);
+      for (const v of key)
+        moves.push({ t: v.t, player: v.player, side: v.side, kind: 'position', gain: 0, note: v.pro[0].share >= 0.75 && v.share < 0.03 ? '?' : '?!', tags: [],
+          title: `${name(v.player)} chose to ${ACTION_TEXT[v.did]}; a level-10 player would ${ACTION_TEXT[v.pro[0].a]}`,
+          why: [momentLine(v), `They ${ACTION_TEXT[v.did]} here only ${pctPlay(v.share)} of the time.`] });
+      play = { stats, key: key.map(v => ({ t: v.t, player: v.player, did: v.did, best: v.pro[0].a, share: +v.share.toFixed(3), agree: +v.pro[0].share.toFixed(3) })) };
+    }
+  } catch { /* the play model is extra */ }
+
   moves.sort((a, b) => a.t - b.t || (a.kind === 'kill' ? -1 : 1));
   const players: Review['players'] = {};
   for (const id of sim.ids) players[id] = { impact: 0, counts: { '!!': 0, '!': 0, book: 0, '?!': 0, '?': 0, '??': 0 } };
@@ -1148,7 +1197,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     players[m.player].counts[m.note]++;
   }
   const turningPoint = moves.filter(m => m.kind !== 'death' && m.kind !== 'position').reduce<Move | null>((best, m) => (!best || Math.abs(m.gain) > Math.abs(best.gain) ? m : best), null);
-  return { curve, moves, players, roles: playerRoles(engine, rep, moves), turningPoint };
+  return { curve, moves, players, roles: playerRoles(engine, rep, moves), turningPoint, ...(play ? { play } : {}) };
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;

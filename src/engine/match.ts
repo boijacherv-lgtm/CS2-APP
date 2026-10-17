@@ -1,4 +1,4 @@
-import { cappedDamage, duelOdds, roundFacts, roundGrade, type DemoData, type Letter, type Replay, type Review, type Role, type Tag } from './recap';
+import { cappedDamage, duelOdds, roundFacts, roundGrade, type DemoData, type Letter, type Replay, type Review, type Role, type RoundPlay, type Tag } from './recap';
 import type { Side } from './types';
 import type { Hold, Move } from './situations';
 import type { AnalystRound } from './analyst';
@@ -40,6 +40,8 @@ export interface RoundSummary {
   decisions?: { holds: Hold[]; moves: Move[] };
   /** The analyst's facts for the round (analyst.ts). */
   analyst?: AnalystRound;
+  /** Every player's moments against level-10 choices (playModel.ts). */
+  play?: RoundPlay;
 }
 
 export { cappedDamage };
@@ -76,7 +78,7 @@ export function summarizeRound(rep: Replay, rv: Review): RoundSummary {
       ],
     };
   }
-  return { n: r.n, winner: r.winner, lines };
+  return { n: r.n, winner: r.winner, lines, ...(rv.play ? { play: rv.play } : {}) };
 }
 
 /** Rating points per impact point per round (an average +5 impact a round ≈ +750). */

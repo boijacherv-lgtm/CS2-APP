@@ -15,11 +15,12 @@ import { roundDecisions, type Hold, type Move } from '../src/engine/situations';
 import { analyzeRound, type AnalystRound } from '../src/engine/analyst';
 import { controlCounts, roundWinChance, tradePending, winFeatures } from '../src/engine/winprob';
 import type { BoardState } from '../src/engine/types';
+import { roundMoments } from '../src/engine/playModel';
 
 // ---- cache versions: bump when that learner's per-demo numbers are computed differently -----------------------
 export const COACH_V = 3; // 3: impact leaves out positioning decisions
 export const POSITIONS_V = 7; // + paths only the first 8 s after leaving a spot
-export const ANALYST_V = 5; // + micro play per player (counter-strafing, crosshair, sound, reloads, peeks…)
+export const ANALYST_V = 9; // + every player's moments (play model)
 /** Bump when tools/demo-core.mjs reads demos differently (new fields), so saved reads are redone. */
 export const PARSE_V = 5; // 5: micro detail (pitch, stance, weapon, ammo; shot speed)
 
@@ -106,12 +107,25 @@ export function positionsFromDemo(d: DemoData): PositionsCached {
 }
 
 // ---- learn:analyst --------------------------------------------------------------------------------------------
-export type AnalystCached = { map: string | null; rounds: AnalystRound[]; win?: { x: number[][]; y: number[]; base: number[] }; error?: string };
+export type PlaySamples = { x: number[][]; a: number[]; wl: number[]; y: number[]; t: number[] };
+export type AnalystCached = { map: string | null; rounds: AnalystRound[]; win?: { x: number[][]; y: number[]; base: number[] }; play?: PlaySamples; error?: string };
 /** Every round's analyst facts, plus the win-chance training samples. */
 export function analystFromDemo(d: DemoData): AnalystCached {
   if (!supported(d)) return { map: d.map, rounds: [], error: `map ${d.map} isn't supported` };
   const engine = getEngine(d.map, 0);
-  return { map: d.map, rounds: d.rounds.map((r, i) => analyzeRound(engine, r, d.rounds.slice(0, i), d.rounds.length)), win: winSamples(engine, d) };
+  return { map: d.map, rounds: d.rounds.map((r, i) => analyzeRound(engine, r, d.rounds.slice(0, i), d.rounds.length)), win: winSamples(engine, d), play: playSamples(engine, d) };
+}
+
+/** Play-model training samples: every player's situation every 3 s, what they did, the win log-odds, and whether their side won. */
+export function playSamples(engine: ReturnType<typeof getEngine>, d: DemoData): PlaySamples {
+  const out: PlaySamples = { x: [], a: [], wl: [], y: [], t: [] };
+  for (const r of d.rounds) {
+    if (!r.winner) continue;
+    for (const m of roundMoments(engine, r, 3)) {
+      out.x.push(m.f.map(v => +v.toFixed(2))); out.a.push(m.a); out.wl.push(+m.wl.toFixed(2)); out.y.push(m.side === r.winner ? 1 : 0); out.t.push(m.t);
+    }
+  }
+  return out;
 }
 
 /** Win-chance training samples: the round's state every 2 s (features) and whether CT won it; `base` = the old formula. */

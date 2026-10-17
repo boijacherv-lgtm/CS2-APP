@@ -1,0 +1,50 @@
+{
+ "bias": 0,
+ "coef": [
+  1.0581,
+  -0.194,
+  0.5491,
+  0.0714,
+  0.3975,
+  -0.3564,
+  0.2203,
+  0.4858,
+  -0.0569,
+  -0.0367,
+  -0.1906,
+  -0.2837,
+  0.136,
+  0.3096,
+  0.0725
+ ],
+ "features": [
+  "health",
+  "hurt (≤30 hp)",
+  "armour",
+  "helmet",
+  "gun power at range",
+  "AWP",
+  "AWP at range",
+  "scoped",
+  "peeked a still player",
+  "crouching",
+  "in the air",
+  "flashed",
+  "saw first",
+  "crosshair placement",
+  "teammates near"
+ ],
+ "samples": 14244,
+ "logLoss": 0.6127,
+ "peek": {
+  "sawFirst": -0.002,
+  "aim": -0.037
+ },
+ "hold": {
+  "sawFirst": 0.002,
+  "aim": 0.037
+ },
+ "testLogLoss": 0.6046,
+ "testAccuracy": 0.659,
+ "baselineLogLoss": 0.6931
+}

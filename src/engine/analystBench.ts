@@ -1,4 +1,7 @@
 import type { AnalystRound, DuelFact, RoundType } from './analyst';
+import { DUEL_MODEL, duelOdds, type DuelModel } from './duelModel';
+/** A peek whose level-10 odds are below this is a bad one. */
+const BAD_PEEK = 0.35;
 import { addMicro, emptyMicro, type MicroFacts } from './micro';
 import type { BuyType } from './recap';
 import type { Side } from './types';
@@ -47,6 +50,8 @@ export interface Bench {
     n: number; peekWin: number; firstHitWin: number; flashedShare: number; behindShare: number; avgTtk: number; ranges: Record<string, { n: number; avg: number }>;
     /** From the fight samples: median time to first shot after seeing the enemy, median crosshair distance (°) from their head when they appeared, share of first shots fired while moving, and how often whoever spotted first won. */
     react?: number; aim?: number; movingShots?: number; spottedFirstWin?: number;
+    /** The duel model: share of peeks taken into a fight level-10 peeks win under 35% of the time. */
+    badPeeks?: number;
   };
   openings: { n: number; tWinShare: number; winAfter: number; withFlash: number; places: Record<Side, { place: string; n: number; winRate: number }[]> };
   control: { tAreas20: number; tAreas40: number; keyAreas: { area: string; n: number; tWin: number }[] };
@@ -117,7 +122,7 @@ export const tradeSpotOf = (bench: Bench | null, death: string) => bench?.trades
 const peekWin = (won: DuelFact[], lost: DuelFact[]) => rate(won.filter(d => d.style === 'peeked').length, won.filter(d => d.style === 'peeked').length + lost.filter(d => d.style === 'held').length);
 const firstHitWin = (won: DuelFact[], lost: DuelFact[]) => rate(won.filter(d => d.firstHit === 'killer').length, won.filter(d => d.firstHit === 'killer').length + lost.filter(d => d.firstHit === 'victim').length);
 
-export function benchmarks(rounds: AnalystRound[], demos: number): Bench {
+export function benchmarks(rounds: AnalystRound[], demos: number, duelModel: DuelModel | null = DUEL_MODEL): Bench {
   // older cached rounds called "no hit" (no site reached) a default
   for (const r of rounds) if (r.plan.tType === 'default' && !r.plan.target) r.plan.tType = 'no hit';
   const trades = rounds.flatMap(r => r.trades);
@@ -165,6 +170,8 @@ export function benchmarks(rounds: AnalystRound[], demos: number): Bench {
       flashedShare: +rate(duels.filter(d => d.flashed).length, duels.length).toFixed(3), behindShare: +rate(duels.filter(d => d.fromBehind).length, duels.length).toFixed(3),
       avgTtk: +avg(duels.filter(d => d.ttk !== null && d.ttk > 0).map(d => d.ttk!)).toFixed(2), ranges,
       ...duelDetailStats(duels.map(d => ({ d, as: 'both' as const }))),
+      ...(() => { const pk = duels.flatMap(d => [duelOdds(d, 'killer', duelModel), duelOdds(d, 'victim', duelModel)]).filter(o => o?.peek != null);
+        return pk.length >= 50 ? { badPeeks: +rate(pk.filter(o => o!.peek! < BAD_PEEK).length, pk.length).toFixed(3) } : {}; })(),
     },
     openings: {
       n: openings.length, tWinShare: +rate(openings.filter(o => o.d.side === 'T').length, openings.length).toFixed(3),
@@ -296,6 +303,27 @@ export function analystReport(rounds: (AnalystRound | null | undefined)[], playe
     { label: 'Won when you held', you: pct(holdWin), pro: pct(1 - bench.duels.peekWin), better: cmp(holdWin, 1 - bench.duels.peekWin) },
     { label: 'Won after hitting first', you: pct(fh), pro: pct(bench.duels.firstHitWin), better: cmp(fh, bench.duels.firstHitWin) },
   ];
+  // the duel model: wins against what level-10 players would expect from the same fights, and bad peeks
+  const odds = [...won.map(d => ({ d, w: 1, o: duelOdds(d, 'killer') })), ...lost.map(d => ({ d, w: 0, o: duelOdds(d, 'victim') }))].filter(x => x.o);
+  if (odds.length >= 6) {
+    const expected = odds.reduce((a, x) => a + x.o!.p, 0), got = odds.reduce((a, x) => a + x.w, 0);
+    const peeks = odds.filter(x => x.o!.peek != null), bad = peeks.filter(x => x.o!.peek! < BAD_PEEK);
+    const badShare = rate(bad.length, peeks.length);
+    const diff = got - expected;
+    stats.Duels.push({ label: 'Duels won vs expected', you: `${got} of ${odds.length} (expected ${expected.toFixed(1)})`, pro: '±0', better: Math.abs(diff) < 1 ? null : diff > 0 });
+    if (peeks.length >= 4 && bench.duels.badPeeks != null)
+      stats.Duels.push({ label: 'Peeks at bad odds', you: pct(badShare), pro: pct(bench.duels.badPeeks), better: cmp(badShare, bench.duels.badPeeks, false) });
+    if (diff >= 2.5)
+      findings.push({ topic: 'Duels', good: true, weight: 2 + diff / 2, rounds: [], title: 'You win more duels than the situation gives you',
+        detail: `From where your fights started, level-10 players would have won ${expected.toFixed(1)} of them; you won ${got}. Your aim and timing are beating the odds.` });
+    if (diff <= -2.5)
+      findings.push({ topic: 'Duels', good: false, weight: 2 - diff / 2, rounds: [...new Set(odds.filter(x => !x.w && x.o!.p >= 0.55).map(x => x.d.i))],
+        title: 'You lose fights you should win', detail: `From where your fights started (health, guns, who saw whom, crosshair), level-10 players would have won ${expected.toFixed(1)}; you won ${got}. The rounds listed are fights you were favoured in and lost: look at the first shot (moving? off the head?).` });
+    const badLost = bad.filter(x => !x.w);
+    if (badLost.length >= 2 && bench.duels.badPeeks != null && badShare > bench.duels.badPeeks + 0.08)
+      findings.push({ topic: 'Duels', good: false, weight: 2 + badLost.length, rounds: [...new Set(badLost.map(x => x.d.i))],
+        title: 'You peek fights you are behind in', detail: `${pct(badShare)} of your peeks went into fights level-10 players win under ${pct(BAD_PEEK)} of the time (behind on health, armour or gun; level-10: ${pct(bench.duels.badPeeks)}). When you're behind, wait for a teammate, use a flash, or let them come to you.` });
+  }
   const mine = duelDetailStats([...won.map(d => ({ d, as: 'killer' as const })), ...lost.map(d => ({ d, as: 'victim' as const }))]);
   const b = bench.duels;
   if (mine.aim !== undefined && b.aim !== undefined) {

@@ -6,7 +6,8 @@ import { analystBench } from '../engine/analystModel';
 import { matchAnalysis, type AnalysisItem } from '../engine/analysis';
 import { COACH_MODEL } from '../engine/coachModels';
 import { buildMatchReport, IMPACT_PER_POINT, type MatchReport, type PlayerReport, type RoundSummary } from '../engine/match';
-import { LETTER_COLOR, RATING_SCALE, type DemoData, type Letter } from '../engine/recap';
+import { LETTER_COLOR, RATING_SCALE, type DemoData, type Letter, type PlayKey } from '../engine/recap';
+import { ACTION_TEXT, PLAY_MODEL } from '../engine/playModel';
 import { MAPS } from '../map/catalog';
 import { navigate } from '../shell/router';
 import { useStore } from '../store';
@@ -52,6 +53,7 @@ export function MatchReportPage() {
       )}
       {focus && <AnalystCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
       {focus && <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
+      {focus && <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />}
 
       <section className="recap-card">
         <h2 className="display">Scoreboard</h2>
@@ -344,6 +346,52 @@ function PositioningCard({ data, rounds, player, done, onRound, onHotRound }: {
       )}
       {a.work.length > 0 && <><h3>Work on</h3><div className="pos-items">{a.work.map(x => item(x, 'work'))}</div></>}
       {a.good.length > 0 && <><h3>Keep</h3><div className="pos-items">{a.good.map(x => item(x, 'good'))}</div></>}
+    </section>
+  );
+}
+
+/**
+ * Step 4 of the coach: every 2 s of the player's rounds against what a level-10 player does in the same situation
+ * (playModel.ts): how often their choice was one level-10 players make, and the clearest times it wasn't.
+ */
+function DecisionsCard({ rounds, player, onRound, onHotRound }: {
+  rounds: (RoundSummary | null)[]; player: string; onRound: (i: number) => void; onHotRound: (i: number | null) => void;
+}) {
+  const a = useMemo(() => {
+    let n = 0, usual = 0;
+    const key: (PlayKey & { round: number })[] = [];
+    rounds.forEach((r, i) => {
+      const st = r?.play?.stats[player];
+      if (st) { n += st.n; usual += st.usual; }
+      for (const k of r?.play?.key ?? []) if (k.player === player) key.push({ ...k, round: i });
+    });
+    return n ? { n, usual: usual / n, key: key.sort((x, y) => (y.agree - y.share) - (x.agree - x.share)).slice(0, 6) } : null;
+  }, [rounds, player]);
+  if (!a || !PLAY_MODEL) return null;
+  const pro = PLAY_MODEL.bench.usual;
+  const diff = a.usual - pro;
+  return (
+    <section className="recap-card positioning">
+      <div className="coach-head">
+        <h2 className="display">Decisions</h2>
+        <span className="muted">what a level-10 player does in the same situation · every 2 s · {a.n} moments</span>
+      </div>
+      <p className="coach-summary">
+        {Math.round(a.usual * 100)}% of your choices (hold, push, fall back, reposition, grenade, bomb) were ones level-10 players make in that
+        situation; level-10 players themselves: {Math.round(pro * 100)}%. {diff >= -0.03 ? 'You read situations like they do.' : diff >= -0.08 ? 'A few of your choices are ones they rarely make.' : 'You often do what level-10 players almost never do in that spot: look at the moments below.'}
+      </p>
+      {a.key.length > 0 && (
+        <><h3>Least level-10 choices</h3>
+          <div className="pos-worst">
+            {a.key.map((k, i) => (
+              <button key={i} className="ghost" onClick={() => onRound(k.round)} onMouseEnter={() => onHotRound(k.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">
+                <span className="muted num">R{k.round + 1} {Math.floor(k.t / 60)}:{String(Math.floor(k.t % 60)).padStart(2, '0')}</span>
+                <b>{ACTION_TEXT[k.did]}</b>
+                <span className="muted">level-10 players {ACTION_TEXT[k.best]} {Math.round(k.agree * 100)}% of the time, do this {Math.round(k.share * 100)}%</span>
+              </button>
+            ))}
+          </div></>
+      )}
     </section>
   );
 }

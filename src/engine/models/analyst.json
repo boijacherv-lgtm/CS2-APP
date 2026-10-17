@@ -2367,7 +2367,8 @@
    "react": 0.415,
    "aim": 6.6,
    "movingShots": 0.235,
-   "spottedFirstWin": 0.72
+   "spottedFirstWin": 0.72,
+   "badPeeks": 0.238
   },
   "openings": {
    "n": 1010,
@@ -3753,7 +3754,8 @@
     "react": 0.465,
     "aim": 8.1,
     "movingShots": 0.201,
-    "spottedFirstWin": 0.736
+    "spottedFirstWin": 0.736,
+    "badPeeks": 0.231
    },
    "openings": {
     "n": 263,
@@ -5404,7 +5406,8 @@
     "react": 0.473,
     "aim": 6.4,
     "movingShots": 0.231,
-    "spottedFirstWin": 0.7
+    "spottedFirstWin": 0.7,
+    "badPeeks": 0.26
    },
    "openings": {
     "n": 521,
@@ -6663,7 +6666,8 @@
     "react": 0.265,
     "aim": 5.4,
     "movingShots": 0.272,
-    "spottedFirstWin": 0.789
+    "spottedFirstWin": 0.789,
+    "badPeeks": 0.204
    },
    "openings": {
     "n": 185,
@@ -7195,7 +7199,8 @@
     "react": 0.36,
     "aim": 4.8,
     "movingShots": 0.29,
-    "spottedFirstWin": 0.733
+    "spottedFirstWin": 0.733,
+    "badPeeks": 0.2
    },
    "openings": {
     "n": 18,
@@ -7497,7 +7502,8 @@
     "react": 0.503,
     "aim": 9.8,
     "movingShots": 0.356,
-    "spottedFirstWin": 0.556
+    "spottedFirstWin": 0.556,
+    "badPeeks": 0.145
    },
    "openings": {
     "n": 23,

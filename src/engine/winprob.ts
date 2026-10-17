@@ -49,7 +49,11 @@ export function learnedLogit(s: WinState): number | null {
 
 /** Logistic regression by gradient descent (features are small, so plain batch steps converge fine). */
 export function fitWin(x: number[][], y: number[], iters = 600, lr = 0.3, l2 = 1e-3): WinModel {
-  const k = WIN_FEATURES.length, n = x.length;
+  return fitLogistic(x, y, WIN_FEATURES, iters, lr, l2);
+}
+/** The same fit for any feature list (the duel model uses it too). */
+export function fitLogistic(x: number[][], y: number[], features: string[], iters = 600, lr = 0.3, l2 = 1e-3): WinModel {
+  const k = features.length, n = x.length;
   let bias = 0;
   const coef = new Array(k).fill(0);
   for (let it = 0; it < iters; it++) {
@@ -65,7 +69,7 @@ export function fitWin(x: number[][], y: number[], iters = 600, lr = 0.3, l2 = 1
     for (let j = 0; j < k; j++) coef[j] -= lr * (g[j] / n + l2 * coef[j]);
   }
   const logLoss = x.reduce((a, xi, i) => { const p = Math.min(1 - 1e-6, Math.max(1e-6, sigmoid(bias + xi.reduce((s, v, j) => s + v * coef[j], 0)))); return a - (y[i] ? Math.log(p) : Math.log(1 - p)); }, 0) / (n || 1);
-  return { bias: +bias.toFixed(4), coef: coef.map(c => +c.toFixed(4)), features: WIN_FEATURES, samples: n, logLoss: +logLoss.toFixed(4) };
+  return { bias: +bias.toFixed(4), coef: coef.map(c => +c.toFixed(4)), features, samples: n, logLoss: +logLoss.toFixed(4) };
 }
 
 /**

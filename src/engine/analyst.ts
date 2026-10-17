@@ -53,7 +53,19 @@ export interface DuelFact {
   place: string; killerPlace: string;
   /** From the 16-a-second fight samples (newer parses): each side's spotting, reaction, crosshair placement, moving shots. */
   detail?: DuelDetail;
+  /** Both fighters the moment they first had sight of each other (before any shot): what the duel model reads. */
+  pre?: DuelPre;
 }
+/** One fighter at first contact. */
+export interface DuelFighter {
+  hp: number; armor: boolean; helmet: boolean;
+  /** Weapon in hand ("ak47"). */
+  w: string;
+  moving: boolean; scoped: boolean; crouch: boolean; air: boolean; flashed: boolean;
+  /** Living teammates within ~25 m. */
+  mates: number;
+}
+export interface DuelPre { at: number; range: number; k: DuelFighter; v: DuelFighter }
 export interface DuelDetail {
   /** Who had the other in view first (in sight and within ~50° of where they looked). */
   spottedFirst: 'killer' | 'victim' | 'same' | null;
@@ -122,7 +134,7 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
   const enemyKills = kills.filter(k => side(k.attacker) && side(k.victim) && side(k.attacker) !== side(k.victim));
 
   /** A fight's details from its 16-a-second samples. */
-  function duelDetail(f: Fight): DuelDetail {
+  function duelDetail(f: Fight): [DuelDetail, number | null] {
     const n = f.a.x.length;
     const ok = (tr: FightTrack, i: number) => Number.isFinite(tr.x[i]) && Number.isFinite(tr.yaw[i]);
     const p3 = (tr: FightTrack, i: number) => ({ x: tr.x[i], y: tr.y[i], z: tr.z[i] });
@@ -158,11 +170,29 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
       const sp = shot === null ? null : speedAt(tr, shot);
       return sp === null ? null : sp > MOVING;
     };
-    return {
+    return [{
       spottedFirst: sa === null && sv === null ? null : sv === null || (sa !== null && sa < sv) ? 'killer' : sa === null || sv < sa ? 'victim' : 'same',
       kReact: react(f.attacker, sa), vReact: react(f.victim, sv),
       kAim: seen === null ? null : +aimErr(f.a, f.v, seen).toFixed(1), vAim: seen === null ? null : +aimErr(f.v, f.a, seen).toFixed(1),
       kMovingShot: moving(f.attacker, f.a), vMovingShot: moving(f.victim, f.v),
+    }, seen === null ? null : tAt(seen)];
+  }
+
+  /** A fighter at time t (frames for health, stance and weapon; the fight track for speed when there is one). */
+  function fighter(id: string, t: number, tr: FightTrack | null, f: Fight | null, hpT = t): DuelFighter {
+    const fr = r.frames.players[id], k = idx(t), fl = fr.fl?.[k] ?? 0;
+    let sp = speed(id, t);
+    if (tr && f) {
+      const i = Math.round((t - f.t0) / f.dt), j = Math.max(0, i - 2);
+      if (i > 0 && Number.isFinite(tr.x[i]) && Number.isFinite(tr.x[j])) sp = Math.hypot(tr.x[i] - tr.x[j], tr.y[i] - tr.y[j]) / ((i - j) * f.dt);
+    }
+    const e = r.econ?.[id];
+    const me = pos(id, t);
+    return {
+      hp: fr.hp[idx(Math.min(t, hpT))] ?? 100, armor: (e?.armor ?? 0) > 0, helmet: !!e?.helmet, w: fr.w?.[k] ?? '',
+      moving: sp > MOVING, scoped: !!(fl & 4), crouch: !!(fl & 2), air: !!(fl & 8),
+      flashed: r.blind.some(b => b.victim === id && b.t <= t && b.t + b.dur >= t + 0.3),
+      mates: ids.filter(o => o !== id && side(o) === side(id) && alive(o, t) && dist(pos(o, t), me) < 1000).length,
     };
   }
 
@@ -207,7 +237,13 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
     const withFlash = r.blind.some(b => b.victim === v && side(b.attacker) === side(a) && b.t <= k.t && k.t - b.t <= 2.5);
     const gun = gunFromName(k.weapon);
     const fight = (r.fights ?? []).find(f => f.attacker === a && f.victim === v && Math.abs(f.t0 + 3 - k.t) < 0.1);
-    const detail = fight ? duelDetail(fight) : undefined;
+    const [detail, seenAt] = fight ? duelDetail(fight) : [undefined, null];
+    // first contact: first sight in the fight samples; else just before the first hit (or the kill)
+    const at = Math.max(0, seenAt ?? Math.min(first?.t ?? k.t, k.t) - 0.3);
+    const hpT = (first?.t ?? k.t) - 0.3; // health before this fight's first bullet
+    const pre: DuelPre | undefined = r.frames.players[a] && r.frames.players[v]
+      ? { at: +at.toFixed(2), range: Math.round(dist(pos(a, at), pos(v, at)) * M), k: fighter(a, at, fight?.a ?? null, fight ?? null, hpT), v: fighter(v, at, fight?.v ?? null, fight ?? null, hpT) }
+      : undefined;
     return {
       t: k.t, killer: a, victim: v, side: side(a)!, style,
       firstHit: !first ? 'none' : first.attacker === a ? 'killer' : 'victim',
@@ -217,6 +253,7 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
       fromBehind: off > 2.0, opening: i === 0,
       place: place(kv), killerPlace: place(ka),
       ...(detail ? { detail } : {}),
+      ...(pre ? { pre } : {}),
     };
   });
 
