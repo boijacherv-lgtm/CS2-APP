@@ -1,4 +1,4 @@
-import { duelOdds, letterGrade, type DemoData, type Letter, type Replay, type Review, type Role, type Tag } from './recap';
+import { cappedDamage, duelOdds, roundFacts, roundGrade, type DemoData, type Letter, type Replay, type Review, type Role, type Tag } from './recap';
 import type { Side } from './types';
 
 /**
@@ -32,21 +32,24 @@ export interface RoundLine {
 
 export interface RoundSummary { n: number; winner: Side | null; lines: Record<string, RoundLine> }
 
+export { cappedDamage };
+
 export function summarizeRound(rep: Replay, rv: Review): RoundSummary {
   const r = rep.round;
   const sideOf = (id: string) => r.frames.players[id]?.side;
   const lines: Record<string, RoundLine> = {};
+  const dmg = cappedDamage(r);
   for (const id of Object.keys(r.frames.players)) {
     const side = sideOf(id)!;
     const moves = rv.moves.filter(m => m.player === id);
-    const { letter, points } = letterGrade(moves);
+    const { letter, points } = roundGrade(moves, roundFacts(r, id));
     const kills = r.kills.filter(k => k.attacker === id && k.victim !== id && sideOf(k.victim) !== side);
     const died = r.kills.find(k => k.victim === id);
-    const gunDmg = (r.hits ?? []).filter(h => h.attacker === id && sideOf(h.victim) && sideOf(h.victim) !== side).reduce((a, h) => a + h.dmg, 0);
-    const utilDamage = (r.nadeDamage ?? []).filter(h => h.attacker === id && sideOf(h.victim) && sideOf(h.victim) !== side).reduce((a, h) => a + h.dmg, 0);
+    const gunDmg = dmg.guns.filter(h => h.attacker === id && sideOf(h.victim) && sideOf(h.victim) !== side).reduce((a, h) => a + h.dmg, 0);
+    const utilDamage = dmg.util.filter(h => h.attacker === id && sideOf(h.victim) && sideOf(h.victim) !== side).reduce((a, h) => a + h.dmg, 0);
     // assist: hurt an enemy (40+) a teammate then killed
     const assist = r.kills.some(k => k.attacker !== id && sideOf(k.attacker) === side
-      && (r.hits ?? []).filter(h => h.attacker === id && h.victim === k.victim && h.t <= k.t).reduce((a, h) => a + h.dmg, 0) >= 40);
+      && dmg.guns.filter(h => h.attacker === id && h.victim === k.victim && h.t <= k.t).reduce((a, h) => a + h.dmg, 0) >= 40);
     const traded = !!died && r.kills.some(k => k.victim === died.attacker && k.t > died.t && k.t - died.t <= 5);
     lines[id] = {
       side, letter, points,
@@ -136,7 +139,7 @@ export function buildMatchReport(data: DemoData, rounds: (RoundSummary | null)[]
       clutches: tagCount('CLUTCH'), multiKills: got.filter(l => l.kills >= 3).length,
       utilDamage: sum(l => l.utilDamage), flashAssists: tagCount('FLASH ASSIST'), whiffs: tagCount('WHIFF'), upsets: tagCount('UPSET'),
       impactPerRound: (sum(l => l.impact) / n) * 100, pointsPerRound,
-      letter: matchLetter(pointsPerRound),
+      letter: matchLetter(got.map(l => l.letter)),
       duelsWon: won, duelsLost: duels.length - won, avgOpponent: opp.length ? opp.reduce((a, b) => a + b, 0) / opp.length : null,
       duelRating, gameRating: duelRating !== null ? Math.round(duelRating + IMPACT_PER_POINT * pointsPerRound) : null,
       roles: [...roleCount].map(([role, rounds]) => ({ role, rounds })).sort((a, b) => b.rounds - a.rounds),
@@ -163,7 +166,15 @@ export function performance(opponents: number[], wins: number): number {
   return Math.round((lo + hi) / 2);
 }
 
-/** Match grade from average impact points per round. */
-export function matchLetter(ppr: number): Letter {
-  return ppr >= 12 ? 'S+' : ppr >= 8 ? 'S' : ppr >= 4 ? 'A' : ppr >= 1.5 ? 'B' : ppr > -1.5 ? 'C' : ppr > -4 ? 'D' : ppr > -7 ? 'E' : 'F';
+const LETTER_VALUE: Record<Letter, number> = { 'S+': 7, S: 6, A: 5, B: 4, C: 3, D: 2, F: 0 };
+/**
+ * Match grade from the round grades: their average (S+ = 7 … C = 3 … F = 0), lifted a step by several
+ * transcendent rounds and held down by repeated blunders.
+ */
+export function matchLetter(rounds: Letter[]): Letter {
+  if (!rounds.length) return 'C';
+  const avg = rounds.reduce((a, l) => a + LETTER_VALUE[l], 0) / rounds.length;
+  const count = (l: Letter) => rounds.filter(x => x === l).length;
+  const v = avg + (count('S+') >= 3 ? 0.3 : 0) - (count('F') >= 3 ? 0.3 : 0);
+  return v >= 5.4 ? 'S+' : v >= 4.8 ? 'S' : v >= 4.2 ? 'A' : v >= 3.6 ? 'B' : v >= 3 ? 'C' : v >= 2.4 ? 'D' : 'F';
 }

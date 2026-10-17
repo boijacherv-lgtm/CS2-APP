@@ -1,5 +1,5 @@
 import {
-  ArrowArcLeft, ArrowArcRight, ArrowCounterClockwise, ArrowUUpLeft, ArrowUUpRight, CaretDown, CaretLeft, CaretRight, CaretUp,
+  ArrowArcLeft, ArrowArcRight, BookOpen, ArrowCounterClockwise, ArrowUUpLeft, ArrowUUpRight, CaretDown, CaretLeft, CaretRight, CaretUp,
   ChartBar, ChatCircleText, Check, Circle, Crosshair, CrosshairSimple, Cursor, DiceFive, Eraser, GridFour, HourglassMedium, List,
   Path, Pause, Play, SidebarSimple, SkipBack, SkipForward, Skull, Stack, Star, Sword, Timer, UploadSimple, Warning, X,
   type Icon as PhIcon, type IconWeight,
@@ -29,7 +29,7 @@ const ICONS = {
   chat: { C: ChatCircleText }, slow: { C: Timer }, swords: { C: Sword }, dice: { C: DiceFive },
   warning: { C: Warning }, skull: { C: Skull }, timer: { C: Timer }, crosshair: { C: CrosshairSimple },
   upload: { C: UploadSimple }, hourglass: { C: HourglassMedium }, grid: { C: GridFour }, star: { C: Star, weight: 'fill' },
-  stats: { C: ChartBar }, cross: { C: X },
+  stats: { C: ChartBar }, cross: { C: X }, book: { C: BookOpen, weight: 'fill' },
   up: { C: CaretUp, weight: 'fill' }, down: { C: CaretDown, weight: 'fill' }, dot: { C: Circle, weight: 'fill' },
   // equipment: CS2's own pictograms
   bomb: { src: 'equipment/c4' }, burst: { src: 'equipment/hegrenade' }, flame: { src: 'equipment/inferno' },

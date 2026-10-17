@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test": "vitest run",
-    "build:maps": "node tools/build-maps.mjs"
+    "build:maps": "node tools/build-maps.mjs",
+    "train:coach": "vite-node tools/train-coach.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",

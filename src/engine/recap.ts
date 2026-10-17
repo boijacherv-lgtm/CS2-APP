@@ -281,30 +281,43 @@ export function evalState(state: {
 }
 
 /**
- * One letter scale for everything: a move, a player's round and their whole match all go S+ … F. For a move the
- * letter is how much it changed their team's chance to win the round (see grade()); C is neutral and not shown.
+ * Two scales, like a chess game's analysis:
+ *   moves   a chess-style annotation (Annotation): !! brilliant, ! good, book (the expected, sound play: a standard
+ *           smoke, an ordinary trade of kills), ? mistake, ?? blunder. Decided from what happened, not from a formula:
+ *           see annotateKill / annotateDeath / the grenade and bomb rules in reviewRound.
+ *   rounds  a letter per player per round, S+ … F (roundGrade), and per match (matchLetter in match.ts).
  */
-export type Letter = 'S+' | 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
-export type Grade = Letter;
+export type Letter = 'S+' | 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
 export const LETTER_COLOR: Record<Letter, string> = {
-  'S+': '#f5c542', S: '#22c55e', A: '#7fbf4d', B: '#5c8bd6', C: '#a39b8f', D: '#e5a52a', E: '#ec6b34', F: '#e5483a',
+  'S+': '#f5c542', S: '#22c55e', A: '#7fbf4d', B: '#5c8bd6', C: '#a39b8f', D: '#e5a52a', F: '#e5483a',
 };
-export const GRADE_INFO: Record<Grade, { mark: string; label: string; color: string }> = {
-  'S+': { mark: 'S+', label: 'Round-swinging', color: LETTER_COLOR['S+'] },
-  S: { mark: 'S', label: 'Excellent', color: LETTER_COLOR.S },
-  A: { mark: 'A', label: 'Great', color: LETTER_COLOR.A },
-  B: { mark: 'B', label: 'Good', color: LETTER_COLOR.B },
-  C: { mark: 'C', label: 'Neutral', color: LETTER_COLOR.C },
-  D: { mark: 'D', label: 'Weak', color: LETTER_COLOR.D },
-  E: { mark: 'E', label: 'Bad', color: LETTER_COLOR.E },
-  F: { mark: 'F', label: 'Terrible', color: LETTER_COLOR.F },
+export const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'];
+export const LETTER_INFO: Record<Letter, string> = {
+  'S+': 'Transcendent: dominated the round and won the objective (a clutch, a solo anchor, entry and plant)',
+  S: 'Exceptional: three kills, or two with the entry plus great utility or the plant / defuse',
+  A: 'Great: a double kill, a key trade, or utility that carried the team',
+  B: 'Good: did their job (an impact kill, an even trade, useful utility)',
+  C: 'Average: no real impact either way',
+  D: 'Poor: an early untraded death, a bad fight or wasted utility',
+  F: 'Detrimental: a game-losing mistake (team kill, dying to an eco with full utility)',
 };
-export const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'E', 'F'];
+
+/** A move's annotation, as in chess. */
+export type Annotation = '!!' | '!' | 'book' | '?' | '??';
+export const NOTES: Annotation[] = ['!!', '!', 'book', '?', '??'];
+export const NOTE_INFO: Record<Annotation, { mark: string; label: string; color: string; tip: string }> = {
+  '!!': { mark: '!!', label: 'Brilliant', color: '#1baca6', tip: 'Exceptional, statistically unlikely: a 1v3 clutch, a ninja defuse, a solo anchor, a pistol beating full gear' },
+  '!': { mark: '!', label: 'Good move', color: '#5c9ced', tip: 'Swung the round: a quick trade, a multi-kill, the opening kill, a flash or HE that won fights' },
+  book: { mark: '', label: 'Book', color: '#a88865', tip: 'The expected, sound play: a standard smoke, an ordinary kill or grenade' },
+  '?': { mark: '?', label: 'Mistake', color: '#e58f2a', tip: 'Cost the team: an untraded opening or isolated death, a team flash, dying with utility' },
+  '??': { mark: '??', label: 'Blunder', color: '#ca3431', tip: 'A round-losing error: a team kill, dying to an eco with full gear and grenades unused' },
+};
 
 /** Context tags: the one-word "why" next to a grade (like a match feed). */
 export type Tag =
   | 'OPENING' | 'TRADE' | 'TRADED' | 'ISOLATED' | 'CROSSFIRE' | 'CLUTCH' | 'MULTI-KILL' | 'ECO FRAG' | 'AWP DOWN' | 'AWP LOST'
-  | 'FLASH ASSIST' | 'NADE ASSIST' | 'BLIND' | 'LOW HP' | 'TEAM FLASH' | 'TEAM DAMAGE' | 'WASTED' | 'DENIED' | 'POST-PLANT' | 'UNUSED UTIL' | 'WHIFF' | 'UPSET';
+  | 'FLASH ASSIST' | 'NADE ASSIST' | 'BLIND' | 'LOW HP' | 'TEAM FLASH' | 'TEAM DAMAGE' | 'WASTED' | 'DENIED' | 'POST-PLANT' | 'UNUSED UTIL' | 'WHIFF' | 'UPSET'
+  | 'FLANK' | 'ANCHOR' | 'TEAM KILL' | 'ECO DEATH' | 'PLANT' | 'DEFUSE' | 'NINJA';
 const GOOD = '#22c55e', BAD = '#ef4444', UTIL = '#3b82f6', INFO = '#a39b8f';
 export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   OPENING: { color: INFO, tip: 'First kill of the round.' },
@@ -313,7 +326,7 @@ export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   ISOLATED: { color: BAD, tip: 'Died with no teammate close enough to trade.' },
   CROSSFIRE: { color: BAD, tip: 'Was in view of two or more enemies at once.' },
   CLUTCH: { color: GOOD, tip: 'Last player alive on the team, against two or more.' },
-  'MULTI-KILL': { color: GOOD, tip: 'Three or more kills within a few seconds.' },
+  'MULTI-KILL': { color: GOOD, tip: 'Two or more kills within a few seconds.' },
   'ECO FRAG': { color: GOOD, tip: 'Won it with much cheaper gear than the victim.' },
   'AWP DOWN': { color: GOOD, tip: 'Killed the enemy AWPer.' },
   'AWP LOST': { color: BAD, tip: 'Died with the AWP: a $4,750 weapon lost.' },
@@ -329,18 +342,25 @@ export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   'UNUSED UTIL': { color: BAD, tip: 'Died holding two or more grenades.' },
   WHIFF: { color: BAD, tip: 'Fired a burst right before dying and barely hit anything.' },
   UPSET: { color: GOOD, tip: 'Beat a much higher-rated player (Premier rating).' },
+  FLANK: { color: GOOD, tip: 'Caught the enemy from behind or from an angle they weren\'t watching.' },
+  ANCHOR: { color: GOOD, tip: 'Held a site alone: three or more kills against a full push.' },
+  'TEAM KILL': { color: BAD, tip: 'Killed a teammate.' },
+  'ECO DEATH': { color: BAD, tip: 'Died to a player on an eco while fully bought, with grenades unused.' },
+  PLANT: { color: INFO, tip: 'Planted the bomb.' },
+  DEFUSE: { color: GOOD, tip: 'Defused the bomb.' },
+  NINJA: { color: GOOD, tip: 'Defused with enemies still alive, or with almost no time left.' },
 };
 
 export interface Move {
   t: number;
   player: string;
   side: Side;
-  kind: 'kill' | 'death' | 'flash' | 'utility';
+  kind: 'kill' | 'death' | 'flash' | 'utility' | 'objective';
   /** The grenade this move is about (Utility id in the replay board). */
   util?: string;
   /** Change in this player's team win chance (e.g. +0.12 = +12%). */
   gain: number;
-  grade: Grade;
+  note: Annotation;
   title: string;
   why: string[];
   tags: Tag[];
@@ -349,21 +369,108 @@ export interface Move {
 export type Role = 'Entry' | 'Lurk' | 'Support' | 'AWPer' | 'Anchor' | 'Rotator' | 'Rifler';
 export interface PlayerRole { role: Role; note: string }
 
-const TAG_POINTS: Partial<Record<Tag, number>> = { CLUTCH: 5, 'MULTI-KILL': 3, 'TEAM FLASH': -2, 'TEAM DAMAGE': -3, 'UNUSED UTIL': -2 };
-/** Letter from a player's moves: their win-chance impact (in points) plus a few things % misses. */
-export function letterGrade(moves: Move[]): { letter: Letter; points: number } {
+const TAG_POINTS: Partial<Record<Tag, number>> = { CLUTCH: 5, 'MULTI-KILL': 2, ANCHOR: 4, NINJA: 3, 'TEAM KILL': -6, 'TEAM FLASH': -2, 'TEAM DAMAGE': -3, 'UNUSED UTIL': -2 };
+/** Impact points: win chance added (in %) plus a few things % misses. Ranks players and feeds the game rating. */
+export function impactPoints(moves: Move[]): number {
   let pts = 0;
   for (const m of moves) { pts += m.gain * 100; for (const t of m.tags) pts += TAG_POINTS[t] ?? 0; }
-  const letter: Letter = pts >= 35 ? 'S+' : pts >= 22 ? 'S' : pts >= 12 ? 'A' : pts >= 4 ? 'B' : pts > -4 ? 'C' : pts > -12 ? 'D' : pts > -22 ? 'E' : 'F';
-  return { letter, points: pts };
+  return pts;
+}
+
+/** What else a player's round grade needs besides their moves. */
+export interface RoundFacts {
+  kills: number;
+  /** Damage to enemies (capped at their health). */
+  damage: number;
+  died: boolean;
+  traded: boolean;
+  /** Round time they died at. */
+  deathT: number | null;
+  /** Their team won the round (null while it's still being played). */
+  won: boolean | null;
+  /** Their team planted the bomb. */
+  teamPlanted: boolean;
 }
 
 /**
- * Moves that get a visible letter. Neutral moves (C) don't. Deaths only do when they cost the team: not traded and
- * at least 8% of win chance (E or F); ordinary deaths stay unmarked so the map stays readable, but every death's
- * win-chance loss still counts toward the player's impact and round letter.
+ * A player's round, S+ … F, from what they did (not a points formula):
+ *   S+  3+ kills (or 300+ damage) plus a critical objective: a won clutch, a solo anchor, the entry and the plant, a defuse
+ *   S   3 kills; or 2 with the entry plus a good grenade or the plant / defuse; or a ninja defuse
+ *   A   2 kills, a brilliant move, a good trade, two good grenades or a defuse
+ *   B   one impact kill, a traded death with real damage, a good grenade, useful utility or the plant
+ *   C   no real impact
+ *   D   no impact kill and a mistake (?) or an early untraded death
+ *   F   a blunder (??: team kill, dying to an eco with full utility) with fewer than two kills
  */
-export const isMarked = (m: Move) => m.grade !== 'C' && (m.kind !== 'death' || (!m.tags.includes('TRADED') && (m.grade === 'E' || m.grade === 'F')));
+export function roundGrade(moves: Move[], f: RoundFacts): { letter: Letter; points: number; why: string } {
+  const points = impactPoints(moves);
+  const kills = moves.filter(m => m.kind === 'kill' && !m.tags.includes('TEAM KILL'));
+  const impactKills = kills.filter(m => m.gain >= 0.03).length;
+  const has = (t: Tag) => moves.some(m => m.tags.includes(t));
+  const notes = (n: Annotation) => moves.filter(m => m.note === n).length;
+  const nades = moves.filter(m => m.kind === 'utility' || m.kind === 'flash');
+  const goodNades = nades.filter(m => m.note === '!' || m.note === '!!').length;
+  const usefulNades = nades.filter(m => !m.tags.includes('WASTED') && m.note !== '?' && m.note !== '??').length;
+  const entry = kills.some(m => m.tags.includes('OPENING'));
+  const planted = has('PLANT'), defused = has('DEFUSE'), ninja = has('NINJA');
+  const clutchWon = has('CLUTCH') && f.won === true;
+  const big = f.kills >= 3 || f.damage >= 300;
+  const goodTrade = kills.some(m => m.tags.includes('TRADE') && (m.note === '!' || m.note === '!!'));
+
+  let letter: Letter = 'C', why = 'No real impact either way.';
+  if (big && (clutchWon || has('ANCHOR') || (entry && f.teamPlanted) || defused)) {
+    letter = 'S+'; why = clutchWon ? 'Won a clutch with a big round.' : has('ANCHOR') ? 'Held the site alone.' : defused ? 'Big round and the defuse.' : 'Entry kill, more kills and the plant.';
+  } else if (f.kills >= 3 || (f.kills >= 2 && entry && (goodNades >= 1 || planted || defused)) || ninja) {
+    letter = 'S'; why = ninja ? 'Ninja defuse.' : f.kills >= 3 ? `${f.kills} kills.` : 'The entry, another kill and great utility or the objective.';
+  } else if (f.kills >= 2 || notes('!!') > 0 || goodTrade || goodNades >= 2 || defused) {
+    letter = 'A'; why = f.kills >= 2 ? 'A double kill.' : defused ? 'Defused the bomb.' : goodTrade ? 'A key trade.' : notes('!!') ? 'A brilliant move.' : 'Utility that carried the team.';
+  } else if (impactKills >= 1 || (f.died && f.traded && f.damage >= 50) || goodNades >= 1 || usefulNades >= 2 || planted) {
+    letter = 'B'; why = impactKills ? 'An impact kill.' : planted ? 'Planted the bomb.' : f.died && f.traded ? 'Traded evenly.' : 'Useful utility.';
+  }
+  const blunder = moves.some(m => m.note === '??');
+  const earlyUntraded = f.died && !f.traded && f.deathT !== null && f.deathT < 30;
+  if (blunder && f.kills < 2) { letter = 'F'; why = has('TEAM KILL') ? 'Killed a teammate.' : 'A round-losing blunder.'; }
+  else if ((letter === 'B' || letter === 'C') && impactKills === 0 && (notes('?') > 0 || earlyUntraded)) {
+    letter = 'D'; why = earlyUntraded ? 'Died early without a trade.' : 'A costly mistake.';
+  }
+  return { letter, points, why };
+}
+
+/** Damage each hit really did: cut to the health the victim had left (the demo reports the whole hit). */
+export function cappedDamage(r: DemoRound) {
+  type Hit = { t: number; attacker: string; victim: string; dmg: number; util: boolean };
+  const all: Hit[] = [
+    ...(r.hits ?? []).map(h => ({ t: h.t, attacker: h.attacker, victim: h.victim, dmg: h.dmg, util: false })),
+    ...(r.nadeDamage ?? []).map(h => ({ t: h.t, attacker: h.attacker, victim: h.victim, dmg: h.dmg, util: true })),
+  ].sort((a, b) => a.t - b.t);
+  const hp = new Map<string, number>();
+  for (const h of all) {
+    const left = hp.get(h.victim) ?? 100;
+    h.dmg = Math.max(0, Math.min(h.dmg, left));
+    hp.set(h.victim, left - h.dmg);
+  }
+  return { guns: all.filter(h => !h.util), util: all.filter(h => h.util) };
+}
+
+/** The facts for roundGrade from the round data, counting only what happened up to time `upTo`. */
+export function roundFacts(r: DemoRound, id: string, upTo = Infinity): RoundFacts {
+  const side = r.frames.players[id]?.side;
+  const sideOf = (x: string) => r.frames.players[x]?.side;
+  const kills = r.kills.filter(k => k.t <= upTo && k.attacker === id && k.victim !== id && sideOf(k.victim) && sideOf(k.victim) !== side).length;
+  const damage = [...cappedDamage(r).guns, ...cappedDamage(r).util]
+    .filter(h => h.t <= upTo && h.attacker === id && sideOf(h.victim) && sideOf(h.victim) !== side).reduce((a, h) => a + h.dmg, 0);
+  const died = r.kills.find(k => k.t <= upTo && k.victim === id);
+  const traded = !!died && r.kills.some(k => k.t <= upTo && k.victim === died.attacker && k.t > died.t && k.t - died.t <= 5);
+  const over = upTo >= r.duration;
+  return {
+    kills, damage, died: !!died, traded, deathT: died?.t ?? null,
+    won: over && r.winner ? r.winner === side : null,
+    teamPlanted: side === 'T' && r.plant !== null && r.plant <= upTo,
+  };
+}
+
+/** Moves with an annotation (!!, !, ?, ??); book moves are the expected play and stay plain. */
+export const isMarked = (m: Move) => m.note !== 'book';
 
 /**
  * Which moves get evaluated on screen (letters on the map and the timeline, the killfeed letters, the move cards and
@@ -394,8 +501,8 @@ export const QUEUE_SECS = 8;
 /** How long reading a move's window takes (real ms): a base plus time for every character, less for small moves. */
 export const readMs = (m: Move) => {
   const chars = m.title.length + m.why.join(' ').length;
-  // the moves that swing a round get the full time; small ones (B / D) a quicker look
-  const big = m.grade === 'S+' || m.grade === 'S' || m.grade === 'A' || m.grade === 'E' || m.grade === 'F';
+  // annotated moves get the full time; book moves a quicker look
+  const big = m.note !== 'book';
   return big ? Math.max(1800, Math.min(4000, 800 + 20 * chars)) : Math.max(1200, Math.min(2500, 500 + 12 * chars));
 };
 export const moveKey = (m: Move) => `${m.t}-${m.player}-${m.kind}-${m.util ?? ''}`;
@@ -420,23 +527,11 @@ export function calloutAt(moves: Move[], time: number, queueing: boolean, read: 
 export interface Review {
   curve: { t: number; ct: number }[];
   moves: Move[];
-  players: Record<string, { impact: number; counts: Record<Grade, number> }>;
+  players: Record<string, { impact: number; counts: Record<Annotation, number> }>;
   roles: Record<string, PlayerRole>;
   turningPoint: Move | null;
 }
 
-/** A move's letter from the change in its team's win chance (in whole %, as shown, so +10% is always an A). */
-function grade(gain: number): Grade {
-  const p = Math.round(gain * 100);
-  if (p >= 25) return 'S+';
-  if (p >= 15) return 'S';
-  if (p >= 10) return 'A';
-  if (p >= 3) return 'B';
-  if (p > -3) return 'C';
-  if (p > -8) return 'D';
-  if (p > -15) return 'E';
-  return 'F';
-}
 
 /** Full review of a replayed round. */
 export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
@@ -526,6 +621,17 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   };
 
   const demoKill = (k: KillEvent) => r.kills.find(x => x.victim === k.victim && Math.abs(x.t - k.t) < 0.05);
+  const facingAt = (i: number, t: number) => sim.facing[i][Math.min(sim.steps - 1, Math.max(0, Math.round(t / SIM_DT)))];
+  /** Who ended up last alive on their side against two or more, and against how many (the clutch, if any). */
+  const clutches = new Map<string, number>();
+  for (const t of [0, ...sim.kills.map(k => k.t + 0.01)]) {
+    for (const side of ['CT', 'T'] as const) {
+      const mine = sim.ids.filter((id, j) => sideOf.get(id) === side && alive(j, t));
+      const foes = sim.ids.filter((id, j) => sideOf.get(id) !== side && alive(j, t)).length;
+      if (mine.length === 1 && foes >= 2 && !clutches.has(mine[0])) clutches.set(mine[0], foes);
+    }
+  }
+  const won = (s: Side) => r.winner === s;
   sim.kills.forEach((k, n) => {
     const dk = demoKill(k);
     const kGun = dk ? gunFromName(dk.weapon) : undefined;
@@ -584,8 +690,17 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (unused >= 2) vTags.push('UNUSED UTIL');
     if (whiff) vTags.push('WHIFF');
     if (postPlant) vTags.push('POST-PLANT');
+    // ?? dying to an eco while fully bought, without having thrown anything; ? the usual costly deaths
+    const byMate = !!k.killer && sideOf.get(k.killer) === vSide;
+    const vG = gear.get(k.victim), kG = k.killer ? gear.get(k.killer) : null;
+    const threw = r.util.some(u => u.thrower === k.victim && u.t <= k.t);
+    const ecoDeath = !byMate && !traded && vG != null && kG != null && vG >= 3500 && kG <= 1500 && !threw && unused >= 1;
+    if (ecoDeath) { vTags.push('ECO DEATH'); why.push(`Died to a ${money(kG!)} eco with ${money(vG!)} of gear and no grenade thrown.`); }
+    const vNote: Annotation = byMate ? 'book'
+      : ecoDeath || (!traded && loss <= -0.2) ? '??'
+      : !traded && (firstKill || support === 0 || whiff || unused >= 2 || vAwp || loss <= -0.1) ? '?' : 'book';
     moves.push({
-      t: k.t, player: k.victim, side: vSide, kind: 'death', gain: loss, grade: grade(loss),
+      t: k.t, player: k.victim, side: vSide, kind: 'death', gain: loss, note: vNote,
       title: `${name(k.victim)} died${where(k.at)}${k.killer && k.killer !== k.victim
         ? `: ${name(k.killer)}${killerAt && placeOf(killerAt) !== placeOf(k.at) ? ` from ${placeOf(killerAt)}` : ''}${cause ? `, ${cause}${dk?.headshot ? ' (headshot)' : ''}` : ''}`
         : cause ? ` (${cause})` : ''}`, why, tags: vTags,
@@ -622,19 +737,53 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const trade = sim.kills.some(o => o.killer === k.victim && o.t < k.t && k.t - o.t <= 5 && sideOf.get(o.victim) === aSide);
       if (trade) awhy.push('Traded a teammate\'s death.');
       if (upset) awhy.push(`Beat a higher-rated player (${num(rv!)} vs ${num(rk!)}): only a ${pct(aOdds!)} chance on paper.`);
+      const teamKill = aSide === vSide;
+      // caught from behind: the victim was looking more than ~115° away from the killer
+      const vPos = vi >= 0 ? posAt(vi, k.t - 0.1) : null;
+      let flank = false;
+      if (vPos && killerAt && vi >= 0) {
+        const toKiller = Math.atan2(killerAt.y - vPos.y, killerAt.x - vPos.x);
+        const off = Math.abs(((facingAt(vi, k.t - 0.15) - toKiller + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+        flank = off > 2.0 && metres(killerAt, vPos) > 2;
+      }
+      if (flank) awhy.push('Caught them from behind: they were looking the other way.');
+      // a solo anchor: a CT with 3+ kills in 15 s against a push of three or more Ts
+      const burst = sim.kills.filter(o => o.killer === k.killer && o.t <= k.t && k.t - o.t <= 15 && sideOf.get(o.victim) !== aSide);
+      const pushed = burst.length >= 3 && killerAt
+        ? sim.ids.filter((id, j) => sideOf.get(id) !== aSide && alive(j, burst[0].t - 0.5) && Math.hypot(posAt(j, burst[0].t - 0.5).x - killerAt.x, posAt(j, burst[0].t - 0.5).y - killerAt.y) * scale < 1500).length : 0;
+      const anchor = aSide === 'CT' && burst.length >= 3 && pushed >= 3;
+      if (anchor) awhy.push(`Held against a ${pushed}-man push alone: ${burst.length} kills in ${Math.round(k.t - burst[0].t)} s.`);
+      const clutchOf = clutches.get(k.killer);
+      const inClutch = clutchOf !== undefined && clutch;
+      const clutchWon = inClutch && won(aSide);
+      if (clutchWon) awhy.push(`Won the 1v${clutchOf} clutch.`);
+      const kitted = vGear != null && vGear >= 3700, broke = aGear != null && aGear <= 1000;
+      const ecoHero = kitted && broke && kGun?.cls === 'pistol';
       const aTags: Tag[] = [];
+      if (teamKill) aTags.push('TEAM KILL');
       if (firstKill) aTags.push('OPENING');
       if (clutch) aTags.push('CLUTCH');
-      if (multi >= 3) aTags.push('MULTI-KILL');
+      if (multi >= 2) aTags.push('MULTI-KILL');
       if (trade) aTags.push('TRADE');
+      if (flank) aTags.push('FLANK');
+      if (anchor) aTags.push('ANCHOR');
       if (aGear != null && vGear != null && aGear < 2000 && aGear + 1500 < vGear) aTags.push('ECO FRAG');
       if (vAwp) aTags.push('AWP DOWN');
       if (vi >= 0 && wasBlind) aTags.push('FLASH ASSIST');
       if (upset) aTags.push('UPSET');
       if (postPlant) aTags.push('POST-PLANT');
+      // !! clutch 1v3+, solo anchor, pistol vs full gear, a huge swing; ! quick trade, multi-kill, neutral opening
+      // kill, flank, 1v2 clutch, beating a better player, a big swing; everything else is book
+      const quickTrade = sim.kills.some(o => o.killer === k.victim && o.t < k.t && k.t - o.t <= 3 && sideOf.get(o.victim) === aSide);
+      const neutral = vGear == null || aGear == null || (vGear >= 2000 && aGear >= 2000) || aGear + 1000 < vGear;
+      const aNote: Annotation = teamKill ? '??'
+        : (clutchWon && clutchOf! >= 3) || anchor || ecoHero || gain >= 0.25 ? '!!'
+        : quickTrade || multi >= 2 || (firstKill && neutral) || flank || clutchWon || upset || gain >= 0.12 ? '!'
+        : 'book';
+      if (teamKill) awhy.unshift('Killed a teammate.');
       moves.push({
-        t: k.t, player: k.killer, side: aSide, kind: 'kill', gain, grade: grade(gain),
-        title: `${name(k.killer)} killed ${name(k.victim)}${where(k.at)}${from(killerAt, k.at)}${withGun}`, why: awhy, tags: aTags,
+        t: k.t, player: k.killer, side: aSide, kind: 'kill', gain, note: aNote,
+        title: teamKill ? `${name(k.killer)} killed teammate ${name(k.victim)}${where(k.at)}` : `${name(k.killer)} killed ${name(k.victim)}${where(k.at)}${from(killerAt, k.at)}${withGun}`, why: awhy, tags: aTags,
       });
     }
   });
@@ -645,7 +794,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
    *   molotov — damage, and enemies it kept off the ground it burned (were near it while it burned)
    *   HE      — damage, enemies it softened up who then died, team damage
    */
-  const gradeNade = (ui: number): { gain: number; grade: Grade; why: string[]; tags: Tag[] } => {
+  const gradeNade = (ui: number): { gain: number; note: Annotation; why: string[]; tags: Tag[] } => {
     const u = r.util[ui];
     const s = sideOf.get(u.thrower)!;
     const nade = board.utility.find(x => x.id === `u${ui}`)!;
@@ -692,7 +841,9 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (caught) why.push(`${caught} teammate${caught > 1 ? 's' : ''} died at the smoke anyway.`);
       if (nade.duration !== undefined && nade.duration < 12) why.push(`Cleared early (lasted ${nade.duration.toFixed(0)} s).`);
       const tags: Tag[] = !pairSec && !blinded.size ? ['WASTED'] : gain >= 0.03 ? ['DENIED'] : [];
-      return { gain, grade: pairSec || blinded.size ? grade(gain) : 'D', why, tags };
+      // a smoke is book (the standard smoke for that spot) unless it cut a lot of sightlines, or got teammates killed
+      const note: Annotation = caught >= 2 ? '?' : pairSec >= 20 && !caught ? '!' : 'book';
+      return { gain, note, why, tags };
     }
 
     // HE / molotov: damage and who it reached
@@ -701,6 +852,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (softened.length) why.push(`${hitEnemies.length === 1 ? 'They' : `${softened.length} of them`} died soon after: the damage set up the kill${softened.length > 1 ? 's' : ''}.`);
     if (teamDmg) why.push(`${teamDmg} damage to your own team.`);
     gain = 0.0006 * enemyDmg + 0.03 * softened.length - 0.0008 * teamDmg;
+    const hurtTeam = teamDmg >= 40;
     const tags: Tag[] = [];
     if (softened.length) tags.push('NADE ASSIST');
     if (teamDmg >= 20) tags.push('TEAM DAMAGE');
@@ -717,12 +869,15 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       gain += 0.02 * Math.min(3, near.size);
       if (near.size) why.push(`Kept ${near.size === 1 ? 'an enemy' : `${near.size} enemies`} off that ground for ${(to - from).toFixed(0)} s.`);
       if (near.size) tags.push('DENIED');
-      if (!near.size && !enemyDmg) { why.push('Burned empty ground: no enemy came near it.'); return { gain: Math.min(gain, -0.01), grade: 'D', why, tags: [...tags, 'WASTED'] }; }
+      if (!near.size && !enemyDmg) { why.push('Burned empty ground: no enemy came near it.'); return { gain: Math.min(gain, -0.01), note: hurtTeam ? '?' : 'book', why, tags: [...tags, 'WASTED'] }; }
+      const note: Annotation = enemyDmg >= 150 ? '!!' : enemyDmg >= 60 || softened.length || near.size >= 3 ? '!' : hurtTeam ? '?' : 'book';
+      return { gain, note, why, tags };
     } else if (!enemyDmg) {
       why.push('Hit nobody.');
-      return { gain: Math.min(gain, -0.01), grade: teamDmg >= 40 ? 'E' : 'D', why, tags: [...tags, 'WASTED'] };
+      return { gain: Math.min(gain, -0.01), note: hurtTeam ? '?' : 'book', why, tags: [...tags, 'WASTED'] };
     }
-    return { gain, grade: grade(gain), why, tags };
+    const note: Annotation = enemyDmg >= 150 || hitEnemies.length >= 3 ? '!!' : enemyDmg >= 70 || softened.length ? '!' : hurtTeam ? '?' : 'book';
+    return { gain, note, why, tags };
   };
 
   /** " (thrown from Top Mid)" when the grenade was thrown from another area. */
@@ -741,7 +896,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (u.type !== 'flash') {
       const ev = gradeNade(ui);
       moves.push({
-        t: u.t, player: u.thrower, side: s, kind: 'utility', util: `u${ui}`, gain: ev.gain, grade: ev.grade, tags: ev.tags,
+        t: u.t, player: u.thrower, side: s, kind: 'utility', util: `u${ui}`, gain: ev.gain, note: ev.note, tags: ev.tags,
         title: `${name(u.thrower)}: ${u.type === 'molotov' ? 'molotov' : u.type === 'he' ? 'HE grenade' : 'smoke'}${where(worldToRadar({ x: u.x, y: u.y }, engine.map.radar))}${thrownFrom(u)}`,
         why: ev.why,
       });
@@ -760,19 +915,50 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (assisted.length) tags.push('FLASH ASSIST');
     if (team.length) tags.push('TEAM FLASH');
     if (!hits.length) tags.push('WASTED');
+    // !! two kills off one flash; ! a kill off it or three enemies blinded; ?? a blinded teammate died; ? only teammates
+    const mateDied = team.filter(e => sim.kills.some(k => k.victim === e.id && k.t >= e.t && k.t - e.t <= 3)).length;
+    if (mateDied) why.push(`${mateDied === 1 ? 'A blinded teammate' : `${mateDied} blinded teammates`} died within 3 s.`);
+    const note: Annotation = mateDied ? '??' : assisted.length >= 2 ? '!!' : assisted.length || enemy.length >= 3 ? '!' : team.length && !enemy.length ? '?' : 'book';
     moves.push({
-      t: u.t, player: u.thrower, side: s, kind: 'flash', util: `u${ui}`, gain, grade: hits.length ? grade(gain) : 'D',
+      t: u.t, player: u.thrower, side: s, kind: 'flash', util: `u${ui}`, gain, note,
       title: `${name(u.thrower)}: flash${where(worldToRadar({ x: u.x, y: u.y }, engine.map.radar))}${thrownFrom(u)}`, why, tags,
     });
   });
 
+  // the bomb: a plant is book (the plan working), a defuse is ! — !! with enemies still alive or almost no time left
+  for (const b of r.bomb ?? []) {
+    if ((b.kind !== 'plant' && b.kind !== 'defuse') || !sideOf.has(b.id)) continue;
+    const s = sideOf.get(b.id)!;
+    const at = worldToRadar({ x: b.x, y: b.y }, engine.map.radar);
+    const before = stateAt(b.t - 0.05), after = b.kind === 'defuse' ? 1 : stateAt(b.t + 0.05);
+    const gain = forSide(s, after - before);
+    const why = [`${s} win chance ${pct(s === 'CT' ? before : 1 - before)} → ${pct(s === 'CT' ? after : 1 - after)}.`];
+    const tags: Tag[] = [b.kind === 'plant' ? 'PLANT' : 'DEFUSE'];
+    let note: Annotation = 'book', title = `${name(b.id)} planted the bomb${where(at)}`;
+    if (b.kind === 'defuse') {
+      const left = r.plant !== null ? BOMB_TIME - (b.t - r.plant) : null;
+      const enemies = sim.ids.filter((id, j) => sideOf.get(id) !== s && alive(j, b.t)).length;
+      const ninja = enemies > 0 || (left !== null && left < 1);
+      if (enemies) why.push(`${enemies} enem${enemies > 1 ? 'ies were' : 'y was'} still alive.`);
+      if (left !== null) why.push(`${left.toFixed(1)} s left on the bomb.`);
+      if (ninja) tags.push('NINJA');
+      note = ninja ? '!!' : '!';
+      title = `${name(b.id)} defused the bomb${where(at)}${left !== null && left < 3 ? ` with ${left.toFixed(1)} s left` : ''}`;
+    } else {
+      const mates = sim.ids.filter((id, j) => sideOf.get(id) === s && alive(j, b.t)).length;
+      const foes = sim.ids.filter((id, j) => sideOf.get(id) !== s && alive(j, b.t)).length;
+      why.push(`Planted ${mates}v${foes}.`);
+    }
+    moves.push({ t: b.t, player: b.id, side: s, kind: 'objective', gain, note, title, why, tags });
+  }
+
   moves.sort((a, b) => a.t - b.t || (a.kind === 'kill' ? -1 : 1));
   const players: Review['players'] = {};
-  for (const id of sim.ids) players[id] = { impact: 0, counts: { 'S+': 0, S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 } };
+  for (const id of sim.ids) players[id] = { impact: 0, counts: { '!!': 0, '!': 0, book: 0, '?': 0, '??': 0 } };
   for (const m of moves) {
     if (!players[m.player]) continue;
     players[m.player].impact += m.gain;
-    if (m.kind !== 'death' || isMarked(m)) players[m.player].counts[m.grade]++;
+    players[m.player].counts[m.note]++;
   }
   const turningPoint = moves.filter(m => m.kind !== 'death').reduce<Move | null>((best, m) => (!best || Math.abs(m.gain) > Math.abs(best.gain) ? m : best), null);
   return { curve, moves, players, roles: playerRoles(engine, rep, moves), turningPoint };

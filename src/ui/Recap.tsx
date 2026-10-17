@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
+import { NoteMark } from './NoteMark';
 import { brief } from './MoveFeed';
 import type { TacticalEngine } from '../engine/predict';
-import { equipValue, GRADE_INFO, isMarked, moments, type Moment, LETTER_COLOR, letterGrade, movesUntil, TAG_INFO, teamEconomy, type DemoData, type Grade, type Move, type Replay, type Review, type Tag } from '../engine/recap';
+import { equipValue, LETTER_COLOR, LETTER_INFO, moments, type Moment, movesUntil, NOTE_INFO, NOTES, roundFacts, roundGrade, TAG_INFO, teamEconomy, type Annotation, type DemoData, type DemoRound, type Move, type Replay, type Review, type Tag } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { gunFromName, primaryGun } from '../engine/guns';
 import { useStore } from '../store';
@@ -183,8 +184,8 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
       {tab === 'players' && <section>
         <h3>Players {finished ? '' : '(so far)'}</h3>
         <table className="kills">
-          <thead><tr><th /><th title="Round grade: S+ (won the round) … F (threw it). Win-chance impact plus clutches, multi-kills, team damage, unused grenades">Grade</th><th title="Total change in their team's win chance">Impact</th>
-            {COUNTED.map(g => <th key={g} title={`${GRADE_INFO[g].label} moves`} style={{ color: GRADE_INFO[g].color }}>{GRADE_INFO[g].mark}</th>)}
+          <thead><tr><th /><th title="Round grade, S+ (dominated the round) … F (a game-losing mistake). Hover a grade for why">Grade</th><th title="Total change in their team's win chance">Impact</th>
+            {COUNTED.map(g => <th key={g} title={`${NOTE_INFO[g].label} moves`} style={{ color: NOTE_INFO[g].color }}>{NOTE_INFO[g].mark}</th>)}
           </tr></thead>
           <tbody>
             {Object.entries(players).sort(([a], [b]) => sideOf(a).localeCompare(sideOf(b)) || players[b].impact - players[a].impact).map(([id, p]) => (
@@ -193,7 +194,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
                   <b className={sideOf(id).toLowerCase()}>{names[id] ?? id}</b>
                   {finished && recap.roles[id] && <span className="role" title={recap.roles[id].note}>{recap.roles[id].role}</span>}
                 </td>
-                <td><Letter moves={seen.filter(m => m.player === id)} /></td>
+                <td><Letter moves={seen.filter(m => m.player === id)} round={r} id={id} upTo={all ? Infinity : s.time} /></td>
                 <td style={{ color: p.impact > 0.02 ? '#7fbf4d' : p.impact < -0.02 ? '#e5483a' : undefined }}>{signed(p.impact)}</td>
                 {COUNTED.map(g => <td key={g}>{p.counts[g] || ''}</td>)}
               </tr>
@@ -272,7 +273,7 @@ export function MomentNav({ recap }: { recap: Review }) {
   const cur: Moment | undefined = list[idx];
   const atMoment = cur && Math.abs(time - (cur.t + SHOW_AFTER)) < 0.06;
   const main = cur ? cur.moves.find(m => m.kind === 'kill') ?? cur.moves[0] : undefined;
-  const g = main ? GRADE_INFO[main.grade] : undefined;
+  const g = main ? main.note : undefined;
   const first = rv.round === 0 && time < 0.05, last = rv.round === rv.data.rounds.length - 1 && idx === list.length - 1;
   const watch = () => { if (!cur) return; const st = useStore.getState(); st.setTime(Math.max(0, cur.t - 3)); st.setPlaying(true); };
   return (
@@ -283,7 +284,7 @@ export function MomentNav({ recap }: { recap: Review }) {
           ? <span className="muted">Round {rv.round + 1} start · {list.length} moments</span>
           : <>
               <span className="muted">{idx + 1}/{list.length}</span>
-              {g && <span className="badge" style={{ background: g.color }}>{g.mark}</span>}
+              {g && <NoteMark note={g} />}
               <span className={atMoment ? '' : 'muted'}>{main && brief(main.title)}{cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}</span>
               {cur && <button className="mini" onClick={watch} title="Watch the 3 s leading up to it" aria-label="Watch the lead-up"><Icon name="rewind" size={12} /></button>}
             </>}
@@ -293,14 +294,14 @@ export function MomentNav({ recap }: { recap: Review }) {
   );
 }
 
-/** Move letters counted per player in the Players tab: the big ones, both ways. */
-const COUNTED: Grade[] = ['S+', 'S', 'A', 'D', 'E', 'F'];
+/** Annotations counted per player in the Players tab (book moves aren't counted). */
+const COUNTED: Annotation[] = NOTES.filter(n => n !== 'book');
 
 /** Impact and grade counts from the moves seen so far. */
 function scoreboard(recap: Review, seen: Move[]) {
   const out: Review['players'] = {};
-  for (const id of Object.keys(recap.players)) out[id] = { impact: 0, counts: { 'S+': 0, S: 0, A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 } };
-  for (const m of seen) if (out[m.player]) { out[m.player].impact += m.gain; if (m.kind !== 'death' || isMarked(m)) out[m.player].counts[m.grade]++; }
+  for (const id of Object.keys(recap.players)) out[id] = { impact: 0, counts: { '!!': 0, '!': 0, book: 0, '?': 0, '??': 0 } };
+  for (const m of seen) if (out[m.player]) { out[m.player].impact += m.gain; out[m.player].counts[m.note]++; }
   return out;
 }
 
@@ -381,20 +382,17 @@ function loadout(weapons: string[]) {
 }
 
 function MoveRow({ m, compact }: { m: Move; compact?: boolean }) {
-  const g = GRADE_INFO[m.grade];
-  const death = false; // every listed move shows its letter (deaths too)
+  const g = NOTE_INFO[m.note];
   return (
     <>
       <div className="move-head">
         <span className="muted">{fmt(m.t)}</span>
-        {death
-          ? <span className="badge death" title="Ordinary deaths aren't marked (only costly untraded ones are); the loss still counts toward impact and the round grade"><Icon name="cross" size={11} /></span>
-          : <span className="badge" style={{ background: g.color }} title={g.label}>{g.mark}</span>}
+        <NoteMark note={m.note} />
         <b className={m.side.toLowerCase()}>{m.title}</b>
         <span className="pct" style={{ color: m.gain > 0.02 ? '#7fbf4d' : m.gain < -0.02 ? '#e5483a' : 'var(--muted)' }}>{signed(m.gain)}</span>
       </div>
       {m.tags.length > 0 && <Tags tags={m.tags} />}
-      {!compact && <div className="why">{death ? '' : `${g.label}. `}{m.why.join(' ')}</div>}
+      {!compact && <div className="why">{`${g.label}. `}{m.why.join(' ')}</div>}
     </>
   );
 }
@@ -407,8 +405,8 @@ export function Tags({ tags }: { tags: Tag[] }) {
   );
 }
 
-function Letter({ moves }: { moves: Move[] }) {
-  const { letter, points } = letterGrade(moves);
-  return <span className="letter" style={{ background: LETTER_COLOR[letter] }} title={`${points >= 0 ? '+' : ''}${points.toFixed(0)} points`}>{letter}</span>;
+function Letter({ moves, round, id, upTo }: { moves: Move[]; round: DemoRound; id: string; upTo: number }) {
+  const { letter, why } = roundGrade(moves, roundFacts(round, id, upTo));
+  return <span className="letter" style={{ background: LETTER_COLOR[letter] }} title={`${letter}: ${why} (${LETTER_INFO[letter]})`}>{letter}</span>;
 }
 

@@ -13,8 +13,10 @@ import type { Role, Tag } from './recap';
  *                 "work on this" notes (with the rounds where it happened), the best ones "keep doing this".
  *
  * Training: trainCoach() fits baselines and spreads to the feature numbers of many games (yours, your team's, or
- * better players' as a target), starting from the current model. Weights stay as they are for now; fitting them to
- * round wins is the next step once there are enough games.
+ * better players' as a target), starting from the current model. trainCoachSet() does that for all players and for
+ * each role (an AWPer is compared with AWPers, a lurker with lurkers), which is what tools/train-coach.ts runs on a
+ * folder of demos. The trained models live in src/engine/models/ (see coachModels.ts). Weights stay as they are for
+ * now; fitting them to round wins is the next step once there are enough games.
  */
 
 export type FeatureId =
@@ -24,7 +26,28 @@ export type FeatureId =
 export type Features = Record<FeatureId, number>;
 
 export interface FeatureModel { baseline: number; spread: number; weight: number }
-export interface CoachModel { version: 1; trainedOn: number; features: Record<FeatureId, FeatureModel> }
+export type FeatureSet = Record<FeatureId, FeatureModel>;
+export interface CoachModel {
+  version: 1;
+  /** Player-games it learned from (0 = set by hand). */
+  trainedOn: number;
+  features: FeatureSet;
+  /** What it was trained on, shown on the coach card (e.g. "FACEIT level 10"). */
+  name?: string;
+  /** Demos used and when. */
+  source?: { demos: number; trainedAt: string; maps: Record<string, number> };
+  /** The same numbers per role, for roles with enough games (see MIN_ROLE_GAMES). */
+  roles?: Partial<Record<Role, { games: number; features: FeatureSet }>>;
+}
+
+/** A role needs this many player-games before it gets its own "normal". */
+export const MIN_ROLE_GAMES = 15;
+
+/** The numbers to compare a player with: their role's, when the model knows that role well enough. */
+export function modelFor(model: CoachModel, role: Role): { features: FeatureSet; byRole: boolean } {
+  const r = model.roles?.[role];
+  return r && r.games >= MIN_ROLE_GAMES ? { features: r.features, byRole: true } : { features: model.features, byRole: false };
+}
 
 export interface CoachNote {
   feature: FeatureId;
@@ -230,15 +253,16 @@ export function coach(p: PlayerReport, model: CoachModel = DEFAULT_MODEL): Coach
   const n = lines.length;
   const f = coachFeatures(p);
   const role = p.roles[0]?.role ?? 'Rifler';
+  const { features: normal, byRole } = modelFor(model, role);
   const notes: CoachNote[] = [];
   const profile: Deviation[] = [];
   for (const id of Object.keys(f) as FeatureId[]) {
-    const m = model.features[id];
+    const m = normal[id];
     if (!m || m.spread <= 0) continue;
     // positive = worse than normal
     const z = ((f[id] - m.baseline) / m.spread) * (BETTER[id] === 'low' ? 1 : -1);
-    // entries are expected to die first more often
-    const adj = id === 'openingDeaths' && role === 'Entry' ? z - 1 : z;
+    // entries are expected to die first more often (already in the numbers when compared with other entries)
+    const adj = id === 'openingDeaths' && role === 'Entry' && !byRole ? z - 1 : z;
     const w = words(id, f[id], n, role);
     let note: CoachNote | undefined;
     if (adj > (IMPROVE_AT[id] ?? 0.8)) note = { feature: id, kind: 'improve', title: w.improve[0], detail: w.improve[1], score: adj * m.weight, rounds: examples(id, lines) };
@@ -289,4 +313,22 @@ export function trainCoach(samples: Features[], prior: CoachModel = DEFAULT_MODE
     features[id] = { ...p, baseline, spread: Math.max(spread, p.spread * 0.25) };
   }
   return { version: 1, trainedOn: prior.trainedOn + samples.length, features };
+}
+
+/** One player's match for training: their numbers and the role they mostly played. */
+export interface Sample { features: Features; role: Role }
+
+/**
+ * Training on a set of games: "normal" for everyone (starting from `prior`), then for each role with enough games
+ * (starting from everyone's, so a role with few games stays close to it).
+ */
+export function trainCoachSet(samples: Sample[], name: string, source: CoachModel['source'], prior: CoachModel = DEFAULT_MODEL): CoachModel {
+  const all = trainCoach(samples.map(s => s.features), { ...prior, trainedOn: 0 });
+  const roles: CoachModel['roles'] = {};
+  const byRole = new Map<Role, Features[]>();
+  for (const s of samples) byRole.set(s.role, [...(byRole.get(s.role) ?? []), s.features]);
+  for (const [role, fs] of byRole) {
+    if (fs.length >= MIN_ROLE_GAMES) roles[role] = { games: fs.length, features: trainCoach(fs, all).features };
+  }
+  return { version: 1, trainedOn: samples.length, features: all.features, name, source, roles };
 }

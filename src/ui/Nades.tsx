@@ -1,7 +1,7 @@
 import { Arc, Arrow, Circle, Group, Line, Path, Star, Text } from 'react-konva';
 import { HE_RADIUS_U } from '../engine/combat';
 import { lifeOf, popAt, SMOKE_RADIUS_UNITS } from '../engine/grid';
-import { GRADE_INFO, type Grade } from '../engine/recap';
+import { NOTE_INFO, type Annotation } from '../engine/recap';
 import { UTIL_COLOR } from './tokens';
 import type { Utility, Vec2 } from '../engine/types';
 
@@ -154,7 +154,7 @@ export function nadePhase(u: Utility, t: number): NadePhase {
 export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable, grade }: {
   u: Utility; t: number; k: number; unitsPerPx: number; selected: boolean; doomed: boolean; editable: boolean;
   /** Review grade, shown as a chess-style mark on the grenade once it has popped. */
-  grade?: Grade;
+  grade?: Annotation;
 }) {
   const phase = nadePhase(u, t);
   const R = u.type === 'smoke' ? SMOKE_RADIUS_UNITS / unitsPerPx : u.type === 'molotov' ? MOLLY_RADIUS_U / unitsPerPx : HE_RADIUS_U / unitsPerPx;
@@ -237,12 +237,12 @@ function RealFlight({ u, path, t, k }: { u: Utility; path: Vec2[]; t: number; k:
   );
 }
 
-function GradeMark({ grade, x, y, k }: { grade: Grade; x: number; y: number; k: number }) {
-  const g = GRADE_INFO[grade];
+function GradeMark({ grade, x, y, k }: { grade: Annotation; x: number; y: number; k: number }) {
+  const g = NOTE_INFO[grade];
   return (
     <Group x={x} y={y} listening={false}>
-      <Circle radius={7 * k} fill={g.color} stroke="#000" strokeWidth={1.2 * k} />
-      <Text text={g.mark} fontSize={(g.mark.length > 1 ? 7.5 : 9) * k} fontStyle="bold" fill="#111" width={14 * k} x={-7 * k} y={-4.2 * k} align="center" />
+      <Circle radius={(grade === 'book' ? 3.5 : 7) * k} fill={g.color} stroke="#000" strokeWidth={1.2 * k} />
+      {grade !== 'book' && <Text text={g.mark} fontSize={(g.mark.length > 1 ? 7.5 : 9.5) * k} fontStyle="bold" fill="#111" width={14 * k} x={-7 * k} y={-4.4 * k} align="center" />}
     </Group>
   );
 }

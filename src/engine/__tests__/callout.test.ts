@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { calloutAt, moveKey, type Grade, type Move } from '../recap';
+import { calloutAt, moveKey, type Annotation, type Move } from '../recap';
 
-const mv = (t: number, player: string, grade: Grade = 'B', kind: Move['kind'] = 'kill'): Move =>
-  ({ t, player, side: 'CT', kind, gain: 0.05, grade, title: `${player} at ${t}`, why: [], tags: [] });
+const mv = (t: number, player: string, note: Annotation = '!', kind: Move['kind'] = 'kill'): Move =>
+  ({ t, player, side: 'CT', kind, gain: 0.05, note, title: `${player} at ${t}`, why: [], tags: [] });
 
 // a multi-kill (three at once), a grenade right after it, and a quiet kill later
-const moves = [mv(10, 'a'), mv(10, 'b'), mv(10, 'c'), mv(10.3, 'd', 'A', 'utility'), mv(14, 'e', 'C')];
+const moves = [mv(10, 'a'), mv(10, 'b'), mv(10, 'c'), mv(10.3, 'd', '!', 'utility'), mv(14, 'e', 'book')];
 
 describe('move windows', () => {
   it('while playing, shows every graded move in order, one at a time, until it has been read', () => {

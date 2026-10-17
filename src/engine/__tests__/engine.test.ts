@@ -234,7 +234,7 @@ describe('nuke hand-made layer', () => {
 describe('round review (chess-style grading)', () => {
   it('grades kills, deaths and flashes from a demo-shaped round', async () => {
     const { simulate, SIM_DT } = await import('../combat');
-    const { buildReplay, reviewRound, GRADE_INFO, letterGrade } = await import('../recap');
+    const { buildReplay, reviewRound, NOTE_INFO, roundGrade } = await import('../recap');
     const { tPlaysFor } = await import('../../map/catalog');
     const e = getEngine('de_mirage');
     const b = board('de_mirage', 'Default 2-1-2');
@@ -276,7 +276,7 @@ describe('round review (chess-style grading)', () => {
     const rep = buildReplay(e, demo, 0, b.context);
     const rev = reviewRound(e, rep);
     console.log(`review in ${(performance.now() - t0).toFixed(0)} ms; eval start ${(rev.curve[0].ct * 100).toFixed(0)}% → end ${(rev.curve.at(-1)!.ct * 100).toFixed(0)}%`);
-    for (const m of rev.moves) console.log(`  ${m.t.toFixed(1).padStart(5)}s ${GRADE_INFO[m.grade].mark.padEnd(2)} ${GRADE_INFO[m.grade].label.padEnd(10)} ${(m.gain >= 0 ? '+' : '') + (m.gain * 100).toFixed(0)}%  ${m.title} — ${m.why.slice(1).join(' ')}`);
+    for (const m of rev.moves) console.log(`  ${m.t.toFixed(1).padStart(5)}s ${(NOTE_INFO[m.note].mark || '·').padEnd(2)} ${NOTE_INFO[m.note].label.padEnd(10)} ${(m.gain >= 0 ? '+' : '') + (m.gain * 100).toFixed(0)}%  ${m.title} — ${m.why.slice(1).join(' ')}`);
     expect(rev.moves.filter(m => m.kind === 'kill').length).toBe(sim.kills.filter(k => k.killer).length);
     expect(rev.curve.every(c => c.ct >= 0 && c.ct <= 1)).toBe(true);
     // grenades replay as thrown and every one is graded
@@ -288,20 +288,27 @@ describe('round review (chess-style grading)', () => {
     expect(smoke.path![0].x).toBeCloseTo(800, 0);
     expect(rev.moves.filter(m => m.util).length).toBe(3);
     const he = rev.moves.find(m => m.util === rep.board.utility.find(u => u.type === 'he')!.id)!;
-    expect(he.grade).toBe('D');
+    expect(he.note).toBe('book'); // a wasted HE that hurt nobody on the team is a plain move, tagged WASTED
     expect(he.why.join(' ')).toMatch(/Hit nobody/);
     expect(he.tags).toContain('WASTED');
     // every player gets a role and a letter grade
     for (const id of rep.sim.ids) expect(rev.roles[id]?.role).toBeTruthy();
-    expect(letterGrade([]).letter).toBe('C');
-    expect(letterGrade([{ ...he, gain: 0.4, tags: ['CLUTCH'] }]).letter).toBe('S+');
-    // moments: every kill is one, in time order; a death only shows when it cost the team (untraded, 8%+)
+    const facts = { kills: 0, damage: 0, died: false, traded: false, deathT: null, won: null, teamPlanted: false };
+    expect(roundGrade([], facts).letter).toBe('C');
+    const kill = (t: number, tags: any[] = []) => ({ ...he, kind: 'kill' as const, t, gain: 0.1, note: '!' as const, tags });
+    expect(roundGrade([kill(1, ['CLUTCH']), kill(2, ['CLUTCH']), kill(3, ['CLUTCH'])], { ...facts, kills: 3, won: true }).letter).toBe('S+');
+    expect(roundGrade([kill(1), kill(2), kill(3)], { ...facts, kills: 3 }).letter).toBe('S');
+    expect(roundGrade([kill(1), kill(2)], { ...facts, kills: 2 }).letter).toBe('A');
+    expect(roundGrade([kill(1)], { ...facts, kills: 1 }).letter).toBe('B');
+    expect(roundGrade([{ ...he, kind: 'death', note: '?' }], { ...facts, died: true, deathT: 12 }).letter).toBe('D');
+    expect(roundGrade([{ ...kill(1, ['TEAM KILL']), note: '??' }], facts).letter).toBe('F');
+    // moments: every kill is one, in time order; a death only shows when it's annotated (a mistake or a blunder)
     const { moments, isMarked } = await import('../recap');
     const ms = moments(rev);
     expect(ms.flatMap(x => x.moves).filter(m => m.kind === 'kill').length).toBe(rev.moves.filter(m => m.kind === 'kill').length);
     expect(ms.every((x, i) => i === 0 || x.t > ms[i - 1].t)).toBe(true);
     const deaths = ms.flatMap(x => x.moves).filter(m => m.kind === 'death');
-    expect(deaths.every(m => isMarked(m) && !m.tags.includes('TRADED') && (m.grade === 'E' || m.grade === 'F'))).toBe(true);
+    expect(deaths.every(m => isMarked(m) && (m.note === '?' || m.note === '??'))).toBe(true);
     expect(rev.moves.filter(m => m.kind === 'death' && m.tags.includes('TRADED')).every(m => !isMarked(m))).toBe(true);
     // match report from the graded round
     const { summarizeRound, buildMatchReport, performance: perfRating } = await import('../match');

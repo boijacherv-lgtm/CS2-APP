@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { coach, DEFAULT_MODEL, type Coaching, type Deviation, type FeatureId } from '../engine/coach';
+import { coach, modelFor, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
+import { COACH_MODEL } from '../engine/coachModels';
 import { buildMatchReport, IMPACT_PER_POINT, type MatchReport, type PlayerReport } from '../engine/match';
 import { LETTER_COLOR, RATING_SCALE, type DemoData, type Letter } from '../engine/recap';
 import { MAPS } from '../map/catalog';
@@ -103,8 +104,9 @@ function MatchHeader({ data, view, me, done }: { data: DemoData; view: MatchRepo
 
 /** The focused player's game: match grade, game rating against their real rating, and three key numbers vs normal. */
 function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: PlayerReport[]; me: string | null; onPlayer: (id: string) => void }) {
+  const normal = useNormal(p);
   const kpi = (id: FeatureId, label: string, value: string, v: number) => {
-    const m = DEFAULT_MODEL.features[id];
+    const m = normal[id];
     const z = (v - m.baseline) / m.spread;
     return (
       <div className="kpi" title={`Normal: ${id === 'impact' ? `${m.baseline}%` : Math.round(m.baseline)}`}>
@@ -123,7 +125,7 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
         <span className="muted">{p.roles.slice(0, 2).map(r => r.role).join(' / ')}</span>
       </div>
       <div className="perf-main">
-        <span className="perf-letter display" style={{ background: LETTER_COLOR[p.letter] }} title="Match grade from average round impact">{p.letter}</span>
+        <span className="perf-letter display" style={{ background: LETTER_COLOR[p.letter] }} title="Match grade from the round grades (S+ … F)">{p.letter}</span>
         <Gauge rating={p.gameRating} rank={p.rank} />
       </div>
       <div className="kpis">
@@ -158,7 +160,9 @@ function Gauge({ rating, rank }: { rating: number | null; rank: number | null })
 
 /** The coach: one line of summary, then every number as a bar from "normal": better to the right, worse to the left. */
 function CoachCard({ p, done, onRound, onHotRound }: { p: PlayerReport; done: boolean; onRound: (i: number) => void; onHotRound: (i: number | null) => void }) {
-  const c: Coaching = useMemo(() => coach(p), [p]);
+  const c: Coaching = useMemo(() => coach(p, COACH_MODEL), [p]);
+  const role = p.roles[0]?.role ?? 'Rifler';
+  const byRole = modelFor(COACH_MODEL, role).byRole;
   const [open, setOpen] = useState<FeatureId | null>(null);
   const rows = c.profile.slice(0, 9);
   const side = (v: number | null) => (v === null ? '–' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
@@ -168,6 +172,11 @@ function CoachCard({ p, done, onRound, onHotRound }: { p: PlayerReport; done: bo
         <h2 className="display">Coach</h2>
         <span className="muted">CT {side(c.sides.CT)} · T {side(c.sides.T)} win chance a round</span>
       </div>
+      {COACH_MODEL.trainedOn > 0 && (
+        <p className="coach-vs muted" title={`Learned from ${COACH_MODEL.trainedOn} player-games${COACH_MODEL.source ? ` in ${COACH_MODEL.source.demos} demos` : ''}`}>
+          Compared with {COACH_MODEL.name ?? 'trained'} players{byRole ? ` (${role.toLowerCase()}s)` : ''}
+        </p>
+      )}
       <p className="coach-summary">{c.summary}{!done && <span className="muted"> (updates while rounds are graded)</span>}</p>
       <div className="dev-axis muted"><span><Icon name="prev" size={10} /> worse than normal</span><span>better than normal <Icon name="next" size={10} /></span></div>
       <div className="dev-list">
@@ -211,9 +220,14 @@ function DevRow({ d, open, onToggle, onRound, onHotRound }: {
   );
 }
 
+/** What's normal for this player (their role's numbers when the model has them). */
+function useNormal(p: PlayerReport): FeatureSet {
+  return modelFor(COACH_MODEL, p.roles[0]?.role ?? 'Rifler').features;
+}
+
 /** "Far from normal" for the scoreboard: only outliers get colour. */
 function tone(id: FeatureId, v: number) {
-  const m = DEFAULT_MODEL.features[id];
+  const m = COACH_MODEL.features[id];
   const z = (v - m.baseline) / m.spread;
   return z > 1 ? 'hi' : z < -1 ? 'lo' : '';
 }
@@ -232,7 +246,7 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
             <th title="Premier rating at the start of the match">Rank</th>
             <th title="Estimated rating for this game: duel performance + round impact">Game</th>
             <th title="Game rating minus their real rating">±</th>
-            <th title="Match grade from average round impact">Grade</th>
+            <th title="Match grade from the round grades (S+ … F)">Grade</th>
             <th>K</th><th>D</th><th>ADR</th><th title="Rounds with a kill, assist, survival or trade">KAST</th><th>HS%</th>
             <th title="Opening kills – opening deaths">Open</th><th title="Clutch kills (last alive vs 2+)">Clutch</th><th title="Rounds with 3+ kills">3K+</th>
             <th title="HE + fire damage">Dmg</th><th title="Kills on enemies they flashed">Flash</th>

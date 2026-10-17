@@ -2,7 +2,7 @@
 
 **https://tsakhstvo.xyz** · plan rounds, simulate fights, and review your own matches like a chess game.
 
-Place CTs and Ts on Valve's real radar, give them routes, grenades and line-ups, and watch the round play out with fights. Or load one of your own matches: every round replays on the radar with a live win-chance bar, every kill and grenade gets a letter from S+ to F, and a built-in coach tells you what to work on.
+Place CTs and Ts on Valve's real radar, give them routes, grenades and line-ups, and watch the round play out with fights. Or load one of your own matches: every round replays on the radar with a live win-chance bar, every move gets a chess-style mark (!! brilliant, ! good, book, ? mistake, ?? blunder), every player's round a grade from S+ to F, and a built-in coach tells you what to work on.
 
 > **Working on this as an AI agent / new developer?** Read the [Agent guide](#agent-guide) first. It has the conventions, gotchas and open work that aren't obvious from the code.
 
@@ -36,24 +36,37 @@ Both read demos with the same parser (LaihoE/demoparser); the website uses a Web
 ### Review your match
 1. **Review** tab → drop a `.dem` (or a saved `.json`), or use **Your CS2 demo folder** below. FACEIT/HLTV demos work too (unzip first).
 2. Press **Play** (or Space). The win-chance bar, the timeline and the grades reveal themselves as the round plays. **Reveal all** (or R) shows everything at once.
-3. **The timeline** at the bottom is the round's story: the win chance as a curve (CT blue above the middle, T yellow below), kills as ticks in the killer's colour, the big moves as their letter (S+ S E F), the smaller ones (A B D) as dots, and the bomb icon at the plant. Click anywhere, or on a mark, to jump there.
+3. **The timeline** at the bottom is the round's story: the win chance as a curve (CT blue above the middle, T yellow below), kills as ticks in the killer's colour, annotated moves as their mark (!! ! ? ??), book moves as small dots, and the bomb icon at the plant. Click anywhere, or on a mark, to jump there.
 4. The **previous / next** arrows (or ← →) step through the key moments of the match, across rounds, like moves in a chess game.
 5. The panel on the right (**Panel** to show or hide it) has the rounds and three tabs: **Moves**, **Economy**, **Players**.
 
-**The letters.** One scale for moves, rounds and the whole match. For a move it's how much it changed the team's chance to win the round:
+**Move marks**, like a chess game's analysis. They're decided from what happened, not from the win-chance number alone:
 
-| S+ | S | A | B | C | D | E | F |
-|---|---|---|---|---|---|---|---|
-| +25% or more | +15% | +10% | +3% | neutral (not shown) | −3% | −8% | −15% or worse |
+| Mark | Means | For example |
+|---|---|---|
+| **!!** Brilliant | exceptional, statistically unlikely | winning a 1v3+ clutch, a ninja defuse (enemies alive or under 1 s left), holding a site alone (3+ kills against a push), a pistol with no armour beating full gear, an HE for 150+ damage, a flash that sets up two kills |
+| **!** Good move | swung the round | a trade within 3 s, a double or triple kill, the opening kill in a fair fight, a kill from behind, a 1v2 clutch, a flash that won a duel, an HE for 70+, a defuse |
+| book | the expected, sound play (plain dot) | a standard smoke (e.g. Window on Mirage), an ordinary kill, a plant, a traded death |
+| **?** Mistake | cost the team | an untraded opening or isolated death, dying with two grenades, losing the AWP, flashing only your own team |
+| **??** Blunder | round-losing | a team kill, dying to an eco while fully bought without throwing anything, a team flash that got a teammate killed |
 
-**All / Mine** (in the playback bar) chooses which moves are evaluated on screen: **All** is every move (every kill, every death, every grenade and flash, neutral C too), **Mine** is every move of yours (needs Log in with Steam, and you in the match). The map, the timeline, the killfeed, the cards and previous / next all follow it, so they always show the same moves. (Elsewhere, like the Players tab counts, only the moves that matter count: deaths only when untraded and −8% or worse.)
+**Round grades** (each player, each round), S+ … F:
+- **S+** 3+ kills (or 300+ damage) and a critical objective: a won clutch, a solo anchor, the entry and the plant, a defuse
+- **S** 3 kills; or 2 with the entry plus great utility or the plant / defuse; or a ninja defuse
+- **A** a double kill, a brilliant move, a key trade, utility that carried the team, a defuse
+- **B** did their job: an impact kill, an even trade with real damage, useful utility, the plant
+- **C** no real impact · **D** an early untraded death or a mistake without an impact kill · **F** a blunder (team kill, eco death) with fewer than two kills
+
+The **match grade** comes from the round grades.
+
+**All / Mine** (in the playback bar) chooses which moves are evaluated on screen: **All** is every move (every kill, every death, every grenade and flash, book moves too), **Mine** is every move of yours (needs Log in with Steam, and you in the match). The map, the timeline, the killfeed, the cards and previous / next all follow it, so they always show the same moves. (The Players tab counts the annotated moves: !! ! ? ??.)
 
 What you see on the map:
 - **Players** move smoothly, with a view cone and a white arrow for where they look. The top bar shows each player's avatar and health, the score and the round / bomb timer, like in CS2.
 - **Shots:** every bullet is a muzzle flash and a tracer, to whoever it hit or toward the wall it hit.
 - **Grenades** fly as thrown and grow while they're in the air; then the smoke blooms, the fire burns, the flash bursts, the HE rings, each with its grade.
 - **The bomb:** next to whoever carries it, dropped (dashed ring), planted (blinking faster as the fuse runs out), defused or exploded.
-- **Killfeed** (top right, like CS2's): every kill as killer → weapon → victim, with the killer's letter in front and the victim's after their name. Click a kill to open its card.
+- **Killfeed** (top right, like CS2's): every kill as killer → weapon → victim, with the killer's mark in front and the victim's after their name (book moves stay plain). Click a kill to open its card.
 - **Move cards** (bottom left, with a line to the player): while playing, each evaluated move's card opens by itself, one at a time and in order, and the replay goes into slow motion until it's read, so none are skipped. **Stop to read** freezes on it until **Continue**; clicking the card skips to the next. Paused, a card opens for a kill you click, a moment you step to with previous / next, or the move you stopped on; the players it's about light up and the rest of the map dims, and **‹ ›** pages through moves at the same moment.
 - **Win chance** is the bar along the bottom of the map: CT from the left, T from the right.
 - The **slow-motion** button (stopwatch) turns slow motion off (the card then just shows the latest move), and the **cards** button (speech bubble) turns the cards off altogether (both remembered in your browser).
@@ -94,8 +107,24 @@ npm install
 npm run dev          # http://localhost:5173  (add `-- --host` to open it from other devices on your network)
 npm test             # tests (vitest, a few seconds)
 npm run build        # type-check + production build
+npm run train:coach -- <folder>   # train the coach on a folder of demos (see Training the coach)
 npm run build:maps   # regenerate src/map/generated/maps.json from public/images/maps/*.png (only after changing radars or tools/build-maps.mjs)
 ```
+
+### Training the coach
+
+The coach judges every player against FACEIT level-10 players, learned from their demos. Until that model has been
+trained it uses hand-set Premier numbers. To train it:
+
+1. Download demos of the group you want as the target (e.g. FACEIT level-10 matches: match room → Watch demo) into
+   one folder outside the project. `.dem`, `.dem.gz` and `.dem.zst` all work, no unpacking. 30 demos is a start,
+   60–100 is better; mix the maps.
+2. Run `npm run train:coach -- ~/path/to/folder` (options: `--name faceit10 --label "FACEIT level 10" --min-rounds 12`).
+   Every player who played at least 12 rounds counts as one sample; roles with 15+ samples get their own numbers
+   (an AWPer is compared with AWPers). Takes about 15–30 s a demo; each demo is cached in the folder, so adding more
+   later only reads the new ones.
+3. It writes `src/engine/models/faceit10.json` and prints the new normals next to Premier's. Commit that file: from
+   then on the coach (and the scoreboard colours) judge against it.
 
 Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings and imported matches stay in `.steam-cache/` (never committed).
 
@@ -141,7 +170,7 @@ Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings an
 | **Combat** | Seeded fight simulation: reaction times, peeker's advantage, crossfires, gun stats, flashes, HE/molotov damage and HP. Re-roll (dice) for other outcomes. 200-round batches give kill chances and round win rates. |
 | **Analysis** | Map control as territory with a front line, entry points (timing, holders, guns, crossfire, T pressure), predicted T plays, best spots for a selected CT, utility value. Hand-made layers for Mirage and Nuke, generated from geometry for the rest (Vertigo is rough). |
 | **Line-ups** | Starter library (Mirage, Dust II) and your own line-ups saved in the browser. "Use" makes the selected player walk to the spot and throw it. |
-| **Match review** | Demo rounds replay with smooth movement, look arrows, bullet tracers, grenades as thrown, the bomb, a CS2-style HUD and a live eval bar. Kills, grenades and costly deaths get a letter (S+ … F, see below) plus context tags; each player gets a round letter and a match letter on the same scale and a role (Entry, Lurk, Support, AWPer, Anchor, Rotator, Rifler). Premier ratings shape the eval and duel grades (UPSET); grades weigh each team's economy and guns. Move windows with a reading queue and slow motion. |
+| **Match review** | Demo rounds replay with smooth movement, look arrows, bullet tracers, grenades as thrown, the bomb, a CS2-style HUD and a live eval bar. Every kill, death, grenade, flash, plant and defuse gets a chess-style mark (!! ! book ? ??) plus context tags; each player gets a round grade and a match grade (S+ … F) and a role (Entry, Lurk, Support, AWPer, Anchor, Rotator, Rifler). Premier ratings shape the eval and duel grades (UPSET); grades weigh each team's economy and guns. Move windows with a reading queue and slow motion. |
 | **Match recap** | Built-in coach (work on / keep doing, rounds to watch), estimated game rating per player (chess-style performance rating from duels against real opponent ratings + round impact), match grade, full stats and a grid of round grades. |
 | **Demo folder** | Website: connect CS2's replays folder once; new demos are listed and read in the browser by themselves, results kept in IndexedDB. |
 | **Your matches** | Log in with Steam (OpenID) + Valve's match-history API list your new matches; **Download in CS2** via Valve's `steam://` link. Codes and lists are per Steam account. |
@@ -182,7 +211,9 @@ src/
                      tags, roles, ratings, key moments, and the reading queue for graded moves (calloutAt, readMs)
     match.ts         per-round summaries → per-player stats, performance rating, match grade
     match.worker.ts  grades every round of a loaded match off the main thread (started by Shell's useMatchGrader)
-    coach.ts         the coach: coachFeatures (match → numbers) → CoachModel (what's normal) → coach() notes; trainCoach()
+    coach.ts         the coach: coachFeatures (match → numbers) → CoachModel (what's normal, overall and per role) → coach()
+                     notes; trainCoach() / trainCoachSet() learn the model from games
+    coachModels.ts   COACH_MODEL: the trained level-10 model (models/faceit10.json), or the hand-set Premier one until it's trained
     sharecode.ts     share codes, CS2 download links, smart-paste extraction, OpenID login URL (no Node APIs: used by the site and the Worker)
     coords.ts / rng.ts
   map/
@@ -199,7 +230,7 @@ src/
     tokens.ts        design tokens: every colour, the fonts; applyTokens() writes them to :root, Konva imports the same values
     Board.tsx        Konva stage: radar, overlays, players, routes, utility, bomb, tools, gestures; the overlay slots
                      (.board-ui: HUD, layers menu, killfeed, zoom, grenade feed / card, eval bar, playback dock) around the map
-    MoveFeed.tsx     Review: KillFeed (every kill with letters, top right) and the move card: opens by itself while playing
+    MoveFeed.tsx     Review: KillFeed (every kill with its marks, top right) and the move card: opens by itself while playing
                      (reading queue, slow motion), or on click / previous-next / Stop to read when paused (store.feedPick); line to the player,
                      who it's about (onFocus dims the rest)
     shown.ts         the one rule for which moves are evaluated on screen (store.evalScope All / Mine, store.me); used by
@@ -226,6 +257,7 @@ tools/
   demo-wasm.mjs      adapter for the WebAssembly parser (website)
   demoparser-node/   Node build of the WebAssembly parser (CI)
   steam.mjs          desktop Steam backend: OpenID, Valve match-history API, replays-folder auto-import, parsed demos (.steam-cache/)
+  train-coach.ts     trains the coach on a folder of demos → src/engine/models/<name>.json (npm run train:coach)
   build-maps.mjs     radar PNG → grid (alpha = floor; small grey shapes = props/walls; dark lines = walls on Nuke/Vertigo)
   overviews/         Valve's overview .txt per map (pos_x/pos_y/scale, spawns, bomb markers), read by build-maps
 vite.config.ts       dev-server plugins: POST /api/demo parses a demo locally; /api/steam/* (me, status, openid, settings, sync, load…)
@@ -246,7 +278,7 @@ server/              demo bot, not hosted (server/README.md)
 ### Conventions and invariants
 - **Coordinates:** all geometry is in **radar pixels (0–1024)**. Convert to world units only via `coords.ts` (`worldToRadar`, `radarToWorld`). Engine timings use `engine.secPerPx(side, weapon)`.
 - **Grid:** `CELL = 4` px. `MapGrid.isWalkable`, `lineOfSight` (ray-marched, smokes as discs), `distanceField`, `shortestPath` (A* + string pulling).
-- **Grenade timing:** always use `popAt(u)` and `lifeOf(u)`; never hard-code flight constants. Grading lives in `recap.ts`: a move's letter from its win-chance change (`grade`: S+ ≥ +25%, S ≥ +15%, A ≥ +10%, B ≥ +3%, C neutral, D > −8%, E > −15%, F worse); deaths are marked only when untraded and −8% or worse (`isMarked`), tags from `TAG_INFO`, letters from `letterGrade`, roles from `playerRoles`, grenades in `gradeNade`.
+- **Grenade timing:** always use `popAt(u)` and `lifeOf(u)`; never hard-code flight constants. Grading lives in `recap.ts`: each move's annotation (`Annotation`, `NOTE_INFO`) is decided by rules in `reviewRound` (kills and deaths in the kill loop, grenades in `gradeNade` and the flash loop, plant / defuse from `round.bomb`); `isMarked` = not book; tags from `TAG_INFO`; a player's round grade from `roundGrade(moves, roundFacts(...))`, the match grade from `matchLetter` (match.ts); roles from `playerRoles`. `gain` (win-chance change) still feeds impact, points and the game rating.
 - **Facing:** radians in radar space (y down). `undefined` = auto-aim (`engine.facing(p)`). Demo yaw converts as `-yaw°`; interpolate angles the short way round.
 - **Simulation shape:** `combat.Simulation` (per-player arrays at `SIM_DT = 0.1 s`) is the common format for playback, control, kill feed and demo replays. Reuse it.
 - **Determinism:** everything random goes through `mulberry32(seed)`. Same board + seed = same round.

@@ -8,7 +8,7 @@ import { radarToWorld, worldToRadar } from '../engine/coords';
 import { simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
 import type { SpotMap } from '../engine/spots';
-import { bombAt, evalAt, GRADE_INFO, isMarked, type Review } from '../engine/recap';
+import { bombAt, evalAt, NOTE_INFO, type Review } from '../engine/recap';
 import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
 import { Gunfire } from './Shots';
@@ -295,7 +295,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const smokesNow = activeSmokes(s.board.utility, s.time, UNITS_PER_PX);
   // review: each grenade's letter (when it's evaluated: every move, or only yours), shown on the grenade itself
   const { shown } = useShown();
-  const nadeGrades = useMemo(() => new Map((recap?.moves ?? []).filter(m => m.util && shown(m)).map(m => [m.util!, m.grade])), [recap, shown]);
+  const nadeGrades = useMemo(() => new Map((recap?.moves ?? []).filter(m => m.util && shown(m)).map(m => [m.util!, m.note])), [recap, shown]);
   const losPoly = useMemo(
     () => (selected && s.overlays.los ? engine.grid.visibilityPolygon(selected.pos, smokesNow, [engine.facing(selected), FOV]) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -592,13 +592,14 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             const pi = sim.ids.indexOf(m.player);
             if (pi < 0) return null;
             const step = Math.min(sim.steps - 1, Math.round((m.kind === 'death' ? m.t : s.time) / 0.1));
-            const g = GRADE_INFO[m.grade];
+            const g = NOTE_INFO[m.note];
             const age = (s.time - m.t) / BADGE_SECS;
             return (
               <Group key={`badge-${i}`} x={sim.x[pi][step] + 13 * k} y={sim.y[pi][step] - 13 * k} listening={false}
                 opacity={age < 0.8 ? 1 : (1 - age) * 5} scaleX={age < 0.06 ? 0.6 + age * 7 : 1} scaleY={age < 0.06 ? 0.6 + age * 7 : 1}>
-                <Circle radius={9 * k} fill={g.color} stroke="#000" strokeWidth={1.5 * k} shadowColor="#000" shadowBlur={4} shadowOpacity={0.5} />
-                <Text text={g.mark} fontSize={(g.mark.length > 1 ? 9 : 11) * k} fontStyle="bold" fill="#111" width={18 * k} x={-9 * k} y={-5 * k} align="center" />
+                {/* book moves: a small plain dot; annotated ones: their !! ! ? ?? */}
+                <Circle radius={(m.note === 'book' ? 4.5 : 9) * k} fill={g.color} stroke="#000" strokeWidth={1.5 * k} shadowColor="#000" shadowBlur={4} shadowOpacity={0.5} />
+                {m.note !== 'book' && <Text text={g.mark} fontSize={(g.mark.length > 1 ? 9.5 : 12) * k} fontStyle="bold" fill="#111" width={18 * k} x={-9 * k} y={-5.5 * k} align="center" />}
               </Group>
             );
           })}

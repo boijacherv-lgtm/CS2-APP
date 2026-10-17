@@ -535,6 +535,7 @@ a.btn:hover { border-color: #45505e; }
 
 .coach-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .coach-head h2 { margin: 0; }
+.coach-vs { margin: 4px 0 0; font-size: 12px; }
 .coach-summary { font-size: 14px; margin: 6px 0 12px; }
 .dev-axis { display: grid; grid-template-columns: 170px 1fr 120px; font-size: 10.5px; margin-bottom: 4px; }
 .dev-axis span:first-child { grid-column: 2; } .dev-axis span:last-child { grid-column: 2; grid-row: 1; justify-self: end; }
@@ -542,7 +543,7 @@ a.btn:hover { border-color: #45505e; }
 .dev-row { width: 100%; display: grid; grid-template-columns: 170px 1fr 120px; align-items: center; gap: 10px; padding: 7px 4px; border-radius: 0; text-align: left; }
 .dev-row:hover:not(:disabled) { background: var(--surface-2); border-color: transparent; }
 .dev-label { font-weight: 600; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dev-flag { font-style: normal; width: 16px; height: 16px; border-radius: 4px; background: var(--letter-e); color: #111; font-size: 11px; font-weight: 900; display: grid; place-items: center; flex: none; }
+.dev-flag { font-style: normal; width: 16px; height: 16px; border-radius: 4px; background: var(--letter-d); color: #111; font-size: 11px; font-weight: 900; display: grid; place-items: center; flex: none; }
 .dev-bar { position: relative; height: 10px; background: var(--bg-1); border-radius: 5px; }
 .dev-bar::after { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--border-strong); }
 .dev-bar i { position: absolute; top: 0; bottom: 0; border-radius: 5px; background: var(--text-3); }
