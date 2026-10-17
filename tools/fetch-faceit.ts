@@ -1,10 +1,13 @@
 // Fetches good players' demos from FACEIT with its official API, for training the coach:
-//   - the FACEIT leaderboard (top N per region) and each player's recent 5v5 matches
-//   - pro-tier: matches of the FACEIT Pro League (FPL) hubs (found with the hub search, or given with --hubs)
+//   - the FACEIT leaderboard per region: the very top (--pro-top, default 30: mostly pros and FPL players, whose
+//     history includes their FPL matches) is the pro tier; the rest of the top N is level 10
+//   - each player's most recent 5v5 matches (--per-player), newest first
+//   - optionally a hub's matches (--hubs <ids>, from the hub page URL); FACEIT's official FPL hub isn't listed in
+//     the public API, so it isn't searched for
 // It keeps a target per map (fills the maps with fewest demos first), skips matches it already has, then trains
 // everything (learn:all) on the level-10 folder.
 //
-//   npm run fetch:faceit -- [--top 100] [--regions EU,NA] [--per-map 50] [--max 200] [--days 30]
+//   npm run fetch:faceit -- [--top 100] [--pro-top 30] [--per-player 8] [--regions EU,NA] [--per-map 50] [--max 200] [--days 30]
 //                           [--folder ~/Desktop/APPS/faceit-demos] [--pro-folder ~/Desktop/APPS/pro-demos]
 //                           [--hubs <hub ids>] [--no-pro] [--no-train] [--dry-run]
 //
@@ -29,6 +32,8 @@ const opt = (k: string, d?: string) => { const i = args.indexOf(`--${k}`); retur
 const flag = (k: string) => args.includes(`--${k}`);
 const home = (p: string) => p.replace(/^~(?=\/|$)/, os.homedir());
 const TOP = Number(opt('top', '100'));
+const PRO_TOP = Number(opt('pro-top', '30'));
+const PER_PLAYER = Number(opt('per-player', '8'));
 const REGIONS = opt('regions', 'EU,NA')!.split(',').map(s => s.trim()).filter(Boolean);
 const PER_MAP = Number(opt('per-map', '50'));
 const MAX = Number(opt('max', '200'));
@@ -77,7 +82,6 @@ async function api<T>(p: string, params: Record<string, string | number> = {}): 
 type Ranking = { items: { player_id: string; nickname: string; faceit_elo?: number; game_skill_level?: number }[] };
 type History = { items: { match_id: string; game_mode?: string; competition_type?: string; competition_name?: string; status?: string; finished_at?: number }[] };
 type Match = { match_id: string; status?: string; demo_url?: string[]; voting?: { map?: { pick?: string[] } }; competition_name?: string; finished_at?: number };
-type HubSearch = { items: { competition_id?: string; hub_id?: string; name: string; game?: string }[] };
 type HubMatches = { items: { match_id: string; status?: string }[] };
 
 // ---- what we have ------------------------------------------------------------------------------------------
@@ -99,12 +103,12 @@ function perMap(folder: string): Record<string, number> {
 }
 
 // ---- 1. candidates: top players' recent matches, and pro hubs' matches --------------------------------------
-async function topPlayers(): Promise<{ id: string; nick: string }[]> {
-  const out: { id: string; nick: string }[] = [];
+async function topPlayers(): Promise<{ id: string; nick: string; rank: number }[]> {
+  const out: { id: string; nick: string; rank: number }[] = [];
   for (const region of REGIONS)
     for (let offset = 0; offset < TOP; offset += 100) {
       const r = await api<Ranking>(`/rankings/games/cs2/regions/${region}`, { offset, limit: Math.min(100, TOP - offset) });
-      out.push(...r.items.map(i => ({ id: i.player_id, nick: i.nickname })));
+      out.push(...r.items.map((i, k) => ({ id: i.player_id, nick: i.nickname, rank: offset + k + 1 })));
       if (r.items.length < 100) break;
     }
   return out;
@@ -113,20 +117,11 @@ async function playerMatches(id: string): Promise<string[]> {
   const from = Math.floor(Date.now() / 1000) - DAYS * 86400;
   const h = await api<History>(`/players/${id}/history`, { game: 'cs2', from, offset: 0, limit: 100 });
   // finished 5v5 matches only (matchmaking queues and hubs; not wingman or 1v1)
-  return h.items.filter(m => (!m.game_mode || /5v5/i.test(m.game_mode)) && (!m.status || /finished/i.test(m.status))).map(m => m.match_id);
+  return h.items.filter(m => (!m.game_mode || /5v5/i.test(m.game_mode)) && (!m.status || /finished/i.test(m.status)))
+    .sort((a, b) => (b.finished_at ?? 0) - (a.finished_at ?? 0)).slice(0, PER_PLAYER).map(m => m.match_id);
 }
-async function proHubs(): Promise<string[]> {
-  const given = opt('hubs');
-  if (given) return given.split(',').map(s => s.trim()).filter(Boolean);
-  const found = new Map<string, string>();
-  for (const name of ['FPL', 'FACEIT Pro League']) {
-    const r = await api<HubSearch>('/search/hubs', { name, game: 'cs2', offset: 0, limit: 20 });
-    for (const h of r.items) { const id = h.competition_id ?? h.hub_id; if (id && /\bFPL\b|pro league/i.test(h.name) && !/challenger|qualif|academy|women|fem/i.test(h.name)) found.set(id, h.name); }
-  }
-  if (found.size) console.log(`Pro hubs: ${[...found.values()].join(', ')}`);
-  else console.log('No FPL hub found by search: pass hub ids with --hubs (the id is in the hub page URL on faceit.com).');
-  return [...found.keys()];
-}
+/** Hubs given with --hubs (their id is in the hub page URL on faceit.com). */
+const proHubs = (): string[] => (opt('hubs') ?? '').split(',').map(s => s.trim()).filter(Boolean);
 async function hubMatches(hub: string): Promise<string[]> {
   const ids: string[] = [];
   for (let offset = 0; offset < 300; offset += 100) {
@@ -163,8 +158,9 @@ async function main() {
     const counts = perMap(folder);
     const todo = [...new Set(matchIds)].filter(id => !state.seen[id]);
     console.log(`\n${label}: ${matchIds.length} matches found, ${todo.length} new. Demos per map now: ${Object.entries(counts).map(([m, n]) => `${m.replace('de_', '')} ${n}`).join(', ') || 'none'}`);
+    const full = () => [...supported].every(m => (counts[m] ?? 0) >= PER_MAP);
     for (const id of todo) {
-      if (got >= MAX) break;
+      if (got >= MAX || full()) break;
       let m: Match;
       try { m = await api<Match>(`/matches/${id}`); } catch (e) { console.log(`  ${id}: ${(e as Error).message}`); continue; }
       const map = m.voting?.map?.pick?.[0];
@@ -192,21 +188,23 @@ async function main() {
     }
   };
 
-  // pro tier first (fewer, better matches), then the leaderboard
-  if (!flag('no-pro')) {
-    const hubs = await proHubs();
-    const ids: string[] = [];
-    for (const h of hubs) ids.push(...await hubMatches(h));
-    await run('Pro (FPL)', PRO_FOLDER, ids);
-  }
+  // the leaderboard: the very top is the pro tier, the rest level 10
   const players = await topPlayers();
-  console.log(`\nTop players: ${players.length} (${REGIONS.join(', ')}).`);
-  const ids: string[] = [];
-  for (const [i, p] of players.entries()) {
-    try { ids.push(...await playerMatches(p.id)); } catch (e) { console.log(`  ${p.nick}: ${(e as Error).message}`); }
-    if ((i + 1) % 25 === 0) console.log(`  … ${i + 1}/${players.length} players, ${new Set(ids).size} matches`);
+  console.log(`Top players: ${players.length} (${REGIONS.join(', ')}); ranks 1–${PRO_TOP} count as pro tier.`);
+  const collect = async (list: typeof players) => {
+    const ids: string[] = [];
+    for (const [i, p] of list.entries()) {
+      try { ids.push(...await playerMatches(p.id)); } catch (e) { console.log(`  ${p.nick}: ${(e as Error).message}`); }
+      if ((i + 1) % 25 === 0) console.log(`  … ${i + 1}/${list.length} players, ${new Set(ids).size} matches`);
+    }
+    return ids;
+  };
+  if (!flag('no-pro')) {
+    const pro = await collect(players.filter(p => p.rank <= PRO_TOP));
+    for (const h of proHubs()) pro.push(...await hubMatches(h));
+    await run('Pro tier', PRO_FOLDER, pro);
   }
-  await run(`Top ${TOP} (level 10)`, FOLDER, ids);
+  await run(`Top ${TOP} (level 10)`, FOLDER, await collect(players.filter(p => p.rank > PRO_TOP)));
   saveState();
 
   if (links.length) {
