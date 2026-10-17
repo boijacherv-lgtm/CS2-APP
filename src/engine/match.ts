@@ -63,7 +63,8 @@ export function summarizeRound(rep: Replay, rv: Review): RoundSummary {
     const traded = !!died && r.kills.some(k => k.victim === died.attacker && k.t > died.t && k.t - died.t <= 5);
     lines[id] = {
       side, letter, points,
-      impact: moves.reduce((a, m) => a + m.gain, 0),
+      // positioning decisions carry their eval loss, not a win-chance change: they're not impact
+      impact: moves.filter(m => m.kind !== 'position').reduce((a, m) => a + m.gain, 0),
       role: rv.roles[id]?.role ?? 'Rifler',
       kills: kills.length, deaths: died ? 1 : 0, headshots: kills.filter(k => k.headshot).length,
       damage: gunDmg + utilDamage, utilDamage,

@@ -13,7 +13,7 @@ import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { parseDemo } from './demo.mjs';
+import { loadDemo, positionsFromDemo, POSITIONS_V } from './learn-lib';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { equipValue, type DemoData } from '../src/engine/recap';
 import { worldToRadar } from '../src/engine/coords';
@@ -27,7 +27,7 @@ const only = opt('map');
 if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run learn:positions -- <folder with demos> [--map de_dust2]'); process.exit(1); }
 const OUT = path.resolve(import.meta.dirname, '../src/map/generated/positions.json');
 const CACHE = path.join(folder, '.stratboard-positions-cache.json');
-const CACHE_V = 7; // + paths only the first 8 s after leaving a spot
+const CACHE_V = POSITIONS_V;
 
 type Round = { winner: 'CT' | 'T' | null; holds: Hold[]; moves: Move[] };
 type Cached = { map: string | null; rounds: Round[]; error?: string };
@@ -43,32 +43,7 @@ const files = fs.readdirSync(folder).filter(f => /\.dem(\.gz|\.zst)?$/i.test(f))
 const keyOf = (f: string) => `${f.replace(/ \(\d+\)(?=\.dem)/, '')}|${fs.statSync(path.join(folder, f)).size}`;
 const seen = new Set<string>();
 
-function read(file: string): Cached {
-  let p = file, temp = false;
-  if (!/\.dem$/i.test(file)) {
-    const raw = fs.readFileSync(file);
-    p = path.join(os.tmpdir(), `stratboard-positions-${process.pid}.dem`);
-    fs.writeFileSync(p, /\.zst$/i.test(file) ? zlib.zstdDecompressSync(raw) : zlib.gunzipSync(raw));
-    temp = true;
-  }
-  try {
-    const d: DemoData = parseDemo(p);
-    if (!MAPS.some(m => m.id === d.map)) return { map: d.map, rounds: [], error: `map ${d.map} isn't supported` };
-    const engine = getEngine(d.map, 0);
-    return {
-      map: d.map,
-      rounds: d.rounds.map(r => {
-        const dec = roundDecisions(engine, r);
-        // the side's win chance at each decision (CT's chance from the learned model, flipped for Ts)
-        const p = roundWinChance(engine, r, id => equipValue(r.econ?.[id]), w => worldToRadar(w, engine.map.radar));
-        const forSide = (side: 'CT' | 'T', t: number) => { const v = p(t); return v === null ? undefined : +(side === 'CT' ? v : 1 - v).toFixed(3); };
-        for (const h of dec.holds) h.ev = forSide(h.side, h.from);
-        for (const m of dec.moves) m.ev = forSide(m.side, m.t);
-        return { winner: r.winner, ...dec };
-      }),
-    };
-  } finally { if (temp) fs.rmSync(p, { force: true }); }
-}
+const read = (f: string): Cached => positionsFromDemo(loadDemo(folder, f));
 
 const t0 = Date.now();
 files.forEach((f, i) => {
@@ -79,7 +54,7 @@ files.forEach((f, i) => {
   if (cache[key] && !(cache[key].error && !/MalformedMessage/.test(cache[key].error!))) return;
   if (only && spotsCache[key]?.map && spotsCache[key].map !== only) return;
   const t = Date.now();
-  try { cache[key] = read(path.join(folder, f)); } catch (e) { cache[key] = { map: null, rounds: [], error: e instanceof Error ? e.message : String(e) }; }
+  try { cache[key] = read(f); } catch (e) { cache[key] = { map: null, rounds: [], error: e instanceof Error ? e.message : String(e) }; }
   const c = cache[key];
   console.log(`[${i + 1}/${files.length}] ${f}  ${c.error ? `skipped: ${c.error}` : `${c.map}, ${c.rounds.length} rounds`}  ${((Date.now() - t) / 1000).toFixed(0)} s`);
   save();

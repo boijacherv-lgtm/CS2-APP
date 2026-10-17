@@ -1114,7 +1114,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (m.kind !== 'position') players[m.player].impact += m.gain;
     players[m.player].counts[m.note]++;
   }
-  const turningPoint = moves.filter(m => m.kind !== 'death').reduce<Move | null>((best, m) => (!best || Math.abs(m.gain) > Math.abs(best.gain) ? m : best), null);
+  const turningPoint = moves.filter(m => m.kind !== 'death' && m.kind !== 'position').reduce<Move | null>((best, m) => (!best || Math.abs(m.gain) > Math.abs(best.gain) ? m : best), null);
   return { curve, moves, players, roles: playerRoles(engine, rep, moves), turningPoint };
 }
 

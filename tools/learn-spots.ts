@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { parseDemo } from './demo.mjs';
+import { loadDemo, spotsFromDemo } from './learn-lib';
 import type { DemoData } from '../src/engine/recap';
 
 const args = process.argv.slice(2).filter(a => a !== '--');
@@ -31,25 +31,7 @@ const files = fs.readdirSync(folder).filter(f => /\.dem(\.gz|\.zst)?$/i.test(f))
 const keyOf = (f: string) => `${f.replace(/ \(\d+\)(?=\.dem)/, '')}|${fs.statSync(path.join(folder, f)).size}`;
 const seen = new Set<string>();
 
-function read(file: string): Cached {
-  let p = file, temp = false;
-  if (!/\.dem$/i.test(file)) {
-    const raw = fs.readFileSync(file);
-    p = path.join(os.tmpdir(), `stratboard-spots-${process.pid}.dem`);
-    fs.writeFileSync(p, /\.zst$/i.test(file) ? zlib.zstdDecompressSync(raw) : zlib.gunzipSync(raw));
-    temp = true;
-  }
-  try {
-    const d: DemoData = parseDemo(p);
-    const landings: Landing[] = [];
-    for (const r of d.rounds)
-      for (const u of r.util) {
-        const side = r.frames.players[u.thrower]?.side;
-        if ((u.type === 'smoke' || u.type === 'molotov') && side) landings.push({ type: u.type, side, x: Math.round(u.x), y: Math.round(u.y) });
-      }
-    return { map: d.map, landings };
-  } finally { if (temp) fs.rmSync(p, { force: true }); }
-}
+const read = (f: string): Cached => spotsFromDemo(loadDemo(folder, f));
 
 files.forEach((f, i) => {
   const key = keyOf(f);
@@ -57,7 +39,7 @@ files.forEach((f, i) => {
   seen.add(key);
   if (!cache[key]) {
     const t = Date.now();
-    try { cache[key] = read(path.join(folder, f)); } catch (e) { cache[key] = { map: null, landings: [], error: e instanceof Error ? e.message : String(e) }; }
+    try { cache[key] = read(f); } catch (e) { cache[key] = { map: null, landings: [], error: e instanceof Error ? e.message : String(e) }; }
     console.log(`[${i + 1}/${files.length}] ${f}  ${cache[key].error ? `skipped: ${cache[key].error}` : `${cache[key].map}, ${cache[key].landings.length} grenades`}  ${((Date.now() - t) / 1000).toFixed(0)} s`);
     fs.writeFileSync(CACHE, JSON.stringify(cache));
   }

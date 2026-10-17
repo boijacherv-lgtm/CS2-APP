@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { parseDemo } from './demo.mjs';
+import { coachFromDemo, COACH_V, loadDemo } from './learn-lib';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { buildReplay, reviewRound, type DemoData, type Role } from '../src/engine/recap';
 import { buildMatchReport, summarizeRound, type RoundSummary } from '../src/engine/match';
@@ -33,7 +33,7 @@ const CONTEXT: BoardState['context'] = { userSide: 'CT', phase: 'early', economy
 
 type Cached = { map: string | null; samples: (Sample & { rounds: number })[]; error?: string };
 // bump when the numbers are computed differently, so cached demos are read again
-const CACHE_V = 2;
+const CACHE_V = COACH_V;
 const stored = fs.existsSync(CACHE) ? JSON.parse(fs.readFileSync(CACHE, 'utf8')) : {};
 const cache: Record<string, Cached> = stored.v === CACHE_V ? stored.demos : {};
 const saveCache = () => fs.writeFileSync(CACHE, JSON.stringify({ v: CACHE_V, demos: cache }));
@@ -44,32 +44,7 @@ const files = fs.readdirSync(folder, { withFileTypes: true }).flatMap(d =>
   .filter(f => /\.dem(\.gz|\.zst)?$/i.test(f)).sort();
 if (!files.length) { console.error(`No .dem / .dem.gz / .dem.zst files in ${folder}`); process.exit(1); }
 
-/** A plain .dem on disk for the parser: the file itself, or an unpacked copy in the temp folder. */
-function demPath(file: string): { p: string; temp: boolean } {
-  if (/\.dem$/i.test(file)) return { p: file, temp: false };
-  const raw = fs.readFileSync(file);
-  const dem = /\.zst$/i.test(file) ? zlib.zstdDecompressSync(raw) : zlib.gunzipSync(raw);
-  const p = path.join(os.tmpdir(), `stratboard-train-${process.pid}.dem`);
-  fs.writeFileSync(p, dem);
-  return { p, temp: true };
-}
-
-function readDemo(file: string): Cached {
-  const { p, temp } = demPath(file);
-  try {
-    const data: DemoData = parseDemo(p);
-    if (!MAPS.some(m => m.id === data.map)) return { map: data.map, samples: [], error: `map ${data.map} isn't supported` };
-    const engine = getEngine(data.map, 0);
-    const rounds: (RoundSummary | null)[] = data.rounds.map((_, i) => {
-      try { const rep = buildReplay(engine, data, i, CONTEXT); return summarizeRound(rep, reviewRound(engine, rep)); } catch { return null; }
-    });
-    const report = buildMatchReport(data, rounds);
-    const samples = report.players.filter(pl => pl.played >= minRounds).map(pl => ({
-      features: coachFeatures(pl), role: (pl.roles[0]?.role ?? 'Rifler') as Role, rounds: pl.played,
-    }));
-    return { map: data.map, samples };
-  } finally { if (temp) fs.rmSync(p, { force: true }); }
-}
+const readDemo = (f: string): Cached => coachFromDemo(loadDemo(folder, f), minRounds);
 
 // the same demo downloaded twice ("x.dem.zst" and "x (1).dem.zst") counts once
 const keyOf = (f: string) => `${f.replace(/ \(\d+\)(?=\.dem)/, '')}|${fs.statSync(path.join(folder, f)).size}`;
@@ -84,7 +59,7 @@ files.forEach((f, i) => {
   const tag = `[${String(i + 1).padStart(String(files.length).length)}/${files.length}] ${f}`;
   if (cache[key]) { console.log(`${tag}  (cached, ${cache[key].samples.length} players)`); return; }
   const s = Date.now();
-  try { cache[key] = readDemo(full); } catch (e) { cache[key] = { map: null, samples: [], error: e instanceof Error ? e.message : String(e) }; }
+  try { cache[key] = readDemo(f); } catch (e) { cache[key] = { map: null, samples: [], error: e instanceof Error ? e.message : String(e) }; }
   const c = cache[key];
   console.log(`${tag}  ${c.error ? `skipped: ${c.error}` : `${c.map}, ${c.samples.length} players`}  ${((Date.now() - s) / 1000).toFixed(0)} s`);
   saveCache();

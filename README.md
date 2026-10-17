@@ -117,6 +117,19 @@ npm run calibrate:engine -- <folder>   # re-calibrate the positioning engine (le
 npm run build:maps   # regenerate src/map/generated/maps.json from public/images/maps/*.png (only after changing radars or tools/build-maps.mjs)
 ```
 
+### Training everything at once
+
+```bash
+npm run learn:all -- ~/path/to/folder        # all learners, several CPU cores (--workers N to choose)
+```
+
+`tools/learn-all.ts` finds the demos any learner hasn't read yet, splits them over worker processes
+(`tools/learn-worker.ts`, as many as fit in memory: the demo reader can peak near 3 GB), reads each demo **once** for
+all learners (the per-demo code is shared in `tools/learn-lib.ts`) and saves the read in `<folder>/.stratboard-parsed`
+so the next run loads it in a fraction of a second; then each learner only aggregates, and the positioning engine
+is re-calibrated. 52 demos from scratch: about 9 minutes on 4 workers (it was ~45 min with the learners one by one);
+adding a few new demos takes a minute or two. The learners still work on their own (below).
+
 ### Training the coach
 
 The coach judges every player against FACEIT level-10 players, learned from their demos. Until that model has been
