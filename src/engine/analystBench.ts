@@ -1,4 +1,5 @@
 import type { AnalystRound, DuelFact, RoundType } from './analyst';
+import { addMicro, emptyMicro, type MicroFacts } from './micro';
 import type { BuyType } from './recap';
 import type { Side } from './types';
 
@@ -10,6 +11,24 @@ import type { Side } from './types';
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 const rate = (n: number, d: number) => (d ? n / d : 0);
 const SPACING = [[0, 300, 'under 8 m'], [300, 800, '8–20 m'], [800, 1500, '20–38 m'], [1500, Infinity, 'over 38 m']] as const;
+
+export interface MicroBench {
+  stopped: number; airShare: number; longSprays: number; floor: number; loud: number; reloadsNear: number; diedEmpty: number; wrongWeapon: number;
+  awpScoped: number; noScopes: number;
+  /** Win rate and share of peeks for each technique. */
+  peeks: Record<'jiggle' | 'wide' | 'plain', { win: number; share: number; n: number }>;
+}
+/** Rates from summed micro facts (the same for a benchmark and for one player). */
+export function microRates(m: MicroFacts): MicroBench {
+  const r = (a: number, b: number) => +(b ? a / b : 0).toFixed(3);
+  const peekN = (['jiggle', 'wide', 'plain'] as const).reduce((a, k) => a + m.peeks[k][0] + m.peeks[k][1], 0);
+  return {
+    stopped: r(m.stoppedBursts, m.bursts), airShare: r(m.airShots, m.shots), longSprays: r(m.longSprays, m.bursts), floor: r(m.floorSamples, m.movingSamples),
+    loud: r(m.loudSamples, m.nearSamples), reloadsNear: r(m.reloadsNear, m.reloads), diedEmpty: r(m.diedEmpty, m.deaths), wrongWeapon: r(m.diedWrongWeapon, m.deaths),
+    awpScoped: r(m.awpScoped, m.awpContacts), noScopes: r(m.noScopes, m.awpShots),
+    peeks: Object.fromEntries((['jiggle', 'wide', 'plain'] as const).map(k => { const n = m.peeks[k][0] + m.peeks[k][1]; return [k, { win: r(m.peeks[k][0], n), share: r(n, peekN), n }]; })) as MicroBench['peeks'],
+  };
+}
 
 export interface TradeSpot { death: string; n: number; tradedRate: number; avgTime: number; traders: { place: string; chances: number; conv: number; dist: number }[] }
 
@@ -35,6 +54,8 @@ export interface Bench {
   plans: { types: { type: string; n: number; tWin: number }[]; setups: { setup: string; n: number; ctWin: number }[]; firstContact: number; plantTime: number };
   utility: Record<Side, { thrown: number; beforeContact: number; flashConv: number; teamFlashes: number }> & { executeAvg: number; winWithExecute: number; winWithout: number };
   economy: { pairs: { t: BuyType; ct: BuyType; n: number; tWin: number }[] };
+  /** Micro play rates over all player-rounds (micro.ts), when the demos have the micro detail. */
+  micro?: MicroBench;
   postPlant: { n: number; tWin: number; byNumbers: { key: string; n: number; tWin: number }[]; bySpread: { bucket: string; n: number; tWin: number }[]; byWatching: { watching: string; n: number; tWin: number }[] };
 }
 
@@ -178,6 +199,7 @@ export function benchmarks(rounds: AnalystRound[], demos: number): Bench {
       pairs: group(r => { const t = r.economy.find(e => e.side === 'T')!, c = r.economy.find(e => e.side === 'CT')!; return `${t.buy}|${c.buy}`; }, r => r.winner === 'T')
         .map(x => { const [t, ct] = x.k.split('|') as [BuyType, BuyType]; return { t, ct, n: x.n, tWin: x.w }; }),
     },
+    ...(rounds.some(r => r.micro) ? { micro: microRates(rounds.reduce((t, r) => { for (const m of Object.values(r.micro ?? {})) addMicro(t, m); return t; }, emptyMicro())) } : {}),
     postPlant: {
       n: pp.length, tWin: +rate(pp.filter(r => r.winner === 'T').length, pp.length).toFixed(2),
       byNumbers: group(r => (r.postPlant ? `${r.postPlant.tAlive}v${r.postPlant.ctAlive}` : null), r => r.winner === 'T').map(x => ({ key: x.k, n: x.n, tWin: x.w })),
@@ -190,7 +212,7 @@ export function benchmarks(rounds: AnalystRound[], demos: number): Bench {
 // ---- one match: a player and their team against the benchmark ---------------------------------------------
 
 export interface Finding { topic: Topic; title: string; detail: string; rounds: number[]; good: boolean; weight: number }
-export type Topic = 'Trades' | 'Duels' | 'Openings' | 'Map control' | 'Rotations' | 'Round plans' | 'Utility' | 'Economy' | 'Post-plant';
+export type Topic = 'Micro' | 'Trades' | 'Duels' | 'Openings' | 'Map control' | 'Rotations' | 'Round plans' | 'Utility' | 'Economy' | 'Post-plant';
 export interface Stat { label: string; you: string; pro: string; better: boolean | null }
 export interface AnalystReport { stats: Record<Topic, Stat[]>; findings: Finding[] }
 
@@ -427,6 +449,49 @@ export function analystReport(rounds: (AnalystRound | null | undefined)[], playe
   if (tight.length >= 2 && spreadPro && tightPro && spreadPro.tWin > tightPro.tWin)
     findings.push({ topic: 'Post-plant', good: false, weight: 2, rounds: tight.map(x => x.i),
       title: 'Spread out after the plant', detail: `${tight.length} lost post-plants with your team stacked close together. Level-10 Ts win ${pct(spreadPro.tWin)} of post-plants when spread out, ${pct(tightPro.tWin)} when tight: one grenade or one spray shouldn't reach two of you.` });
+
+  // micro play
+  const mm = rs.reduce((t, x) => (x.r.micro?.[player] ? addMicro(t, x.r.micro[player]) : t), emptyMicro());
+  const mb = bench.micro;
+  const mineRates = microRates(mm);
+  const roundsWith = (f: (m: MicroFacts) => boolean) => rs.filter(x => x.r.micro?.[player] && f(x.r.micro[player])).map(x => x.i);
+  if (mb && mm.shots + mm.movingSamples > 0) {
+    stats.Micro = [
+      { label: 'First shots fired stopped (counter-strafe)', you: `${pct(mineRates.stopped)} (${mm.bursts})`, pro: pct(mb.stopped), better: cmp(mineRates.stopped, mb.stopped) },
+      { label: 'Aiming at the floor while moving', you: pct(mineRates.floor), pro: pct(mb.floor), better: cmp(mineRates.floor, mb.floor, false, 0.02) },
+      { label: 'Running (footsteps) with enemies near', you: pct(mineRates.loud), pro: pct(mb.loud), better: cmp(mineRates.loud, mb.loud, false, 0.04) },
+      { label: 'Jump shots', you: pct(mineRates.airShare), pro: pct(mb.airShare), better: cmp(mineRates.airShare, mb.airShare, false, 0.01) },
+      { label: 'Sprays of 8+ bullets', you: pct(mineRates.longSprays), pro: pct(mb.longSprays), better: cmp(mineRates.longSprays, mb.longSprays, false, 0.03) },
+      { label: 'Reloads with bullets left near enemies', you: `${mm.reloadsNear} of ${mm.reloads}`, pro: pct(mb.reloadsNear), better: mm.reloads ? cmp(mineRates.reloadsNear, mb.reloadsNear, false) : null },
+      { label: 'Deaths with knife / grenade in hand', you: `${mm.diedWrongWeapon} of ${mm.deaths}`, pro: pct(mb.wrongWeapon), better: mm.deaths ? cmp(mineRates.wrongWeapon, mb.wrongWeapon, false, 0.03) : null },
+      { label: 'Deaths needing a reload (3 bullets or fewer)', you: `${mm.diedEmpty} of ${mm.deaths}`, pro: pct(mb.diedEmpty), better: mm.deaths ? cmp(mineRates.diedEmpty, mb.diedEmpty, false, 0.03) : null },
+      ...(mm.awpContacts ? [{ label: 'AWP scoped when they appeared', you: `${pct(mineRates.awpScoped)} (${mm.awpContacts})`, pro: pct(mb.awpScoped), better: cmp(mineRates.awpScoped, mb.awpScoped) }] : []),
+      ...(['jiggle', 'wide', 'plain'] as const).filter(k => mineRates.peeks[k].n).map(k => ({ label: `${k === 'jiggle' ? 'Jiggle' : k === 'wide' ? 'Wide' : 'Plain'} peeks won`, you: `${pct(mineRates.peeks[k].win)} (${mm.peeks[k][0]}–${mm.peeks[k][1]})`, pro: `${pct(mb.peeks[k].win)} · ${pct(mb.peeks[k].share)} of their peeks`, better: mineRates.peeks[k].n >= 4 ? cmp(mineRates.peeks[k].win, mb.peeks[k].win, true, 0.08) : null })),
+    ];
+    const f = (title: string, detail: string, rounds: number[], weight: number, good = false) => findings.push({ topic: 'Micro', good, weight, rounds, title, detail });
+    if (mm.bursts >= 15 && mineRates.stopped < mb.stopped - 0.1)
+      f('Counter-strafe before you shoot', `Only ${pct(mineRates.stopped)} of your first shots were fired at an accurate speed (level-10: ${pct(mb.stopped)}). Moving shots go wide: tap the opposite movement key to stop, then shoot (A then D, D then A).`, roundsWith(m => m.bursts - m.stoppedBursts >= 2), 4 + (mb.stopped - mineRates.stopped) * 10);
+    if (mm.movingSamples >= 40 && mineRates.floor > mb.floor + 0.05)
+      f('Keep your crosshair at head height', `You look at the floor ${pct(mineRates.floor)} of the time while moving (level-10: ${pct(mb.floor)}). Every enemy you meet then needs a flick up: keep the crosshair where heads appear.`, roundsWith(m => m.floorSamples >= 4), 3);
+    if (mm.nearSamples >= 40 && mineRates.loud > mb.loud + 0.08)
+      f('Walk when enemies are close', `You run (making footsteps) ${pct(mineRates.loud)} of the time with an enemy within hearing range (level-10: ${pct(mb.loud)}). They hear you coming and pre-aim you: shift-walk the last part of your approach.`, roundsWith(m => m.loudSamples >= 6), 2.5);
+    if (mm.reloadsNear >= 2 && mineRates.reloadsNear > mb.reloadsNear + 0.1)
+      f("Don't reload near enemies", `${mm.reloadsNear} times you reloaded with bullets left while an enemy was close (level-10: ${pct(mb.reloadsNear)} of reloads). Fall back or wait for a teammate to cover before reloading.`, roundsWith(m => m.reloadsNear > 0), 2);
+    if (mm.diedWrongWeapon >= 2)
+      f('Have your gun out', `You died ${mm.diedWrongWeapon} times holding a knife, grenade or the bomb (level-10: ${pct(mb.wrongWeapon)} of deaths). Pull the gun out before you reach a corner an enemy could hold.`, roundsWith(m => m.diedWrongWeapon > 0), 2.5);
+    if (mm.diedEmpty >= 2 && mineRates.diedEmpty > mb.diedEmpty + 0.05)
+      f('Reload before the next fight', `${mm.diedEmpty} of your deaths came with 3 bullets or fewer in the magazine (level-10: ${pct(mb.diedEmpty)}). After a fight, reload in cover before taking the next one.`, roundsWith(m => m.diedEmpty > 0), 2);
+    if (mm.airShots >= 5 && mineRates.airShare > mb.airShare * 2 + 0.01)
+      f('Stop jump-shooting', `${mm.airShots} of your shots were fired in the air (${pct(mineRates.airShare)}, level-10: ${pct(mb.airShare)}). Jumping shots are close to random: land first.`, roundsWith(m => m.airShots >= 2), 2);
+    if (mm.bursts >= 15 && mineRates.longSprays > mb.longSprays + 0.08)
+      f('Burst at range', `${pct(mineRates.longSprays)} of your bursts were sprays of 8+ bullets (level-10: ${pct(mb.longSprays)}). Past close range, tap or burst 2–4 bullets and reset.`, roundsWith(m => m.longSprays >= 2), 1.5);
+    if (mm.awpContacts >= 4 && mineRates.awpScoped < mb.awpScoped - 0.15)
+      f('Be scoped when they appear', `With the AWP you were scoped only ${pct(mineRates.awpScoped)} of the times an enemy came into the fight (level-10 AWPers: ${pct(mb.awpScoped)}). Hold the angle scoped, or don't hold it.`, roundsWith(m => m.awpContacts > m.awpScoped), 2.5);
+    // peek technique: at level 10 jiggle, wide and plain peeks all win about the same, so no "peek like this" advice;
+    // the Micro tab shows the player's own win rate for each
+    if (mm.bursts >= 15 && mineRates.stopped >= mb.stopped + 0.08)
+      f('Clean counter-strafing', `${pct(mineRates.stopped)} of your first shots were fired stopped (level-10: ${pct(mb.stopped)}).`, [], 2, true);
+  }
 
   findings.sort((a, b) => Number(a.good) - Number(b.good) || b.weight - a.weight);
   return { stats, findings };

@@ -3,6 +3,7 @@ import type { TacticalEngine } from './predict';
 import { teamEconomy, type BuyType, type DemoRound, type Fight, type FightTrack } from './recap';
 import { gunFromName } from './guns';
 import { placeOf } from './situations';
+import { analyzeMicro, type MicroFacts } from './micro';
 import { SMOKE_RADIUS_UNITS, type SmokeDisc } from './grid';
 import type { Side, Vec2, Weapon } from './types';
 
@@ -82,6 +83,8 @@ export interface AnalystRound {
   n: number; winner: Side | null;
   trades: TradeFact[]; duels: DuelFact[]; control: ControlFact[]; rotations: RotationFact[];
   plan: PlanFact; utility: UtilityFact[]; economy: EconomyFact[]; postPlant: PostPlantFact | null;
+  /** Micro play per player (micro.ts); only for parses with the micro detail. */
+  micro?: Record<string, MicroFacts>;
 }
 
 const MOVING = 110; // game units a second: faster than this is moving (walking ~130, running ~250)
@@ -341,5 +344,6 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
     };
   }
 
-  return { n: r.n, winner: r.winner, trades, duels, control, rotations: rotationsKept, plan, utility, economy, postPlant };
+  const micro = analyzeMicro(r);
+  return { n: r.n, winner: r.winner, trades, duels, control, rotations: rotationsKept, plan, utility, economy, postPlant, ...(micro ? { micro } : {}) };
 }

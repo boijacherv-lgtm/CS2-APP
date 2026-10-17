@@ -117,6 +117,21 @@ npm run calibrate:engine -- <folder>   # re-calibrate the positioning engine (le
 npm run build:maps   # regenerate src/map/generated/maps.json from public/images/maps/*.png (only after changing radars or tools/build-maps.mjs)
 ```
 
+### Fetching demos from FACEIT automatically
+
+```bash
+npm run fetch:faceit -- [--top 100] [--regions EU,NA] [--per-map 50] [--max 200] [--days 30] [--dry-run]
+```
+
+`tools/fetch-faceit.ts` uses FACEIT's official API: the leaderboard (top N per region) and each player's recent 5v5
+matches go to `~/Desktop/APPS/faceit-demos`; FACEIT Pro League (FPL) hub matches (found by hub search, or `--hubs
+<ids>`) go to `~/Desktop/APPS/pro-demos`. It fills the maps with the fewest demos first up to `--per-map`, skips
+matches it already handled (`faceit-demos/.stratboard-faceit.json`), then runs `learn:all` on the level-10 folder.
+It needs two keys in `cs2-tactics/.env` (never committed), both created by you at developers.faceit.com:
+`FACEIT_API_KEY` (a free server-side Data API key) and `FACEIT_DOWNLOADS_TOKEN` (a token with the Downloads API
+scope: apply at fce.gg/downloads-api-application, FACEIT answers within ~30 days). Without the second, it writes the
+matches it found to `faceit-demos/faceit-links.txt` (map + match room) to download by hand.
+
 ### Training everything at once
 
 ```bash
@@ -129,6 +144,19 @@ all learners (the per-demo code is shared in `tools/learn-lib.ts`) and saves the
 so the next run loads it in a fraction of a second; then each learner only aggregates, and the positioning engine
 is re-calibrated. 52 demos from scratch: about 9 minutes on 4 workers (it was ~45 min with the learners one by one);
 adding a few new demos takes a minute or two. The learners still work on their own (below).
+
+### Micro play
+
+Demos now carry micro detail (`round.frames.players[id].pitch / fl / w / am`: aim pitch, stance bits for walking,
+crouching, scoped, in the air and spotted, weapon in hand, ammo; every shot's speed, stance and weapon). From it
+`src/engine/micro.ts` measures per player per round: counter-strafing (first shot of each burst at an accurate
+speed for that gun), jump shots, long sprays, crosshair placement while moving (aiming at the floor), sound
+discipline (running with an enemy within hearing range), reloads near enemies, deaths with a knife / grenade out or
+needing a reload, AWP scoped on contact and no-scopes, and peek technique (jiggle, wide, plain) with its win rate.
+`learn:analyst` / `learn:all` learn the level-10 rates (e.g. 62% of first shots fired stopped, 3.7% aiming at the
+floor while moving); Match recap's Analyst report has a **Micro** tab and findings ("Counter-strafe before you shoot",
+"Keep your crosshair at head height", "Walk when enemies are close", "Have your gun out", …), and deaths in Review are
+tagged KNIFE OUT, NO AMMO, MOVING SHOT or LOUD.
 
 ### Training the coach
 

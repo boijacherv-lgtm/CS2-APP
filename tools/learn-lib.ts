@@ -19,9 +19,9 @@ import type { BoardState } from '../src/engine/types';
 // ---- cache versions: bump when that learner's per-demo numbers are computed differently -----------------------
 export const COACH_V = 3; // 3: impact leaves out positioning decisions
 export const POSITIONS_V = 7; // + paths only the first 8 s after leaving a spot
-export const ANALYST_V = 4; // + trade geometry: where teammates stood, where traders shot from
+export const ANALYST_V = 5; // + micro play per player (counter-strafing, crosshair, sound, reloads, peeks…)
 /** Bump when tools/demo-core.mjs reads demos differently (new fields), so saved reads are redone. */
-export const PARSE_V = 4;
+export const PARSE_V = 5; // 5: micro detail (pitch, stance, weapon, ammo; shot speed)
 
 // ---- the demo folder -------------------------------------------------------------------------------------
 /** Demos in a folder (and one level of subfolders), as paths relative to it. */

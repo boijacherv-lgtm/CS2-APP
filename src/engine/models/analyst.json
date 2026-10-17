@@ -2840,6 +2840,35 @@
     }
    ]
   },
+  "micro": {
+   "stopped": 0.618,
+   "airShare": 0.012,
+   "longSprays": 0.162,
+   "floor": 0.037,
+   "loud": 0.199,
+   "reloadsNear": 0.228,
+   "diedEmpty": 0.038,
+   "wrongWeapon": 0.043,
+   "awpScoped": 0.513,
+   "noScopes": 0.045,
+   "peeks": {
+    "jiggle": {
+     "win": 0.481,
+     "share": 0.185,
+     "n": 1734
+    },
+    "wide": {
+     "win": 0.473,
+     "share": 0.455,
+     "n": 4276
+    },
+    "plain": {
+     "win": 0.495,
+     "share": 0.36,
+     "n": 3382
+    }
+   }
+  },
   "postPlant": {
    "n": 370,
    "tWin": 0.78,
@@ -4053,6 +4082,35 @@
       "tWin": 0.5
      }
     ]
+   },
+   "micro": {
+    "stopped": 0.606,
+    "airShare": 0.011,
+    "longSprays": 0.158,
+    "floor": 0.04,
+    "loud": 0.174,
+    "reloadsNear": 0.219,
+    "diedEmpty": 0.032,
+    "wrongWeapon": 0.041,
+    "awpScoped": 0.534,
+    "noScopes": 0.045,
+    "peeks": {
+     "jiggle": {
+      "win": 0.456,
+      "share": 0.189,
+      "n": 439
+     },
+     "wide": {
+      "win": 0.475,
+      "share": 0.453,
+      "n": 1054
+     },
+     "plain": {
+      "win": 0.489,
+      "share": 0.358,
+      "n": 833
+     }
+    }
    },
    "postPlant": {
     "n": 84,
@@ -5763,6 +5821,35 @@
      }
     ]
    },
+   "micro": {
+    "stopped": 0.643,
+    "airShare": 0.011,
+    "longSprays": 0.157,
+    "floor": 0.036,
+    "loud": 0.211,
+    "reloadsNear": 0.207,
+    "diedEmpty": 0.04,
+    "wrongWeapon": 0.047,
+    "awpScoped": 0.501,
+    "noScopes": 0.045,
+    "peeks": {
+     "jiggle": {
+      "win": 0.48,
+      "share": 0.176,
+      "n": 855
+     },
+     "wide": {
+      "win": 0.471,
+      "share": 0.459,
+      "n": 2232
+     },
+     "plain": {
+      "win": 0.501,
+      "share": 0.365,
+      "n": 1774
+     }
+    }
+   },
    "postPlant": {
     "n": 194,
     "tWin": 0.78,
@@ -6876,6 +6963,35 @@
      }
     ]
    },
+   "micro": {
+    "stopped": 0.586,
+    "airShare": 0.014,
+    "longSprays": 0.177,
+    "floor": 0.029,
+    "loud": 0.195,
+    "reloadsNear": 0.324,
+    "diedEmpty": 0.046,
+    "wrongWeapon": 0.036,
+    "awpScoped": 0.515,
+    "noScopes": 0.052,
+    "peeks": {
+     "jiggle": {
+      "win": 0.501,
+      "share": 0.199,
+      "n": 361
+     },
+     "wide": {
+      "win": 0.471,
+      "share": 0.442,
+      "n": 804
+     },
+     "plain": {
+      "win": 0.5,
+      "share": 0.359,
+      "n": 652
+     }
+    }
+   },
    "postPlant": {
     "n": 76,
     "tWin": 0.72,
@@ -7135,6 +7251,35 @@
       "tWin": 0.25
      }
     ]
+   },
+   "micro": {
+    "stopped": 0.538,
+    "airShare": 0.006,
+    "longSprays": 0.173,
+    "floor": 0.026,
+    "loud": 0.172,
+    "reloadsNear": 0.205,
+    "diedEmpty": 0.009,
+    "wrongWeapon": 0.043,
+    "awpScoped": 0.7,
+    "noScopes": 0,
+    "peeks": {
+     "jiggle": {
+      "win": 0.5,
+      "share": 0.256,
+      "n": 42
+     },
+     "wide": {
+      "win": 0.5,
+      "share": 0.415,
+      "n": 68
+     },
+     "plain": {
+      "win": 0.37,
+      "share": 0.329,
+      "n": 54
+     }
+    }
    },
    "postPlant": {
     "n": 5,
@@ -7419,6 +7564,35 @@
       "tWin": 0.6
      }
     ]
+   },
+   "micro": {
+    "stopped": 0.477,
+    "airShare": 0.018,
+    "longSprays": 0.167,
+    "floor": 0.087,
+    "loud": 0.268,
+    "reloadsNear": 0.2,
+    "diedEmpty": 0.014,
+    "wrongWeapon": 0.014,
+    "awpScoped": 0.333,
+    "noScopes": 0,
+    "peeks": {
+     "jiggle": {
+      "win": 0.595,
+      "share": 0.165,
+      "n": 37
+     },
+     "wide": {
+      "win": 0.5,
+      "share": 0.527,
+      "n": 118
+     },
+     "plain": {
+      "win": 0.478,
+      "share": 0.308,
+      "n": 69
+     }
+    }
    },
    "postPlant": {
     "n": 11,

@@ -13,7 +13,8 @@
     "learn:positions": "vite-node tools/learn-positions.ts",
     "learn:analyst": "vite-node tools/learn-analyst.ts",
     "calibrate:engine": "vite-node tools/calibrate-engine.ts",
-    "learn:all": "vite-node tools/learn-all.ts"
+    "learn:all": "vite-node tools/learn-all.ts",
+    "fetch:faceit": "vite-node tools/fetch-faceit.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",

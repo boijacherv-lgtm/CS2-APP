@@ -27,7 +27,7 @@ export interface DemoRound {
   reason: string;
   duration: number;
   plant: number | null;
-  frames: { t: number[]; players: Record<string, { side: Side; x: number[]; y: number[]; z: number[]; yaw: number[]; hp: number[]; alive: number[] }> };
+  frames: { t: number[]; players: Record<string, FrameTrack> };
   kills: { t: number; attacker: string; victim: string; weapon: string; headshot: boolean; x: number; y: number; ax: number; ay: number }[];
   util: {
     t: number; type: UtilType; thrower: string; x: number; y: number;
@@ -38,8 +38,11 @@ export interface DemoRound {
   }[];
   /** Damage done by HE grenades and fire. */
   nadeDamage?: { t: number; attacker: string; victim: string; dmg: number; weapon: 'he' | 'molotov' }[];
-  /** Every gun shot fired, and every gun hit (damage to health). */
-  shots?: { t: number; id: string }[];
+  /**
+   * Every gun shot fired (newer parses: the shooter's speed in game units a second, from 4 ticks before, their
+   * stance bits as in FrameTrack.fl, and the weapon), and every gun hit (damage to health).
+   */
+  shots?: { t: number; id: string; spd?: number; fl?: number; w?: string }[];
   hits?: { t: number; attacker: string; victim: string; dmg: number; head: boolean }[];
   blind: { t: number; victim: string; attacker: string; dur: number }[];
   /** Each player's economy a few seconds into the round (after buying). */
@@ -52,6 +55,14 @@ export interface DemoRound {
    */
   fights?: Fight[];
 }
+
+/** A player over the round, 4 samples a second (world x/y/z, yaw in degrees, health, alive 0/1). */
+export interface FrameTrack {
+  side: Side; x: number[]; y: number[]; z: number[]; yaw: number[]; hp: number[]; alive: number[];
+  /** Newer parses: aim pitch (degrees, negative = up), stance bits (1 walking, 2 crouching, 4 scoped, 8 in the air, 16 spotted by the enemy), weapon in hand ("ak47"), ammo in the magazine (-1 unknown). */
+  pitch?: number[]; fl?: number[]; w?: string[]; am?: number[];
+}
+export const FL = { walking: 1, crouching: 2, scoped: 4, airborne: 8, spotted: 16 } as const;
 
 export interface FightTrack { x: number[]; y: number[]; z: number[]; yaw: number[]; pitch: number[] }
 export interface Fight { t0: number; dt: number; attacker: string; victim: string; a: FightTrack; v: FightTrack }
@@ -367,7 +378,8 @@ export type Tag =
   | 'OPENING' | 'TRADE' | 'TRADED' | 'ISOLATED' | 'CROSSFIRE' | 'CLUTCH' | 'MULTI-KILL' | 'ECO FRAG' | 'AWP DOWN' | 'AWP LOST'
   | 'FLASH ASSIST' | 'NADE ASSIST' | 'BLIND' | 'LOW HP' | 'TEAM FLASH' | 'TEAM DAMAGE' | 'WASTED' | 'DENIED' | 'POST-PLANT' | 'UNUSED UTIL' | 'WHIFF' | 'UPSET'
   | 'FLANK' | 'ANCHOR' | 'TEAM KILL' | 'ECO DEATH' | 'PLANT' | 'DEFUSE' | 'NINJA'
-  | 'NO TRADE' | 'LATE ROTATION' | 'OVER-ROTATION' | 'DRY PEEK';
+  | 'NO TRADE' | 'LATE ROTATION' | 'OVER-ROTATION' | 'DRY PEEK'
+  | 'KNIFE OUT' | 'NO AMMO' | 'MOVING SHOT' | 'LOUD';
 const GOOD = '#22c55e', BAD = '#ef4444', UTIL = '#3b82f6', INFO = '#a39b8f';
 export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   OPENING: { color: INFO, tip: 'First kill of the round.' },
@@ -403,6 +415,10 @@ export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   'LATE ROTATION': { color: BAD, tip: 'Arrived at the site after the bomb was down.' },
   'OVER-ROTATION': { color: BAD, tip: 'Left a site that then got hit, for one that didn\'t.' },
   'DRY PEEK': { color: BAD, tip: 'Swung into a player holding the angle, without a flash or a teammate.' },
+  'KNIFE OUT': { color: BAD, tip: 'Died holding a knife, grenade or the bomb instead of a gun.' },
+  'NO AMMO': { color: BAD, tip: 'Died with 3 bullets or fewer in the magazine: should have reloaded in cover first.' },
+  'MOVING SHOT': { color: BAD, tip: 'Their first shot was fired while moving too fast to be accurate (no counter-strafe).' },
+  LOUD: { color: BAD, tip: 'Was running (footsteps) right before dying with the enemy close: they heard them coming.' },
 };
 
 export interface Move {
@@ -1066,6 +1082,23 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         why: [ro.late ? `Got to ${ro.to} after the bomb was already down there.` : `Left ${ro.from}, which then got hit, for ${ro.to}, which didn't.`,
           ro.trigger ? `Moved after "${ro.trigger}".` : 'Moved without anything visible to react to: rotate on information.'],
       });
+    }
+    // micro: what the victim had in hand, ammo, footsteps, and whether their first shot was a moving one
+    for (const d of an.duels) {
+      const death = moves.find(m => m.kind === 'death' && m.player === d.victim && Math.abs(m.t - d.t) < 0.06);
+      const f = r.frames.players[d.victim];
+      if (!death || !f?.w || !f.am || !f.fl) continue;
+      const ft = r.frames.t;
+      let k = 0; while (k < ft.length - 1 && ft[k + 1] <= d.t - 0.2) k++;
+      const w = f.w[k] ?? '';
+      if (/knife|bayonet|karambit|dagger|flashbang|hegrenade|smokegrenade|molotov|incgrenade|decoy|c4/.test(w)) { death.tags.push('KNIFE OUT'); death.why.push(`Had ${/c4/.test(w) ? 'the bomb' : /knife|bayonet|karambit|dagger/.test(w) ? 'the knife' : 'a grenade'} out instead of a gun.`); }
+      else if (f.am[k] >= 0 && f.am[k] <= 3 && w !== 'awp' && gunFromName(w)) { death.tags.push('NO AMMO'); death.why.push(`Only ${f.am[k]} bullet${f.am[k] === 1 ? '' : 's'} left in the magazine.`); }
+      if (d.detail?.vMovingShot) { death.tags.push('MOVING SHOT'); death.why.push('Their first shot was fired while still moving (no counter-strafe).'); }
+      const k0 = Math.max(1, k - 6);
+      let loud = 0;
+      for (let j = k0; j <= k; j++) { const sp = Math.hypot(f.x[j] - f.x[j - 1], f.y[j] - f.y[j - 1]) / ((ft[j] - ft[j - 1]) || 0.25); if (sp > 150 && !(f.fl[j] & (FL.walking | FL.crouching))) loud++; }
+      const killer = r.frames.players[d.killer];
+      if (loud >= 4 && killer && Math.hypot(killer.x[k] - f.x[k], killer.y[k] - f.y[k]) < 1100) { death.tags.push('LOUD'); death.why.push('Was running (footsteps) toward an enemy close enough to hear it.'); }
     }
     // a death from swinging into a held angle without a flash
     for (const d of an.duels) {

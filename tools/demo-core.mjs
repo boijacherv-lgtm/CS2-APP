@@ -44,6 +44,12 @@ export function buildDemoData(parser, input, progress = () => {}) {
   const ticks = wanted.length
     ? p.parseTicks(input, ['X', 'Y', 'Z', 'yaw', 'health', 'is_alive', 'team_num'], wanted) ?? []
     : [];
+  // micro detail at the same samples (read on its own, so a parser build without one of these can't break the
+  // positions): aim pitch, walking / crouching / scoped / in the air / spotted by the enemy, weapon in hand, ammo
+  const MICRO_PROPS = ['pitch', 'is_walking', 'ducking', 'is_scoped', 'is_airborne', 'spotted', 'active_weapon_name', 'active_weapon_ammo'];
+  const microRows = wanted.length ? safe(() => p.parseTicks(input, MICRO_PROPS, wanted)) ?? [] : [];
+  const micro = new Map();
+  for (const row of microRows) micro.set(`${num(row.tick)}|${sid(pick(row, 'steamid', 'player_steamid'))}`, row);
 
   // Economy, read a few seconds into each round (after most buys). Each field is parsed on its own
   // so a field this parser version doesn't know can't break the whole demo.
@@ -90,7 +96,21 @@ export function buildDemoData(parser, input, progress = () => {}) {
   const gunHurts = allHurts.filter(h => !/hegrenade|inferno|molotov|incgrenade|world|knife|bayonet/.test(String(pick(h, 'weapon') ?? '')));
   // every gun shot (one event per bullet; grenades, knife, bomb and taser excluded)
   const firesAll = safe(() => p.parseEvent(input, 'weapon_fire', ['X', 'Y'], [])) ?? [];
-  const shotsAll = firesAll.filter(w => !/grenade|flashbang|molotov|incgrenade|decoy|knife|bayonet|c4|taser/.test(String(pick(w, 'weapon') ?? '')));
+  const shotsAllRaw = firesAll.filter(w => !/grenade|flashbang|molotov|incgrenade|decoy|knife|bayonet|c4|taser/.test(String(pick(w, 'weapon') ?? '')));
+  // each shot's shooter speed (from their position 4 ticks earlier: counter-strafing) and stance
+  const shotTicks = new Set();
+  for (const w of shotsAllRaw) { const t = num(w.tick); shotTicks.add(t); shotTicks.add(Math.max(0, t - 4)); }
+  const shotRows = shotTicks.size ? safe(() => p.parseTicks(input, ['X', 'Y', 'is_walking', 'ducking', 'is_scoped', 'is_airborne', 'active_weapon_ammo'], [...shotTicks].sort((a, b) => a - b))) ?? [] : [];
+  const shotAt = new Map();
+  for (const row of shotRows) shotAt.set(`${num(row.tick)}|${sid(pick(row, 'steamid', 'player_steamid'))}`, row);
+  const shotsAll = shotsAllRaw.map(w => {
+    const t = num(w.tick), id = sid(pick(w, 'user_steamid'));
+    const now = shotAt.get(`${t}|${id}`), before = shotAt.get(`${Math.max(0, t - 4)}|${id}`);
+    if (!now) return w;
+    const spd = before ? Math.round(Math.hypot(num(now.X) - num(before.X), num(now.Y) - num(before.Y)) / (4 / TICKRATE)) : undefined;
+    // the AWP unscopes the moment it fires: "scoped" is read from just before the shot
+    return { ...w, _spd: spd, _fl: microFlags(now) | (before?.is_scoped ? 4 : 0), _w: weaponShort(pick(w, 'weapon')) };
+  });
   // grenade throws (weapon_fire fires on release): when and where each was thrown, for builds without flight paths
   const NADE_WEAPON = { weapon_smokegrenade: 'smoke', weapon_flashbang: 'flash', weapon_hegrenade: 'he', weapon_molotov: 'molotov', weapon_incgrenade: 'molotov' };
   const throws = firesAll.filter(w => NADE_WEAPON[String(pick(w, 'weapon'))]).map(w => ({
@@ -124,11 +144,22 @@ export function buildDemoData(parser, input, progress = () => {}) {
         const s = side(num(row.team_num));
         if (!id || !s) continue;
         names[id] = String(pick(row, 'name', 'player_name') ?? id);
-        const p = (frames.players[id] ??= { side: s, x: [], y: [], z: [], yaw: [], hp: [], alive: [] });
+        const hasMicro = microRows.length > 0;
+        const p = (frames.players[id] ??= { side: s, x: [], y: [], z: [], yaw: [], hp: [], alive: [], ...(hasMicro ? { pitch: [], fl: [], w: [], am: [] } : {}) });
         // pad if this player was missing from earlier samples
-        while (p.x.length < k) { p.x.push(p.x.at(-1) ?? num(row.X)); p.y.push(p.y.at(-1) ?? num(row.Y)); p.z.push(p.z.at(-1) ?? num(row.Z)); p.yaw.push(p.yaw.at(-1) ?? 0); p.hp.push(p.hp.at(-1) ?? 100); p.alive.push(p.alive.at(-1) ?? 1); }
+        while (p.x.length < k) {
+          p.x.push(p.x.at(-1) ?? num(row.X)); p.y.push(p.y.at(-1) ?? num(row.Y)); p.z.push(p.z.at(-1) ?? num(row.Z)); p.yaw.push(p.yaw.at(-1) ?? 0); p.hp.push(p.hp.at(-1) ?? 100); p.alive.push(p.alive.at(-1) ?? 1);
+          if (p.pitch) { p.pitch.push(p.pitch.at(-1) ?? 0); p.fl.push(p.fl.at(-1) ?? 0); p.w.push(p.w.at(-1) ?? ''); p.am.push(p.am.at(-1) ?? 0); }
+        }
         p.x.push(round1(num(row.X))); p.y.push(round1(num(row.Y))); p.z.push(round1(num(row.Z)));
         p.yaw.push(round1(num(row.yaw))); p.hp.push(num(row.health)); p.alive.push(row.is_alive === false || num(row.health) <= 0 ? 0 : 1);
+        if (p.pitch) {
+          const m = micro.get(`${tick}|${id}`) ?? {};
+          p.pitch.push(round1(num(m.pitch) || 0));
+          p.fl.push(microFlags(m));
+          p.w.push(weaponShort(m.active_weapon_name));
+          p.am.push(Number.isFinite(num(m.active_weapon_ammo)) ? num(m.active_weapon_ammo) : -1);
+        }
       }
     });
     const kills = deaths.filter(d => inRound(num(d.tick))).map(d => ({
@@ -159,7 +190,10 @@ export function buildDemoData(parser, input, progress = () => {}) {
       x: num(pick(n, 'x', 'X')), y: num(pick(n, 'y', 'Y')),
       ...throwOf(n, flights, nadeEnds, tOf, throws),
     })).filter(u => u.type && Number.isFinite(u.x));
-    const shots = shotsAll.filter(w => inRound(num(w.tick))).map(w => ({ t: round2(tOf(num(w.tick))), id: sid(pick(w, 'user_steamid')) }));
+    const shots = shotsAll.filter(w => inRound(num(w.tick))).map(w => ({
+      t: round2(tOf(num(w.tick))), id: sid(pick(w, 'user_steamid')),
+      ...(w._spd !== undefined ? { spd: w._spd } : {}), ...(w._fl !== undefined ? { fl: w._fl, w: w._w } : {}),
+    }));
     const hits = gunHurts.filter(h => inRound(num(h.tick))).map(h => ({
       t: round2(tOf(num(h.tick))), attacker: sid(pick(h, 'attacker_steamid')), victim: sid(pick(h, 'user_steamid')),
       dmg: num(pick(h, 'dmg_health')) || 0, head: pick(h, 'hitgroup') === 'head',
@@ -274,3 +308,12 @@ function throwOf(n, flights, ends, tOf, throws) {
 function safe(fn) { try { return fn(); } catch { return null; } }
 const round1 = v => Math.round(v * 10) / 10;
 const round2 = v => Math.round(v * 100) / 100;
+
+/** Stance bits: 1 walking (silent), 2 crouching, 4 scoped, 8 in the air, 16 spotted by the enemy (on their radar). */
+function microFlags(m) {
+  return (m.is_walking ? 1 : 0) | (m.ducking ? 2 : 0) | (m.is_scoped ? 4 : 0) | (m.is_airborne ? 8 : 0) | (m.spotted ? 16 : 0);
+}
+/** "AK-47" / "weapon_ak47" → "ak47". */
+function weaponShort(name) {
+  return String(name ?? '').toLowerCase().replace(/^weapon_/, '').replace(/[^a-z0-9]/g, '');
+}

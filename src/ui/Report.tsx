@@ -242,7 +242,7 @@ function useNormal(p: PlayerReport): FeatureSet {
   return modelFor(COACH_MODEL, p.roles[0]?.role ?? 'Rifler').features;
 }
 
-const TOPICS: Topic[] = ['Trades', 'Duels', 'Openings', 'Map control', 'Rotations', 'Round plans', 'Utility', 'Economy', 'Post-plant'];
+const TOPICS: Topic[] = ['Micro', 'Trades', 'Duels', 'Openings', 'Map control', 'Rotations', 'Round plans', 'Utility', 'Economy', 'Post-plant'];
 
 /**
  * The analyst report: what a pro team's analyst looks at (trades, duels, openings, map control, rotations, round plans,
