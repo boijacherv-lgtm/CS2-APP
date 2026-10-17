@@ -1,5 +1,5 @@
 import type { PlayerReport, RoundLine } from './match';
-import type { Role, Tag } from './recap';
+import type { Letter, Role, Tag } from './recap';
 
 /**
  * The built-in coach: what a player should work on after a match, and what went well.
@@ -331,4 +331,24 @@ export function trainCoachSet(samples: Sample[], name: string, source: CoachMode
     if (fs.length >= MIN_ROLE_GAMES) roles[role] = { games: fs.length, features: trainCoach(fs, all).features };
   }
   return { version: 1, trainedOn: samples.length, features: all.features, name, source, roles };
+}
+
+/**
+ * How a player's match compares with a model's players (e.g. FACEIT level 10), as one letter: the weighted average of
+ * how far each number is from their normal, in spreads (+ = better). B is "on par with them"; A and up is better than
+ * a typical one of them, C and below worse.
+ */
+export function gradeAgainst(p: PlayerReport, model: CoachModel): { letter: Letter; z: number } {
+  const f = coachFeatures(p);
+  const { features: normal } = modelFor(model, p.roles[0]?.role ?? 'Rifler');
+  let sum = 0, w = 0;
+  for (const id of Object.keys(f) as FeatureId[]) {
+    const m = normal[id];
+    if (!m || m.spread <= 0 || !Number.isFinite(f[id])) continue;
+    const z = Math.max(-3, Math.min(3, ((f[id] - m.baseline) / m.spread) * (BETTER[id] === 'low' ? -1 : 1)));
+    sum += z * m.weight; w += m.weight;
+  }
+  const z = w ? sum / w : 0;
+  const letter: Letter = z >= 0.9 ? 'S+' : z >= 0.55 ? 'S' : z >= 0.25 ? 'A' : z >= -0.1 ? 'B' : z >= -0.4 ? 'C' : z >= -0.75 ? 'D' : 'F';
+  return { letter, z };
 }

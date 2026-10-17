@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
-import { NoteMark } from './NoteMark';
+import { moveLook, NoteMark } from './NoteMark';
 import { brief } from './MoveFeed';
 import type { TacticalEngine } from '../engine/predict';
 import { equipValue, LETTER_COLOR, LETTER_INFO, moments, type Moment, movesUntil, NOTE_INFO, NOTES, roundFacts, roundGrade, TAG_INFO, teamEconomy, type Annotation, type DemoData, type DemoRound, type Move, type Replay, type Review, type Tag } from '../engine/recap';
@@ -273,7 +273,6 @@ export function MomentNav({ recap }: { recap: Review }) {
   const cur: Moment | undefined = list[idx];
   const atMoment = cur && Math.abs(time - (cur.t + SHOW_AFTER)) < 0.06;
   const main = cur ? cur.moves.find(m => m.kind === 'kill') ?? cur.moves[0] : undefined;
-  const g = main ? main.note : undefined;
   const first = rv.round === 0 && time < 0.05, last = rv.round === rv.data.rounds.length - 1 && idx === list.length - 1;
   const watch = () => { if (!cur) return; const st = useStore.getState(); st.setTime(Math.max(0, cur.t - 3)); st.setPlaying(true); };
   return (
@@ -284,7 +283,7 @@ export function MomentNav({ recap }: { recap: Review }) {
           ? <span className="muted">Round {rv.round + 1} start · {list.length} moments</span>
           : <>
               <span className="muted">{idx + 1}/{list.length}</span>
-              {g && <NoteMark note={g} />}
+              {main && <NoteMark m={main} />}
               <span className={atMoment ? '' : 'muted'}>{main && brief(main.title)}{cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}</span>
               {cur && <button className="mini" onClick={watch} title="Watch the 3 s leading up to it" aria-label="Watch the lead-up"><Icon name="rewind" size={12} /></button>}
             </>}
@@ -382,12 +381,12 @@ function loadout(weapons: string[]) {
 }
 
 function MoveRow({ m, compact }: { m: Move; compact?: boolean }) {
-  const g = NOTE_INFO[m.note];
+  const g = moveLook(m);
   return (
     <>
       <div className="move-head">
         <span className="muted">{fmt(m.t)}</span>
-        <NoteMark note={m.note} />
+        <NoteMark m={m} />
         <b className={m.side.toLowerCase()}>{m.title}</b>
         <span className="pct" style={{ color: m.gain > 0.02 ? '#7fbf4d' : m.gain < -0.02 ? '#e5483a' : 'var(--muted)' }}>{signed(m.gain)}</span>
       </div>

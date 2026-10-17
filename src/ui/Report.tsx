@@ -125,7 +125,18 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
         <span className="muted">{p.roles.slice(0, 2).map(r => r.role).join(' / ')}</span>
       </div>
       <div className="perf-main">
-        <span className="perf-letter display" style={{ background: LETTER_COLOR[p.letter] }} title="Match grade from the round grades (S+ … F)">{p.letter}</span>
+        <div className="perf-grades">
+          <div className="perf-grade" title={`Against the other players in this lobby (round grades, impact, ADR, KAST, duels): ${lobbyText(p.lobbyZ)}`}>
+            <span className="perf-letter display" style={{ background: LETTER_COLOR[p.letter] }}>{p.letter}</span>
+            <span className="muted">Lobby</span>
+          </div>
+          {p.lvl10 && (
+            <div className="perf-grade" title={`Against FACEIT level-10 players (the coach's numbers): ${lvl10Text(p.lvl10.z)}`}>
+              <span className="perf-letter display small" style={{ background: LETTER_COLOR[p.lvl10.letter] }}>{p.lvl10.letter}</span>
+              <span className="muted">vs Lvl 10</span>
+            </div>
+          )}
+        </div>
         <Gauge rating={p.gameRating} rank={p.rank} />
       </div>
       <div className="kpis">
@@ -233,20 +244,22 @@ function tone(id: FeatureId, v: number) {
 }
 
 function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; players: PlayerReport[]; score: number; focus: string; onPick: (id: string) => void }) {
+  const hasLvl10 = players.some(p => p.lvl10);
   return (
     <div className="sb-wrap">
       <table className="sb">
         <thead>
           <tr className="sb-groups">
             <th className={team === 0 ? 'ct' : 't'}>{team === 0 ? 'Team A' : 'Team B'} <span className="num">{score}</span></th>
-            <th colSpan={4}>Rating</th><th colSpan={5}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
+            <th colSpan={hasLvl10 ? 5 : 4}>Rating</th><th colSpan={5}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
           </tr>
           <tr>
             <th className="sb-name muted">{team === 0 ? 'started CT' : 'started T'}</th>
             <th title="Premier rating at the start of the match">Rank</th>
             <th title="Estimated rating for this game: duel performance + round impact">Game</th>
             <th title="Game rating minus their real rating">±</th>
-            <th title="Match grade from the round grades (S+ … F)">Grade</th>
+            <th title="Grade among the players of this lobby">Lobby</th>
+            {hasLvl10 && <th title="Grade against FACEIT level-10 players">Lvl 10</th>}
             <th>K</th><th>D</th><th>ADR</th><th title="Rounds with a kill, assist, survival or trade">KAST</th><th>HS%</th>
             <th title="Opening kills – opening deaths">Open</th><th title="Clutch kills (last alive vs 2+)">Clutch</th><th title="Rounds with 3+ kills">3K+</th>
             <th title="HE + fire damage">Dmg</th><th title="Kills on enemies they flashed">Flash</th>
@@ -266,7 +279,8 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
                   <b>{p.gameRating !== null ? fmt(p.gameRating) : '–'}</b>
                 </td>
                 <td className={delta === null ? '' : delta >= 1000 ? 'hi' : delta <= -1000 ? 'lo' : ''}>{delta === null ? '' : `${delta >= 0 ? '+' : '−'}${fmt(Math.abs(delta))}`}</td>
-                <td><LetterChip letter={p.letter} /></td>
+                <td title={lobbyText(p.lobbyZ)}><LetterChip letter={p.letter} /></td>
+                {hasLvl10 && <td title={p.lvl10 ? lvl10Text(p.lvl10.z) : ''}>{p.lvl10 ? <LetterChip letter={p.lvl10.letter} /> : ''}</td>}
                 <td className="sep">{p.kills}</td><td>{p.deaths}</td>
                 <td className={tone('adr', p.adr)}>{p.adr.toFixed(0)}</td>
                 <td className={tone('kast', p.kast)}>{p.kast.toFixed(0)}%</td>
@@ -284,6 +298,14 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
       </table>
     </div>
   );
+}
+
+const spreads = (z: number) => `${Math.abs(z).toFixed(1)} spreads`;
+function lobbyText(z: number) {
+  return Math.abs(z) < 0.15 ? 'about the middle of the lobby' : `${spreads(z)} ${z > 0 ? 'above' : 'below'} the lobby's average`;
+}
+function lvl10Text(z: number) {
+  return Math.abs(z) < 0.1 ? 'on par with a typical level-10 player' : `${spreads(z)} ${z > 0 ? 'better' : 'worse'} than a typical level-10 player`;
 }
 
 const REASON_ICON: Record<string, IconName> = { ct_killed: 'skull', t_killed: 'skull', bomb_exploded: 'bomb', bomb_defused: 'scissors', target_saved: 'timer' };

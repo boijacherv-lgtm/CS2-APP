@@ -4,6 +4,7 @@ import { worldToRadar } from './coords';
 import { gunFromName, primaryGun } from './guns';
 import { lifeOf, segmentHitsCircle, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
 import type { TacticalEngine } from './predict';
+import UTIL_SPOTS from '../map/generated/util-spots.json';
 import type { BoardState, Player, Side, Utility, UtilType, Vec2, Weapon } from './types';
 
 /**
@@ -266,7 +267,11 @@ export function evalState(state: {
   const { ct, t } = state;
   if (t === 0 && state.planted === null) return 1;
   if (ct === 0) return 0;
-  if (t === 0 && state.planted !== null) return 0.25; // retake vs bomb timer with nobody to stop the defuse attempt
+  if (t === 0 && state.planted !== null) {
+    // every T is dead: the CTs only have to defuse in time (5 s with a kit, 10 without, plus getting there)
+    const left = BOMB_TIME - (state.time - state.planted);
+    return left >= 13 ? 0.97 : left >= 9 ? 0.85 : left >= 6 ? 0.5 : left >= 4 ? 0.2 : 0.03;
+  }
   const diff = ct - t;
   let z = 0.55 * diff + (0.35 * diff) / Math.max(1, Math.min(ct, t)); // man advantage matters more when few are left
   z += 0.004 * (state.ctHp - state.tHp);
@@ -302,6 +307,23 @@ export const LETTER_INFO: Record<Letter, string> = {
   F: 'Detrimental: a game-losing mistake (team kill, dying to an eco with full utility)',
 };
 
+/** Where good players (FACEIT level 10) land their smokes and molotovs, per map (tools/learn-spots.ts). */
+type Spot = { type: string; side: string; x: number; y: number; throws: number; demos: number };
+const SPOTS = UTIL_SPOTS as Record<string, Spot[]>;
+/** The standard spot a grenade landed on (world units, within ~a smoke's radius), if any. */
+export function standardSpot(map: string, type: UtilType, side: Side, x: number, y: number): Spot | null {
+  let best: Spot | null = null, bd = 150;
+  for (const sp of SPOTS[map] ?? []) {
+    if (sp.type !== type || sp.side !== side) continue;
+    const d = Math.hypot(sp.x - x, sp.y - y);
+    if (d < bd) { bd = d; best = sp; }
+  }
+  return best;
+}
+
+/** Whether enough spots are known on this map and side to call a smoke away from all of them a miss. */
+export const knowsSpots = (map: string, type: UtilType, side: Side) => (SPOTS[map] ?? []).filter(sp => sp.type === type && sp.side === side).length >= 5;
+
 /** A move's annotation, as in chess. */
 export type Annotation = '!!' | '!' | 'book' | '?' | '??';
 export const NOTES: Annotation[] = ['!!', '!', 'book', '?', '??'];
@@ -310,7 +332,7 @@ export const NOTE_INFO: Record<Annotation, { mark: string; label: string; color:
   '!': { mark: '!', label: 'Good move', color: '#5c9ced', tip: 'Swung the round: a quick trade, a multi-kill, the opening kill, a flash or HE that won fights' },
   book: { mark: '', label: 'Book', color: '#a88865', tip: 'The expected, sound play: a standard smoke, an ordinary kill or grenade' },
   '?': { mark: '?', label: 'Mistake', color: '#e58f2a', tip: 'Cost the team: an untraded opening or isolated death, a team flash, dying with utility' },
-  '??': { mark: '??', label: 'Blunder', color: '#ca3431', tip: 'A round-losing error: a team kill, dying to an eco with full gear and grenades unused' },
+  '??': { mark: '??', label: 'Blunder', color: '#ca3431', tip: 'A round-losing error: a team kill, a team flash that got a teammate killed, dying to an eco with full gear and grenades unused' },
 };
 
 /** Context tags: the one-word "why" next to a grade (like a match feed). */
@@ -555,6 +577,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
 
   const gear = new Map(sim.ids.map(id => [id, equipValue(r.econ?.[id])]));
   const hasEcon = [...gear.values()].some(v => v !== null);
+  // a pistol round: nobody has more than a pistol and armour, so "eco" means nothing
+  const pistolRound = hasEcon && [...gear.values()].every(v => v === null || v <= 1300);
   const rating = (id: string) => rep.ranks[id]?.rating ?? null;
   const stateAt = (t: number) => {
     let ct = 0, tt = 0, ctHp = 0, tHp = 0, ctGear = 0, tGear = 0;
@@ -632,6 +656,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     }
   }
   const won = (s: Side) => r.winner === s;
+  const lastAliveAt = (i: number, t: number) => i >= 0 && !sim.ids.some((id, j) => j !== i && sideOf.get(id) === sideOf.get(sim.ids[i]) && alive(j, t - 0.05));
   sim.kills.forEach((k, n) => {
     const dk = demoKill(k);
     const kGun = dk ? gunFromName(dk.weapon) : undefined;
@@ -651,7 +676,9 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const seers = vi >= 0 ? enemiesSeeing(vi, k.t - 0.1) : 0;
     const support = vi >= 0 ? teammatesNear(vi, k.t - 0.1) : 0;
     const wasBlind = vi >= 0 && sim.blind[vi][Math.max(0, Math.round((k.t - 0.1) / SIM_DT))] === 1;
-    const hpBefore = vi >= 0 ? hpAt(vi, k.t - 0.4) : 100;
+    // health before this fight: just before the killer's first hit in the last 3 s (not partway through their spray)
+    const firstHit = (r.hits ?? []).filter(h => h.victim === k.victim && h.attacker === k.killer && h.t <= k.t && k.t - h.t <= 3).reduce((a, h) => Math.min(a, h.t), k.t);
+    const hpBefore = vi >= 0 ? hpAt(vi, Math.max(0, firstHit - 0.3)) : 100;
     let loss = forSide(vSide, ctDelta);
     const why: string[] = [`${vSide} win chance ${pct(vSide === 'CT' ? before : 1 - before)} → ${pct(vSide === 'CT' ? after : 1 - after)}.`];
     // skill: losing a duel you were expected to win costs more, and the other way round
@@ -668,7 +695,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const whiff = fired >= 4 && dealt < 25;
     if (whiff) why.push(`Fired ${fired} shots in the last 3 s and did ${dealt ? `only ${dealt}` : 'no'} damage.`);
     if (traded) { loss *= 0.4; why.push('Traded by a teammate, so the death bought information and space.'); }
-    else if (support === 0) why.push('No teammate close enough to trade: an isolated death.');
+    else if (support === 0 && !lastAliveAt(vi, k.t)) why.push('No teammate close enough to trade: an isolated death.');
     if (seers >= 2) why.push(`Exposed to ${seers} enemies at once (crossfire).`);
     if (wasBlind) why.push('Was flashed when it happened.');
     if (hpBefore < 50 && hpBefore > 0) why.push(`Already hurt (${hpBefore} hp) before the duel.`);
@@ -682,7 +709,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const postPlant = r.plant !== null && k.t >= r.plant;
     const vTags: Tag[] = [];
     if (firstKill) vTags.push('OPENING');
-    if (traded) vTags.push('TRADED'); else if (support === 0) vTags.push('ISOLATED');
+    if (traded) vTags.push('TRADED'); else if (support === 0 && !lastAliveAt(vi, k.t)) vTags.push('ISOLATED');
     if (seers >= 2) vTags.push('CROSSFIRE');
     if (wasBlind) vTags.push('BLIND');
     if (hpBefore < 50 && hpBefore > 0) vTags.push('LOW HP');
@@ -694,11 +721,18 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const byMate = !!k.killer && sideOf.get(k.killer) === vSide;
     const vG = gear.get(k.victim), kG = k.killer ? gear.get(k.killer) : null;
     const threw = r.util.some(u => u.thrower === k.victim && u.t <= k.t);
-    const ecoDeath = !byMate && !traded && vG != null && kG != null && vG >= 3500 && kG <= 1500 && !threw && unused >= 1;
+    const ecoDeath = !pistolRound && !byMate && !traded && vG != null && kG != null && vG >= 3500 && kG <= 1500 && !threw && unused >= 1;
     if (ecoDeath) { vTags.push('ECO DEATH'); why.push(`Died to a ${money(kG!)} eco with ${money(vG!)} of gear and no grenade thrown.`); }
+    // a huge loss alone isn't a blunder (late in a close round one death often swings 20%+): it needs a fault too
+    // the last one alive on their side is alone by definition: that isn't a fault
+    const lastAlive = vi >= 0 && !sim.ids.some((id, j) => j !== vi && sideOf.get(id) === vSide && alive(j, k.t - 0.05));
+    const alone = support === 0 && !lastAlive;
+    const fault = alone || whiff || unused >= 2;
+    // ? only for a death with a clear fault, not every untraded one: alone or the opening duel and it cost 8%+,
+    // a missed spray, two grenades in the pocket, the AWP thrown away
     const vNote: Annotation = byMate ? 'book'
-      : ecoDeath || (!traded && loss <= -0.2) ? '??'
-      : !traded && (firstKill || support === 0 || whiff || unused >= 2 || vAwp || loss <= -0.1) ? '?' : 'book';
+      : ecoDeath || (!traded && loss <= -0.3 && fault) ? '??'
+      : !traded && (whiff || unused >= 2 || vAwp || ((alone || firstKill) && loss <= -0.08)) ? '?' : 'book';
     moves.push({
       t: k.t, player: k.victim, side: vSide, kind: 'death', gain: loss, note: vNote,
       title: `${name(k.victim)} died${where(k.at)}${k.killer && k.killer !== k.victim
@@ -719,12 +753,12 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const special = others >= 1 || multi >= 3 || (firstKill && aSide === 'T');
       const awhy = [`${aSide} win chance ${pct(aSide === 'CT' ? before : 1 - before)} → ${pct(aSide === 'CT' ? after : 1 - after)}.`];
       if (firstKill) awhy.push('Opening kill.');
-      if (others >= 1) awhy.push(`Won it while ${others} more enemy${others > 1 ? 'ies' : ''} had sight on them.`);
+      if (others >= 1) awhy.push(`Won it while ${others} more ${others > 1 ? 'enemies' : 'enemy'} had sight on them.`);
       if (multi >= 2) awhy.push(`Part of a ${multi}-kill burst.`);
       if (vi >= 0 && wasBlind) awhy.push('The victim was flashed: teamwork kill.');
       const vGear = gear.get(k.victim), aGear = gear.get(k.killer);
       if (vGear != null && r.econ?.[k.victim] && weaponClass(r.econ[k.victim].weapons) === 'awp') awhy.push('Took down the AWP.');
-      else if (vGear != null && vGear < 1000) awhy.push('The victim was on an eco, so the kill is worth less.');
+      else if (!pistolRound && vGear != null && vGear < 1000 && (aGear ?? 0) >= 2500) awhy.push('The victim was on an eco, so the kill is worth less.');
       if (aGear != null && vGear != null && aGear + 1500 < vGear) awhy.push(`Won it with ${money(aGear)} of gear against ${money(vGear)}.`);
       const vGun = r.econ?.[k.victim] ? primaryGun(r.econ[k.victim].weapons) : undefined;
       if (kGun && vGun && kGun.cls === 'pistol' && vGun.cls !== 'pistol') awhy.push(`Pistol (${kGun.name}) beat a ${vGun.name}.`);
@@ -767,18 +801,19 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (trade) aTags.push('TRADE');
       if (flank) aTags.push('FLANK');
       if (anchor) aTags.push('ANCHOR');
-      if (aGear != null && vGear != null && aGear < 2000 && aGear + 1500 < vGear) aTags.push('ECO FRAG');
+      if (!pistolRound && aGear != null && vGear != null && aGear < 2000 && aGear + 1500 < vGear) aTags.push('ECO FRAG');
       if (vAwp) aTags.push('AWP DOWN');
       if (vi >= 0 && wasBlind) aTags.push('FLASH ASSIST');
       if (upset) aTags.push('UPSET');
       if (postPlant) aTags.push('POST-PLANT');
       // !! clutch 1v3+, solo anchor, pistol vs full gear, a huge swing; ! quick trade, multi-kill, neutral opening
-      // kill, flank, 1v2 clutch, beating a better player, a big swing; everything else is book
+      // kill, flank, 1v2 clutch, beating a better player, a big swing (but not once the round is decided: a kill
+      // that moves the win chance by under 3% is plain); everything else is a plain kill
       const quickTrade = sim.kills.some(o => o.killer === k.victim && o.t < k.t && k.t - o.t <= 3 && sideOf.get(o.victim) === aSide);
       const neutral = vGear == null || aGear == null || (vGear >= 2000 && aGear >= 2000) || aGear + 1000 < vGear;
       const aNote: Annotation = teamKill ? '??'
-        : (clutchWon && clutchOf! >= 3) || anchor || ecoHero || gain >= 0.25 ? '!!'
-        : quickTrade || multi >= 2 || (firstKill && neutral) || flank || clutchWon || upset || gain >= 0.12 ? '!'
+        : (clutchWon && clutchOf! >= 3) || anchor || ecoHero || gain >= 0.3 ? '!!'
+        : clutchWon || gain >= 0.1 || (gain >= 0.03 && (quickTrade || multi >= 2 || (firstKill && neutral) || flank || upset)) ? '!'
         : 'book';
       if (teamKill) awhy.unshift('Killed a teammate.');
       moves.push({
@@ -837,12 +872,23 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       gain = Math.min(0.09, 0.0035 * pairSec + 0.0018 * watchSec) - 0.03 * caught;
       if (pairSec) why.push(`Cut ${cut.size === 1 ? 'an enemy' : `${cut.size} enemies`} off from seeing your team (${pairSec} player-second${pairSec > 1 ? 's' : ''} of sightlines).`);
       if (blinded.size) why.push(`Blocked the view of ${blinded.size === 1 ? 'an enemy' : `${blinded.size} enemies`} looking that way (${watchSec} s).`);
-      if (!pairSec && !blinded.size) why.push('Blocked nothing: no enemy was ever looking through it.');
+      const std = standardSpot(engine.map.id, 'smoke', s, u.x, u.y);
+      if (std) why.unshift(`A standard smoke: level-10 players land one here (${std.throws} in ${std.demos} matches).`);
+      // off every standard spot and it cut no sightline between the teams: a missed smoke (enemies merely seeing it
+      // isn't enough); on maps with few known spots, only when nobody even looked at it
+      const missed = !std && !pairSec && (knowsSpots(engine.map.id, 'smoke', s) || !blinded.size);
+      if (missed) {
+        // seeing a smoke from afar isn't blocking anything: say what happened instead
+        const i = why.findIndex(w => w.startsWith('Blocked the view'));
+        if (i >= 0) why.splice(i, 1);
+        why.push('Missed: it landed away from the usual smoke spots and blocked no sightline.');
+        gain = Math.min(gain, 0);
+      }
       if (caught) why.push(`${caught} teammate${caught > 1 ? 's' : ''} died at the smoke anyway.`);
       if (nade.duration !== undefined && nade.duration < 12) why.push(`Cleared early (lasted ${nade.duration.toFixed(0)} s).`);
-      const tags: Tag[] = !pairSec && !blinded.size ? ['WASTED'] : gain >= 0.03 ? ['DENIED'] : [];
-      // a smoke is book (the standard smoke for that spot) unless it cut a lot of sightlines, or got teammates killed
-      const note: Annotation = caught >= 2 ? '?' : pairSec >= 20 && !caught ? '!' : 'book';
+      const tags: Tag[] = missed ? ['WASTED'] : gain >= 0.03 ? ['DENIED'] : [];
+      // book: a standard smoke, or one that did its job; ! cut a lot of sightlines; ? missed, or got teammates killed
+      const note: Annotation = caught >= 2 || missed ? '?' : pairSec >= 20 && !caught ? '!' : 'book';
       return { gain, note, why, tags };
     }
 
@@ -869,12 +915,16 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       gain += 0.02 * Math.min(3, near.size);
       if (near.size) why.push(`Kept ${near.size === 1 ? 'an enemy' : `${near.size} enemies`} off that ground for ${(to - from).toFixed(0)} s.`);
       if (near.size) tags.push('DENIED');
-      if (!near.size && !enemyDmg) { why.push('Burned empty ground: no enemy came near it.'); return { gain: Math.min(gain, -0.01), note: hurtTeam ? '?' : 'book', why, tags: [...tags, 'WASTED'] }; }
+      const std = standardSpot(engine.map.id, 'molotov', s, u.x, u.y);
+      if (std) why.unshift(`A standard molotov: level-10 players burn this spot (${std.throws} in ${std.demos} matches).`);
+      // an empty burn on a standard spot still did its job (nobody came through); anywhere else it was wasted
+      if (!near.size && !enemyDmg && std) return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Nobody came through while it burned.'], tags };
+      if (!near.size && !enemyDmg) { why.push('Burned empty ground: no enemy came near it.'); return { gain: Math.min(gain, -0.01), note: '?', why, tags: [...tags, 'WASTED'] }; }
       const note: Annotation = enemyDmg >= 150 ? '!!' : enemyDmg >= 60 || softened.length || near.size >= 3 ? '!' : hurtTeam ? '?' : 'book';
       return { gain, note, why, tags };
     } else if (!enemyDmg) {
-      why.push('Hit nobody.');
-      return { gain: Math.min(gain, -0.01), note: hurtTeam ? '?' : 'book', why, tags: [...tags, 'WASTED'] };
+      why.push('Hit nobody: wasted utility.');
+      return { gain: Math.min(gain, -0.01), note: '?', why, tags: [...tags, 'WASTED'] };
     }
     const note: Annotation = enemyDmg >= 150 || hitEnemies.length >= 3 ? '!!' : enemyDmg >= 70 || softened.length ? '!' : hurtTeam ? '?' : 'book';
     return { gain, note, why, tags };
@@ -916,8 +966,9 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (team.length) tags.push('TEAM FLASH');
     if (!hits.length) tags.push('WASTED');
     // !! two kills off one flash; ! a kill off it or three enemies blinded; ?? a blinded teammate died; ? only teammates
-    const mateDied = team.filter(e => sim.kills.some(k => k.victim === e.id && k.t >= e.t && k.t - e.t <= 3)).length;
-    if (mateDied) why.push(`${mateDied === 1 ? 'A blinded teammate' : `${mateDied} blinded teammates`} died within 3 s.`);
+    // a teammate blinded properly (1.5 s+) who was killed by an enemy within 2 s
+    const mateDied = team.filter(e => e.amount >= 1.5 && sim.kills.some(k => k.victim === e.id && k.killer && sideOf.get(k.killer) !== s && k.t >= e.t && k.t - e.t <= 2)).length;
+    if (mateDied) why.push(`${mateDied === 1 ? 'A teammate you blinded' : `${mateDied} teammates you blinded`} died within 2 s.`);
     const note: Annotation = mateDied ? '??' : assisted.length >= 2 ? '!!' : assisted.length || enemy.length >= 3 ? '!' : team.length && !enemy.length ? '?' : 'book';
     moves.push({
       t: u.t, player: u.thrower, side: s, kind: 'flash', util: `u${ui}`, gain, note,

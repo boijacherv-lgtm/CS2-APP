@@ -288,7 +288,7 @@ describe('round review (chess-style grading)', () => {
     expect(smoke.path![0].x).toBeCloseTo(800, 0);
     expect(rev.moves.filter(m => m.util).length).toBe(3);
     const he = rev.moves.find(m => m.util === rep.board.utility.find(u => u.type === 'he')!.id)!;
-    expect(he.note).toBe('book'); // a wasted HE that hurt nobody on the team is a plain move, tagged WASTED
+    expect(he.note).toBe('?'); // an HE that hit nobody is wasted utility: a mistake
     expect(he.why.join(' ')).toMatch(/Hit nobody/);
     expect(he.tags).toContain('WASTED');
     // every player gets a role and a letter grade

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { simStateAt, type Simulation } from '../engine/combat';
-import { NoteMark } from './NoteMark';
+import { moveLook, NoteMark } from './NoteMark';
 import { gunFromName } from '../engine/guns';
 import { calloutAt, NOTE_INFO, moveKey, readMs, TAG_INFO, type DemoRound, type Move, type Review } from '../engine/recap';
 import { useStore } from '../store';
@@ -116,7 +116,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   const px = who ? view.x + who.pos.x * view.scale : 0, py = who ? view.y + who.pos.y * view.scale : 0;
 
   if (!card) return null;
-  const g = NOTE_INFO[card.note];
+  const g = moveLook(card);
   return (
     <>
       {who && anchor && (
@@ -128,7 +128,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
       <div className={`feed-card ${reading && !held ? 'reading' : ''}`} key={cardKey} ref={anchorEl} style={{ borderColor: g.color }}
         onClick={skip} title={reading && !held ? 'Click for the next move' : undefined}>
         <div className="feed-card-head">
-          <NoteMark note={card.note} className="feed-mark" size={14} />
+          <NoteMark m={card} className="feed-mark" size={14} />
           <div className="feed-who"><b style={{ color: g.color }}>{g.label}</b><span className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</span></div>
           <span className={`feed-gain ${Math.round(card.gain * 100) > 0 ? 'up' : Math.round(card.gain * 100) < 0 ? 'down' : 'flat'}`} title="Change in their team's win chance">
             {signedPct(card.gain)}
@@ -181,7 +181,7 @@ export function KillFeed({ recap, round, time, names }: { recap: Review; round: 
   const moveOf = (kind: 'kill' | 'death', id: string, t: number) => recap.moves.find(m => m.kind === kind && m.player === id && Math.abs(m.t - t) < 0.06);
   // like a chess score sheet: only annotated moves carry a mark (book kills and deaths stay plain)
   const chip = (m: Move | undefined) => m && shown(m) && m.note !== 'book'
-    ? <NoteMark note={m.note} className="kf-mark" title={`${NOTE_INFO[m.note].label}: ${signedPct(m.gain)} win chance`} />
+    ? <NoteMark m={m} className="kf-mark" title={`${NOTE_INFO[m.note].label}: ${signedPct(m.gain)} win chance`} />
     : null;
   const who = (id: string) => <b className={sideOf(id) === 'CT' ? 'ct' : 't'}>{names[id] ?? '?'}</b>;
   return (

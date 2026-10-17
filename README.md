@@ -46,8 +46,8 @@ Both read demos with the same parser (LaihoE/demoparser); the website uses a Web
 |---|---|---|
 | **!!** Brilliant | exceptional, statistically unlikely | winning a 1v3+ clutch, a ninja defuse (enemies alive or under 1 s left), holding a site alone (3+ kills against a push), a pistol with no armour beating full gear, an HE for 150+ damage, a flash that sets up two kills |
 | **!** Good move | swung the round | a trade within 3 s, a double or triple kill, the opening kill in a fair fight, a kill from behind, a 1v2 clutch, a flash that won a duel, an HE for 70+, a defuse |
-| book | the expected, sound play (plain dot) | a standard smoke (e.g. Window on Mirage), an ordinary kill, a plant, a traded death |
-| **?** Mistake | cost the team | an untraded opening or isolated death, dying with two grenades, losing the AWP, flashing only your own team |
+| book | the expected, sound play (plain dot) | a standard smoke or molotov (a spot FACEIT level-10 players use), a plant; ordinary kills and deaths show as plain "Kill" / "Death" |
+| **?** Mistake | cost the team | an untraded opening or isolated death, dying with two grenades, losing the AWP, flashing only your own team, an HE that hit nobody, a smoke that missed every standard spot and blocked nothing, a molotov on empty ground |
 | **??** Blunder | round-losing | a team kill, dying to an eco while fully bought without throwing anything, a team flash that got a teammate killed |
 
 **Round grades** (each player, each round), S+ … F:
@@ -57,7 +57,9 @@ Both read demos with the same parser (LaihoE/demoparser); the website uses a Web
 - **B** did their job: an impact kill, an even trade with real damage, useful utility, the plant
 - **C** no real impact · **D** an early untraded death or a mistake without an impact kill · **F** a blunder (team kill, eco death) with fewer than two kills
 
-The **match grade** comes from the round grades.
+Each player also gets two **match grades** in Match recap:
+- **Lobby:** against the other players of that match (round grades, impact, ADR, KAST and duels won, each compared with the lobby); B is about the lobby's middle.
+- **vs Lvl 10:** against FACEIT level-10 players (the coach's trained numbers); B is on par with a typical level-10 player, A and up better, C and below worse.
 
 **All / Mine** (in the playback bar) chooses which moves are evaluated on screen: **All** is every move (every kill, every death, every grenade and flash, book moves too), **Mine** is every move of yours (needs Log in with Steam, and you in the match). The map, the timeline, the killfeed, the cards and previous / next all follow it, so they always show the same moves. (The Players tab counts the annotated moves: !! ! ? ??.)
 
@@ -108,6 +110,7 @@ npm run dev          # http://localhost:5173  (add `-- --host` to open it from o
 npm test             # tests (vitest, a few seconds)
 npm run build        # type-check + production build
 npm run train:coach -- <folder>   # train the coach on a folder of demos (see Training the coach)
+npm run learn:spots -- <folder>   # learn the standard smoke / molotov spots from the same demos
 npm run build:maps   # regenerate src/map/generated/maps.json from public/images/maps/*.png (only after changing radars or tools/build-maps.mjs)
 ```
 
@@ -125,6 +128,10 @@ trained it uses hand-set Premier numbers. To train it:
    later only reads the new ones.
 3. It writes `src/engine/models/faceit10.json` and prints the new normals next to Premier's. Commit that file: from
    then on the coach (and the scoreboard colours) judge against it.
+4. `npm run learn:spots -- ~/path/to/folder` learns where those players land smokes and molotovs (a spot is standard
+   when 4+ grenades from 3+ matches land there) into `src/map/generated/util-spots.json`: the review calls a smoke on a
+   standard spot book and one far from all of them that blocked nothing a missed smoke. Maps with few demos have
+   few spots, so add demos of the maps you play.
 
 Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings and imported matches stay in `.steam-cache/` (never committed).
 
@@ -258,6 +265,7 @@ tools/
   demoparser-node/   Node build of the WebAssembly parser (CI)
   steam.mjs          desktop Steam backend: OpenID, Valve match-history API, replays-folder auto-import, parsed demos (.steam-cache/)
   train-coach.ts     trains the coach on a folder of demos → src/engine/models/<name>.json (npm run train:coach)
+  learn-spots.ts     standard smoke / molotov spots from a folder of demos → src/map/generated/util-spots.json
   build-maps.mjs     radar PNG → grid (alpha = floor; small grey shapes = props/walls; dark lines = walls on Nuke/Vertigo)
   overviews/         Valve's overview .txt per map (pos_x/pos_y/scale, spawns, bomb markers), read by build-maps
 vite.config.ts       dev-server plugins: POST /api/demo parses a demo locally; /api/steam/* (me, status, openid, settings, sync, load…)

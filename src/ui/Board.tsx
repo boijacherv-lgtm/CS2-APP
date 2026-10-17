@@ -8,7 +8,8 @@ import { radarToWorld, worldToRadar } from '../engine/coords';
 import { simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
 import type { SpotMap } from '../engine/spots';
-import { bombAt, evalAt, NOTE_INFO, type Review } from '../engine/recap';
+import { bombAt, evalAt, type Review } from '../engine/recap';
+import { moveLook } from './NoteMark';
 import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
 import { Gunfire } from './Shots';
@@ -592,7 +593,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             const pi = sim.ids.indexOf(m.player);
             if (pi < 0) return null;
             const step = Math.min(sim.steps - 1, Math.round((m.kind === 'death' ? m.t : s.time) / 0.1));
-            const g = NOTE_INFO[m.note];
+            const g = moveLook(m);
             const age = (s.time - m.t) / BADGE_SECS;
             return (
               <Group key={`badge-${i}`} x={sim.x[pi][step] + 13 * k} y={sim.y[pi][step] - 13 * k} listening={false}

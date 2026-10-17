@@ -1,5 +1,7 @@
 import { cappedDamage, duelOdds, roundFacts, roundGrade, type DemoData, type Letter, type Replay, type Review, type Role, type Tag } from './recap';
 import type { Side } from './types';
+import { gradeAgainst } from './coach';
+import { COACH_MODEL } from './coachModels';
 
 /**
  * Match report: every round's grades rolled up per player, plus an estimated rating for the game.
@@ -84,7 +86,14 @@ export interface PlayerReport {
   utilDamage: number; flashAssists: number; whiffs: number; upsets: number;
   impactPerRound: number; // win chance added per round, in % points
   pointsPerRound: number;
-  letter: Letter; // match grade
+  /** Grade among the 10 players of this lobby (who did best in this match). */
+  letter: Letter;
+  /** How far ahead of the lobby, in spreads (0 = the lobby's average). */
+  lobbyZ: number;
+  /** Grade against FACEIT level-10 players (the coach's model), null until it's trained. */
+  lvl10: { letter: Letter; z: number } | null;
+  /** The plain average of their round grades. */
+  roundsLetter: Letter;
   duelsWon: number; duelsLost: number; avgOpponent: number | null;
   duelRating: number | null; // performance rating from duels alone
   gameRating: number | null; // estimated rating for this game
@@ -139,12 +148,14 @@ export function buildMatchReport(data: DemoData, rounds: (RoundSummary | null)[]
       clutches: tagCount('CLUTCH'), multiKills: got.filter(l => l.kills >= 3).length,
       utilDamage: sum(l => l.utilDamage), flashAssists: tagCount('FLASH ASSIST'), whiffs: tagCount('WHIFF'), upsets: tagCount('UPSET'),
       impactPerRound: (sum(l => l.impact) / n) * 100, pointsPerRound,
-      letter: matchLetter(got.map(l => l.letter)),
+      letter: 'C', lobbyZ: 0, lvl10: null, roundsLetter: matchLetter(got.map(l => l.letter)),
       duelsWon: won, duelsLost: duels.length - won, avgOpponent: opp.length ? opp.reduce((a, b) => a + b, 0) / opp.length : null,
       duelRating, gameRating: duelRating !== null ? Math.round(duelRating + IMPACT_PER_POINT * pointsPerRound) : null,
       roles: [...roleCount].map(([role, rounds]) => ({ role, rounds })).sort((a, b) => b.rounds - a.rounds),
     };
   });
+  gradeLobby(players);
+  if (COACH_MODEL.trainedOn > 0) for (const p of players) if (p.played) p.lvl10 = gradeAgainst(p, COACH_MODEL);
   players.sort((a, b) => a.team - b.team || (b.gameRating ?? -1e9) - (a.gameRating ?? -1e9) || b.pointsPerRound - a.pointsPerRound);
   return { players, score, graded: rounds.filter(Boolean).length, total: data.rounds.length };
 }
@@ -164,6 +175,34 @@ export function performance(opponents: number[], wins: number): number {
     if (exp < target) lo = mid; else hi = mid;
   }
   return Math.round((lo + hi) / 2);
+}
+
+/**
+ * Grades within the lobby: each player's round grades, impact, ADR, KAST and duels won, each against the other players
+ * of the match (in spreads), blended into one number; the letter is how far above or below the lobby's middle that is.
+ */
+function gradeLobby(players: PlayerReport[]) {
+  const ps = players.filter(p => p.played > 0);
+  if (!ps.length) return;
+  const metrics: [number, (p: PlayerReport) => number][] = [
+    [0.3, p => p.rounds.reduce((a, l) => a + (l ? LETTER_VALUE[l.letter] : 0), 0) / Math.max(1, p.played)],
+    [0.25, p => p.impactPerRound],
+    [0.2, p => p.adr],
+    [0.15, p => p.kast],
+    [0.1, p => (p.duelsWon + p.duelsLost ? p.duelsWon / (p.duelsWon + p.duelsLost) : 0.5)],
+  ];
+  const z = new Map(ps.map(p => [p.id, 0]));
+  for (const [w, f] of metrics) {
+    const xs = ps.map(f);
+    const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
+    const sd = Math.sqrt(xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length) || 1;
+    ps.forEach((p, i) => z.set(p.id, z.get(p.id)! + w * (xs[i] - mean) / sd));
+  }
+  for (const p of ps) {
+    const v = z.get(p.id)!;
+    p.lobbyZ = v;
+    p.letter = v >= 1.3 ? 'S+' : v >= 0.85 ? 'S' : v >= 0.4 ? 'A' : v >= 0 ? 'B' : v >= -0.4 ? 'C' : v >= -0.85 ? 'D' : 'F';
+  }
 }
 
 const LETTER_VALUE: Record<Letter, number> = { 'S+': 7, S: 6, A: 5, B: 4, C: 3, D: 2, F: 0 };

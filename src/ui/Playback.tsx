@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import { NOTE_INFO, type DemoData, type DemoRound, type Review } from '../engine/recap';
+import { type DemoData, type DemoRound, type Review } from '../engine/recap';
+import { moveLook } from './NoteMark';
 import { SIDE_COLOR, T } from './tokens';
 import { useShown } from './shown';
 import { Icon } from './Icon';
@@ -157,7 +158,7 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
       ))}
       {plant !== null && <span className="tl-bomb" style={{ left: pct(plant) }} title={`Bomb planted at ${clock(plant)} into the round`}><Icon name="bomb" size={12} /></span>}
       {moves.map((m, i) => {
-        const g = NOTE_INFO[m.note];
+        const g = moveLook(m);
         // the same marks as on the map, for every move that's evaluated: book moves as small dots
         return (
           <button key={`m${i}`} className={m.note === 'book' ? 'tl-dot' : 'tl-mark'} style={{ left: pct(m.t), background: g.color }}
