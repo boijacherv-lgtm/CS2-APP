@@ -111,6 +111,8 @@ npm test             # tests (vitest, a few seconds)
 npm run build        # type-check + production build
 npm run train:coach -- <folder>   # train the coach on a folder of demos (see Training the coach)
 npm run learn:spots -- <folder>   # learn the standard smoke / molotov spots from the same demos
+npm run learn:positions -- <folder>   # learn where level-10 players stand and why they move (Pro positions layer)
+npm run learn:analyst -- <folder>   # learn the analyst benchmarks: trades, duels, control, rotations, plans, economy…
 npm run build:maps   # regenerate src/map/generated/maps.json from public/images/maps/*.png (only after changing radars or tools/build-maps.mjs)
 ```
 
@@ -132,6 +134,56 @@ trained it uses hand-set Premier numbers. To train it:
    when 4+ grenades from 3+ matches land there) into `src/map/generated/util-spots.json`: the review calls a smoke on a
    standard spot book and one far from all of them that blocked nothing a missed smoke. Maps with few demos have
    few spots, so add demos of the maps you play.
+5. `npm run learn:positions -- ~/path/to/folder [--map de_dust2]` is step 1 of the decision coach: every round becomes
+   situations and decisions (`src/engine/situations.ts`): where each player held (a callout, for how long, what their
+   team had seen) and every move to another spot with what had just happened (a teammate died there, an enemy was
+   seen, the bomb went down). It learns, per map, side and phase (0–25 s, 25–60 s, 60 s+, after the plant), where
+   level-10 players stand, their share of the time there and how often that side won, plus their common moves and
+   triggers, into `src/map/generated/positions.json`. The **Pro positions** layer (layers menu) shows it on the map
+   for the current moment of the round.
+   Step 2: the **Positions** tab in Review lists a player's decisions in the round (where they held, where they moved
+   and right after what) and compares each one with level-10 players in the same situation: the same part of the
+   round, the same numbers alive (2v3, 5v5…), the bomb's site after the plant, and the same trigger for moves
+   (`src/engine/positioning.ts`): **Like the pros**, **Rare for pros**, **Pros don't**, with where they stand instead
+   and how often each choice wins the round.
+   Step 3, the reasons: every hold also records the pressure (most enemies the team had in sight near the player),
+   whether they were alone, a teammate dying nearby, and for Ts the site the team went for. The learner keeps how
+   holding each spot goes for level-10 players by pressure and support (how often they die there, leave, and where
+   to), so rows explain the why: "level-10 players holding B Doors with 2+ enemies in sight die 68% of the time; 55%
+   leave, mostly to B Site", "alone here they die 52%, with a teammate 30%". Ts are compared with Ts going for the
+   same site.
+   Step 4, the write-up (`src/engine/analysis.ts`): Match recap has a **Positioning** card with a summary of the
+   player's match against level-10 play, what to work on (fall back from a spot once they're on you, don't hold a
+   spot alone, a spot level-10 players don't use, a better-winning spot, reacting differently after a trigger), each
+   with the rounds to watch, and what to keep; the Positions tab opens with a paragraph on the round. It's written
+   from counted patterns only (templates), so it never invents a reason; a language model could later rephrase the
+   same facts.
+6. `npm run learn:analyst -- ~/path/to/folder` learns what a pro team's analyst looks at (`src/engine/analyst.ts`,
+   benchmarks in `analystBench.ts`) into `src/engine/models/analyst.json`, per map and over all maps:
+   - **Trades:** every death, whether it was traded and how fast, and which teammates had the chance (close, or could
+     see the killer within 3 s); how often a chance is taken; how spacing to the nearest teammate changes it.
+   - **Duels:** who peeked and who held (speed at the kill), who hit first, time to kill, range per weapon, flashed,
+     from behind; **openings:** who wins the first kill, where, with a flash, and the round after it.
+   - **Map control:** the areas each side held at 0:20 and 0:40, and the areas that win rounds when Ts hold them.
+   - **Rotations:** CTs going site to site: why (a death, Ts seen, the plant), how long, late, over-rotated, died on the way.
+   - **Round plans:** the T round type (pistol, eco, rush, execute, split, default) and target, the CT setup at
+     0:15 (e.g. 2A 1M 2B) and their win rates, time to first contact and to the plant.
+   - **Utility** per side (and in the hit), **economy** (each side's buy, money, loss streak; win rates for buy vs
+     buy), **post-plants** (numbers, how spread out the Ts are, how many watch the bomb, the retake).
+   Match recap's **Analyst report** compares the player (trades, duels, openings, rotations) and their team (plans,
+   setups, control, utility, economy, post-plants) with those numbers, with findings and the rounds to watch. In
+   Review, a trade a player could have taken and didn't, and a late or over-rotation, become that player's **?**
+   move (NO TRADE / LATE ROTATION / OVER-ROTATION); a death swinging into a held angle without a flash is tagged
+   DRY PEEK.
+   The same run also learns:
+   - **Duels in detail:** demos now carry every kill's last 3 s at 16 samples a second for both players (position
+     and aim, `round.fights`), so each duel gets who saw whom first, the time from seeing the enemy to the first
+     shot, how far the crosshair was from their head when they appeared (crosshair placement, smokes block the
+     view), and whether the first shot was fired while moving. The Duels tab compares them with level-10 medians.
+   - **The win chance** (`src/engine/winprob.ts` → `models/winprob.json`): a logistic model fitted on the state of
+     every level-10 round every 2 s (men alive, health, equipment, the bomb and its timer, time running out, map
+     control = areas each side held, and trades about to happen) instead of hand-set weights. The run prints how
+     much better it predicts than the old formula; until it's trained, the old formula is used.
 
 Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings and imported matches stay in `.steam-cache/` (never committed).
 
@@ -266,6 +318,8 @@ tools/
   steam.mjs          desktop Steam backend: OpenID, Valve match-history API, replays-folder auto-import, parsed demos (.steam-cache/)
   train-coach.ts     trains the coach on a folder of demos → src/engine/models/<name>.json (npm run train:coach)
   learn-spots.ts     standard smoke / molotov spots from a folder of demos → src/map/generated/util-spots.json
+  learn-positions.ts where level-10 players stand and why they move → src/map/generated/positions.json
+  learn-analyst.ts   trades, duels, control, rotations, plans, utility, economy, post-plant benchmarks → src/engine/models/analyst.json
   build-maps.mjs     radar PNG → grid (alpha = floor; small grey shapes = props/walls; dark lines = walls on Nuke/Vertigo)
   overviews/         Valve's overview .txt per map (pos_x/pos_y/scale, spawns, bomb markers), read by build-maps
 vite.config.ts       dev-server plugins: POST /api/demo parses a demo locally; /api/steam/* (me, status, openid, settings, sync, load…)

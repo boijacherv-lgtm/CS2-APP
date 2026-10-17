@@ -16,6 +16,7 @@ const GROUPS: { title: string; items: { id: Overlay; label: string; review?: boo
       { id: 'control', label: 'Map control (CT coverage)' },
       { id: 'vision', label: 'Vision cones, who sees whom' },
       { id: 'los', label: 'Sightline of selected player' },
+      { id: 'proSpots', label: 'Pro positions (where FACEIT level 10 stand now)' },
     ],
   },
   {

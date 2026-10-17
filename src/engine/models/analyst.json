@@ -1,0 +1,2447 @@
+{
+ "version": 1,
+ "trainedAt": "2026-10-17",
+ "overall": {
+  "demos": 46,
+  "rounds": 1010,
+  "trades": {
+   "deaths": 7122,
+   "tradedRate": 0.215,
+   "avgTradeTime": 2.04,
+   "chanceConversion": 0.25,
+   "spacing": [
+    {
+     "bucket": "under 8 m",
+     "n": 1585,
+     "tradedRate": 0.42
+    },
+    {
+     "bucket": "8–20 m",
+     "n": 2227,
+     "tradedRate": 0.27
+    },
+    {
+     "bucket": "20–38 m",
+     "n": 1666,
+     "tradedRate": 0.14
+    },
+    {
+     "bucket": "over 38 m",
+     "n": 730,
+     "tradedRate": 0.04
+    }
+   ]
+  },
+  "duels": {
+   "n": 7122,
+   "peekWin": 0.448,
+   "firstHitWin": 0.777,
+   "flashedShare": 0.073,
+   "behindShare": 0.048,
+   "avgTtk": 0.47,
+   "ranges": {
+    "rifle": {
+     "n": 4287,
+     "avg": 20
+    },
+    "awp": {
+     "n": 852,
+     "avg": 30.5
+    },
+    "smg": {
+     "n": 323,
+     "avg": 13
+    },
+    "pistol": {
+     "n": 1263,
+     "avg": 18.2
+    }
+   },
+   "react": 0.415,
+   "aim": 6.6,
+   "movingShots": 0.235,
+   "spottedFirstWin": 0.72
+  },
+  "openings": {
+   "n": 1010,
+   "tWinShare": 0.429,
+   "winAfter": 0.712,
+   "withFlash": 0.129,
+   "places": {
+    "CT": [
+     {
+      "place": "Suicide",
+      "n": 48,
+      "winRate": 0.71
+     },
+     {
+      "place": "Top Mid",
+      "n": 43,
+      "winRate": 0.79
+     },
+     {
+      "place": "Start",
+      "n": 39,
+      "winRate": 0.85
+     },
+     {
+      "place": "Long Doors",
+      "n": 37,
+      "winRate": 0.81
+     },
+     {
+      "place": "Upper B Tunnels",
+      "n": 29,
+      "winRate": 0.72
+     },
+     {
+      "place": "A Ramp",
+      "n": 29,
+      "winRate": 0.76
+     },
+     {
+      "place": "Blue",
+      "n": 25,
+      "winRate": 0.8
+     },
+     {
+      "place": "Tetris",
+      "n": 20,
+      "winRate": 0.8
+     },
+     {
+      "place": "Lower B Tunnels",
+      "n": 19,
+      "winRate": 0.79
+     },
+     {
+      "place": "Arches",
+      "n": 17,
+      "winRate": 0.65
+     }
+    ],
+    "T": [
+     {
+      "place": "CT Mid",
+      "n": 48,
+      "winRate": 0.69
+     },
+     {
+      "place": "Mid Doors",
+      "n": 16,
+      "winRate": 0.75
+     },
+     {
+      "place": "A Long",
+      "n": 16,
+      "winRate": 0.69
+     },
+     {
+      "place": "Mid",
+      "n": 14,
+      "winRate": 0.71
+     },
+     {
+      "place": "Bridge",
+      "n": 13,
+      "winRate": 0.77
+     },
+     {
+      "place": "Long Corner",
+      "n": 13,
+      "winRate": 0.77
+     },
+     {
+      "place": "Stairs",
+      "n": 13,
+      "winRate": 0.77
+     },
+     {
+      "place": "Double Doors",
+      "n": 12,
+      "winRate": 0.5
+     },
+     {
+      "place": "Zig",
+      "n": 12,
+      "winRate": 0.67
+     },
+     {
+      "place": "E Box",
+      "n": 11,
+      "winRate": 0.36
+     }
+    ]
+   }
+  },
+  "control": {
+   "tAreas20": 6.1,
+   "tAreas40": 4.6,
+   "keyAreas": [
+    {
+     "area": "Jungle",
+     "n": 20,
+     "tWin": 0.8
+    },
+    {
+     "area": "Wood",
+     "n": 13,
+     "tWin": 0.77
+    },
+    {
+     "area": "B Doors",
+     "n": 34,
+     "tWin": 0.71
+    },
+    {
+     "area": "Middle",
+     "n": 27,
+     "tWin": 0.7
+    },
+    {
+     "area": "A Long",
+     "n": 66,
+     "tWin": 0.7
+    },
+    {
+     "area": "A Connector",
+     "n": 13,
+     "tWin": 0.69
+    },
+    {
+     "area": "Car",
+     "n": 56,
+     "tWin": 0.68
+    },
+    {
+     "area": "Palace",
+     "n": 12,
+     "tWin": 0.67
+    },
+    {
+     "area": "Window",
+     "n": 30,
+     "tWin": 0.67
+    },
+    {
+     "area": "CT Mid",
+     "n": 39,
+     "tWin": 0.62
+    },
+    {
+     "area": "Ladder Room",
+     "n": 25,
+     "tWin": 0.6
+    },
+    {
+     "area": "Boat",
+     "n": 41,
+     "tWin": 0.59
+    }
+   ]
+  },
+  "rotations": {
+   "perRound": 1.81,
+   "avgTime": 12.6,
+   "lateRate": 0.111,
+   "overRate": 0.053,
+   "diedRate": 0.463
+  },
+  "plans": {
+   "types": [
+    {
+     "type": "no hit",
+     "n": 325,
+     "tWin": 0.14
+    },
+    {
+     "type": "eco",
+     "n": 168,
+     "tWin": 0.29
+    },
+    {
+     "type": "rush B",
+     "n": 102,
+     "tWin": 0.74
+    },
+    {
+     "type": "default A",
+     "n": 102,
+     "tWin": 0.65
+    },
+    {
+     "type": "pistol",
+     "n": 92,
+     "tWin": 0.38
+    },
+    {
+     "type": "rush A",
+     "n": 88,
+     "tWin": 0.84
+    },
+    {
+     "type": "default B",
+     "n": 63,
+     "tWin": 0.6
+    },
+    {
+     "type": "split A",
+     "n": 27,
+     "tWin": 0.7
+    },
+    {
+     "type": "split B",
+     "n": 23,
+     "tWin": 0.65
+    },
+    {
+     "type": "execute A",
+     "n": 14,
+     "tWin": 0.79
+    },
+    {
+     "type": "execute B",
+     "n": 6,
+     "tWin": 1
+    }
+   ],
+   "setups": [
+    {
+     "setup": "1A 3M 1B",
+     "n": 123,
+     "ctWin": 0.6
+    },
+    {
+     "setup": "2A 2M 1B",
+     "n": 78,
+     "ctWin": 0.67
+    },
+    {
+     "setup": "1A 2M 2B",
+     "n": 76,
+     "ctWin": 0.63
+    },
+    {
+     "setup": "1A 2M 1B",
+     "n": 55,
+     "ctWin": 0.58
+    },
+    {
+     "setup": "0A 4M 1B",
+     "n": 46,
+     "ctWin": 0.67
+    },
+    {
+     "setup": "1A 4M 0B",
+     "n": 38,
+     "ctWin": 0.61
+    },
+    {
+     "setup": "0A 5M 0B",
+     "n": 28,
+     "ctWin": 0.43
+    },
+    {
+     "setup": "0A 3M 1B",
+     "n": 26,
+     "ctWin": 0.38
+    },
+    {
+     "setup": "2A 1M 1B",
+     "n": 26,
+     "ctWin": 0.42
+    },
+    {
+     "setup": "0A 3M 2B",
+     "n": 24,
+     "ctWin": 0.46
+    },
+    {
+     "setup": "1A 3M 0B",
+     "n": 24,
+     "ctWin": 0.33
+    },
+    {
+     "setup": "2A 1M 2B",
+     "n": 19,
+     "ctWin": 0.63
+    },
+    {
+     "setup": "2A 3M 0B",
+     "n": 16,
+     "ctWin": 0.5
+    },
+    {
+     "setup": "1A 1M 2B",
+     "n": 14,
+     "ctWin": 0.36
+    },
+    {
+     "setup": "1A 1M 3B",
+     "n": 13,
+     "ctWin": 0.69
+    },
+    {
+     "setup": "2A 2M 0B",
+     "n": 12,
+     "ctWin": 0.5
+    },
+    {
+     "setup": "0A 4M 0B",
+     "n": 12,
+     "ctWin": 0.5
+    },
+    {
+     "setup": "2A 0M 2B",
+     "n": 11,
+     "ctWin": 0.55
+    },
+    {
+     "setup": "3A 1M 1B",
+     "n": 11,
+     "ctWin": 0.73
+    },
+    {
+     "setup": "0A 2M 3B",
+     "n": 10,
+     "ctWin": 0.3
+    },
+    {
+     "setup": "0A 2M 1B",
+     "n": 10,
+     "ctWin": 0.3
+    },
+    {
+     "setup": "2A 0M 3B",
+     "n": 8,
+     "ctWin": 0.5
+    },
+    {
+     "setup": "3A 0M 2B",
+     "n": 8,
+     "ctWin": 0.5
+    },
+    {
+     "setup": "0A 2M 2B",
+     "n": 7,
+     "ctWin": 0.43
+    },
+    {
+     "setup": "1A 0M 2B",
+     "n": 6,
+     "ctWin": 0.17
+    },
+    {
+     "setup": "0A 3M 0B",
+     "n": 6,
+     "ctWin": 0.17
+    }
+   ],
+   "firstContact": 18.3,
+   "plantTime": 55.2
+  },
+  "utility": {
+   "CT": {
+    "thrown": 7.8,
+    "beforeContact": 4.2,
+    "flashConv": 0.116,
+    "teamFlashes": 0.81
+   },
+   "T": {
+    "thrown": 6.8,
+    "beforeContact": 3.3,
+    "flashConv": 0.1,
+    "teamFlashes": 0.69
+   },
+   "executeAvg": 1.3,
+   "winWithExecute": 0.78,
+   "winWithout": 0.7
+  },
+  "economy": {
+   "pairs": [
+    {
+     "t": "Full buy",
+     "ct": "Full buy",
+     "n": 371,
+     "tWin": 0.46
+    },
+    {
+     "t": "Force buy",
+     "ct": "Full buy",
+     "n": 112,
+     "tWin": 0.3
+    },
+    {
+     "t": "Pistol round",
+     "ct": "Pistol round",
+     "n": 92,
+     "tWin": 0.38
+    },
+    {
+     "t": "Eco",
+     "ct": "Eco",
+     "n": 92,
+     "tWin": 0.43
+    },
+    {
+     "t": "Semi-eco",
+     "ct": "Full buy",
+     "n": 78,
+     "tWin": 0.21
+    },
+    {
+     "t": "Full buy",
+     "ct": "Force buy",
+     "n": 71,
+     "tWin": 0.55
+    },
+    {
+     "t": "Eco",
+     "ct": "Full buy",
+     "n": 69,
+     "tWin": 0.12
+    },
+    {
+     "t": "Full buy",
+     "ct": "Semi-eco",
+     "n": 58,
+     "tWin": 0.66
+    },
+    {
+     "t": "Full buy",
+     "ct": "Eco",
+     "n": 31,
+     "tWin": 0.87
+    },
+    {
+     "t": "Force buy",
+     "ct": "Semi-eco",
+     "n": 17,
+     "tWin": 0.94
+    },
+    {
+     "t": "Force buy",
+     "ct": "Eco",
+     "n": 10,
+     "tWin": 0.9
+    },
+    {
+     "t": "Eco",
+     "ct": "Force buy",
+     "n": 7,
+     "tWin": 0
+    }
+   ]
+  },
+  "postPlant": {
+   "n": 370,
+   "tWin": 0.78,
+   "byNumbers": [
+    {
+     "key": "3v2",
+     "n": 43,
+     "tWin": 0.91
+    },
+    {
+     "key": "2v1",
+     "n": 41,
+     "tWin": 0.95
+    },
+    {
+     "key": "3v1",
+     "n": 34,
+     "tWin": 1
+    },
+    {
+     "key": "2v2",
+     "n": 34,
+     "tWin": 0.53
+    },
+    {
+     "key": "4v2",
+     "n": 30,
+     "tWin": 1
+    },
+    {
+     "key": "1v1",
+     "n": 22,
+     "tWin": 0.68
+    },
+    {
+     "key": "3v3",
+     "n": 21,
+     "tWin": 0.76
+    },
+    {
+     "key": "4v1",
+     "n": 19,
+     "tWin": 1
+    },
+    {
+     "key": "2v3",
+     "n": 18,
+     "tWin": 0.39
+    },
+    {
+     "key": "4v3",
+     "n": 18,
+     "tWin": 1
+    },
+    {
+     "key": "1v2",
+     "n": 17,
+     "tWin": 0.35
+    },
+    {
+     "key": "1v3",
+     "n": 11,
+     "tWin": 0.36
+    },
+    {
+     "key": "5v2",
+     "n": 11,
+     "tWin": 1
+    },
+    {
+     "key": "4v4",
+     "n": 9,
+     "tWin": 0.78
+    },
+    {
+     "key": "5v1",
+     "n": 7,
+     "tWin": 1
+    },
+    {
+     "key": "3v4",
+     "n": 7,
+     "tWin": 0.71
+    },
+    {
+     "key": "5v3",
+     "n": 6,
+     "tWin": 1
+    },
+    {
+     "key": "0v3",
+     "n": 5,
+     "tWin": 0
+    },
+    {
+     "key": "0v2",
+     "n": 5,
+     "tWin": 0
+    }
+   ],
+   "bySpread": [
+    {
+     "bucket": "medium",
+     "n": 138,
+     "tWin": 0.86
+    },
+    {
+     "bucket": "spread (>25 m)",
+     "n": 129,
+     "tWin": 0.88
+    },
+    {
+     "bucket": "tight (<13 m)",
+     "n": 39,
+     "tWin": 0.77
+    }
+   ],
+   "byWatching": [
+    {
+     "watching": "1",
+     "n": 161,
+     "tWin": 0.77
+    },
+    {
+     "watching": "2+",
+     "n": 122,
+     "tWin": 0.87
+    },
+    {
+     "watching": "0",
+     "n": 87,
+     "tWin": 0.66
+    }
+   ]
+  }
+ },
+ "maps": {
+  "de_anubis": {
+   "demos": 9,
+   "rounds": 185,
+   "trades": {
+    "deaths": 1345,
+    "tradedRate": 0.211,
+    "avgTradeTime": 1.99,
+    "chanceConversion": 0.284,
+    "spacing": [
+     {
+      "bucket": "under 8 m",
+      "n": 304,
+      "tradedRate": 0.42
+     },
+     {
+      "bucket": "8–20 m",
+      "n": 450,
+      "tradedRate": 0.29
+     },
+     {
+      "bucket": "20–38 m",
+      "n": 301,
+      "tradedRate": 0.09
+     },
+     {
+      "bucket": "over 38 m",
+      "n": 125,
+      "tradedRate": 0
+     }
+    ]
+   },
+   "duels": {
+    "n": 1345,
+    "peekWin": 0.462,
+    "firstHitWin": 0.78,
+    "flashedShare": 0.077,
+    "behindShare": 0.048,
+    "avgTtk": 0.45,
+    "ranges": {
+     "rifle": {
+      "n": 817,
+      "avg": 18
+     },
+     "awp": {
+      "n": 122,
+      "avg": 23.2
+     },
+     "smg": {
+      "n": 83,
+      "avg": 12.4
+     },
+     "pistol": {
+      "n": 244,
+      "avg": 16
+     }
+    },
+    "react": 0.265,
+    "aim": 5.4,
+    "movingShots": 0.272,
+    "spottedFirstWin": 0.789
+   },
+   "openings": {
+    "n": 185,
+    "tWinShare": 0.476,
+    "winAfter": 0.67,
+    "withFlash": 0.157,
+    "places": {
+     "CT": [
+      {
+       "place": "Arches",
+       "n": 17,
+       "winRate": 0.65
+      },
+      {
+       "place": "Bridge",
+       "n": 10,
+       "winRate": 0.6
+      },
+      {
+       "place": "Top Mid",
+       "n": 10,
+       "winRate": 0.7
+      },
+      {
+       "place": "Water",
+       "n": 10,
+       "winRate": 0.7
+      },
+      {
+       "place": "Ivy",
+       "n": 7,
+       "winRate": 0.86
+      },
+      {
+       "place": "Main",
+       "n": 7,
+       "winRate": 0.71
+      },
+      {
+       "place": "B Long",
+       "n": 5,
+       "winRate": 0.6
+      },
+      {
+       "place": "Boat",
+       "n": 5,
+       "winRate": 0.6
+      }
+     ],
+     "T": [
+      {
+       "place": "Bridge",
+       "n": 13,
+       "winRate": 0.77
+      },
+      {
+       "place": "Double Doors",
+       "n": 12,
+       "winRate": 0.5
+      },
+      {
+       "place": "E Box",
+       "n": 11,
+       "winRate": 0.36
+      },
+      {
+       "place": "Middle",
+       "n": 10,
+       "winRate": 0.6
+      },
+      {
+       "place": "Water",
+       "n": 7,
+       "winRate": 0.43
+      },
+      {
+       "place": "Street",
+       "n": 6,
+       "winRate": 0.67
+      },
+      {
+       "place": "Main",
+       "n": 6,
+       "winRate": 0.83
+      }
+     ]
+    }
+   },
+   "control": {
+    "tAreas20": 6.8,
+    "tAreas40": 4.2,
+    "keyAreas": [
+     {
+      "area": "Wood",
+      "n": 13,
+      "tWin": 0.77
+     },
+     {
+      "area": "Middle",
+      "n": 27,
+      "tWin": 0.7
+     },
+     {
+      "area": "A Connector",
+      "n": 13,
+      "tWin": 0.69
+     },
+     {
+      "area": "Boat",
+      "n": 41,
+      "tWin": 0.59
+     },
+     {
+      "area": "Drop",
+      "n": 31,
+      "tWin": 0.55
+     },
+     {
+      "area": "Headshot",
+      "n": 22,
+      "tWin": 0.55
+     },
+     {
+      "area": "Alley",
+      "n": 37,
+      "tWin": 0.35
+     },
+     {
+      "area": "Ivy",
+      "n": 12,
+      "tWin": 0.33
+     }
+    ]
+   },
+   "rotations": {
+    "perRound": 1.62,
+    "avgTime": 13.7,
+    "lateRate": 0.197,
+    "overRate": 0.074,
+    "diedRate": 0.348
+   },
+   "plans": {
+    "types": [
+     {
+      "type": "no hit",
+      "n": 47,
+      "tWin": 0.15
+     },
+     {
+      "type": "rush B",
+      "n": 40,
+      "tWin": 0.6
+     },
+     {
+      "type": "eco",
+      "n": 30,
+      "tWin": 0.37
+     },
+     {
+      "type": "default A",
+      "n": 24,
+      "tWin": 0.63
+     },
+     {
+      "type": "pistol",
+      "n": 18,
+      "tWin": 0.39
+     },
+     {
+      "type": "rush A",
+      "n": 10,
+      "tWin": 0.9
+     },
+     {
+      "type": "default B",
+      "n": 7,
+      "tWin": 0.57
+     },
+     {
+      "type": "split A",
+      "n": 5,
+      "tWin": 0.4
+     }
+    ],
+    "setups": [
+     {
+      "setup": "1A 2M 2B",
+      "n": 39,
+      "ctWin": 0.69
+     },
+     {
+      "setup": "1A 2M 1B",
+      "n": 15,
+      "ctWin": 0.73
+     },
+     {
+      "setup": "1A 1M 2B",
+      "n": 12,
+      "ctWin": 0.33
+     },
+     {
+      "setup": "1A 1M 3B",
+      "n": 12,
+      "ctWin": 0.75
+     },
+     {
+      "setup": "2A 1M 2B",
+      "n": 11,
+      "ctWin": 0.73
+     },
+     {
+      "setup": "0A 3M 2B",
+      "n": 9,
+      "ctWin": 0.22
+     },
+     {
+      "setup": "0A 2M 3B",
+      "n": 9,
+      "ctWin": 0.33
+     }
+    ],
+    "firstContact": 16.9,
+    "plantTime": 56.5
+   },
+   "utility": {
+    "CT": {
+     "thrown": 7,
+     "beforeContact": 3.9,
+     "flashConv": 0.166,
+     "teamFlashes": 0.31
+    },
+    "T": {
+     "thrown": 6.5,
+     "beforeContact": 3.4,
+     "flashConv": 0.102,
+     "teamFlashes": 0.27
+    },
+    "executeAvg": 1.6,
+    "winWithExecute": 0.6,
+    "winWithout": 0.63
+   },
+   "economy": {
+    "pairs": [
+     {
+      "t": "Full buy",
+      "ct": "Full buy",
+      "n": 58,
+      "tWin": 0.43
+     },
+     {
+      "t": "Force buy",
+      "ct": "Full buy",
+      "n": 22,
+      "tWin": 0.32
+     },
+     {
+      "t": "Full buy",
+      "ct": "Force buy",
+      "n": 19,
+      "tWin": 0.42
+     },
+     {
+      "t": "Pistol round",
+      "ct": "Pistol round",
+      "n": 18,
+      "tWin": 0.39
+     },
+     {
+      "t": "Eco",
+      "ct": "Eco",
+      "n": 18,
+      "tWin": 0.5
+     },
+     {
+      "t": "Semi-eco",
+      "ct": "Full buy",
+      "n": 13,
+      "tWin": 0.23
+     },
+     {
+      "t": "Full buy",
+      "ct": "Semi-eco",
+      "n": 13,
+      "tWin": 0.62
+     },
+     {
+      "t": "Eco",
+      "ct": "Full buy",
+      "n": 11,
+      "tWin": 0.18
+     },
+     {
+      "t": "Full buy",
+      "ct": "Eco",
+      "n": 7,
+      "tWin": 1
+     }
+    ]
+   },
+   "postPlant": {
+    "n": 76,
+    "tWin": 0.72,
+    "byNumbers": [
+     {
+      "key": "3v2",
+      "n": 10,
+      "tWin": 0.8
+     },
+     {
+      "key": "2v1",
+      "n": 8,
+      "tWin": 0.88
+     },
+     {
+      "key": "2v3",
+      "n": 7,
+      "tWin": 0.43
+     },
+     {
+      "key": "4v1",
+      "n": 6,
+      "tWin": 1
+     },
+     {
+      "key": "1v2",
+      "n": 6,
+      "tWin": 0.33
+     },
+     {
+      "key": "3v3",
+      "n": 6,
+      "tWin": 0.67
+     },
+     {
+      "key": "4v3",
+      "n": 6,
+      "tWin": 1
+     },
+     {
+      "key": "3v1",
+      "n": 5,
+      "tWin": 1
+     }
+    ],
+    "bySpread": [
+     {
+      "bucket": "spread (>25 m)",
+      "n": 27,
+      "tWin": 0.89
+     },
+     {
+      "bucket": "medium",
+      "n": 26,
+      "tWin": 0.69
+     },
+     {
+      "bucket": "tight (<13 m)",
+      "n": 9,
+      "tWin": 0.78
+     }
+    ],
+    "byWatching": [
+     {
+      "watching": "1",
+      "n": 33,
+      "tWin": 0.64
+     },
+     {
+      "watching": "2+",
+      "n": 28,
+      "tWin": 0.79
+     },
+     {
+      "watching": "0",
+      "n": 15,
+      "tWin": 0.8
+     }
+    ]
+   }
+  },
+  "de_dust2": {
+   "demos": 24,
+   "rounds": 521,
+   "trades": {
+    "deaths": 3668,
+    "tradedRate": 0.211,
+    "avgTradeTime": 2.01,
+    "chanceConversion": 0.23,
+    "spacing": [
+     {
+      "bucket": "under 8 m",
+      "n": 854,
+      "tradedRate": 0.42
+     },
+     {
+      "bucket": "8–20 m",
+      "n": 1068,
+      "tradedRate": 0.25
+     },
+     {
+      "bucket": "20–38 m",
+      "n": 865,
+      "tradedRate": 0.15
+     },
+     {
+      "bucket": "over 38 m",
+      "n": 406,
+      "tradedRate": 0.05
+     }
+    ]
+   },
+   "duels": {
+    "n": 3668,
+    "peekWin": 0.438,
+    "firstHitWin": 0.776,
+    "flashedShare": 0.083,
+    "behindShare": 0.046,
+    "avgTtk": 0.5,
+    "ranges": {
+     "rifle": {
+      "n": 2112,
+      "avg": 21
+     },
+     "awp": {
+      "n": 520,
+      "avg": 34
+     },
+     "smg": {
+      "n": 161,
+      "avg": 13.5
+     },
+     "pistol": {
+      "n": 662,
+      "avg": 19.2
+     }
+    },
+    "react": 0.473,
+    "aim": 6.4,
+    "movingShots": 0.231,
+    "spottedFirstWin": 0.7
+   },
+   "openings": {
+    "n": 521,
+    "tWinShare": 0.422,
+    "winAfter": 0.695,
+    "withFlash": 0.125,
+    "places": {
+     "CT": [
+      {
+       "place": "Suicide",
+       "n": 48,
+       "winRate": 0.71
+      },
+      {
+       "place": "Long Doors",
+       "n": 37,
+       "winRate": 0.81
+      },
+      {
+       "place": "Top Mid",
+       "n": 32,
+       "winRate": 0.84
+      },
+      {
+       "place": "Upper B Tunnels",
+       "n": 29,
+       "winRate": 0.72
+      },
+      {
+       "place": "Blue",
+       "n": 25,
+       "winRate": 0.8
+      },
+      {
+       "place": "Lower B Tunnels",
+       "n": 19,
+       "winRate": 0.79
+      },
+      {
+       "place": "B Doors",
+       "n": 13,
+       "winRate": 0.46
+      },
+      {
+       "place": "Car",
+       "n": 11,
+       "winRate": 0.55
+      },
+      {
+       "place": "Mid Doors",
+       "n": 10,
+       "winRate": 0.7
+      },
+      {
+       "place": "Palm",
+       "n": 9,
+       "winRate": 0.89
+      }
+     ],
+     "T": [
+      {
+       "place": "CT Mid",
+       "n": 48,
+       "winRate": 0.69
+      },
+      {
+       "place": "Mid Doors",
+       "n": 16,
+       "winRate": 0.75
+      },
+      {
+       "place": "A Long",
+       "n": 16,
+       "winRate": 0.69
+      },
+      {
+       "place": "Long Corner",
+       "n": 13,
+       "winRate": 0.77
+      },
+      {
+       "place": "Zig",
+       "n": 12,
+       "winRate": 0.67
+      },
+      {
+       "place": "Upper B Tunnels",
+       "n": 11,
+       "winRate": 0.55
+      },
+      {
+       "place": "Lower B Tunnels",
+       "n": 10,
+       "winRate": 0.7
+      },
+      {
+       "place": "Blue",
+       "n": 9,
+       "winRate": 0.56
+      },
+      {
+       "place": "A Site",
+       "n": 7,
+       "winRate": 0.71
+      },
+      {
+       "place": "Xbox",
+       "n": 7,
+       "winRate": 0.57
+      }
+     ]
+    }
+   },
+   "control": {
+    "tAreas20": 6.8,
+    "tAreas40": 5.3,
+    "keyAreas": [
+     {
+      "area": "B Doors",
+      "n": 34,
+      "tWin": 0.71
+     },
+     {
+      "area": "Car",
+      "n": 54,
+      "tWin": 0.69
+     },
+     {
+      "area": "A Long",
+      "n": 65,
+      "tWin": 0.69
+     },
+     {
+      "area": "CT Mid",
+      "n": 39,
+      "tWin": 0.62
+     },
+     {
+      "area": "Close",
+      "n": 23,
+      "tWin": 0.57
+     },
+     {
+      "area": "Outside Tunnels",
+      "n": 39,
+      "tWin": 0.54
+     },
+     {
+      "area": "Long Corner",
+      "n": 64,
+      "tWin": 0.52
+     },
+     {
+      "area": "Close Mid Doors",
+      "n": 48,
+      "tWin": 0.52
+     },
+     {
+      "area": "Suicide",
+      "n": 45,
+      "tWin": 0.33
+     },
+     {
+      "area": "Long Doors",
+      "n": 97,
+      "tWin": 0.29
+     },
+     {
+      "area": "Taxi",
+      "n": 24,
+      "tWin": 0.29
+     }
+    ]
+   },
+   "rotations": {
+    "perRound": 1.84,
+    "avgTime": 14.9,
+    "lateRate": 0.091,
+    "overRate": 0.028,
+    "diedRate": 0.572
+   },
+   "plans": {
+    "types": [
+     {
+      "type": "no hit",
+      "n": 178,
+      "tWin": 0.16
+     },
+     {
+      "type": "eco",
+      "n": 87,
+      "tWin": 0.29
+     },
+     {
+      "type": "default A",
+      "n": 62,
+      "tWin": 0.69
+     },
+     {
+      "type": "pistol",
+      "n": 48,
+      "tWin": 0.31
+     },
+     {
+      "type": "default B",
+      "n": 37,
+      "tWin": 0.65
+     },
+     {
+      "type": "rush B",
+      "n": 33,
+      "tWin": 0.91
+     },
+     {
+      "type": "rush A",
+      "n": 30,
+      "tWin": 0.87
+     },
+     {
+      "type": "split B",
+      "n": 15,
+      "tWin": 0.67
+     },
+     {
+      "type": "split A",
+      "n": 13,
+      "tWin": 0.77
+     },
+     {
+      "type": "execute A",
+      "n": 12,
+      "tWin": 0.83
+     },
+     {
+      "type": "execute B",
+      "n": 6,
+      "tWin": 1
+     }
+    ],
+    "setups": [
+     {
+      "setup": "1A 3M 1B",
+      "n": 67,
+      "ctWin": 0.58
+     },
+     {
+      "setup": "0A 4M 1B",
+      "n": 43,
+      "ctWin": 0.7
+     },
+     {
+      "setup": "2A 2M 1B",
+      "n": 30,
+      "ctWin": 0.57
+     },
+     {
+      "setup": "1A 4M 0B",
+      "n": 30,
+      "ctWin": 0.6
+     },
+     {
+      "setup": "1A 2M 2B",
+      "n": 25,
+      "ctWin": 0.56
+     },
+     {
+      "setup": "1A 2M 1B",
+      "n": 24,
+      "ctWin": 0.54
+     },
+     {
+      "setup": "0A 5M 0B",
+      "n": 24,
+      "ctWin": 0.46
+     },
+     {
+      "setup": "0A 3M 1B",
+      "n": 22,
+      "ctWin": 0.36
+     },
+     {
+      "setup": "1A 3M 0B",
+      "n": 18,
+      "ctWin": 0.44
+     },
+     {
+      "setup": "0A 3M 2B",
+      "n": 15,
+      "ctWin": 0.6
+     },
+     {
+      "setup": "2A 1M 1B",
+      "n": 13,
+      "ctWin": 0.38
+     },
+     {
+      "setup": "2A 3M 0B",
+      "n": 12,
+      "ctWin": 0.5
+     },
+     {
+      "setup": "0A 4M 0B",
+      "n": 11,
+      "ctWin": 0.45
+     },
+     {
+      "setup": "2A 2M 0B",
+      "n": 7,
+      "ctWin": 0.43
+     },
+     {
+      "setup": "3A 1M 1B",
+      "n": 7,
+      "ctWin": 0.57
+     },
+     {
+      "setup": "0A 3M 0B",
+      "n": 6,
+      "ctWin": 0.17
+     },
+     {
+      "setup": "0A 2M 1B",
+      "n": 6,
+      "ctWin": 0.33
+     }
+    ],
+    "firstContact": 18.5,
+    "plantTime": 55.5
+   },
+   "utility": {
+    "CT": {
+     "thrown": 8,
+     "beforeContact": 4,
+     "flashConv": 0.109,
+     "teamFlashes": 1.04
+    },
+    "T": {
+     "thrown": 6.9,
+     "beforeContact": 3,
+     "flashConv": 0.112,
+     "teamFlashes": 0.91
+    },
+    "executeAvg": 1.4,
+    "winWithExecute": 0.91,
+    "winWithout": 0.73
+   },
+   "economy": {
+    "pairs": [
+     {
+      "t": "Full buy",
+      "ct": "Full buy",
+      "n": 189,
+      "tWin": 0.46
+     },
+     {
+      "t": "Force buy",
+      "ct": "Full buy",
+      "n": 58,
+      "tWin": 0.34
+     },
+     {
+      "t": "Pistol round",
+      "ct": "Pistol round",
+      "n": 48,
+      "tWin": 0.31
+     },
+     {
+      "t": "Eco",
+      "ct": "Eco",
+      "n": 48,
+      "tWin": 0.46
+     },
+     {
+      "t": "Semi-eco",
+      "ct": "Full buy",
+      "n": 41,
+      "tWin": 0.17
+     },
+     {
+      "t": "Full buy",
+      "ct": "Force buy",
+      "n": 35,
+      "tWin": 0.6
+     },
+     {
+      "t": "Eco",
+      "ct": "Full buy",
+      "n": 35,
+      "tWin": 0.09
+     },
+     {
+      "t": "Full buy",
+      "ct": "Semi-eco",
+      "n": 29,
+      "tWin": 0.69
+     },
+     {
+      "t": "Full buy",
+      "ct": "Eco",
+      "n": 17,
+      "tWin": 0.94
+     },
+     {
+      "t": "Force buy",
+      "ct": "Semi-eco",
+      "n": 9,
+      "tWin": 1
+     },
+     {
+      "t": "Force buy",
+      "ct": "Eco",
+      "n": 6,
+      "tWin": 1
+     }
+    ]
+   },
+   "postPlant": {
+    "n": 194,
+    "tWin": 0.78,
+    "byNumbers": [
+     {
+      "key": "2v1",
+      "n": 26,
+      "tWin": 0.96
+     },
+     {
+      "key": "2v2",
+      "n": 25,
+      "tWin": 0.56
+     },
+     {
+      "key": "3v2",
+      "n": 23,
+      "tWin": 0.96
+     },
+     {
+      "key": "3v1",
+      "n": 17,
+      "tWin": 1
+     },
+     {
+      "key": "4v2",
+      "n": 16,
+      "tWin": 1
+     },
+     {
+      "key": "3v3",
+      "n": 11,
+      "tWin": 0.73
+     },
+     {
+      "key": "4v3",
+      "n": 9,
+      "tWin": 1
+     },
+     {
+      "key": "4v1",
+      "n": 8,
+      "tWin": 1
+     },
+     {
+      "key": "5v2",
+      "n": 7,
+      "tWin": 1
+     },
+     {
+      "key": "2v3",
+      "n": 7,
+      "tWin": 0.43
+     },
+     {
+      "key": "1v2",
+      "n": 6,
+      "tWin": 0.5
+     },
+     {
+      "key": "4v4",
+      "n": 6,
+      "tWin": 0.83
+     },
+     {
+      "key": "1v3",
+      "n": 6,
+      "tWin": 0.33
+     },
+     {
+      "key": "1v1",
+      "n": 5,
+      "tWin": 0.2
+     },
+     {
+      "key": "3v4",
+      "n": 5,
+      "tWin": 0.8
+     },
+     {
+      "key": "0v2",
+      "n": 5,
+      "tWin": 0
+     }
+    ],
+    "bySpread": [
+     {
+      "bucket": "medium",
+      "n": 74,
+      "tWin": 0.91
+     },
+     {
+      "bucket": "spread (>25 m)",
+      "n": 68,
+      "tWin": 0.87
+     },
+     {
+      "bucket": "tight (<13 m)",
+      "n": 25,
+      "tWin": 0.76
+     }
+    ],
+    "byWatching": [
+     {
+      "watching": "1",
+      "n": 85,
+      "tWin": 0.84
+     },
+     {
+      "watching": "2+",
+      "n": 62,
+      "tWin": 0.87
+     },
+     {
+      "watching": "0",
+      "n": 47,
+      "tWin": 0.55
+     }
+    ]
+   }
+  },
+  "de_mirage": {
+   "demos": 11,
+   "rounds": 263,
+   "trades": {
+    "deaths": 1835,
+    "tradedRate": 0.219,
+    "avgTradeTime": 2.15,
+    "chanceConversion": 0.274,
+    "spacing": [
+     {
+      "bucket": "under 8 m",
+      "n": 339,
+      "tradedRate": 0.4
+     },
+     {
+      "bucket": "8–20 m",
+      "n": 613,
+      "tradedRate": 0.29
+     },
+     {
+      "bucket": "20–38 m",
+      "n": 458,
+      "tradedRate": 0.18
+     },
+     {
+      "bucket": "over 38 m",
+      "n": 186,
+      "tradedRate": 0.04
+     }
+    ]
+   },
+   "duels": {
+    "n": 1835,
+    "peekWin": 0.455,
+    "firstHitWin": 0.781,
+    "flashedShare": 0.047,
+    "behindShare": 0.053,
+    "avgTtk": 0.43,
+    "ranges": {
+     "rifle": {
+      "n": 1195,
+      "avg": 19.7
+     },
+     "awp": {
+      "n": 198,
+      "avg": 26.4
+     },
+     "smg": {
+      "n": 56,
+      "avg": 13
+     },
+     "pistol": {
+      "n": 295,
+      "avg": 18.3
+     }
+    },
+    "react": 0.465,
+    "aim": 8.1,
+    "movingShots": 0.201,
+    "spottedFirstWin": 0.736
+   },
+   "openings": {
+    "n": 263,
+    "tWinShare": 0.395,
+    "winAfter": 0.768,
+    "withFlash": 0.103,
+    "places": {
+     "CT": [
+      {
+       "place": "Start",
+       "n": 39,
+       "winRate": 0.85
+      },
+      {
+       "place": "A Ramp",
+       "n": 29,
+       "winRate": 0.76
+      },
+      {
+       "place": "Tetris",
+       "n": 20,
+       "winRate": 0.8
+      },
+      {
+       "place": "Underpass",
+       "n": 11,
+       "winRate": 0.82
+      },
+      {
+       "place": "B Apps",
+       "n": 8,
+       "winRate": 0.63
+      },
+      {
+       "place": "Palace",
+       "n": 6,
+       "winRate": 0.83
+      },
+      {
+       "place": "Water",
+       "n": 6,
+       "winRate": 0.83
+      },
+      {
+       "place": "Mid",
+       "n": 6,
+       "winRate": 0.83
+      },
+      {
+       "place": "Stairs",
+       "n": 5,
+       "winRate": 1
+      },
+      {
+       "place": "Under Palace",
+       "n": 5,
+       "winRate": 0.8
+      }
+     ],
+     "T": [
+      {
+       "place": "Stairs",
+       "n": 13,
+       "winRate": 0.77
+      },
+      {
+       "place": "Window",
+       "n": 11,
+       "winRate": 0.55
+      },
+      {
+       "place": "Mid",
+       "n": 9,
+       "winRate": 0.78
+      },
+      {
+       "place": "Tetris",
+       "n": 8,
+       "winRate": 0.88
+      },
+      {
+       "place": "Jungle",
+       "n": 7,
+       "winRate": 0.86
+      },
+      {
+       "place": "Underpass",
+       "n": 7,
+       "winRate": 1
+      },
+      {
+       "place": "Connector",
+       "n": 7,
+       "winRate": 0.71
+      },
+      {
+       "place": "Firebox",
+       "n": 6,
+       "winRate": 0.5
+      }
+     ]
+    }
+   },
+   "control": {
+    "tAreas20": 4.7,
+    "tAreas40": 3.7,
+    "keyAreas": [
+     {
+      "area": "Jungle",
+      "n": 20,
+      "tWin": 0.8
+     },
+     {
+      "area": "Window",
+      "n": 27,
+      "tWin": 0.67
+     },
+     {
+      "area": "Ladder Room",
+      "n": 25,
+      "tWin": 0.6
+     },
+     {
+      "area": "Tetris",
+      "n": 27,
+      "tWin": 0.56
+     },
+     {
+      "area": "Pillars",
+      "n": 13,
+      "tWin": 0.54
+     },
+     {
+      "area": "Connector",
+      "n": 58,
+      "tWin": 0.52
+     },
+     {
+      "area": "Underpass",
+      "n": 43,
+      "tWin": 0.51
+     },
+     {
+      "area": "Mid",
+      "n": 76,
+      "tWin": 0.49
+     },
+     {
+      "area": "B Apps",
+      "n": 21,
+      "tWin": 0.48
+     }
+    ]
+   },
+   "rotations": {
+    "perRound": 1.4,
+    "avgTime": 17,
+    "lateRate": 0.125,
+    "overRate": 0.019,
+    "diedRate": 0.485
+   },
+   "plans": {
+    "types": [
+     {
+      "type": "no hit",
+      "n": 92,
+      "tWin": 0.09
+     },
+     {
+      "type": "eco",
+      "n": 44,
+      "tWin": 0.2
+     },
+     {
+      "type": "rush A",
+      "n": 38,
+      "tWin": 0.79
+     },
+     {
+      "type": "pistol",
+      "n": 22,
+      "tWin": 0.55
+     },
+     {
+      "type": "rush B",
+      "n": 21,
+      "tWin": 0.81
+     },
+     {
+      "type": "default B",
+      "n": 19,
+      "tWin": 0.53
+     },
+     {
+      "type": "default A",
+      "n": 13,
+      "tWin": 0.54
+     },
+     {
+      "type": "split A",
+      "n": 8,
+      "tWin": 0.75
+     },
+     {
+      "type": "split B",
+      "n": 5,
+      "tWin": 0.8
+     }
+    ],
+    "setups": [
+     {
+      "setup": "1A 3M 1B",
+      "n": 53,
+      "ctWin": 0.66
+     },
+     {
+      "setup": "2A 2M 1B",
+      "n": 44,
+      "ctWin": 0.73
+     },
+     {
+      "setup": "1A 2M 1B",
+      "n": 16,
+      "ctWin": 0.5
+     },
+     {
+      "setup": "1A 2M 2B",
+      "n": 12,
+      "ctWin": 0.58
+     },
+     {
+      "setup": "2A 1M 1B",
+      "n": 12,
+      "ctWin": 0.42
+     },
+     {
+      "setup": "1A 4M 0B",
+      "n": 8,
+      "ctWin": 0.63
+     },
+     {
+      "setup": "1A 3M 0B",
+      "n": 6,
+      "ctWin": 0
+     },
+     {
+      "setup": "2A 2M 0B",
+      "n": 5,
+      "ctWin": 0.6
+     }
+    ],
+    "firstContact": 18.8,
+    "plantTime": 54.3
+   },
+   "utility": {
+    "CT": {
+     "thrown": 8.2,
+     "beforeContact": 4.7,
+     "flashConv": 0.083,
+     "teamFlashes": 0.73
+    },
+    "T": {
+     "thrown": 6.6,
+     "beforeContact": 3.7,
+     "flashConv": 0.053,
+     "teamFlashes": 0.53
+    },
+    "executeAvg": 1,
+    "winWithExecute": 0.6,
+    "winWithout": 0.72
+   },
+   "economy": {
+    "pairs": [
+     {
+      "t": "Full buy",
+      "ct": "Full buy",
+      "n": 111,
+      "tWin": 0.47
+     },
+     {
+      "t": "Force buy",
+      "ct": "Full buy",
+      "n": 30,
+      "tWin": 0.17
+     },
+     {
+      "t": "Pistol round",
+      "ct": "Pistol round",
+      "n": 22,
+      "tWin": 0.55
+     },
+     {
+      "t": "Eco",
+      "ct": "Eco",
+      "n": 22,
+      "tWin": 0.32
+     },
+     {
+      "t": "Eco",
+      "ct": "Full buy",
+      "n": 21,
+      "tWin": 0.1
+     },
+     {
+      "t": "Semi-eco",
+      "ct": "Full buy",
+      "n": 19,
+      "tWin": 0.21
+     },
+     {
+      "t": "Full buy",
+      "ct": "Force buy",
+      "n": 13,
+      "tWin": 0.46
+     },
+     {
+      "t": "Full buy",
+      "ct": "Semi-eco",
+      "n": 12,
+      "tWin": 0.67
+     },
+     {
+      "t": "Full buy",
+      "ct": "Eco",
+      "n": 6,
+      "tWin": 0.5
+     }
+    ]
+   },
+   "postPlant": {
+    "n": 84,
+    "tWin": 0.8,
+    "byNumbers": [
+     {
+      "key": "1v1",
+      "n": 12,
+      "tWin": 0.92
+     },
+     {
+      "key": "3v1",
+      "n": 10,
+      "tWin": 1
+     },
+     {
+      "key": "4v2",
+      "n": 9,
+      "tWin": 1
+     },
+     {
+      "key": "3v2",
+      "n": 8,
+      "tWin": 0.88
+     },
+     {
+      "key": "2v1",
+      "n": 6,
+      "tWin": 1
+     },
+     {
+      "key": "1v2",
+      "n": 5,
+      "tWin": 0.2
+     },
+     {
+      "key": "2v2",
+      "n": 5,
+      "tWin": 0.6
+     },
+     {
+      "key": "4v1",
+      "n": 5,
+      "tWin": 1
+     }
+    ],
+    "bySpread": [
+     {
+      "bucket": "spread (>25 m)",
+      "n": 31,
+      "tWin": 0.9
+     },
+     {
+      "bucket": "medium",
+      "n": 28,
+      "tWin": 0.82
+     }
+    ],
+    "byWatching": [
+     {
+      "watching": "1",
+      "n": 37,
+      "tWin": 0.73
+     },
+     {
+      "watching": "2+",
+      "n": 25,
+      "tWin": 0.92
+     },
+     {
+      "watching": "0",
+      "n": 22,
+      "tWin": 0.77
+     }
+    ]
+   }
+  },
+  "de_nuke": {
+   "demos": 1,
+   "rounds": 23,
+   "trades": {
+    "deaths": 153,
+    "tradedRate": 0.229,
+    "avgTradeTime": 1.97,
+    "chanceConversion": 0.208,
+    "spacing": [
+     {
+      "bucket": "under 8 m",
+      "n": 44,
+      "tradedRate": 0.45
+     },
+     {
+      "bucket": "8–20 m",
+      "n": 54,
+      "tradedRate": 0.24
+     },
+     {
+      "bucket": "20–38 m",
+      "n": 29,
+      "tradedRate": 0.07
+     },
+     {
+      "bucket": "over 38 m",
+      "n": 6,
+      "tradedRate": 0
+     }
+    ]
+   },
+   "duels": {
+    "n": 153,
+    "peekWin": 0.521,
+    "firstHitWin": 0.723,
+    "flashedShare": 0.065,
+    "behindShare": 0.046,
+    "avgTtk": 0.51,
+    "ranges": {
+     "rifle": {
+      "n": 93,
+      "avg": 19.6
+     },
+     "awp": {
+      "n": 1,
+      "avg": 14
+     },
+     "smg": {
+      "n": 18,
+      "avg": 9.4
+     },
+     "pistol": {
+      "n": 35,
+      "avg": 14.6
+     }
+    },
+    "react": 0.503,
+    "aim": 9.8,
+    "movingShots": 0.356,
+    "spottedFirstWin": 0.556
+   },
+   "openings": {
+    "n": 23,
+    "tWinShare": 0.609,
+    "winAfter": 0.783,
+    "withFlash": 0.174,
+    "places": {
+     "CT": [],
+     "T": []
+    }
+   },
+   "control": {
+    "tAreas20": 0.7,
+    "tAreas40": 0.4,
+    "keyAreas": []
+   },
+   "rotations": {
+    "perRound": 7.04,
+    "avgTime": 0.1,
+    "lateRate": 0.049,
+    "overRate": 0.235,
+    "diedRate": 0.012
+   },
+   "plans": {
+    "types": [
+     {
+      "type": "rush A",
+      "n": 8,
+      "tWin": 0.88
+     },
+     {
+      "type": "no hit",
+      "n": 5,
+      "tWin": 0.2
+     }
+    ],
+    "setups": [],
+    "firstContact": 16.3,
+    "plantTime": 48.1
+   },
+   "utility": {
+    "CT": {
+     "thrown": 6.8,
+     "beforeContact": 5.6,
+     "flashConv": 0.231,
+     "teamFlashes": 0.39
+    },
+    "T": {
+     "thrown": 8.5,
+     "beforeContact": 4.4,
+     "flashConv": 0.262,
+     "teamFlashes": 0.35
+    },
+    "executeAvg": 0.1,
+    "winWithExecute": 0,
+    "winWithout": 0.77
+   },
+   "economy": {
+    "pairs": [
+     {
+      "t": "Full buy",
+      "ct": "Full buy",
+      "n": 5,
+      "tWin": 0.6
+     }
+    ]
+   },
+   "postPlant": {
+    "n": 11,
+    "tWin": 0.82,
+    "byNumbers": [],
+    "bySpread": [
+     {
+      "bucket": "medium",
+      "n": 6,
+      "tWin": 1
+     }
+    ],
+    "byWatching": [
+     {
+      "watching": "2+",
+      "n": 6,
+      "tWin": 1
+     }
+    ]
+   }
+  },
+  "de_inferno": {
+   "demos": 1,
+   "rounds": 18,
+   "trades": {
+    "deaths": 121,
+    "tradedRate": 0.298,
+    "avgTradeTime": 1.96,
+    "chanceConversion": 0.324,
+    "spacing": [
+     {
+      "bucket": "under 8 m",
+      "n": 44,
+      "tradedRate": 0.43
+     },
+     {
+      "bucket": "8–20 m",
+      "n": 42,
+      "tradedRate": 0.36
+     },
+     {
+      "bucket": "20–38 m",
+      "n": 13,
+      "tradedRate": 0.15
+     },
+     {
+      "bucket": "over 38 m",
+      "n": 7,
+      "tradedRate": 0
+     }
+    ]
+   },
+   "duels": {
+    "n": 121,
+    "peekWin": 0.404,
+    "firstHitWin": 0.786,
+    "flashedShare": 0.149,
+    "behindShare": 0.058,
+    "avgTtk": 0.45,
+    "ranges": {
+     "rifle": {
+      "n": 70,
+      "avg": 16.8
+     },
+     "awp": {
+      "n": 11,
+      "avg": 20.1
+     },
+     "smg": {
+      "n": 5,
+      "avg": 18
+     },
+     "pistol": {
+      "n": 27,
+      "avg": 14.9
+     }
+    },
+    "react": 0.36,
+    "aim": 4.8,
+    "movingShots": 0.29,
+    "spottedFirstWin": 0.733
+   },
+   "openings": {
+    "n": 18,
+    "tWinShare": 0.389,
+    "winAfter": 0.722,
+    "withFlash": 0.278,
+    "places": {
+     "CT": [],
+     "T": []
+    }
+   },
+   "control": {
+    "tAreas20": 7.8,
+    "tAreas40": 5.2,
+    "keyAreas": []
+   },
+   "rotations": {
+    "perRound": 1.89,
+    "avgTime": 13,
+    "lateRate": 0.088,
+    "overRate": 0.059,
+    "diedRate": 0.294
+   },
+   "plans": {
+    "types": [],
+    "setups": [],
+    "firstContact": 21.2,
+    "plantTime": 56
+   },
+   "utility": {
+    "CT": {
+     "thrown": 7.7,
+     "beforeContact": 4.2,
+     "flashConv": 0.297,
+     "teamFlashes": 0.94
+    },
+    "T": {
+     "thrown": 7.1,
+     "beforeContact": 4.3,
+     "flashConv": 0.093,
+     "teamFlashes": 1.61
+    },
+    "executeAvg": 1.7,
+    "winWithExecute": 0.5,
+    "winWithout": 0.57
+   },
+   "economy": {
+    "pairs": [
+     {
+      "t": "Full buy",
+      "ct": "Full buy",
+      "n": 8,
+      "tWin": 0.25
+     }
+    ]
+   },
+   "postPlant": {
+    "n": 5,
+    "tWin": 1,
+    "byNumbers": [],
+    "bySpread": [],
+    "byWatching": []
+   }
+  }
+ }
+}

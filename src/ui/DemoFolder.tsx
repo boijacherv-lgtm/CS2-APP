@@ -16,7 +16,7 @@ const AUTO_READ = 5; // newest demos read automatically; older ones on click
 const RESCAN_MS = 8000;
 const SHOW = 20;
 // bump when the demo data gains something (v2: the bomb, v3: grenade throws), so saved games are read again
-const V = 3;
+const V = 4; // 4: fights (aim and movement around every kill)
 const DEMO = (name: string) => `demo${V}:${name}`, SUM = (name: string) => `sum${V}:${name}`;
 
 interface DemoFile { name: string; size: number; modified: number; handle: FileSystemFileHandle }

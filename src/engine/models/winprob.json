@@ -1,0 +1,28 @@
+{
+ "bias": 0.1025,
+ "coef": [
+  0.5803,
+  0.7882,
+  0.2986,
+  0.2217,
+  -0.5035,
+  -0.6011,
+  0.2538,
+  -0.0354,
+  0.0697
+ ],
+ "features": [
+  "men",
+  "men (relative)",
+  "health",
+  "equipment",
+  "planted",
+  "time since plant",
+  "T time running out",
+  "map control",
+  "trades pending"
+ ],
+ "samples": 32654,
+ "logLoss": 0.4681,
+ "baselineLogLoss": 0.5012
+}

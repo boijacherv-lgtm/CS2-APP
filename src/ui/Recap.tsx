@@ -1,5 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
+import { isDecision, roundDecisions } from '../engine/situations';
+import { judgeHold, judgeMove, USUAL_LABEL, type Usual } from '../engine/positioning';
+import { roundAnalysis } from '../engine/analysis';
+import { proPositions } from '../map/positions';
 import { moveLook, NoteMark } from './NoteMark';
 import { brief } from './MoveFeed';
 import type { TacticalEngine } from '../engine/predict';
@@ -136,7 +140,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   const jump = (t: number) => { s.setPlaying(false); s.setTime(Math.max(0, t - 1.5)); };
   const players = scoreboard(recap, seen);
   const tp = recap.turningPoint && (all || recap.turningPoint.t <= s.time) ? recap.turningPoint : null;
-  const [tab, setTab] = useState<'moves' | 'economy' | 'players'>('moves');
+  const [tab, setTab] = useState<'moves' | 'positions' | 'economy' | 'players'>('moves');
 
   return (
     <aside className="panel review-panel">
@@ -157,12 +161,14 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
       </section>
 
       <div className="tabs" role="tablist">
-        {([['moves', 'Moves'], ['economy', 'Economy'], ['players', 'Players']] as const).map(([id, label]) => (
+        {([['moves', 'Moves'], ['positions', 'Positions'], ['economy', 'Economy'], ['players', 'Players']] as const).map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>
         ))}
       </div>
 
       {tab === 'economy' && <Economy replay={replay} totalRounds={rv.data.rounds.length} />}
+      {tab === 'positions' && <Positions engine={engine} replay={replay} until={all ? Infinity : s.time} focus={filter !== 'all' && filter !== 'key' && filter !== 'util' ? filter : s.me}
+        onJump={jump} />}
 
       {tab === 'moves' && <>
       <section>
@@ -409,3 +415,48 @@ function Letter({ moves, round, id, upTo }: { moves: Move[]; round: DemoRound; i
   return <span className="letter" style={{ background: LETTER_COLOR[letter] }} title={`${letter}: ${why} (${LETTER_INFO[letter]})`}>{letter}</span>;
 }
 
+const USUAL_COLOR: Record<Usual, string> = { common: '#3ddc84', rare: '#f0c33c', unusual: '#e5483a', unknown: '#6e7886' };
+
+/**
+ * Positions tab: one player's decisions this round (where they held, where they moved and why), each next to what
+ * FACEIT level-10 players do in the same situation.
+ */
+function Positions({ engine, replay, until, focus, onJump }: { engine: TacticalEngine; replay: Replay; until: number; focus: string | null; onJump: (t: number) => void }) {
+  const ids = replay.board.players.map(p => p.id);
+  const [who, setWho] = useState<string | null>(null);
+  const id = who && ids.includes(who) ? who : focus && ids.includes(focus) ? focus : ids[0];
+  const dec = useMemo(() => roundDecisions(engine, replay.round), [engine, replay.round]);
+  const known = !!proPositions(engine.map.id);
+  const rows = [
+    ...dec.holds.filter(h => h.player === id && h.from <= until && isDecision(h)).map(h => ({ t: h.from, kind: 'hold' as const, h, v: judgeHold(engine.map.id, h) })),
+    ...dec.moves.filter(m => m.player === id && m.t <= until && isDecision({ place: m.from, from: m.t })).map(m => ({ t: m.t, kind: 'move' as const, m, v: judgeMove(engine.map.id, m) })),
+  ].sort((a, b) => a.t - b.t);
+  const side = replay.board.players.find(p => p.id === id)?.side ?? 'CT';
+  return (
+    <section className="positions">
+      <div className="pos-head">
+        <select value={id} onChange={e => setWho(e.target.value)} title="Whose decisions">
+          {ids.map(x => <option key={x} value={x}>{replay.names[x] ?? x}</option>)}
+        </select>
+        <span className={`muted ${side.toLowerCase()}`}>{side}</span>
+      </div>
+      {(() => { const t = roundAnalysis(engine.map.id, id, dec, until); return t ? <p className="pos-summary">{t}</p> : null; })()}
+      {!known && <p className="muted">No level-10 positions for {engine.map.name} yet: run <code>npm run learn:positions</code> on demos of this map.</p>}
+      {rows.length === 0 && <p className="muted">No decisions yet this round.</p>}
+      <ol className="pos-list">
+        {rows.map((r, i) => (
+          <li key={i} className="pos-row" onClick={() => onJump(r.t + 1.5)} title="Watch it">
+            <div className="pos-top">
+              <span className="muted num">{fmt(r.t)}</span>
+              <b>{r.kind === 'hold' ? `Held ${r.h.place}` : `${r.m.from} → ${r.m.to}`}</b>
+              {r.kind === 'hold' && <span className="muted num">{Math.round(r.h.to - r.h.from)} s</span>}
+              <span className="usual" style={{ color: USUAL_COLOR[r.v.kind], borderColor: USUAL_COLOR[r.v.kind] }} title={r.v.basis}>{USUAL_LABEL[r.v.kind]}</span>
+            </div>
+            <p>{r.v.text}</p>
+          </li>
+        ))}
+      </ol>
+      <p className="muted">Compared with {known ? `${proPositions(engine.map.id)!.demos} FACEIT level-10 matches on this map` : 'level-10 players'}, in the same part of the round and with the same numbers alive. Click a row to watch it.</p>
+    </section>
+  );
+}

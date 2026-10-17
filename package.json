@@ -9,7 +9,9 @@
     "test": "vitest run",
     "build:maps": "node tools/build-maps.mjs",
     "train:coach": "vite-node tools/train-coach.ts",
-    "learn:spots": "vite-node tools/learn-spots.ts"
+    "learn:spots": "vite-node tools/learn-spots.ts",
+    "learn:positions": "vite-node tools/learn-positions.ts",
+    "learn:analyst": "vite-node tools/learn-analyst.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",

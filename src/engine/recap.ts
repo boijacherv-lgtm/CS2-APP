@@ -5,6 +5,10 @@ import { gunFromName, primaryGun } from './guns';
 import { lifeOf, segmentHitsCircle, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
 import type { TacticalEngine } from './predict';
 import UTIL_SPOTS from '../map/generated/util-spots.json';
+import { placeOf as calloutOfSpot } from './situations';
+import { analyzeRound } from './analyst';
+import { controlCounts, learnedLogit, tradePending, WIN_MODEL } from './winprob';
+import { proTradeConversion } from './analystModel';
 import type { BoardState, Player, Side, Utility, UtilType, Vec2, Weapon } from './types';
 
 /**
@@ -40,7 +44,15 @@ export interface DemoRound {
   econ?: Record<string, PlayerEcon>;
   /** What happens to the bomb (world x/y = the player's position); older parses don't have it. */
   bomb?: BombEvent[];
+  /**
+   * Every kill's last 3 s at 16 samples a second for both players (world x/y/z, yaw/pitch in degrees): spotting,
+   * reaction time, crosshair placement, shooting while moving. Older parses don't have it.
+   */
+  fights?: Fight[];
 }
+
+export interface FightTrack { x: number[]; y: number[]; z: number[]; yaw: number[]; pitch: number[] }
+export interface Fight { t0: number; dt: number; attacker: string; victim: string; a: FightTrack; v: FightTrack }
 
 export interface BombEvent { t: number; kind: 'carry' | 'drop' | 'plant' | 'defuse' | 'explode'; id: string; x: number; y: number }
 export type BombState =
@@ -263,6 +275,8 @@ export function evalState(state: {
   ctEquip?: number | null; tEquip?: number | null;
   /** Average rating of the living players on each side (null = unknown). */
   ctRating?: number | null; tRating?: number | null;
+  /** For the learned model: areas each side holds (winprob.controlCounts) and trades about to happen (tradePending). */
+  ctAreas?: number; tAreas?: number; tradeCT?: number; tradeT?: number;
 }): number {
   const { ct, t } = state;
   if (t === 0 && state.planted === null) return 1;
@@ -271,6 +285,16 @@ export function evalState(state: {
     // every T is dead: the CTs only have to defuse in time (5 s with a kit, 10 without, plus getting there)
     const left = BOMB_TIME - (state.time - state.planted);
     return left >= 13 ? 0.97 : left >= 9 ? 0.85 : left >= 6 ? 0.5 : left >= 4 ? 0.2 : 0.03;
+  }
+  // the model learned from level-10 rounds, when it's trained and the state has control and trades
+  const learned = state.ctAreas !== undefined ? learnedLogit({
+    ct, t, ctHp: state.ctHp, tHp: state.tHp, ctEquip: state.ctEquip ?? null, tEquip: state.tEquip ?? null, planted: state.planted, time: state.time,
+    ctAreas: state.ctAreas, tAreas: state.tAreas ?? 0, tradeCT: state.tradeCT ?? 0, tradeT: state.tradeT ?? 0,
+  }) : null;
+  if (learned !== null) {
+    let zl = learned;
+    if (state.ctRating != null && state.tRating != null) zl += 0.25 * ((state.ctRating - state.tRating) / 1000);
+    return 1 / (1 + Math.exp(-zl));
   }
   const diff = ct - t;
   let z = 0.55 * diff + (0.35 * diff) / Math.max(1, Math.min(ct, t)); // man advantage matters more when few are left
@@ -339,7 +363,8 @@ export const NOTE_INFO: Record<Annotation, { mark: string; label: string; color:
 export type Tag =
   | 'OPENING' | 'TRADE' | 'TRADED' | 'ISOLATED' | 'CROSSFIRE' | 'CLUTCH' | 'MULTI-KILL' | 'ECO FRAG' | 'AWP DOWN' | 'AWP LOST'
   | 'FLASH ASSIST' | 'NADE ASSIST' | 'BLIND' | 'LOW HP' | 'TEAM FLASH' | 'TEAM DAMAGE' | 'WASTED' | 'DENIED' | 'POST-PLANT' | 'UNUSED UTIL' | 'WHIFF' | 'UPSET'
-  | 'FLANK' | 'ANCHOR' | 'TEAM KILL' | 'ECO DEATH' | 'PLANT' | 'DEFUSE' | 'NINJA';
+  | 'FLANK' | 'ANCHOR' | 'TEAM KILL' | 'ECO DEATH' | 'PLANT' | 'DEFUSE' | 'NINJA'
+  | 'NO TRADE' | 'LATE ROTATION' | 'OVER-ROTATION' | 'DRY PEEK';
 const GOOD = '#22c55e', BAD = '#ef4444', UTIL = '#3b82f6', INFO = '#a39b8f';
 export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   OPENING: { color: INFO, tip: 'First kill of the round.' },
@@ -371,13 +396,17 @@ export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   PLANT: { color: INFO, tip: 'Planted the bomb.' },
   DEFUSE: { color: GOOD, tip: 'Defused the bomb.' },
   NINJA: { color: GOOD, tip: 'Defused with enemies still alive, or with almost no time left.' },
+  'NO TRADE': { color: BAD, tip: 'A teammate died close by while you could see the killer, and you didn\'t trade.' },
+  'LATE ROTATION': { color: BAD, tip: 'Arrived at the site after the bomb was down.' },
+  'OVER-ROTATION': { color: BAD, tip: 'Left a site that then got hit, for one that didn\'t.' },
+  'DRY PEEK': { color: BAD, tip: 'Swung into a player holding the angle, without a flash or a teammate.' },
 };
 
 export interface Move {
   t: number;
   player: string;
   side: Side;
-  kind: 'kill' | 'death' | 'flash' | 'utility' | 'objective';
+  kind: 'kill' | 'death' | 'flash' | 'utility' | 'objective' | 'teamplay';
   /** The grenade this move is about (Utility id in the replay board). */
   util?: string;
   /** Change in this player's team win chance (e.g. +0.12 = +12%). */
@@ -574,6 +603,9 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     control.push({ t, ct: c.share.ct, tt: c.share.t });
   }
   const mapAt = (t: number) => control[Math.min(control.length - 1, Math.max(0, Math.round(t)))];
+  // for the learned win chance: areas held each second, and trades about to happen
+  const whereAt = (id: string, t: number) => { const i = idx(id); return i >= 0 && alive(i, t) ? posAt(i, t) : null; };
+  const areas = WIN_MODEL ? controlCounts(engine, sim.ids, id => sideOf.get(id), whereAt, Math.ceil(r.duration)) : null;
 
   const gear = new Map(sim.ids.map(id => [id, equipValue(r.econ?.[id])]));
   const hasEcon = [...gear.values()].some(v => v !== null);
@@ -595,6 +627,11 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       ct, t: tt, ctHp, tHp, ctMap: m.ct, tMap: m.tt, planted: r.plant !== null && t >= r.plant ? r.plant : null, time: t,
       ctEquip: hasEcon && ct ? ctGear / ct : null, tEquip: hasEcon && tt ? tGear / tt : null,
       ctRating: ctR.length && tR.length ? avg(ctR) : null, tRating: ctR.length && tR.length ? avg(tR) : null,
+      ...(areas ? (() => {
+        const s = Math.min(areas.ct.length - 1, Math.max(0, Math.floor(t)));
+        const tp = tradePending(sim.kills, sim.ids, id => sideOf.get(id), whereAt, t, scale);
+        return { ctAreas: areas.ct[s], tAreas: areas.t[s], tradeCT: tp.ct, tradeT: tp.t };
+      })() : {}),
     });
   };
 
@@ -612,22 +649,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     return sim.ids.filter((id, j) => j !== i && sideOf.get(id) === mySide && alive(j, t - 0.05)
       && (Math.hypot(posAt(j, t).x - me.x, posAt(j, t).y - me.y) * scale < 600 || g.lineOfSight(posAt(j, t), me))).length;
   };
-  /**
-   * The callout a spot belongs to: the nearest one you can see from there (not one behind a wall), a detailed spot
-   * (Boost, Default…) only when it's right there, and the plain nearest one as a fallback.
-   */
-  const placeOf = (p: Vec2): string => {
-    const g = engine.grid;
-    let best = '', bd = Infinity;
-    for (const c of engine.map.callouts) {
-      const d = Math.hypot(c.pos.x - p.x, c.pos.y - p.y);
-      const limit = c.minor ? 45 : 170;
-      if (d < limit && d < bd && g.lineOfSight(p, c.pos)) { bd = d; best = c.name; }
-    }
-    if (best) return best;
-    for (const c of engine.map.callouts) { const d = Math.hypot(c.pos.x - p.x, c.pos.y - p.y); if (!c.minor && d < 120 && d < bd) { bd = d; best = c.name; } }
-    return best;
-  };
+  const placeOf = (p: Vec2) => calloutOfSpot(engine, p);
   const where = (p: Vec2) => { const pl = placeOf(p); return pl ? ` at ${pl}` : ''; };
   /** Distance between two radar points, in metres (1 game unit ≈ 2.54 cm). */
   const metres = (a: Vec2, b: Vec2) => Math.round(Math.hypot(a.x - b.x, a.y - b.y) * scale * 0.0254);
@@ -1002,6 +1024,40 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     }
     moves.push({ t: b.t, player: b.id, side: s, kind: 'objective', gain, note, title, why, tags });
   }
+
+  // the analyst's view (analyst.ts): missed trades and bad rotations become the responsible player's move
+  try {
+    const an = analyzeRound(engine, r);
+    for (const tr of an.trades) {
+      if (tr.traded) continue;
+      for (const c of tr.chances) {
+        if (!c.sees || c.traded || c.diedAfter || c.dist >= 1500 || !sideOf.has(c.mate)) continue;
+        moves.push({
+          t: Math.min(r.duration, tr.t + 2), player: c.mate, side: sideOf.get(c.mate)!, kind: 'teamplay', gain: 0, note: '?', tags: ['NO TRADE'],
+          title: `${name(c.mate)} didn't trade ${name(tr.victim)}${tr.place ? ` at ${tr.place}` : ''}`,
+          why: [`${name(tr.victim)} died ${Math.round(c.dist * 0.0254)} m from you and you could see ${name(tr.killer)} within 3 s, but didn't take the trade.`,
+            `Level-10 players take ${Math.round(proTradeConversion() * 100)}% of those chances.`],
+        });
+      }
+    }
+    for (const ro of an.rotations) {
+      if (!sideOf.has(ro.player) || !(ro.late || ro.overRotated)) continue;
+      moves.push({
+        t: ro.arrive ?? ro.start, player: ro.player, side: sideOf.get(ro.player)!, kind: 'teamplay', gain: 0, note: '?',
+        tags: [ro.late ? 'LATE ROTATION' : 'OVER-ROTATION'],
+        title: ro.late ? `${name(ro.player)} rotated ${ro.from} → ${ro.to} too late` : `${name(ro.player)} over-rotated ${ro.from} → ${ro.to}`,
+        why: [ro.late ? `Got to ${ro.to} after the bomb was already down there.` : `Left ${ro.from}, which then got hit, for ${ro.to}, which didn't.`,
+          ro.trigger ? `Moved after "${ro.trigger}".` : 'Moved without anything visible to react to: rotate on information.'],
+      });
+    }
+    // a death from swinging into a held angle without a flash
+    for (const d of an.duels) {
+      if (d.style !== 'held' || d.flashed) continue;
+      const death = moves.find(m => m.kind === 'death' && m.player === d.victim && Math.abs(m.t - d.t) < 0.06);
+      const flashedFor = r.blind.some(b => b.victim === d.killer && b.t <= d.t && d.t - b.t <= 2.5);
+      if (death && !flashedFor) { death.tags.push('DRY PEEK'); death.why.push('Swung into a player holding the angle, with no flash on them.'); }
+    }
+  } catch { /* the analyst is extra */ }
 
   moves.sort((a, b) => a.t - b.t || (a.kind === 'kill' ? -1 : 1));
   const players: Review['players'] = {};

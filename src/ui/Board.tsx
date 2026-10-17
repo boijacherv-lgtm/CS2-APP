@@ -26,6 +26,8 @@ import { bakeRoute, liveState, type BakedRoute } from '../engine/timeline';
 import type { BoardState, Player, Utility, Vec2 } from '../engine/types';
 import { Icon } from './Icon';
 import { useAvatars } from './avatars';
+import { proSpots } from '../map/positions';
+import { phaseOf } from '../engine/situations';
 import { useStore } from '../store';
 
 Konva.dragDistance = 4;
@@ -374,6 +376,25 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         </Layer>
 
         <Layer listening={false}>
+          {/* where FACEIT level-10 players stand at this point of the round: a circle per callout, sized by their share
+              of the time there (CT left, T right), with the share */}
+          {s.overlays.proSpots && (() => {
+            const phase = phaseOf(s.time, s.mode === 'review' && s.review ? s.review.data.rounds[s.review.round]?.plant ?? null : null);
+            return (['CT', 'T'] as const).flatMap(side => proSpots(MAP.id, side, phase).slice(0, 8).map(sp => {
+              const c = MAP.callouts.find(x => x.name === sp.place);
+              if (!c) return null;
+              const r = (9 + 34 * Math.sqrt(sp.share)) * k;
+              const x = c.pos.x + (side === 'CT' ? -1 : 1) * r * 0.8;
+              return (
+                <Group key={`pro-${side}-${sp.place}`} x={x} y={c.pos.y}>
+                  <Circle radius={r} fill={COLORS[side]} opacity={0.35} />
+                  <Circle radius={r} stroke={COLORS[side]} strokeWidth={1.5 * k} dash={[3 * k, 2 * k]} />
+                  <Text text={`${Math.round(sp.share * 100)}%`} x={-20 * k} y={-r - 12 * k} width={40 * k} align="center" fontSize={11 * k} fontStyle="bold"
+                    fill="#fff" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled />
+                </Group>
+              );
+            }));
+          })()}
           {/* main callouts with the Callouts layer; detailed ones too once you zoom in (or with "All callout names") */}
           {(s.overlays.callouts || s.overlays.calloutsAll) && MAP.callouts
             .filter(c => !c.minor || s.overlays.calloutsAll || zoomedIn)

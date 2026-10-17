@@ -67,6 +67,19 @@ export function buildDemoData(parser, input, progress = () => {}) {
     }
 
   const deaths = p.parseEvent(input, 'player_death', ['X', 'Y', 'team_num'], []) ?? [];
+  // fights: both players' position and aim at 16 samples a second for the 3 s before every kill (spotting, reaction
+  // time, crosshair placement, shooting while moving)
+  const FIGHT_STEP = Math.max(1, Math.round(TICKRATE / 16)), FIGHT_SPAN = 3 * TICKRATE;
+  const fightTicks = new Set();
+  for (const d of deaths) {
+    const a = sid(pick(d, 'attacker_steamid')), v = sid(pick(d, 'user_steamid', 'victim_steamid'));
+    if (!a || !v || a === v) continue;
+    const k = num(d.tick);
+    for (let t = k - FIGHT_SPAN; t <= k; t += FIGHT_STEP) fightTicks.add(Math.max(0, t));
+  }
+  const fightRows = fightTicks.size ? safe(() => p.parseTicks(input, ['X', 'Y', 'Z', 'yaw', 'pitch'], [...fightTicks].sort((a, b) => a - b))) ?? [] : [];
+  const fightAt = new Map(); // `${tick}|${steamid}` -> row
+  for (const row of fightRows) fightAt.set(`${num(row.tick)}|${sid(pick(row, 'steamid', 'player_steamid'))}`, row);
   const blinds = safe(() => p.parseEvent(input, 'player_blind', ['team_num'], [])) ?? [];
   const nades = safe(() => p.parseEvents(input, ['flashbang_detonate', 'hegrenade_detonate', 'smokegrenade_detonate', 'inferno_startburn'])) ?? [];
   const nadeEnds = safe(() => p.parseEvents(input, ['smokegrenade_expired', 'inferno_expire'])) ?? [];
@@ -125,6 +138,20 @@ export function buildDemoData(parser, input, progress = () => {}) {
       x: num(pick(d, 'user_X', 'user_x')), y: num(pick(d, 'user_Y', 'user_y')),
       ax: num(pick(d, 'attacker_X', 'attacker_x')), ay: num(pick(d, 'attacker_Y', 'attacker_y')),
     }));
+    const fights = deaths.filter(d => inRound(num(d.tick))).map(d => {
+      const a = sid(pick(d, 'attacker_steamid')), v = sid(pick(d, 'user_steamid', 'victim_steamid'));
+      if (!a || !v || a === v || !fightRows.length) return null;
+      const k = num(d.tick), track = id => {
+        const out = { x: [], y: [], z: [], yaw: [], pitch: [] };
+        for (let t = k - FIGHT_SPAN; t <= k; t += FIGHT_STEP) {
+          const row = fightAt.get(`${Math.max(0, t)}|${id}`);
+          out.x.push(row ? round1(num(row.X)) : NaN); out.y.push(row ? round1(num(row.Y)) : NaN); out.z.push(row ? round1(num(row.Z)) : NaN);
+          out.yaw.push(row ? round1(num(row.yaw)) : NaN); out.pitch.push(row ? round1(num(row.pitch)) : NaN);
+        }
+        return out;
+      };
+      return { t0: round2(tOf(k - FIGHT_SPAN)), dt: FIGHT_STEP / TICKRATE, attacker: a, victim: v, a: track(a), v: track(v) };
+    }).filter(Boolean);
     const util = nades.filter(n => inRound(num(n.tick))).map(n => ({
       t: tOf(num(n.tick)),
       type: { flashbang_detonate: 'flash', hegrenade_detonate: 'he', smokegrenade_detonate: 'smoke', inferno_startburn: 'molotov' }[evName(n)],
@@ -171,7 +198,7 @@ export function buildDemoData(parser, input, progress = () => {}) {
     return {
       n: idx + 1, winner: r.winner, reason: r.reason, duration: tOf(r.end),
       plant: plant !== undefined ? tOf(plant) : null,
-      frames, kills, util, blind, econ: roundEcon, nadeDamage, shots, hits, bomb,
+      frames, kills, util, blind, econ: roundEcon, nadeDamage, shots, hits, bomb, fights,
     };
   });
   // Premier / competitive rating of every player, read once early in the match (rank type 11 = Premier)

@@ -8,14 +8,14 @@ import type { BoardState, Player, RoundContext, Route, Side, UtilType, Utility, 
 
 export type Tool = 'select' | 'ct' | 't' | 'smoke' | 'flash' | 'molotov' | 'he' | 'path' | 'lineup' | 'erase';
 export type Overlay =
-  | 'control' | 'vision' | 'killmap' | 'lineups' | 'los' | 'threat' | 'entryCards' | 'playerInfo' | 'timing' | 'walkable' | 'callouts' | 'calloutsAll';
+  | 'control' | 'vision' | 'killmap' | 'lineups' | 'los' | 'threat' | 'entryCards' | 'playerInfo' | 'timing' | 'walkable' | 'callouts' | 'calloutsAll' | 'proSpots';
 
 /** How much the board shows. Presets only touch the "noise" layers; tool layers (best spots, line-ups, timing, debug) stay as they are. */
 export type ViewName = 'clean' | 'standard' | 'full';
 export const NOISE_LAYERS: Overlay[] = ['control', 'vision', 'threat', 'entryCards', 'playerInfo', 'callouts', 'los'];
 const OFF: Record<Overlay, boolean> = {
   control: false, vision: false, killmap: false, lineups: false, los: false, threat: false,
-  entryCards: false, playerInfo: false, timing: false, walkable: false, callouts: false, calloutsAll: false,
+  entryCards: false, playerInfo: false, timing: false, walkable: false, callouts: false, calloutsAll: false, proSpots: false,
 };
 export const VIEW_PRESETS: Record<ViewName, Record<Overlay, boolean>> = {
   /** Players, routes and grenades only. */

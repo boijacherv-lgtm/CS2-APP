@@ -1,269 +1,352 @@
 {
  "version": 1,
- "trainedOn": 300,
+ "trainedOn": 459,
  "features": {
   "untradedDeaths": {
-   "baseline": 0.5502184213890695,
-   "spread": 0.12978015082718802,
+   "baseline": 0.5505491700528355,
+   "spread": 0.16012098807056568,
    "weight": 1.3
   },
   "isolatedDeaths": {
-   "baseline": 0.29908820000318853,
-   "spread": 0.11156456696148145,
+   "baseline": 0.22532658095493657,
+   "spread": 0.10725845287957347,
    "weight": 1.1
   },
   "openingDeaths": {
-   "baseline": 0.10000000000000002,
-   "spread": 0.06977334604459,
+   "baseline": 0.09994360252134857,
+   "spread": 0.07277707398505268,
    "weight": 1
   },
   "whiffs": {
-   "baseline": 0.07310439738627106,
-   "spread": 0.054361711568149,
+   "baseline": 0.07615591345725271,
+   "spread": 0.06075511528439486,
    "weight": 0.9
   },
   "unusedUtil": {
-   "baseline": 0.10483077167061773,
-   "spread": 0.07762802464727961,
+   "baseline": 0.09949433606692777,
+   "spread": 0.07499343313315117,
    "weight": 0.9
   },
   "wastedFlashes": {
-   "baseline": 0.5446714037047554,
-   "spread": 0.2743565197950998,
+   "baseline": 0.32572939269169465,
+   "spread": 0.16095341644576672,
    "weight": 0.7
   },
   "teamHarm": {
-   "baseline": 0.1657187667389373,
-   "spread": 0.14695750315393669,
+   "baseline": 0.20922847883204904,
+   "spread": 0.13530167984978192,
    "weight": 0.8
   },
   "awpLost": {
-   "baseline": 0.03230021765278816,
-   "spread": 0.06444381412989882,
+   "baseline": 0.05196664297199972,
+   "spread": 0.08078071163272163,
    "weight": 0.8
   },
   "lowHpFights": {
-   "baseline": 0.16249951864720083,
-   "spread": 0.0768040755789942,
+   "baseline": 0.1408321241049509,
+   "spread": 0.07864645052508257,
    "weight": 0.7
   },
   "adr": {
-   "baseline": 73.84650410272586,
-   "spread": 19.125362840706426,
+   "baseline": 73.53118180644552,
+   "spread": 22.26478393428825,
    "weight": 1
   },
   "kast": {
-   "baseline": 69.16279499281391,
-   "spread": 11.299655572916638,
+   "baseline": 69.04840438630791,
+   "spread": 13.527432691467537,
    "weight": 1
   },
   "hs": {
-   "baseline": 54.70868910182062,
-   "spread": 15.613383066414887,
+   "baseline": 50.97242897186954,
+   "spread": 17.27799186668213,
    "weight": 0.6
   },
   "utilDamage": {
-   "baseline": 4.106812191079383,
-   "spread": 3.449160415976772,
+   "baseline": 3.206710568274339,
+   "spread": 3.115158628775443,
    "weight": 0.6
   },
   "flashAssists": {
-   "baseline": 0.08675835965075057,
-   "spread": 0.09020042191844502,
+   "baseline": 0.09673341178058702,
+   "spread": 0.08590615175306468,
    "weight": 0.6
   },
   "trades": {
-   "baseline": 0.13356293682726378,
-   "spread": 0.08497583266611584,
+   "baseline": 0.13563608223627166,
+   "spread": 0.08560843268410352,
    "weight": 0.8
   },
   "impact": {
-   "baseline": 4.360560415377419,
-   "spread": 4.749670780136465,
+   "baseline": 3.1669560691082803,
+   "spread": 4.921945826685548,
    "weight": 1.2
   }
  },
  "name": "FACEIT level 10",
  "source": {
-  "demos": 30,
+  "demos": 46,
   "trainedAt": "2026-10-17",
   "maps": {
-   "de_ancient": 5,
-   "de_nuke": 6,
-   "de_anubis": 4,
-   "de_inferno": 4,
-   "de_mirage": 3,
-   "de_dust2": 4,
-   "de_cache": 4
+   "de_anubis": 9,
+   "de_dust2": 24,
+   "de_mirage": 11,
+   "de_nuke": 1,
+   "de_inferno": 1
   }
  },
  "roles": {
   "Rifler": {
-   "games": 233,
+   "games": 386,
    "features": {
     "untradedDeaths": {
-     "baseline": 0.5606677400333593,
-     "spread": 0.1331955456337428,
+     "baseline": 0.5651224044865601,
+     "spread": 0.15743759260242018,
      "weight": 1.3
     },
     "isolatedDeaths": {
-     "baseline": 0.30946736691442095,
-     "spread": 0.11510287701606554,
+     "baseline": 0.23447266118203855,
+     "spread": 0.10631154277752897,
      "weight": 1.1
     },
     "openingDeaths": {
-     "baseline": 0.1006112510676295,
-     "spread": 0.07135482286033855,
+     "baseline": 0.10145599780820048,
+     "spread": 0.07322021616123614,
      "weight": 1
     },
     "whiffs": {
-     "baseline": 0.07727523539233082,
-     "spread": 0.055145901975987524,
+     "baseline": 0.08044830728564409,
+     "spread": 0.06205703878351685,
      "weight": 0.9
     },
     "unusedUtil": {
-     "baseline": 0.10672192224476419,
-     "spread": 0.0765197146856196,
+     "baseline": 0.10216240723217249,
+     "spread": 0.07662012851946988,
      "weight": 0.9
     },
     "wastedFlashes": {
-     "baseline": 0.5396438353703101,
-     "spread": 0.26507228201580185,
+     "baseline": 0.3160221035553869,
+     "spread": 0.15686920027659298,
      "weight": 0.7
     },
     "teamHarm": {
-     "baseline": 0.16635884869638146,
-     "spread": 0.13347755724146976,
+     "baseline": 0.20575909512862953,
+     "spread": 0.13343156981074472,
      "weight": 0.8
     },
     "awpLost": {
-     "baseline": 0.02955985057432951,
-     "spread": 0.05728842205903696,
+     "baseline": 0.04044149664661887,
+     "spread": 0.06226520949455272,
      "weight": 0.8
     },
     "lowHpFights": {
-     "baseline": 0.16895951255465533,
-     "spread": 0.07692581233529579,
+     "baseline": 0.14637677907354774,
+     "spread": 0.07951319395944556,
      "weight": 0.7
     },
     "adr": {
-     "baseline": 73.37506898443735,
-     "spread": 18.977295756638753,
+     "baseline": 71.89702100306243,
+     "spread": 21.350164580048947,
      "weight": 1
     },
     "kast": {
-     "baseline": 68.90516132966637,
-     "spread": 11.647567097905037,
+     "baseline": 68.138191206251,
+     "spread": 13.638887806794237,
      "weight": 1
     },
     "hs": {
-     "baseline": 55.656155063096165,
-     "spread": 15.669580895144932,
+     "baseline": 52.062451656021054,
+     "spread": 17.07405825332682,
      "weight": 0.6
     },
     "utilDamage": {
-     "baseline": 4.153466738416882,
-     "spread": 3.438463811870801,
+     "baseline": 3.219815616507408,
+     "spread": 3.0525491711186006,
      "weight": 0.6
     },
     "flashAssists": {
-     "baseline": 0.08939302985071572,
-     "spread": 0.08986741163700697,
+     "baseline": 0.09698490182230945,
+     "spread": 0.08780007977898724,
      "weight": 0.6
     },
     "trades": {
-     "baseline": 0.13621603005852062,
-     "spread": 0.0861699980454988,
+     "baseline": 0.1353967786694287,
+     "spread": 0.08610289991436616,
      "weight": 0.8
     },
     "impact": {
-     "baseline": 4.278230924084171,
-     "spread": 4.65062948739479,
+     "baseline": 2.8337967657435086,
+     "spread": 4.886667424356041,
      "weight": 1.2
     }
    }
   },
-  "Rotator": {
-   "games": 36,
+  "AWPer": {
+   "games": 32,
    "features": {
     "untradedDeaths": {
-     "baseline": 0.5666280648001737,
-     "spread": 0.11918186245262213,
+     "baseline": 0.49542664689282745,
+     "spread": 0.18019382734672887,
      "weight": 1.3
     },
     "isolatedDeaths": {
-     "baseline": 0.28418962628153777,
-     "spread": 0.10096011720924761,
+     "baseline": 0.19864350622750532,
+     "spread": 0.11295386429019859,
      "weight": 1.1
     },
     "openingDeaths": {
-     "baseline": 0.09127513311013667,
-     "spread": 0.05816071966736512,
+     "baseline": 0.09274457167442486,
+     "spread": 0.06481512098504555,
      "weight": 1
     },
     "whiffs": {
-     "baseline": 0.06368849376357953,
-     "spread": 0.053250963145818744,
+     "baseline": 0.04886230250582968,
+     "spread": 0.047343884670340244,
      "weight": 0.9
     },
     "unusedUtil": {
-     "baseline": 0.10962011210561484,
-     "spread": 0.08760163445383003,
+     "baseline": 0.10623043501810504,
+     "spread": 0.07105864117841523,
      "weight": 0.9
     },
     "wastedFlashes": {
-     "baseline": 0.5662769018799071,
-     "spread": 0.24419963749130752,
+     "baseline": 0.3626330215775184,
+     "spread": 0.1495355936695698,
      "weight": 0.7
     },
     "teamHarm": {
-     "baseline": 0.12381474394261972,
-     "spread": 0.10090093084940296,
+     "baseline": 0.23474721367397017,
+     "spread": 0.13189013423398474,
      "weight": 0.8
     },
     "awpLost": {
-     "baseline": 0.014099795060998545,
-     "spread": 0.034765587661663815,
+     "baseline": 0.1979548946791441,
+     "spread": 0.08344284207382845,
      "weight": 0.8
     },
     "lowHpFights": {
-     "baseline": 0.14984505736355053,
-     "spread": 0.07261289208059578,
+     "baseline": 0.12937098631963462,
+     "spread": 0.0694613929498099,
      "weight": 0.7
     },
     "adr": {
-     "baseline": 73.27654420232192,
-     "spread": 20.82923181829835,
+     "baseline": 91.55131469672601,
+     "spread": 23.76849623644566,
      "weight": 1
     },
     "kast": {
-     "baseline": 67.93486842158836,
-     "spread": 10.451779888926719,
+     "baseline": 75.77016188957371,
+     "spread": 11.934881019224367,
      "weight": 1
     },
     "hs": {
-     "baseline": 56.68389128593886,
-     "spread": 14.149223191040555,
+     "baseline": 36.49780961995699,
+     "spread": 11.743067963540396,
      "weight": 0.6
     },
     "utilDamage": {
-     "baseline": 3.2269995991286224,
-     "spread": 2.564455272621482,
+     "baseline": 2.428131321798856,
+     "spread": 3.0600096884515904,
      "weight": 0.6
     },
     "flashAssists": {
-     "baseline": 0.06540735232982822,
-     "spread": 0.06049511349220115,
+     "baseline": 0.11274849612731117,
+     "spread": 0.07475166177796225,
      "weight": 0.6
     },
     "trades": {
-     "baseline": 0.1269621030718025,
-     "spread": 0.07623510651820879,
+     "baseline": 0.15002917853335912,
+     "spread": 0.08674094646106328,
      "weight": 0.8
     },
     "impact": {
-     "baseline": 4.955746538112552,
-     "spread": 5.150190992103621,
+     "baseline": 5.576969082371058,
+     "spread": 5.3860602654215946,
+     "weight": 1.2
+    }
+   }
+  },
+  "Anchor": {
+   "games": 18,
+   "features": {
+    "untradedDeaths": {
+     "baseline": 0.5032713005902649,
+     "spread": 0.1568235666213388,
+     "weight": 1.3
+    },
+    "isolatedDeaths": {
+     "baseline": 0.2192259864267699,
+     "spread": 0.11828996785482415,
+     "weight": 1.1
+    },
+    "openingDeaths": {
+     "baseline": 0.09358132590785934,
+     "spread": 0.07901040648201435,
+     "weight": 1
+    },
+    "whiffs": {
+     "baseline": 0.06082630293560382,
+     "spread": 0.05073439700340876,
+     "weight": 0.9
+    },
+    "unusedUtil": {
+     "baseline": 0.09484726442779606,
+     "spread": 0.06847152202558374,
+     "weight": 0.9
+    },
+    "wastedFlashes": {
+     "baseline": 0.3318971291105962,
+     "spread": 0.15459079322670663,
+     "weight": 0.7
+    },
+    "teamHarm": {
+     "baseline": 0.198133777486998,
+     "spread": 0.13235388777317678,
+     "weight": 0.8
+    },
+    "awpLost": {
+     "baseline": 0.02302380106142847,
+     "spread": 0.05345631666648604,
+     "weight": 0.8
+    },
+    "lowHpFights": {
+     "baseline": 0.10747128880648109,
+     "spread": 0.07146953934149998,
+     "weight": 0.7
+    },
+    "adr": {
+     "baseline": 73.13827439934603,
+     "spread": 21.596975111298345,
+     "weight": 1
+    },
+    "kast": {
+     "baseline": 73.18109825533334,
+     "spread": 12.491893646402128,
+     "weight": 1
+    },
+    "hs": {
+     "baseline": 54.7945538781389,
+     "spread": 15.529589246153375,
+     "weight": 0.6
+    },
+    "utilDamage": {
+     "baseline": 3.221051260657525,
+     "spread": 3.143851120384152,
+     "weight": 0.6
+    },
+    "flashAssists": {
+     "baseline": 0.06439875494520547,
+     "spread": 0.06821381693729807,
+     "weight": 0.6
+    },
+    "trades": {
+     "baseline": 0.11929389484354674,
+     "spread": 0.07583959406100961,
+     "weight": 0.8
+    },
+    "impact": {
+     "baseline": 3.973232965271403,
+     "spread": 4.114653042718175,
      "weight": 1.2
     }
    }

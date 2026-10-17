@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { coach, modelFor, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
+import { analystReport, type Finding, type Topic } from '../engine/analystBench';
+import { analystBench } from '../engine/analystModel';
+import { matchAnalysis, type AnalysisItem } from '../engine/analysis';
 import { COACH_MODEL } from '../engine/coachModels';
-import { buildMatchReport, IMPACT_PER_POINT, type MatchReport, type PlayerReport } from '../engine/match';
+import { buildMatchReport, IMPACT_PER_POINT, type MatchReport, type PlayerReport, type RoundSummary } from '../engine/match';
 import { LETTER_COLOR, RATING_SCALE, type DemoData, type Letter } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { navigate } from '../shell/router';
@@ -46,6 +49,8 @@ export function MatchReportPage() {
           <CoachCard p={focus} done={report.done} onRound={openRound} onHotRound={setHotRound} />
         </div>
       )}
+      {focus && <AnalystCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
+      {focus && <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
 
       <section className="recap-card">
         <h2 className="display">Scoreboard</h2>
@@ -234,6 +239,99 @@ function DevRow({ d, open, onToggle, onRound, onHotRound }: {
 /** What's normal for this player (their role's numbers when the model has them). */
 function useNormal(p: PlayerReport): FeatureSet {
   return modelFor(COACH_MODEL, p.roles[0]?.role ?? 'Rifler').features;
+}
+
+const TOPICS: Topic[] = ['Trades', 'Duels', 'Openings', 'Map control', 'Rotations', 'Round plans', 'Utility', 'Economy', 'Post-plant'];
+
+/**
+ * The analyst report: what a pro team's analyst looks at (trades, duels, openings, map control, rotations, round plans,
+ * utility, economy, post-plants), for the player and their team, next to FACEIT level-10 benchmarks
+ * (engine/analyst.ts + analystBench.ts, learned by tools/learn-analyst.ts): findings first, then the numbers per topic.
+ */
+function AnalystCard({ data, rounds, player, done, onRound, onHotRound }: {
+  data: DemoData; rounds: (RoundSummary | null)[]; player: string; done: boolean; onRound: (i: number) => void; onHotRound: (i: number | null) => void;
+}) {
+  const bench = analystBench(data.map);
+  const rep = useMemo(() => (bench ? analystReport(rounds.map(r => r?.analyst), player, i => data.rounds[i]?.frames.players[player]?.side ?? null, bench) : null), [bench, rounds, player, data]);
+  const [topic, setTopic] = useState<Topic>('Trades');
+  if (!bench || !rep) return null;
+  const work = rep.findings.filter(f => !f.good).slice(0, 6), good = rep.findings.filter(f => f.good).slice(0, 3);
+  const card = (f: Finding) => (
+    <div key={f.title} className={`pos-item ${f.good ? 'good' : 'work'}`}>
+      <span className="muted an-topic">{f.topic}</span>
+      <b>{f.title}</b>
+      <p>{f.detail}</p>
+      {f.rounds.length > 0 && (
+        <div className="coach-rounds">
+          <span className="muted">Watch:</span>
+          {f.rounds.slice(0, 10).map(i => <button key={i} onClick={() => onRound(i)} onMouseEnter={() => onHotRound(i)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">R{i + 1}</button>)}
+        </div>
+      )}
+    </div>
+  );
+  return (
+    <section className="recap-card analyst">
+      <div className="coach-head">
+        <h2 className="display">Analyst report</h2>
+        <span className="muted">vs FACEIT level 10 · {bench.rounds} rounds in {bench.demos} matches{!done ? ' · updating while rounds are graded' : ''}</span>
+      </div>
+      {work.length > 0 && <><h3>Work on</h3><div className="pos-items">{work.map(card)}</div></>}
+      {good.length > 0 && <><h3>Keep</h3><div className="pos-items">{good.map(card)}</div></>}
+      {!work.length && !good.length && <p className="muted">Nothing stands out yet.</p>}
+      <div className="tabs an-tabs" role="tablist">
+        {TOPICS.map(t => <button key={t} role="tab" aria-selected={topic === t} className={topic === t ? 'on' : ''} onClick={() => setTopic(t)}>{t}</button>)}
+      </div>
+      <table className="an-stats">
+        <thead><tr><th /><th>{['Round plans', 'Map control', 'Utility', 'Economy', 'Post-plant'].includes(topic) ? 'Your team' : 'You'}</th><th>Level 10</th></tr></thead>
+        <tbody>
+          {(rep.stats[topic] ?? []).map(s => (
+            <tr key={s.label}>
+              <td>{s.label}</td>
+              <td className={s.better === null ? '' : s.better ? 'hi' : 'lo'}>{s.you}</td>
+              <td className="muted">{s.pro}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+/**
+ * The decision coach's write-up: the player's positioning over the match against FACEIT level-10 players in the same
+ * situations (engine/analysis.ts): a summary, what to change (with the rounds to watch) and what to keep.
+ */
+function PositioningCard({ data, rounds, player, done, onRound, onHotRound }: {
+  data: DemoData; rounds: (RoundSummary | null)[]; player: string; done: boolean; onRound: (i: number) => void; onHotRound: (i: number | null) => void;
+}) {
+  const a = useMemo(() => {
+    const won = data.rounds.map((r, i) => !!rounds[i] && !!r.winner && r.frames.players[player]?.side === r.winner);
+    return matchAnalysis(data.map, player, rounds.map(r => r?.decisions), won);
+  }, [data, rounds, player]);
+  if (!a) return null;
+  const item = (x: AnalysisItem, kind: 'work' | 'good') => (
+    <div key={x.title} className={`pos-item ${kind}`}>
+      <b>{x.title}</b>
+      <p>{x.detail}</p>
+      {x.rounds.length > 0 && (
+        <div className="coach-rounds">
+          <span className="muted">Watch:</span>
+          {x.rounds.slice(0, 10).map(i => <button key={i} onClick={() => onRound(i)} onMouseEnter={() => onHotRound(i)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">R{i + 1}</button>)}
+        </div>
+      )}
+    </div>
+  );
+  return (
+    <section className="recap-card positioning">
+      <div className="coach-head">
+        <h2 className="display">Positioning</h2>
+        <span className="muted">vs FACEIT level 10 in the same situations · {a.demos} matches on this map{a.likePros !== null ? ` · ${Math.round(a.likePros * 100)}% level-10 decisions` : ''}</span>
+      </div>
+      <p className="coach-summary">{a.summary}{!done && <span className="muted"> (updates while rounds are graded)</span>}</p>
+      {a.work.length > 0 && <><h3>Work on</h3><div className="pos-items">{a.work.map(x => item(x, 'work'))}</div></>}
+      {a.good.length > 0 && <><h3>Keep</h3><div className="pos-items">{a.good.map(x => item(x, 'good'))}</div></>}
+    </section>
+  );
 }
 
 /** "Far from normal" for the scoreboard: only outliers get colour. */

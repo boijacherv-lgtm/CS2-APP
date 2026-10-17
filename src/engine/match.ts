@@ -1,5 +1,7 @@
 import { cappedDamage, duelOdds, roundFacts, roundGrade, type DemoData, type Letter, type Replay, type Review, type Role, type Tag } from './recap';
 import type { Side } from './types';
+import type { Hold, Move } from './situations';
+import type { AnalystRound } from './analyst';
 import { gradeAgainst } from './coach';
 import { COACH_MODEL } from './coachModels';
 
@@ -32,7 +34,13 @@ export interface RoundLine {
   duels: { opp: string; won: boolean }[];
 }
 
-export interface RoundSummary { n: number; winner: Side | null; lines: Record<string, RoundLine> }
+export interface RoundSummary {
+  n: number; winner: Side | null; lines: Record<string, RoundLine>;
+  /** Every player's holds and moves (situations.ts), for the positioning analysis. */
+  decisions?: { holds: Hold[]; moves: Move[] };
+  /** The analyst's facts for the round (analyst.ts). */
+  analyst?: AnalystRound;
+}
 
 export { cappedDamage };
 
