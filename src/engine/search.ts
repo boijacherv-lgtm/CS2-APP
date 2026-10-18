@@ -331,7 +331,8 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
 
   // ---- step 1 and 2: value every option the same way --------------------------------------------------------------
   const value = (p: Plan): SearchOption => {
-    const dt = Math.max(1, p.travel);
+    // every option looked at over the same stretch of round (the clock runs for a hold too: post-plant that matters)
+    const dt = Math.max(H, p.travel);
     const sm = p.smoke ? [...smokes, p.smoke] : smokes;
     const myF = (moving: boolean) => S.fighter(id, t, p.to, moving);
     // fights: known enemies that can see where the option leaves them (a denied / smoked-off enemy can't)

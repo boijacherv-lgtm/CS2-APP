@@ -57,7 +57,12 @@ export const keyOf = (folder: string, f: string) => `${f.replace(/ \(\d+\)(?=\.d
 export function loadDemo(folder: string, f: string): DemoData {
   const dir = path.join(folder, '.stratboard-parsed');
   const saved = path.join(dir, `v${PARSE_V}-${keyOf(folder, f).replace(/[^\w.-]+/g, '_')}.json.gz`);
-  if (fs.existsSync(saved)) return JSON.parse(zlib.gunzipSync(fs.readFileSync(saved)).toString('utf8'));
+  if (fs.existsSync(saved)) {
+    const d: DemoData = JSON.parse(zlib.gunzipSync(fs.readFileSync(saved)).toString('utf8'));
+    // a read made before blind events were rebuilt for demos without them (tournament demos): read it again
+    const noBlinds = d.rounds.every(r => !r.blind.length) && d.rounds.some(r => r.util.some(u => u.type === 'flash'));
+    if (!noBlinds) return d;
+  }
   const file = path.join(folder, f);
   let p = file, temp = false;
   if (!/\.dem$/i.test(file)) {

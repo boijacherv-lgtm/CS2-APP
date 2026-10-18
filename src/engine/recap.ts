@@ -408,7 +408,7 @@ export type Tag =
   | 'FLASH ASSIST' | 'NADE ASSIST' | 'BLIND' | 'LOW HP' | 'TEAM FLASH' | 'TEAM DAMAGE' | 'WASTED' | 'DENIED' | 'POST-PLANT' | 'UNUSED UTIL' | 'WHIFF' | 'UPSET'
   | 'FLANK' | 'ANCHOR' | 'TEAM KILL' | 'ECO DEATH' | 'PLANT' | 'DEFUSE' | 'NINJA'
   | 'NO TRADE' | 'LATE ROTATION' | 'OVER-ROTATION' | 'DRY PEEK'
-  | 'KNIFE OUT' | 'NO AMMO' | 'MOVING SHOT' | 'LOUD' | 'BAD PEEK' | 'LONG ODDS';
+  | 'KNIFE OUT' | 'NO AMMO' | 'MOVING SHOT' | 'LOUD' | 'BAD PEEK' | 'LONG ODDS' | 'STALL';
 const GOOD = '#22c55e', BAD = '#ef4444', UTIL = '#3b82f6', INFO = '#a39b8f';
 export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   OPENING: { color: INFO, tip: 'First kill of the round.' },
@@ -450,6 +450,7 @@ export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   LOUD: { color: BAD, tip: 'Was running (footsteps) right before dying with the enemy close: they heard them coming.' },
   'BAD PEEK': { color: BAD, tip: 'Peeked into a fight level-10 players lose most of the time from there (behind on health, armour or gun): wait, fall back or bring a flash.' },
   'LONG ODDS': { color: GOOD, tip: 'Won a fight level-10 players usually lose from that situation.' },
+  STALL: { color: UTIL, tip: 'Thrown early as CT to slow a push down: nobody coming through is the point.' },
 };
 
 export interface Move {
@@ -923,6 +924,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const at = nade.pos;
     const from = u.t, to = u.t + lifeOf(nade);
     const enemiesOf = (side: Side) => sim.ids.map((id, j) => j).filter(j => sideOf.get(sim.ids[j]) !== side);
+    // a CT grenade in the first 25 s, before anyone has died: thrown to slow a push down (stall), not to hit
+    const stall = s === 'CT' && (u.throwT ?? u.t - 1.5) < 25 && !r.kills.some(k => k.t <= u.t);
     const teamOf = (side: Side) => sim.ids.map((id, j) => j).filter(j => sideOf.get(sim.ids[j]) === side);
     const dmg = (r.nadeDamage ?? []).filter(d => d.attacker === u.thrower && d.weapon === (u.type === 'he' ? 'he' : 'molotov') && d.dmg > 0
       && d.t >= from - 0.1 && d.t <= (u.type === 'he' ? from + 0.3 : to + 0.5));
@@ -1006,9 +1009,12 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (std) why.unshift(`A standard molotov: level-10 players burn this spot (${std.throws} in ${std.demos} matches).`);
       // an empty burn on a standard spot still did its job (nobody came through); anywhere else it was wasted
       if (!near.size && !enemyDmg && std) return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Nobody came through while it burned.'], tags };
+      if (!near.size && !enemyDmg && stall) return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Thrown early to slow a push down: nobody came through while it burned.'], tags: [...tags, 'STALL'] };
       if (!near.size && !enemyDmg) { why.push('Burned empty ground: no enemy came near it.'); return { gain: Math.min(gain, -0.01), note: '?', why, tags: [...tags, 'WASTED'] }; }
       const note: Annotation = enemyDmg >= 150 ? '!!' : enemyDmg >= 60 || softened.length || near.size >= 3 ? '!' : hurtTeam ? '?' : 'book';
       return { gain, note, why, tags };
+    } else if (!enemyDmg && stall && u.type === 'he') {
+      return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Thrown early to slow a push down: nobody was there to hit, which is the point.'], tags: [...tags, 'STALL'] };
     } else if (!enemyDmg) {
       why.push('Hit nobody: wasted utility.');
       return { gain: Math.min(gain, -0.01), note: '?', why, tags: [...tags, 'WASTED'] };

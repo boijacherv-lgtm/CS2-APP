@@ -21,9 +21,12 @@ import { analyzeRound, type AnalystRound } from '../src/engine/analyst';
 import { benchmarks } from '../src/engine/analystBench';
 
 const args = process.argv.slice(2).filter(a => a !== '--');
-const folder = args[0];
+const folder = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--'));
+// --name pro: benchmarks for another level (models/analyst-pro.json, from pro demos); the duel, play and win models
+// stay the level-10 ones
+const NAME = (() => { const i = args.indexOf('--name'); return i >= 0 ? args[i + 1].replace(/[^\w-]/g, '') : ''; })();
 if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run learn:analyst -- <folder with demos>'); process.exit(1); }
-const OUT = path.resolve(import.meta.dirname, '../src/engine/models/analyst.json');
+const OUT = path.resolve(import.meta.dirname, `../src/engine/models/analyst${NAME ? `-${NAME}` : ''}.json`);
 const WIN_OUT = path.resolve(import.meta.dirname, '../src/engine/models/winprob.json');
 const PLAY_OUT = path.resolve(import.meta.dirname, '../src/engine/models/play.json');
 const DUEL_OUT = path.resolve(import.meta.dirname, '../src/engine/models/duel.json');
@@ -77,7 +80,7 @@ for (const [k, c] of eachCached<Cached>(folder, 'analyst')) {
 if (stride > 1) console.log(`${used} demos: play moments thinned to every ${stride}th.`);
 
 let duelModel: DuelModel | null = null;
-if (dTrain.length > 1000) {
+if (!NAME && dTrain.length > 1000) {
   const check = fitLogistic(dTrain, yTrain, DUEL_FEATURES, 1500, 0.3);
   const sig = (z: number) => 1 / (1 + Math.exp(-z));
   const pOf = (x: number[]) => sig(check.bias + x.reduce((a, v, j) => a + v * check.coef[j], 0));
@@ -100,7 +103,7 @@ const out = {
 fs.writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n');
 
 // the learned win chance
-if (wx.length > 1000) {
+if (!NAME && wx.length > 1000) {
   const model = fitWin(wx, wy);
   const baseline = wb.reduce((a, p, i) => { const q = Math.min(1 - 1e-6, Math.max(1e-6, p)); return a - (wy[i] ? Math.log(q) : Math.log(1 - q)); }, 0) / wb.length;
   fs.writeFileSync(WIN_OUT, JSON.stringify({ ...model, baselineLogLoss: +baseline.toFixed(4) }, null, 1) + '\n');
@@ -109,7 +112,7 @@ if (wx.length > 1000) {
 }
 // the play model ("what would a level-10 player do now"): policy + value, checked on every 5th demo
 {
-  if (tr.x.length > 5000) {
+  if (!NAME && tr.x.length > 5000) {
     const t1 = Date.now();
     const w = fitPolicy(tr.x, tr.a);
     const freq = ACTIONS.map((_, c) => tr.a.filter(a => a === c).length / tr.a.length);

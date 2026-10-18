@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { coach, modelFor, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
 import { CLASS_COLOR } from '../engine/engineEval';
 import { analystReport, type Finding, type Topic } from '../engine/analystBench';
-import { analystBench } from '../engine/analystModel';
+import { analystBench, proAnalystAvailable } from '../engine/analystModel';
 import { matchAnalysis, type AnalysisItem } from '../engine/analysis';
-import { COACH_MODEL } from '../engine/coachModels';
+import { COACH_MODEL, modelOf, PRO_MODEL, type Level } from '../engine/coachModels';
+import type { LevelGrade } from '../engine/level';
 import { buildMatchReport, IMPACT_PER_POINT, type MatchReport, type PlayerReport, type RoundSummary } from '../engine/match';
 import { LETTER_COLOR, RATING_SCALE, type DemoData, type Letter, type PlayKey } from '../engine/recap';
 import { ACTION_TEXT, PLAY_MODEL } from '../engine/playModel';
@@ -34,6 +35,9 @@ export function MatchReportPage() {
   const [hotRound, setHotRound] = useState<number | null>(null);
   if (!report || !view) return <div className="app single"><ReviewStart /></div>;
 
+  // the pro level, once it's trained (HLTV demos): the coach and the analyst compare with it instead
+  const hasPro = !!PRO_MODEL || proAnalystAvailable;
+  const [level, setLevel] = useState<Level>('lvl10');
   const focusId = [picked, me].find(id => id && view.players.some(p => p.id === id)) ?? view.players[0]?.id;
   const focus = view.players.find(p => p.id === focusId)!;
   const data = report.data;
@@ -46,13 +50,20 @@ export function MatchReportPage() {
     <div className="report">
       <MatchHeader data={data} view={view} me={me} done={report.done} />
 
+      {hasPro && (
+        <div className="seg-mini level-toggle" role="group" aria-label="Compare with">
+          <span className="muted">Compare with</span>
+          <button className={level === 'lvl10' ? 'on' : ''} onClick={() => setLevel('lvl10')} title="FACEIT level-10 players">Level 10</button>
+          <button className={level === 'pro' ? 'on' : ''} onClick={() => setLevel('pro')} title="Pro players (HLTV demos)">Pro</button>
+        </div>
+      )}
       {focus && (
         <div className="recap-top">
           <Performance p={focus} players={view.players} me={me} onPlayer={setPicked} />
-          <CoachCard p={focus} done={report.done} onRound={openRound} onHotRound={setHotRound} />
+          <CoachCard p={focus} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
         </div>
       )}
-      {focus && <AnalystCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
+      {focus && <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
       {focus && <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
       {focus && <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />}
 
@@ -139,7 +150,12 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
             <span className="perf-letter display" style={{ background: LETTER_COLOR[p.letter] }}>{p.letter}</span>
             <span className="muted">Lobby</span>
           </div>
-          {p.lvl10 && (
+          {p.level ? (
+            <div className="perf-grade" title={levelText(p.level)}>
+              <span className="perf-letter display small" style={{ background: LETTER_COLOR[p.level.letter] }}>{p.level.letter}</span>
+              <span className="muted">Level</span>
+            </div>
+          ) : p.lvl10 && (
             <div className="perf-grade" title={`Against FACEIT level-10 players (the coach's numbers): ${lvl10Text(p.lvl10.z)}`}>
               <span className="perf-letter display small" style={{ background: LETTER_COLOR[p.lvl10.letter] }}>{p.lvl10.letter}</span>
               <span className="muted">vs Lvl 10</span>
@@ -179,10 +195,11 @@ function Gauge({ rating, rank }: { rating: number | null; rank: number | null })
 }
 
 /** The coach: one line of summary, then every number as a bar from "normal": better to the right, worse to the left. */
-function CoachCard({ p, done, onRound, onHotRound }: { p: PlayerReport; done: boolean; onRound: (i: number) => void; onHotRound: (i: number | null) => void }) {
-  const c: Coaching = useMemo(() => coach(p, COACH_MODEL), [p]);
+function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; level: Level; done: boolean; onRound: (i: number) => void; onHotRound: (i: number | null) => void }) {
+  const model = modelOf(level);
+  const c: Coaching = useMemo(() => coach(p, model), [p, model]);
   const role = p.roles[0]?.role ?? 'Rifler';
-  const byRole = modelFor(COACH_MODEL, role).byRole;
+  const byRole = modelFor(model, role).byRole;
   const [open, setOpen] = useState<FeatureId | null>(null);
   const rows = c.profile.slice(0, 9);
   const side = (v: number | null) => (v === null ? '–' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
@@ -192,9 +209,9 @@ function CoachCard({ p, done, onRound, onHotRound }: { p: PlayerReport; done: bo
         <h2 className="display">Coach</h2>
         <span className="muted">CT {side(c.sides.CT)} · T {side(c.sides.T)} win chance a round</span>
       </div>
-      {COACH_MODEL.trainedOn > 0 && (
-        <p className="coach-vs muted" title={`Learned from ${COACH_MODEL.trainedOn} player-games${COACH_MODEL.source ? ` in ${COACH_MODEL.source.demos} demos` : ''}`}>
-          Compared with {COACH_MODEL.name ?? 'trained'} players{byRole ? ` (${role.toLowerCase()}s)` : ''}
+      {model.trainedOn > 0 && (
+        <p className="coach-vs muted" title={`Learned from ${model.trainedOn} player-games${model.source ? ` in ${model.source.demos} demos` : ''}`}>
+          Compared with {model.name ?? 'trained'} players{byRole ? ` (${role.toLowerCase()}s)` : ''}
         </p>
       )}
       <p className="coach-summary">{c.summary}{!done && <span className="muted"> (updates while rounds are graded)</span>}</p>
@@ -252,10 +269,10 @@ const TOPICS: Topic[] = ['Micro', 'Trades', 'Duels', 'Openings', 'Map control', 
  * utility, economy, post-plants), for the player and their team, next to FACEIT level-10 benchmarks
  * (engine/analyst.ts + analystBench.ts, learned by tools/learn-analyst.ts): findings first, then the numbers per topic.
  */
-function AnalystCard({ data, rounds, player, done, onRound, onHotRound }: {
-  data: DemoData; rounds: (RoundSummary | null)[]; player: string; done: boolean; onRound: (i: number) => void; onHotRound: (i: number | null) => void;
+function AnalystCard({ data, rounds, player, level, done, onRound, onHotRound }: {
+  data: DemoData; rounds: (RoundSummary | null)[]; player: string; level: Level; done: boolean; onRound: (i: number) => void; onHotRound: (i: number | null) => void;
 }) {
-  const bench = analystBench(data.map);
+  const bench = analystBench(data.map, level);
   const rep = useMemo(() => (bench ? analystReport(rounds.map(r => r?.analyst), player, i => data.rounds[i]?.frames.players[player]?.side ?? null, bench) : null), [bench, rounds, player, data]);
   const [topic, setTopic] = useState<Topic>('Trades');
   if (!bench || !rep) return null;
@@ -277,7 +294,7 @@ function AnalystCard({ data, rounds, player, done, onRound, onHotRound }: {
     <section className="recap-card analyst">
       <div className="coach-head">
         <h2 className="display">Analyst report</h2>
-        <span className="muted">vs FACEIT level 10 · {bench.rounds} rounds in {bench.demos} matches{!done ? ' · updating while rounds are graded' : ''}</span>
+        <span className="muted">vs {level === 'pro' && proAnalystAvailable ? 'pro players' : 'FACEIT level 10'} · {bench.rounds} rounds in {bench.demos} matches{!done ? ' · updating while rounds are graded' : ''}</span>
       </div>
       {work.length > 0 && <><h3>Work on</h3><div className="pos-items">{work.map(card)}</div></>}
       {good.length > 0 && <><h3>Keep</h3><div className="pos-items">{good.map(card)}</div></>}
@@ -435,7 +452,8 @@ function tone(id: FeatureId, v: number) {
 }
 
 function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; players: PlayerReport[]; score: number; focus: string; onPick: (id: string) => void }) {
-  const hasLvl10 = players.some(p => p.lvl10);
+  const hasLevel = players.some(p => p.level);
+  const hasLvl10 = !hasLevel && players.some(p => p.lvl10);
   const hasEngine = players.some(p => p.engineAccuracy !== null);
   return (
     <div className="sb-wrap">
@@ -443,7 +461,7 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
         <thead>
           <tr className="sb-groups">
             <th className={team === 0 ? 'ct' : 't'}>{team === 0 ? 'Team A' : 'Team B'} <span className="num">{score}</span></th>
-            <th colSpan={(hasLvl10 ? 5 : 4) + (hasEngine ? 1 : 0)}>Rating</th><th colSpan={5}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
+            <th colSpan={(hasLvl10 || hasLevel ? 5 : 4) + (hasEngine ? 1 : 0)}>Rating</th><th colSpan={5}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
           </tr>
           <tr>
             <th className="sb-name muted">{team === 0 ? 'started CT' : 'started T'}</th>
@@ -451,6 +469,7 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
             <th title="Estimated rating for this game: duel performance + round impact">Game</th>
             <th title="Game rating minus their real rating">±</th>
             <th title="Grade among the players of this lobby">Lobby</th>
+            {hasLevel && <th title="One grade from FACEIT level 10 to pro: B = a typical level-10 game, S = a typical pro game (performance and mechanics)">Level</th>}
             {hasLvl10 && <th title="Grade against FACEIT level-10 players">Lvl 10</th>}
             {hasEngine && <th title="Engine accuracy: every 2 s, what they did against the best option the engine calculated (100 = always the best; level-10 players average about 88)">Acc</th>}
             <th>K</th><th>D</th><th>ADR</th><th title="Rounds with a kill, assist, survival or trade">KAST</th><th>HS%</th>
@@ -474,6 +493,7 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
                 <td className={delta === null ? '' : delta >= 1000 ? 'hi' : delta <= -1000 ? 'lo' : ''}>{delta === null ? '' : `${delta >= 0 ? '+' : '−'}${fmt(Math.abs(delta))}`}</td>
                 <td title={lobbyText(p.lobbyZ)}><LetterChip letter={p.letter} /></td>
                 {hasLvl10 && <td title={p.lvl10 ? lvl10Text(p.lvl10.z) : ''}>{p.lvl10 ? <LetterChip letter={p.lvl10.letter} /> : ''}</td>}
+                {hasLevel && <td title={p.level ? levelText(p.level) : ''}>{p.level ? <LetterChip letter={p.level.letter} /> : ''}</td>}
                 {hasEngine && <td className={p.engineAccuracy === null ? '' : p.engineAccuracy >= 90 ? 'hi' : p.engineAccuracy < 82 ? 'lo' : ''} title={`${p.engineMoments} moments`}>{p.engineAccuracy !== null ? p.engineAccuracy.toFixed(0) : ''}</td>}
                 <td className="sep">{p.kills}</td><td>{p.deaths}</td>
                 <td className={tone('adr', p.adr)}>{p.adr.toFixed(0)}</td>
@@ -498,6 +518,13 @@ const spreads = (z: number) => `${Math.abs(z).toFixed(1)} spreads`;
 function lobbyText(z: number) {
   return Math.abs(z) < 0.15 ? 'about the middle of the lobby' : `${spreads(z)} ${z > 0 ? 'above' : 'below'} the lobby's average`;
 }
+/** The level grade explained: where on the ladder, and from what. */
+function levelText(l: LevelGrade) {
+  const where = l.score >= l.proAt ? 'at or above a typical pro game' : l.score >= 0 ? `between a typical level-10 game and a typical pro game (${Math.round((l.score / l.proAt) * 100)}% of the way)` : 'below a typical level-10 game';
+  const part = (v: number | null) => (v === null ? 'not measured' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}`);
+  return `Level, from FACEIT level 10 (B) to pro (S): ${where}. Performance ${part(l.perf)}, mechanics (reaction, crosshair, sound, counter-strafing) ${part(l.mech)}, in level-10 spreads.`;
+}
+
 function lvl10Text(z: number) {
   return Math.abs(z) < 0.1 ? 'on par with a typical level-10 player' : `${spreads(z)} ${z > 0 ? 'better' : 'worse'} than a typical level-10 player`;
 }

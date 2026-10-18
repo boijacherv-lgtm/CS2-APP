@@ -754,3 +754,7 @@ a.btn:hover { border-color: #45505e; }
 .engine-counts i { font-style: normal; }
 .engine-graph { width: 100%; height: 46px; color: var(--text-2); }
 .engine-list { max-height: 260px; }
+
+/* Match recap: compare with level 10 or pro */
+.level-toggle { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 10px; }
+.level-toggle .muted { font-size: 12px; margin-right: 4px; }

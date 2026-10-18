@@ -15,6 +15,7 @@
     "calibrate:engine": "vite-node tools/calibrate-engine.ts",
     "learn:all": "vite-node tools/learn-all.ts",
     "calibrate:search": "vite-node tools/calibrate-search.ts",
+    "learn:level": "vite-node tools/learn-level.ts",
     "fetch:faceit": "vite-node tools/fetch-faceit.ts"
   },
   "dependencies": {

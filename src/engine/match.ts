@@ -4,7 +4,8 @@ import type { Hold, Move } from './situations';
 import type { AnalystRound } from './analyst';
 import { gradeAgainst } from './coach';
 import { keySearchMoments, type RoundSearch, type SearchMoment } from './search';
-import { COACH_MODEL } from './coachModels';
+import { COACH_MODEL, PRO_MODEL } from './coachModels';
+import { levelGrade, type LevelGrade } from './level';
 
 /**
  * Match report: every round's grades rolled up per player, plus an estimated rating for the game.
@@ -109,6 +110,10 @@ export interface PlayerReport {
   lobbyZ: number;
   /** Grade against FACEIT level-10 players (the coach's model), null until it's trained. */
   lvl10: { letter: Letter; z: number } | null;
+  /** The same against pro players (HLTV demos), when that model is trained. */
+  pro: { letter: Letter; z: number } | null;
+  /** The one grade on the level-10 → pro ladder (level.ts): B a typical level-10 game, S a typical pro game. */
+  level: LevelGrade | null;
   /** The plain average of their round grades. */
   roundsLetter: Letter;
   duelsWon: number; duelsLost: number; avgOpponent: number | null;
@@ -168,7 +173,7 @@ export function buildMatchReport(data: DemoData, rounds: (RoundSummary | null)[]
       utilDamage: sum(l => l.utilDamage), flashAssists: tagCount('FLASH ASSIST'), whiffs: tagCount('WHIFF'), upsets: tagCount('UPSET'),
       impactPerRound: (sum(l => l.impact) / n) * 100, pointsPerRound,
       engineAccuracy: engN ? +(eng.reduce((a, x) => a + x.accuracy * x.n, 0) / engN).toFixed(1) : null, engineMoments: engN,
-      letter: 'C', lobbyZ: 0, lvl10: null, roundsLetter: matchLetter(got.map(l => l.letter)),
+      letter: 'C', lobbyZ: 0, lvl10: null, pro: null, level: null, roundsLetter: matchLetter(got.map(l => l.letter)),
       duelsWon: won, duelsLost: duels.length - won, avgOpponent: opp.length ? opp.reduce((a, b) => a + b, 0) / opp.length : null,
       duelRating, gameRating: duelRating !== null ? Math.round(duelRating + IMPACT_PER_POINT * pointsPerRound) : null,
       roles: [...roleCount].map(([role, rounds]) => ({ role, rounds })).sort((a, b) => b.rounds - a.rounds),
@@ -176,6 +181,9 @@ export function buildMatchReport(data: DemoData, rounds: (RoundSummary | null)[]
   });
   gradeLobby(players);
   if (COACH_MODEL.trainedOn > 0) for (const p of players) if (p.played) p.lvl10 = gradeAgainst(p, COACH_MODEL);
+  if (PRO_MODEL) for (const p of players) if (p.played) p.pro = gradeAgainst(p, PRO_MODEL);
+  const analyst = rounds.map(r => r?.analyst);
+  for (const p of players) p.level = levelGrade(p, analyst);
   players.sort((a, b) => a.team - b.team || (b.gameRating ?? -1e9) - (a.gameRating ?? -1e9) || b.pointsPerRound - a.pointsPerRound);
   return { players, score, graded: rounds.filter(Boolean).length, total: data.rounds.length };
 }

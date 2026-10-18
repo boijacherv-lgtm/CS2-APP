@@ -105,7 +105,8 @@ const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => (e.isD
 function mapOf(file) {
   const fd = fs.openSync(file, 'r'), buf = Buffer.alloc(65536);
   fs.readSync(fd, buf, 0, buf.length, 0); fs.closeSync(fd);
-  const inHeader = buf.toString('latin1').match(/de_[a-z0-9]+/)?.[0];
+  // the map names we know, exactly (a byte right after the name in the header can look like part of it)
+  const inHeader = buf.toString('latin1').match(/de_(ancient|anubis|dust2|inferno|mirage|nuke|overpass|train|vertigo|cache|split)/)?.[0];
   if (inHeader) return inHeader;
   return MAPS.concat(['de_vertigo', 'de_cache', 'de_split']).find(m => path.basename(file).toLowerCase().includes(m.replace('de_', ''))) ?? null;
 }

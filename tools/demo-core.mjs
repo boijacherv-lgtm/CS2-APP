@@ -92,7 +92,24 @@ export function buildDemoData(parser, input, progress = () => {}) {
   const fightRows = fightTicks.size ? safe(() => p.parseTicks(input, ['X', 'Y', 'Z', 'yaw', 'pitch'], [...fightTicks].sort((a, b) => a - b))) ?? [] : [];
   const fightAt = new Map(); // `${tick}|${steamid}` -> row
   for (const row of fightRows) fightAt.set(`${num(row.tick)}|${sid(pick(row, 'steamid', 'player_steamid'))}`, row);
-  const blinds = safe(() => p.parseEvent(input, 'player_blind', ['team_num'], [])) ?? [];
+  let blinds = safe(() => p.parseEvent(input, 'player_blind', ['team_num'], [])) ?? [];
+  // tournament (GOTV broadcast) demos, e.g. HLTV's, leave player_blind out: rebuild it from each player's flash
+  // duration just before and just after every flashbang goes off (a jump = flashed by its thrower, for that long)
+  if (!blinds.length) {
+    const pops = safe(() => p.parseEvent(input, 'flashbang_detonate', [], [])) ?? [];
+    const at = pops.flatMap(e => [num(e.tick) - 1, num(e.tick) + 4]);
+    const rows = at.length ? safe(() => p.parseTicks(input, ['flash_duration'], [...new Set(at)].sort((a, b) => a - b))) ?? [] : [];
+    const dur = new Map(); // `${tick}|${steamid}` -> seconds
+    for (const r of rows) dur.set(`${num(r.tick)}|${sid(pick(r, 'steamid', 'player_steamid'))}`, num(r.flash_duration) || 0);
+    blinds = pops.flatMap(e => {
+      const t = num(e.tick), by = sid(pick(e, 'user_steamid'));
+      return rows.filter(r => num(r.tick) === t + 4).flatMap(r => {
+        const id = sid(pick(r, 'steamid', 'player_steamid'));
+        const after = dur.get(`${t + 4}|${id}`) ?? 0, before = dur.get(`${t - 1}|${id}`) ?? 0;
+        return after > 0.3 && after > before + 0.05 ? [{ tick: t, user_steamid: id, attacker_steamid: by, blind_duration: +after.toFixed(2) }] : [];
+      });
+    });
+  }
   const nades = safe(() => p.parseEvents(input, ['flashbang_detonate', 'hegrenade_detonate', 'smokegrenade_detonate', 'inferno_startburn'])) ?? [];
   const nadeEnds = safe(() => p.parseEvents(input, ['smokegrenade_expired', 'inferno_expire'])) ?? [];
   const flights = safe(() => grenadeFlights(p, input)) ?? [];

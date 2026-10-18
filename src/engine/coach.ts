@@ -338,9 +338,9 @@ export function trainCoachSet(samples: Sample[], name: string, source: CoachMode
  * how far each number is from their normal, in spreads (+ = better). B is "on par with them"; A and up is better than
  * a typical one of them, C and below worse.
  */
-export function gradeAgainst(p: PlayerReport, model: CoachModel): { letter: Letter; z: number } {
-  const f = coachFeatures(p);
-  const { features: normal } = modelFor(model, p.roles[0]?.role ?? 'Rifler');
+/** How far a set of numbers is from a model's (in its spreads, weighted; + = better), for a role. */
+export function zAgainst(f: Features, model: CoachModel, role: Role): number {
+  const { features: normal } = modelFor(model, role);
   let sum = 0, w = 0;
   for (const id of Object.keys(f) as FeatureId[]) {
     const m = normal[id];
@@ -348,7 +348,25 @@ export function gradeAgainst(p: PlayerReport, model: CoachModel): { letter: Lett
     const z = Math.max(-3, Math.min(3, ((f[id] - m.baseline) / m.spread) * (BETTER[id] === 'low' ? -1 : 1)));
     sum += z * m.weight; w += m.weight;
   }
-  const z = w ? sum / w : 0;
+  return w ? sum / w : 0;
+}
+
+export function gradeAgainst(p: PlayerReport, model: CoachModel): { letter: Letter; z: number } {
+  const z = zAgainst(coachFeatures(p), model, p.roles[0]?.role ?? 'Rifler');
   const letter: Letter = z >= 0.9 ? 'S+' : z >= 0.55 ? 'S' : z >= 0.25 ? 'A' : z >= -0.1 ? 'B' : z >= -0.4 ? 'C' : z >= -0.75 ? 'D' : 'F';
   return { letter, z };
+}
+
+/**
+ * One grade on one ladder from level 10 to pro: measured against level-10 players (0 = a typical one), with the
+ * typical pro (the pro model's numbers for the same role, measured the same way) as the S mark.
+ *   S+ above a typical pro · S a typical pro · A between · B a typical level-10 player · C / D / F below
+ */
+export function skillGrade(p: PlayerReport, lvl10: CoachModel, pro: CoachModel | null): { letter: Letter; z: number; proAt: number } {
+  const role = p.roles[0]?.role ?? 'Rifler';
+  const z = zAgainst(coachFeatures(p), lvl10, role);
+  // where a typical pro of this role stands on the level-10 scale (never closer than 0.3: pros are better)
+  const proAt = pro ? Math.max(0.3, zAgainst(modelFor(pro, role).features ? Object.fromEntries(Object.entries(modelFor(pro, role).features).map(([k, v]) => [k, v.baseline])) as Features : coachFeatures(p), lvl10, role)) : 0.55;
+  const letter: Letter = z >= proAt + 0.35 ? 'S+' : z >= proAt ? 'S' : z >= proAt / 2 ? 'A' : z >= -0.1 ? 'B' : z >= -0.4 ? 'C' : z >= -0.75 ? 'D' : 'F';
+  return { letter, z, proAt };
 }
