@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Stratboard: FACEIT demo download helper. Runs on any computer with Node.js 18+ (Windows, macOS, Linux), no
-// install, no repo needed: copy this file and faceit-links.txt into one folder and run
+// install, no repo needed: copy this file and faceit-links.txt into one folder (see download-kit/README.md) and run
 //
 //   node faceit-download-helper.mjs [--out <folder>] [--downloads <your browser's download folder>] [--batch 3]
 //
@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -23,7 +23,25 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
 const home = p => p.replace(/^~(?=[/\\]|$)/, os.homedir());
 const LINKS = path.resolve(home(opt('links', path.join(here, 'faceit-links.txt'))));
-const OUT = path.resolve(home(opt('out', path.join(here, 'faceit-demos'))));
+// where demos go: --out, else the external disk (found by its name, --disk "Внешка") when it's plugged in, else
+// next to this script
+const DISK_LABEL = opt('disk', 'Внешка');
+function findDisk(label) {
+  try {
+    if (process.platform === 'win32') {
+      const r = spawnSync('powershell', ['-NoProfile', '-Command',
+        '[Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Volume | Where-Object DriveLetter | Select-Object DriveLetter,FileSystemLabel | ConvertTo-Json'], { encoding: 'utf8' });
+      const vols = [].concat(JSON.parse(r.stdout || '[]'));
+      const v = vols.find(x => String(x.FileSystemLabel ?? '').trim() === label);
+      return v ? `${v.DriveLetter}:\\` : null;
+    }
+    const mac = path.join('/Volumes', label);
+    fs.accessSync(mac, fs.constants.W_OK); // a Mac can't write to an NTFS disk: then it doesn't count
+    return mac;
+  } catch { return null; }
+}
+const DISK = opt('out') ? null : findDisk(DISK_LABEL);
+const OUT = path.resolve(home(opt('out', DISK ? path.join(DISK, 'faceit-demos') : path.join(here, 'faceit-demos'))));
 const DOWNLOADS = path.resolve(home(opt('downloads', path.join(os.homedir(), 'Downloads'))));
 const BATCH = Math.max(1, Number(opt('batch', '3')));
 const MIN_FREE_GB = Number(opt('min-free-gb', '10'));
@@ -32,6 +50,8 @@ const NO_OPEN = args.includes('--no-open'); // just print the links (open them y
 if (!fs.existsSync(LINKS)) { console.error(`Can't find ${LINKS}. Put faceit-links.txt next to this script, or pass --links <file>.`); process.exit(1); }
 if (!fs.existsSync(DOWNLOADS)) { console.error(`Can't find the download folder ${DOWNLOADS}. Pass --downloads <folder> (where your browser saves files).`); process.exit(1); }
 fs.mkdirSync(OUT, { recursive: true });
+if (DISK) console.log(`Found the disk "${DISK_LABEL}" at ${DISK}: demos are saved there.`);
+else if (!opt('out')) console.log(`The disk "${DISK_LABEL}" isn't plugged in: demos are saved next to this script. (Plug it in and run again, or pass --out <folder>.)`);
 
 // ---- the list --------------------------------------------------------------------------------------------
 // tab-separated: map, room URL, needed|spare, source (a header line first)

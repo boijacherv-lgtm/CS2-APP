@@ -1,0 +1,492 @@
+map	match room	needed / spare	source
+de_ancient	https://www.faceit.com/en/cs2/room/1-11439b5c-f6c4-4875-80f3-78b9f11dc444	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-91f9e51e-6d6c-41b1-b705-7d0d28c88acf	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-b8b65e7e-1349-4c7c-8dfe-83fbf5394db3	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-4090a950-64db-4db5-8169-911eef8ba911	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-b90aba87-f966-43db-9725-9ccad65b97cc	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-aa15dd84-3aa9-4bf9-9399-25a8449b2ffd	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-37ac5b6c-a2ea-444e-8410-975823852a52	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-49688971-306b-4834-8680-26eefa44b307	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-5619b9a0-d791-4e8b-85b7-0e0af6a7f9a7	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-bce94c69-de83-4307-b6df-1ead24e9b3a0	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-2d6ffe7f-f42b-450c-ab88-276f6753e51d	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-b4d7d122-b6fe-4a9f-82a4-317d5200a542	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-cc1bf857-129c-4894-976d-41dc5e817e1b	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-685d342f-c739-4fb6-9894-edf222c30a13	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-b52842f1-a97a-4a89-93f5-5dfefdbfb8d7	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-38409454-e36b-46b7-8aa5-58242e57307f	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-e753e193-00dc-4a84-84e7-2fd92f0318c0	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-fa73e2ce-2708-4030-9671-3890ef0b11f9	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-650ea158-3cba-4003-bced-010307563d6f	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-cddae6ae-f370-4d04-be4e-0c675115aa59	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-6c2c9d57-7b3b-47fa-aaeb-26c076ecb988	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-9ea9ca46-1d17-41b6-8e25-054513b0a407	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-573813a6-b434-4eae-a3f2-b9d18e9bd99b	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-d7154c86-2ebb-4a00-88b1-87806fe58ba5	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-c6eb4a2a-a1e4-4c44-85fe-2b0189e8838f	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-c478ce7c-3dc2-4264-ba3c-e767533556cc	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-4b5c506b-ec76-45b0-9778-2ae781e4d3ee	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-f22fffe1-1317-4ca0-8f05-7cfcaa3c90e7	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-06261412-68a5-45ad-a0fc-ad65f1a9b791	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-6429de2d-3178-4c54-a1e6-a186ddc8be5a	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-c8f1223c-d1e6-4217-bbd4-9d4a76fc48b4	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-d19bb86d-d89c-452a-b84b-b742ec93ebda	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-4d8fd6ea-88b1-4747-a58c-321c6cb99e7b	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-c4c96ef0-2958-4272-b0dc-f1c46c0451bb	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-2e70cca6-2fcd-42d9-8015-93f5ad97da17	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-33b0d761-cbca-411d-93ba-aad06ecba3b7	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-34573f02-69cb-4e81-8ec7-be0ed3601650	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-9b613929-886b-4c3d-937e-ed5d644b49e8	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-287ee4ce-4b10-4631-81aa-71f95426e09d	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-1910dab4-af11-4a9e-aea0-ce3119f55aa7	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-e367fe94-9493-425c-b6db-2084959fb6a5	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-bf45c9a9-1191-4ad2-afaf-69f7bb560786	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-0b2639be-0a77-46b7-b4c9-12df9662f2c4	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-4fd0914f-0dab-4aba-a7f5-f32bc7e7b4e2	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-9ca53196-2544-47e3-8a94-6687a209392f	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-de54dab5-3b42-4c8e-9d5c-73f9f4970c66	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-723fe8aa-b146-4827-a284-a60e98686f7c	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-30c74a88-4036-46e3-b123-d6ec5ad54867	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-523b8aba-d412-4751-a029-0165945978a3	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-1858aac2-5db7-4c3a-93d1-e1ab2e14f400	needed	Top 100 (level 10)
+de_ancient	https://www.faceit.com/en/cs2/room/1-aa15dd84-3aa9-4bf9-9399-25a8449b2ffd	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-37ac5b6c-a2ea-444e-8410-975823852a52	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-3ea3d9b9-b81d-468f-87d7-1b8c057cf170	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-9a3f8d42-c93b-48ff-a1ca-fa3f412e36b7	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-6086a9d8-aca3-4dd0-8af6-050ceaa86131	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-440e8916-54f7-4ed4-800e-707b66a4538a	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-b8b65e7e-1349-4c7c-8dfe-83fbf5394db3	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-f7fd84e8-336e-49aa-8f05-9a8290c49c71	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-f8c6486d-d1e5-4b44-b593-9a0519bd1b33	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-73a1aba2-ddb7-4fdb-8660-7914575ce376	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-3a26660f-7df0-496d-b16f-f62640cfce00	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-06261412-68a5-45ad-a0fc-ad65f1a9b791	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-9b4e7112-32a0-4d77-9f97-ea8c3f813864	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-df41ebd5-0489-4f1c-aa2a-31643f3e20c7	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-7f01a0a9-fc4d-4546-88e4-29246ad69e69	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-644c6f00-b781-492e-915b-c5454b0b7adc	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-734a464b-6d56-4f90-9314-89ffe635775b	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-1e7aed0c-9a57-4ba4-a706-e2500aa2f0fd	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-8c27d6c8-1efa-4170-a7b6-cece1432edb9	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-e1061c02-4659-4495-b347-c56d8cd3c656	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-6c2c9d57-7b3b-47fa-aaeb-26c076ecb988	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-1f3cba1d-6339-4325-81e3-f8bb7d66dc42	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-fa73e2ce-2708-4030-9671-3890ef0b11f9	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-cc112c11-db36-4219-a909-dc4571567564	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-48f7e4c4-11ac-4742-b908-475799416517	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-bf45c9a9-1191-4ad2-afaf-69f7bb560786	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-85ef866c-f7c4-4f58-adb0-73aef3995bf3	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-64fff7c0-f845-4158-8b43-565fcdc46343	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-3332ad38-9411-4dc1-9c6a-a806f59f5d31	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-55a3edc8-e8a0-48fe-9c01-c71ecb6cdad6	needed	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-3fa6f23c-4dd0-49c1-9ef5-adce7e137d7f	spare	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-c5e82a0e-bbd6-4924-9981-40729005f5c7	spare	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-11593439-5ab9-473d-ae1e-bdff9133a480	spare	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-edd798b8-b851-4193-a013-2a3c82bc66b9	spare	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-e6260d4b-c1cf-4d98-b298-7175640f6687	spare	Pro tier
+de_ancient	https://www.faceit.com/en/cs2/room/1-45cf1433-7390-45d3-ba69-85abd9325b3a	spare	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-3f640b74-f858-4090-9fc7-961f972eb93b	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-9730c2d0-6c9c-4106-bd53-ea4dbd4f819e	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-759e9678-2f1e-4357-96f0-814667571e42	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-7c843887-aa99-4565-811a-d1a8e59afd3f	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-ded7e980-ed03-4852-8ae7-1d83bffb3751	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-a2b249c9-ce6a-4068-9717-763967779a3c	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-911efd82-4b08-47b2-8c07-02b719998e6d	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-86342ecf-fd0f-477d-818d-ec7e618442ff	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-6baa0981-d58b-4399-9f1f-6a3bfa04699c	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-fa6cd621-bfcf-40ee-8ca9-0c83440c135f	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-1ff8290f-4021-4f8d-93a5-2cf7ab850102	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-82d4de64-4086-41a7-ba40-32cd8c53cb7b	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-85741260-6951-45c1-918c-e76a6bf7424e	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-641bbc07-5c4b-4ea2-8bdc-aa28ec6c0e65	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-541cc58e-9197-4916-8fc2-50f0f0ed056b	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-c0f0c48c-9f14-4b8c-9390-b5a79cc4774d	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-576187c8-64a7-4488-ab33-dfe00d725ee9	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-0bd8a597-365a-4b55-b90f-431af70a344d	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-55f5fa8d-54a5-4ef5-932f-21fa9ca4067c	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-8fbe4b30-108a-49f8-872b-4f33b5af23a2	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-97fe0005-f751-4102-b2b3-58c23c009c41	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-f508108a-b384-46d3-bd4c-b58fb6a32048	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-69c5df2d-414a-4dc0-b53a-4848ea4363de	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-9fa6cbea-cb5b-4a08-9a14-d00591f4d1ca	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-aeadd560-17ff-41e4-a6cc-757a4310c84c	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-280c6717-d64b-4234-9b1c-4d1d16a67c9e	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-528c6bdb-e594-4a49-94fa-9898cd18df86	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-6c9f91f7-5985-4b44-a5c7-17ab5f0eb325	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-4c0b9e0a-7b2a-4d18-8a25-e96cac8ddcac	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-00a6be3d-cc3d-4075-b1a1-efd3d610d623	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-ec8e0139-de85-4dc4-a517-631bce31c82b	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-097dc51a-a1da-4ad3-be72-53448bcb1c4e	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-a1c0d32e-1158-494f-8840-4c3ae9af52a6	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-a90e1d58-98ee-459d-8889-0fec0cedb37c	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-616d6947-9c28-46f3-a665-43b1a1a4d9a4	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-da246471-eae4-4e04-831c-ca737c1fd442	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-7e61d4ec-b2c5-40bd-83a9-6ed8a35ded35	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-c413793b-4735-4fb4-8594-51c790584c83	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-6b3722a9-9717-4a53-a8d4-6a7b431c2a55	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-6a321afc-a70c-4659-b0fa-d983fffa25a6	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-a3899562-79d9-4e90-9a62-a8e2b2b49267	needed	Top 100 (level 10)
+de_anubis	https://www.faceit.com/en/cs2/room/1-77e2b4df-c8e1-455b-b20a-fca98d90c058	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-e6e5985e-0de2-43ff-812c-65ce2a1c8683	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-48981025-65df-475f-a3e6-c339911bdb84	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-061478e0-e1a3-4644-9fb9-99ec0d4e4af9	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-d747a417-1539-43ae-b2e6-6d9ef241ecaa	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-079053ce-4141-4f82-afa5-da6e65a7ba9f	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-8ec8672a-43b8-4497-abb3-fa4dc6fc9e0e	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-0bd8a597-365a-4b55-b90f-431af70a344d	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-62fe5892-20ee-4299-bf50-91d82a52a8a2	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-8fbe4b30-108a-49f8-872b-4f33b5af23a2	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-70c0f12f-3a0b-4e10-87a3-b9b007282287	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-1d093f9b-0479-4c7a-97c6-6bdd6a88155f	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-9b4259bf-a7e6-4088-be99-95f58e5dbe0b	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-2afe6686-d435-440e-ae16-ec9189eb1616	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-2fe88f8c-14b2-4dfd-8a90-342b4dcfb912	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-54e330f8-5e3b-44e5-9b3a-78f0a1438602	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-d8fbe6ba-e239-4c35-b4f9-79f3669a4a93	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-2a2d2acd-5dbe-4ae9-8057-029686fc278a	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-5e7c432b-73cd-45a2-b0f7-40fcc2c4cee4	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-d9a9f6e6-886b-4492-b957-ad3f668486b0	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-48bf9d39-6db8-438e-912e-367e5ebfb2f1	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-c6738770-676d-4a6e-bee5-286e2d33206e	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-04162c3d-2458-4626-a108-837197cd5945	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-82f7e299-fde8-474b-8524-7d4eebb27ba5	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-052d9194-c47f-415d-b29f-415e63419047	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-a053b935-199c-4e53-8040-d845628d6bb7	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-9750a6f0-9446-4ef6-87a1-45f3857f79fd	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-c1fa8028-e70b-4b7b-bc42-30590c6c2665	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-e9ec964d-5ca5-48a2-8c15-a06c1782d5a0	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-b227f168-1cf9-48c8-8f3b-8f60da2bfadb	needed	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-a11fd6fe-a3cb-4b7f-ab0e-57bf8314bf46	spare	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-fc961e9c-3504-4829-9645-14fd2e52a033	spare	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-f4d21242-9f85-4a11-a2b5-25567faec272	spare	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-6b9dc793-b670-488f-9c6e-2d65494c77e0	spare	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-de62966e-7ddd-48f9-a71d-f22192fa493c	spare	Pro tier
+de_anubis	https://www.faceit.com/en/cs2/room/1-495cc169-7fbb-4e8b-b8c8-91f0477081c5	spare	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-b2cb8151-95b6-4caf-86f9-cd8d4009c1c7	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-fb78b535-c4e5-4a95-b90e-a51424474498	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-abe626f3-3ee1-4fee-9131-c604ebe842db	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-adcfd24c-f931-436c-89fd-c6e9eecde923	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-b9e61266-ccb0-4776-a454-70ad506ec67c	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-85b8cd54-342b-4c0c-96d7-6a1cfbf958db	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-8e85a45e-e80d-471c-ad1f-2a67d8dee556	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-511377e5-d75f-4eef-a991-1073357478ed	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-14e56964-8a3c-4078-ab20-569589daa97c	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-438d6579-94b8-4af5-9889-6bcab0ef33af	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-a0bec5bf-aa7d-4e95-94f6-717ca15e4577	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-dddb3c5e-e5d1-4997-93bd-c7cf9e9dd419	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-e714f57a-7fa8-4ef3-96d5-888c4bc9ea46	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-9d1cc322-6f87-4b29-b576-199f7957389c	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-4c79a200-f12e-45d5-8440-2eedc6a4d426	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-4b9aeacd-c3fc-4ded-8a33-2d44573314dc	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-12c8e321-d14a-4aa1-a512-772324a55f56	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-a34d80c7-3b13-4d61-a987-5f907440193a	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-4ca497bf-5def-4f4a-bcc6-2abb9959da0d	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-c5455e52-43b5-4629-b0f7-742bfdcf6658	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-5133c1a6-a155-475a-b047-a31654e29b44	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-92ccef4f-13ae-4b70-955c-c076b02ff5a0	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-6b34dd97-7572-4b1f-8320-8ecc27e454f2	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-40659ea2-2eb2-4b58-b7b5-91c92453cacb	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-d1e7d373-9d61-4b98-89cd-e715d2e139a7	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-cc5355ce-499b-4645-ba0f-49891dc18f9e	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-c30f3079-1e76-445d-9c39-94cfe91a494a	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-8dcdf46b-16f2-49e5-8955-7278b6b7b540	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-24152a4a-baf1-4617-a4d9-e0221984bd5a	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-3f58d545-3f59-4e02-9c27-ff467d1191a2	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-c735a42c-bf62-416a-a1ba-3adb7a834b0a	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-de2f98b0-99eb-4580-9b0e-6264ddd4bbcf	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-83fdaff9-b8e2-444c-ae23-3f1908f63fc5	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-3c689043-92ba-456b-b070-eaf92e910ce1	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-5357f559-1387-4a71-bf12-3e08ebbaf65a	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-0061a446-a1f3-444e-8bb9-0a71080b65eb	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-e46a1c73-7681-43ef-a47a-2702c0eaaea0	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-3b48cb69-61ac-4bbc-8f32-091f1f525a8d	needed	Top 100 (level 10)
+de_cache	https://www.faceit.com/en/cs2/room/1-a34d80c7-3b13-4d61-a987-5f907440193a	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-b382e339-66d0-4f93-b463-576cff6106f6	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-fb78b535-c4e5-4a95-b90e-a51424474498	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-511377e5-d75f-4eef-a991-1073357478ed	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-14e56964-8a3c-4078-ab20-569589daa97c	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-3311d867-ab15-4d0d-8264-7b3c07af3ec8	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-49e23f56-ed76-4e4f-beaf-47d4af6bc864	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-9c0ae66d-485f-4d4a-8971-db5ef9587587	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-92ccef4f-13ae-4b70-955c-c076b02ff5a0	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-18ebf8ec-6d12-4503-9edc-76f58a738165	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-26119995-75ab-4570-9cc6-405952025812	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-de240bea-31b6-4acc-a17e-10faadb84d60	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-a22423c4-c1c9-4a4b-bfb3-716bec881013	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-337fa683-98d8-4d6a-bd0b-ccc1afd9877a	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-d8fd325e-1710-499b-97b0-01cd03225848	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-9063e89d-23ff-494b-9b09-f27a3b0d9f9f	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-6fe11e7a-8b12-46c5-b523-10f6289112b2	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-40659ea2-2eb2-4b58-b7b5-91c92453cacb	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-a018c95e-34da-4cec-9f83-cbc90f177515	needed	Pro tier
+de_cache	https://www.faceit.com/en/cs2/room/1-4e2cf55d-4b4f-44cc-b801-9e6840cf8052	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-5cde9897-3b98-4162-9698-adf221014e08	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-5a64768c-10ee-4c06-88e7-cf4c36f0ba2d	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-4156f94c-8e3c-4a45-a7e2-5a5165211915	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-25bcc150-a6e7-4c18-98aa-945bda736025	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-06f6dea8-19e8-42e4-8183-ca135881cb38	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-14d162a0-f201-4607-b631-b7cc60c0975d	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-f4c45704-18a8-410a-b5cb-894ae8b4aa7a	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-91547f80-bcaf-46b4-b9ce-9d93747177ad	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-1d2e431d-28b3-4685-84aa-f4c3869fd504	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-04ca6e3b-465f-48da-bb78-2b9b71ac0e7b	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-af60c603-d10d-4e56-a338-b9a2eccf9a4b	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-8fd4bb00-1464-41bd-a2b4-d49c760db97d	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-407da63c-f00e-4aa3-8bdd-c49965306d50	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-49e27184-49d1-45b6-a32f-7fd1aa20ad5d	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-37304739-b642-45ca-a3fe-430cb3e0adef	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-b2438e7a-0483-4b20-964a-e8e590ff45e3	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-ff761257-9b4f-4166-a879-b8e81bf71275	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-0d5a70a6-6575-4209-8219-b0091caf4838	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-adff44f9-0552-48c0-971f-7d9d7c69802e	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-1d056e54-ec8b-4ac7-8a45-e62696862334	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-0170c8b5-aef2-45cc-9a33-84ba12729d90	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-7a1dd242-aef5-41dc-ac1d-e75de4440012	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-6c7ce024-7dab-441b-b7c2-e5f51b1f13ef	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-5bab89d0-fa4f-476d-a861-8a5dcc3abc74	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-cd08b5ca-e3ce-4a50-8f65-092af4dabf09	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-e346f1c2-02bc-4a91-b538-f2749e66ef68	needed	Top 100 (level 10)
+de_dust2	https://www.faceit.com/en/cs2/room/1-dec94885-cfc4-41dd-ac9e-a9b8f6535ff8	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-ade840ed-b741-47f3-8533-b3046ac66133	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-57827799-3eff-410f-9ce9-f3af9461dcff	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-3c2f7cc9-c1c9-45b0-8a81-ea6f7b73d792	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-f4c45704-18a8-410a-b5cb-894ae8b4aa7a	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-91547f80-bcaf-46b4-b9ce-9d93747177ad	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-4267e5dc-457f-4fd7-9634-b4e727c86e68	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-46b9329a-a593-4629-92bb-5d893317e05d	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-270ad466-d888-4b96-b85f-5a1c024f948d	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-edb305df-6c48-46e1-bd14-d945e3d1d832	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-007aa044-a284-4d61-b247-174c9180c838	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-ea2ecabb-3679-4b58-a452-90c3e24a4b24	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-88c01ce4-bb17-40a4-965d-6e0d68fad254	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-37304739-b642-45ca-a3fe-430cb3e0adef	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-1560e92f-de9d-4a07-9e31-59b45bab873c	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-a6208b38-f882-46ed-8a59-b7bb1fbec84b	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-64ec4273-6dc0-459f-9aed-df9dfdd70e32	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-25bcc150-a6e7-4c18-98aa-945bda736025	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-f1b3d419-f81d-47df-bb04-7046507c25b7	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-f0319b98-3951-4ec7-ad97-2336f76f3208	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-16ce0781-e51a-42ba-9293-f6fc7c695c18	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-7c8aa254-2a11-4843-a9d4-30b0e5f54f61	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-9ef0d10b-1421-4133-8be5-f87f026b1020	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-7f93d2f0-e870-4743-85e7-8c6c79bc8fb8	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-70935236-27e8-4b65-ada8-39548d8e33e9	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-b4844e12-32f5-4c2c-9a08-f6e7ef092fbe	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-f6eb9c6a-9d9e-4ff7-a58e-4ee174108d17	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-f396640d-2c1f-4ff5-a5a0-1222f5ac6b8a	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-adc4b06e-c826-4ef5-96e1-cd70dee19bed	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-416981e7-5f9d-4a77-a27d-db1c3892f9c1	needed	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-adff44f9-0552-48c0-971f-7d9d7c69802e	spare	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-ebece21a-e578-4e48-baf9-0098f602b842	spare	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-e99bb770-69ca-47e7-bb74-f144880617c2	spare	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-059cd66d-caeb-4b21-a5f5-96e38b72af77	spare	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-d15738e8-763d-4fc9-be8a-a5cbf023ab50	spare	Pro tier
+de_dust2	https://www.faceit.com/en/cs2/room/1-179c1849-8da8-4e1f-b529-0fefe1bd09af	spare	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-6e1f1d52-e5ad-4e30-a2ea-2b403babe57d	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-1cb50c59-d826-4bcd-9649-11726bb1433f	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-32eefd74-a4ed-4432-a176-13f50b2f1e6e	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-44dbdbd1-e767-4c07-8d31-471de05b49cd	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-83ae8576-f697-474b-80c8-819354e0176c	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-e3c5a8ac-36d7-4df8-a1c3-7cc99c2aae77	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-1e8004b9-2588-4235-94f5-6d14295ede53	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-eb52261a-068e-44af-a3f3-680d1f41958c	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-92149bdb-cb91-431d-a116-eba6c2626f09	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-0babd2aa-8425-4736-92e9-f915f89b37fe	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-bf1aa5c0-7931-4ad1-90a3-36185f209df4	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-0647d9ce-d098-4a01-9cf6-d4b286c12c30	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-93813364-a2d9-478f-813e-0e57d9c9ef8d	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-16c0b11a-d2c5-4243-888e-9dd89ab8a2aa	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-5be5e18c-7d2a-4e26-8b26-8995057cde81	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-3590144f-e1a9-4ca2-b7cf-0057bef2bb83	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-77cbfc79-ba27-4ccb-b500-50d5e859ad69	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-7a916dcc-5e4e-4f77-8ada-3bda5f9d2337	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-a7ff44f9-53d0-4c37-aec3-79d49ee8abc5	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-61b9a31b-5b27-4abf-8ede-82ee0bd06f5d	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-347cada2-7013-4794-b181-76016a0550d1	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-98ab9daf-1f50-4504-b206-204a37249a71	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-3eedd527-e3c5-41d8-8aac-32e911f7590b	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-8ae2e431-807e-42e5-9149-766b15d68195	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-905c710b-12a8-4f85-8a2e-8fdb1848c0a2	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-b98d36cb-60df-4aa3-8e4e-cf2a3d418efc	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-4fe0157f-3ff5-42e8-85d5-1de72e29f5bf	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-64a7fe34-224a-4dec-8c09-577852734079	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-18de4299-1941-4c2b-b406-e2d261fc11ca	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-d99af67b-4d0e-48d2-8978-f37b6dda154b	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-0aae2682-b8f3-4426-ba2e-253a03eb8c6e	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-f66e58ba-cb74-4118-b2c1-a1ee91ae8723	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-19999228-60fc-470a-bb9b-b661dba4f851	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-e6c15e85-b3b0-4aa7-8c4d-a3c4dd70cd6e	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-0443577b-0759-4a62-a1c9-84b3433a84ee	needed	Top 100 (level 10)
+de_inferno	https://www.faceit.com/en/cs2/room/1-32eefd74-a4ed-4432-a176-13f50b2f1e6e	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-59a3f2b0-da38-49cd-a335-793b49136442	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-1e8004b9-2588-4235-94f5-6d14295ede53	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-27b6591c-31a0-4c0d-bee0-c2ea0ecad333	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-5be5e18c-7d2a-4e26-8b26-8995057cde81	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-dd375b1e-3e5c-4a5b-9727-763461e3d370	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-3590144f-e1a9-4ca2-b7cf-0057bef2bb83	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-84521368-0df3-4606-a636-183adcba8e9f	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-347cada2-7013-4794-b181-76016a0550d1	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-98ab9daf-1f50-4504-b206-204a37249a71	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-93813364-a2d9-478f-813e-0e57d9c9ef8d	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-3011f606-5a70-4da2-8e00-1a5903e170e9	needed	Pro tier
+de_inferno	https://www.faceit.com/en/cs2/room/1-7fdc3bc9-c0db-4b75-91f6-b84950da022b	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-02a4338f-8a2a-475e-ac7c-5d93b20f132f	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-7a81679c-ceee-4725-949f-e88defe20b48	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-a825c5c9-3aa7-42bc-8d55-d2ef306ee597	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-2a66fa7d-1c8d-4629-bb40-3387a98c7b74	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-0cd53801-2a1c-48a4-90d4-2621ca11a2eb	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-6bcd4593-ee6d-46f5-96c8-dd8f5713c5f9	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-868221a5-3f98-4aef-9ec8-12e2fc8b3ba4	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-1bfdcad8-6e03-48b2-88b2-8d91748c32a9	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-e00680dd-ea6d-4c0d-a7ec-3a30f58c4e09	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-79d74c99-70bd-40a3-8416-1f9d0255db7d	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-a1350a1f-2703-4260-bb1d-3e3be0e3fd88	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-afce9ab1-9c30-4efe-8c45-cfb54ddbc13b	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-af8d17ba-bfe3-4226-b887-291b60386c95	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-31d9cd50-ea17-4240-a6ad-d88c735dc840	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-2df748d8-e797-4814-b7f8-d3dfd32b67d2	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-2e71988e-b547-429b-a3fe-1ca72a410e78	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-4bdb9d72-7f97-456e-b5d7-c63b6762b740	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-7f35a20d-fd93-4456-8d55-80de438dcaa0	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-6f0c5727-f288-4596-94d3-bef7bc20a4e5	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-78792e8d-5e96-4c99-81bf-2a92cde7cb41	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-1fe4369a-cbf4-483b-8c13-a5da55af4c40	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-1178d0ce-9f2d-4863-ad2c-b9ff17ccdaf1	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-56542d6d-920d-4066-ae8b-6e9700a96021	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-925d347c-a23e-451f-9052-6ad7a9c12f5f	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-8b19622c-dfc6-424e-aca1-781707faf1af	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-119662c0-803f-44f8-86e6-c4499da97a03	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-f3fe8a35-d0ca-4394-94ee-fdd805dbb5ee	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-2110a019-27d2-4f32-b328-b0cdd42e8717	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-e0dc143d-c38f-4917-9bb6-400cf1f1413d	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-7559927a-ada0-4d8f-b8ef-05c12a0f635d	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-db852da4-fa8e-4d11-82d8-1b1ec41694ff	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-28fbe8ac-cda1-4a9e-a1ae-3a5f23ec5f8a	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-38f4ac8d-90ba-4864-b4ca-2c4b73e0878a	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-e8efdc82-e371-4910-836f-fc44c5f434b6	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-74094c64-39af-4293-8698-f212f603a535	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-af5d9bfb-f7e2-43d2-96f2-d6ab37a78d80	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-d2016b07-310e-4cd9-be39-ded1fb771d5f	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-ddf99ad3-4d40-4b08-bb7b-ff50ea1d8c1a	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-2ca992e9-d989-4015-871b-f241bd55592f	needed	Top 100 (level 10)
+de_mirage	https://www.faceit.com/en/cs2/room/1-56542d6d-920d-4066-ae8b-6e9700a96021	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-348aed71-ce41-494c-a1c5-8b22f52b8650	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-cdca4c4d-27a9-40e1-9097-f3ecb69a70a0	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-b2b0d982-e70f-4c53-b387-0bfe49a3b2e7	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-63d21c4a-8a85-4d9d-8ed5-b6a615ff01c8	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-974d0126-c8ba-497e-bd8f-e4fa3aa764a4	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-d5577367-bc0b-4aca-8bf3-bf0640b02de7	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-73ac0701-64c1-41ad-b2a4-4265df9ce50a	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-4d0b79ac-e670-4084-97df-1ed225e3e7f7	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-ece3f8e9-c3b6-4aca-8c1f-96bc2e79f84f	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-fb8233db-677a-4cbc-beee-95f581637de5	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-2988afca-f5af-4e29-9600-e23c04475850	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-20e8b423-6555-4c7e-ad8b-93cffdc60ac4	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-aacf3f29-2c07-4c77-87d0-1c54851be467	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-73e34d93-99f9-4f4e-9b98-cc19f7ae7a37	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-aa699977-64cd-481c-9685-a889a15b063d	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-4861d1d8-a7fc-453e-aadf-aef15d945c3c	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-3ad5eb39-e196-4f23-a931-b3ce7515ec7f	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-a825c5c9-3aa7-42bc-8d55-d2ef306ee597	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-2a66fa7d-1c8d-4629-bb40-3387a98c7b74	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-7a81679c-ceee-4725-949f-e88defe20b48	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-25851a00-ff73-4de8-813f-5207b5d42bfe	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-a0ce9b6f-b28c-4775-9365-01fe0772baf9	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-494dedb7-808f-41d2-84da-df05ef3c5ad5	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-65551abd-9515-4641-bb50-b6e4de4b9787	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-a8c96b52-a54b-4c50-927b-fdf16b035d48	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-50657544-eb44-482c-83e5-7001d2fd8008	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-820db12f-6b15-4f09-bc6b-b6650b838a22	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-c56c3913-24c8-49e0-871e-6ef815971316	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-f051adc7-45ab-4e23-b8ab-460fa41022bf	needed	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-7ff4f3c3-5059-4da5-bebb-e0d12dddfc24	spare	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-9937ca10-96f6-42c1-b8ec-efab1d05b355	spare	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-8c8d4f99-bf06-4561-bb1e-335e98b50195	spare	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-0732072b-1201-4e7f-a909-defdd1df40ba	spare	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-7a159e85-0142-410f-a5cd-1fd80e72d53c	spare	Pro tier
+de_mirage	https://www.faceit.com/en/cs2/room/1-6119993e-9015-4011-99e3-bb831ac3365c	spare	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-c75dc55c-03f8-4191-ab41-e82b2838f07e	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-68b05982-4149-4ed2-9943-e8ee99a54fda	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-97d6acdf-d7a0-4209-8a9e-4b5eda64392d	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-f9191c69-f1c0-4826-8c34-bf52f4385d2d	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-5f348861-ae91-4dd5-aa53-957eb04a41da	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-9b6a91d8-e930-4856-b8db-f178a6b02fef	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-5ef5e521-febf-4dd0-8551-a85b38872fa3	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-ab474976-ef2d-47b6-ad2d-75ae6076f239	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-6bf1e632-6ba4-47c4-8c65-355658357205	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-b3abee14-f5c8-4596-bd83-21a9504589db	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-1ee9b3b5-c5bb-4862-bdb2-1938076d21c9	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-6dd1664d-5803-4067-b381-557a2adb3f48	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-21fbcef8-289a-4ac1-a05c-ea970b8cc6e2	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-44efa9d1-394d-48e8-b10e-dc9d345e71a4	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-a47f96c0-b8b8-4492-8c6e-b378b14ab2dc	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-5aea78a6-a6c1-4859-8b62-d029fe963f99	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-16312e8d-777a-406b-95b9-0d474f469ab2	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-5bfa6442-5405-4315-a499-babcd0a254e0	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-92192ce6-7528-4458-ad8f-21e2769bd5a4	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-cf294b5b-bbe8-4131-aea5-558a003101ba	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-e0b5d20e-4a10-46a9-9e43-58307cc70794	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-fc70c728-7fa3-4fe6-aeb3-5fac913427bb	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-9cffd208-c058-4b5c-9944-ffedbbc4adde	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-3fee7c07-64bf-4294-ab4a-e61a794977de	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-3a4d4424-7015-47b3-a32d-54993354f82b	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-debe13cf-2ede-4897-bd14-b1a83f545386	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-4050d8dc-7324-4667-859d-31ad25328fa5	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-d10a97a4-630b-45d1-810e-a5df3dc5f5c8	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-b71ec5aa-a40d-46d9-a2b5-e1fc57b5af58	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-13f396a3-dec1-4f57-9ee4-60286db3102d	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-c96d8c8c-c520-4d5a-8471-5eff0db86515	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-2a55fe3e-3a71-4a7a-905c-2e6eb39446da	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-d170f9e2-3084-435b-b7c9-d0ac85c3c6bf	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-0b0f240c-d84b-428a-bad9-234a966c0fa1	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-da880625-3fea-4547-acb9-03295a1a5d54	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-4104bd3d-82a7-42e0-a22b-402f113cdf5d	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-4ac806f2-3ed1-4c6e-af6f-4445940c3d2f	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-f025b799-cd1f-4a19-ad25-ca90b3c1b9d8	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-3b6985bd-fef0-4f0c-8404-2327fc02ce82	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-67e75fad-5d52-4723-913c-d0e5750e7c07	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-6b0da3c8-1ab5-4201-a97b-ca043b675160	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-0db9ff5f-111e-4864-a102-fe6ac7e1e8df	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-be03e429-2bb8-4e8c-bdd3-ef85346f97ad	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-12a12fff-4df7-4db7-805d-eb0a01edc058	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-67cc3eb1-0987-4f9b-90d9-eea88707924c	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-a81b1a2f-a8ab-42d2-a2bd-83878b02d8cf	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-c1678c09-6d52-481c-bf6b-7fa25cc87a34	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-6542c93c-4e2a-4cab-bd5f-6f43a2f55f68	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-713828c8-bf27-48cc-8052-ab5952309807	needed	Top 100 (level 10)
+de_nuke	https://www.faceit.com/en/cs2/room/1-0402f1fd-a4c7-4889-a4e5-ce6e7d7482ea	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-5f348861-ae91-4dd5-aa53-957eb04a41da	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-ec246073-59bb-426e-871f-9db58aff4509	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-2515ca07-2efd-4f02-9881-6dd1060ac3c8	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-30c58df6-50e8-432a-94de-13ef23b9378e	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-5e09f0eb-9e1a-4990-9edf-19bc2e9af63d	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-16312e8d-777a-406b-95b9-0d474f469ab2	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-e5d4e21d-d530-4722-9cd5-bc883268b226	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-8ce7b2f5-1a75-4870-8a58-6962a0f438e7	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-1d7e8a6c-3e35-421d-b805-69de48c977b1	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-a171e159-5dd8-4ec5-85c2-86afbed78bf6	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-31f2689e-594f-4362-afc9-3325cd3bb8a8	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-5aea78a6-a6c1-4859-8b62-d029fe963f99	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-5bfa6442-5405-4315-a499-babcd0a254e0	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-ce455459-37e9-4ab3-be39-e412ca18c601	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-d10a97a4-630b-45d1-810e-a5df3dc5f5c8	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-1ee9b3b5-c5bb-4862-bdb2-1938076d21c9	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-4104bd3d-82a7-42e0-a22b-402f113cdf5d	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-fc70c728-7fa3-4fe6-aeb3-5fac913427bb	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-6dd1664d-5803-4067-b381-557a2adb3f48	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-9dc4805e-f4c9-4d27-8470-36d6f180539a	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-713828c8-bf27-48cc-8052-ab5952309807	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-a017450f-8f35-4461-badc-c33c7835ee9a	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-c1678c09-6d52-481c-bf6b-7fa25cc87a34	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-ead463f4-361b-4022-ac30-1fc31853fbb7	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-9165bf14-a534-4987-b09f-50e2836be768	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-eae009f7-6005-4f21-8130-882814dda1ae	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-27885932-ef79-4462-8381-65fadf28d333	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-67cc3eb1-0987-4f9b-90d9-eea88707924c	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-bf603d56-79de-4aa7-ac33-d3844d837e8b	needed	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-24595bca-b1f4-45eb-a734-9b965a6b8702	spare	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-a81b1a2f-a8ab-42d2-a2bd-83878b02d8cf	spare	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-9038cc1f-4520-4a5b-bd15-97d1c262687a	spare	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-baf28de0-e0ba-4eba-86df-2d792ec7d4e6	spare	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-6542c93c-4e2a-4cab-bd5f-6f43a2f55f68	spare	Pro tier
+de_nuke	https://www.faceit.com/en/cs2/room/1-451f3f70-f9c6-47d1-86b3-b7c125a7ac18	spare	Pro tier

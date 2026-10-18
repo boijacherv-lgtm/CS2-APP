@@ -29,7 +29,25 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
 const home = p => p.replace(/^~(?=[/\\]|$)/, os.homedir());
-const OUT = path.resolve(home(opt('out', path.join(here, 'pro-demos'))));
+// where demos go: --out, else the external disk (found by its name, --disk "Внешка") when it's plugged in, else
+// next to this script
+const DISK_LABEL = opt('disk', 'Внешка');
+function findDisk(label) {
+  try {
+    if (process.platform === 'win32') {
+      const r = spawnSync('powershell', ['-NoProfile', '-Command',
+        '[Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Volume | Where-Object DriveLetter | Select-Object DriveLetter,FileSystemLabel | ConvertTo-Json'], { encoding: 'utf8' });
+      const vols = [].concat(JSON.parse(r.stdout || '[]'));
+      const v = vols.find(x => String(x.FileSystemLabel ?? '').trim() === label);
+      return v ? `${v.DriveLetter}:\\` : null;
+    }
+    const mac = path.join('/Volumes', label);
+    fs.accessSync(mac, fs.constants.W_OK); // a Mac can't write to an NTFS disk: then it doesn't count
+    return mac;
+  } catch { return null; }
+}
+const DISK = opt('out') ? null : findDisk(DISK_LABEL);
+const OUT = path.resolve(home(opt('out', DISK ? path.join(DISK, 'pro-demos') : path.join(here, 'pro-demos'))));
 const DOWNLOADS = path.resolve(home(opt('downloads', path.join(os.homedir(), 'Downloads'))));
 const PER_MAP = Number(opt('per-map', '60'));
 const MONTHS = Number(opt('months', '6'));
@@ -41,6 +59,8 @@ const MIN_FREE_GB = Number(opt('min-free-gb', '10'));
 
 if (!fs.existsSync(DOWNLOADS)) { console.error(`Can't find the download folder ${DOWNLOADS}. Pass --downloads <folder> (where your browser saves files).`); process.exit(1); }
 fs.mkdirSync(OUT, { recursive: true });
+if (DISK) console.log(`Found the disk "${DISK_LABEL}" at ${DISK}: demos are saved there.`);
+else if (!opt('out')) console.log(`The disk "${DISK_LABEL}" isn't plugged in: demos are saved next to this script. (Plug it in and run again, or pass --out <folder>.)`);
 
 const PROGRESS = path.join(OUT, 'progress.json');
 const progress = fs.existsSync(PROGRESS) ? JSON.parse(fs.readFileSync(PROGRESS, 'utf8')) : { archives: {}, maps: {} };
