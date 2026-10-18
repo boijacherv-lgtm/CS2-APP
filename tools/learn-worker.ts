@@ -7,7 +7,10 @@ const [folder, needsArg, ...files] = process.argv.slice(2).filter(a => a !== '--
 const needs = new Set(needsArg.split(',') as Learner[]);
 const need = Object.fromEntries([...needs].map(l => [l, needsRead(folder, l)])) as Record<Learner, (key: string) => boolean>;
 for (const f of files) {
-  const key = keyOf(folder, f), t = Date.now();
+  // a file moved or removed since learn:all listed it (or a disk unplugged): skip it, keep going
+  let key: string;
+  try { key = keyOf(folder, f); } catch { console.log(`${f}  skipped: not there any more`); continue; }
+  const t = Date.now();
   const r: Partial<Record<Learner, unknown>> = {};
   try {
     const d = loadDemo(folder, f);

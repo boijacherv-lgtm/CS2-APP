@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { coachFromDemo, loadDemo, readCache, writeCacheEntry } from './learn-lib';
+import { coachFromDemo, listDemos, loadDemo, readCache, writeCacheEntry } from './learn-lib';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { buildReplay, reviewRound, type DemoData, type Role } from '../src/engine/recap';
 import { buildMatchReport, summarizeRound, type RoundSummary } from '../src/engine/match';
@@ -36,9 +36,7 @@ const cache = readCache<Cached>(folder, 'coach');
 const saveCache = (k: string) => writeCacheEntry(folder, 'coach', k, cache[k]);
 
 // demos in the folder and one level of subfolders
-const files = fs.readdirSync(folder, { withFileTypes: true }).flatMap(d =>
-  d.isDirectory() ? fs.readdirSync(path.join(folder, d.name)).map(f => path.join(d.name, f)) : [d.name])
-  .filter(f => /\.dem(\.gz|\.zst)?$/i.test(f)).sort();
+const files = listDemos(folder);
 if (!files.length) { console.error(`No .dem / .dem.gz / .dem.zst files in ${folder}`); process.exit(1); }
 
 const readDemo = (f: string): Cached => coachFromDemo(loadDemo(folder, f), minRounds);

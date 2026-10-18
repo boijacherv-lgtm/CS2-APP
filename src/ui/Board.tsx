@@ -29,6 +29,7 @@ import { useAvatars } from './avatars';
 import { TeamRoster } from './Roster';
 import { proSpots } from '../map/positions';
 import { phaseOf } from '../engine/situations';
+import { SEARCH_COLOR } from '../engine/search';
 import { useStore } from '../store';
 
 Konva.dragDistance = 4;
@@ -306,7 +307,15 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const selected = selectedRaw && !isDead(selectedRaw) ? livePlayer(selectedRaw) : undefined;
   const smokesNow = activeSmokes(s.board.utility, s.time, UNITS_PER_PX);
   // review: each grenade's letter (when it's evaluated: every move, or only yours), shown on the grenade itself
-  const { shown } = useShown();
+  const { shown, mine: mineScope } = useShown();
+  // the search engine's lines for the player in focus (selected, or you with "Mine"): its best option at this moment and what they did
+  const engineFocus = recap?.search && s.engineLines ? s.selectedId ?? (mineScope ? s.me : null) : null;
+  const engineNow = useMemo(() => {
+    if (!engineFocus || !recap?.search) return null;
+    let best: (typeof recap.search.moments)[number] | null = null;
+    for (const m of recap.search.moments) if (m.player === engineFocus && m.t <= s.time + 0.01 && s.time - m.t < 2.5 && (!best || m.t > best.t)) best = m;
+    return best;
+  }, [engineFocus, recap, s.time]);
   const nadeGrades = useMemo(() => new Map((recap?.moves ?? []).filter(m => m.util && shown(m)).map(m => [m.util!, m.note])), [recap, shown]);
   const losPoly = useMemo(
     () => (selected && s.overlays.los ? engine.grid.visibilityPolygon(selected.pos, smokesNow, [engine.facing(selected), FOV]) : null),
@@ -387,6 +396,33 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         <Layer listening={false}>
           {/* where FACEIT level-10 players stand at this point of the round: a circle per callout, sized by their share
               of the time there (CT left, T right), with the share */}
+          {engineNow && (() => {
+            const from = live.get(engineNow.player)?.pos;
+            if (!from || live.get(engineNow.player)?.alive === false) return null;
+            const best = engineNow.options[0], did = engineNow.did;
+            const same = Math.hypot(best.to.x - did.to.x, best.to.y - did.to.y) < 12 && best.kind === did.kind;
+            // a dark outline under each line so it reads on any part of the radar
+            const line = (to: Vec2, color: string, dash?: number[]) => Math.hypot(to.x - from.x, to.y - from.y) > 8
+              ? <Group>
+                  <Arrow points={[from.x, from.y, to.x, to.y]} stroke="#000" fill="#000" strokeWidth={6 * k} pointerLength={11 * k} pointerWidth={11 * k} opacity={0.55} />
+                  <Arrow points={[from.x, from.y, to.x, to.y]} stroke={color} fill={color} strokeWidth={3.6 * k} pointerLength={9 * k} pointerWidth={9 * k} dash={dash} />
+                </Group>
+              : <Circle x={to.x} y={to.y} radius={TOKEN_R * 1.7 * k} stroke={color} strokeWidth={3.2 * k} dash={dash} shadowColor="#000" shadowBlur={4} shadowOpacity={0.8} />;
+            const tag = (to: Vec2, text: string, color: string, dy: number) => (
+              <Text x={to.x + 10 * k} y={to.y + dy * k} text={text} fontSize={12 * k} fontStyle="bold" fill={color} stroke="#000" strokeWidth={3 * k} fillAfterStrokeEnabled />
+            );
+            const doneColor = SEARCH_COLOR[engineNow.cls];
+            return (
+              <Group>
+                {!same && line(did.to, doneColor, [6 * k, 4 * k])}
+                {!same && did.nade && <ThrowArc from={from} to={did.nade} k={k} color={doneColor} dashed />}
+                {line(best.to, SEARCH_COLOR.Best)}
+                {best.nade && <ThrowArc from={from} to={best.nade} k={k} color={SEARCH_COLOR.Best} />}
+                {tag(best.to, `Best: ${best.label}`, SEARCH_COLOR.Best, -16)}
+                {!same && tag(did.to, `${engineNow.cls}: ${did.label}`, doneColor, 4)}
+              </Group>
+            );
+          })()}
           {s.overlays.proSpots && (() => {
             const phase = phaseOf(s.time, s.mode === 'review' && s.review ? s.review.data.rounds[s.review.round]?.plant ?? null : null);
             return (['CT', 'T'] as const).flatMap(side => proSpots(MAP.id, side, phase).slice(0, 8).map(sp => {

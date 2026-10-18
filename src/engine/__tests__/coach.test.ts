@@ -11,7 +11,7 @@ const line = (o: Partial<RoundLine> & { tags?: Tag[] } = {}): RoundLine => ({
 const player = (rounds: RoundLine[], o: Partial<PlayerReport> = {}): PlayerReport => ({
   id: 'me', name: 'me', team: 0, rank: null, rounds, played: rounds.length,
   kills: 0, deaths: 0, adr: 75, kast: 70, hs: 45, openingKills: 0, openingDeaths: 0, clutches: 0, multiKills: 0,
-  utilDamage: rounds.length * 6, flashAssists: 0, whiffs: 0, upsets: 0, impactPerRound: 0, pointsPerRound: 0, letter: 'C', lobbyZ: 0, lvl10: null, roundsLetter: 'C',
+  utilDamage: rounds.length * 6, flashAssists: 0, whiffs: 0, upsets: 0, impactPerRound: 0, pointsPerRound: 0, engineAccuracy: null, engineMoments: 0, letter: 'C', lobbyZ: 0, lvl10: null, roundsLetter: 'C',
   duelsWon: 0, duelsLost: 0, avgOpponent: null, duelRating: null, gameRating: null, roles: [{ role: 'Rifler', rounds: rounds.length }], ...o,
 });
 

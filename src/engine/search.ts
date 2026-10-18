@@ -1,0 +1,352 @@
+import { worldToRadar } from './coords';
+import type { TacticalEngine } from './predict';
+import { bombAt, equipValue, FL, gearAt, type DemoRound } from './recap';
+import { controlCounts, learnedLogit, tradePending } from './winprob';
+import { duelChance, type DuelSituation } from './duelModel';
+import type { DuelFighter } from './analyst';
+import { gunFromName } from './guns';
+import { placeOf, phaseOf } from './situations';
+import { advantageOf, proRisk, proSituationSpots, proSpots } from '../map/positions';
+import { SMOKE_RADIUS_UNITS, type SmokeDisc } from './grid';
+import type { Side, Vec2 } from './types';
+import UTIL_SPOTS from '../map/generated/util-spots.json';
+import CALIBRATION from './models/search-calibration.json';
+
+/**
+ * The search engine ("Stockfish for CS2"): at a moment of a round, for one player, it lists what they could have
+ * done in the next few seconds and calculates each option a couple of steps ahead with the learned models, then
+ * grades what they actually did by how much round win chance it gave up against the best option.
+ *
+ *   options      hold the spot · move to any callout they could reach in ~8 s · peek each enemy their team knows
+ *                about · throw a grenade they really carry (flash and peek, smoke and hold, molotov an enemy's spot,
+ *                HE an enemy) · plant when they can
+ *   step 1       where the option leaves them: which known enemies can see that spot (smokes included). Each fight
+ *                is scored by the duel model (health, armour, guns at that range, who peeks, flashes, teammates)
+ *   step 2       the enemy's reply: an enemy can also refuse a fight that's bad for them (fall back): the engine
+ *                assumes the reply that's worst for the player, like a chess engine
+ *   value        every outcome (kills, death, a trade by a teammate close by, the plant, time spent) is applied to
+ *                the round and scored by the learned win-chance model; plus how that spot has gone for level-10
+ *                players in the same situation (learn:positions), and their death rate there under pressure for
+ *                the enemies nobody has seen
+ *
+ * It only uses what the player's team could know (enemies spotted in the last few seconds), not the whole server.
+ * Values are model estimates, not exact like chess: CS2 has hidden information and aim is random. The classes
+ * (Best … Blunder) are calibrated on level-10 players' own moments (tools/learn-analyst.ts).
+ */
+export type OptionKind = 'hold' | 'move' | 'peek' | 'flash' | 'smoke' | 'molotov' | 'he' | 'plant' | 'defuse' | 'actual';
+export interface SearchOption {
+  kind: OptionKind;
+  /** e.g. "Hold Long Corner", "Peek Ramp (enemy seen)", "Flash and peek Palace". */
+  label: string;
+  /** Where it takes them (radar coordinates, for the arrow on the map). */
+  to: Vec2;
+  /** Grenade target (radar). */
+  nade?: Vec2;
+  /** Round win chance for their side after it (0..1). */
+  win: number;
+  /** Chance of dying in it, and expected kills. */
+  death: number; kills: number;
+}
+export type SearchClass = 'Best' | 'Excellent' | 'Good' | 'Inaccuracy' | 'Mistake' | 'Blunder';
+export interface SearchMoment {
+  t: number; player: string; side: Side;
+  /** The options, best first (up to 6), and what they did, valued the same way. */
+  options: SearchOption[];
+  did: SearchOption;
+  /** The engine's loss against its best option (raw), and what that really costs in round win chance (calibrated on level-10 rounds). */
+  loss: number;
+  cost: number;
+  cls: SearchClass;
+  /** 0–100, like chess.com. */
+  accuracy: number;
+  /** Their side's win chance at the moment, before choosing. */
+  before: number;
+}
+
+const H = 5; // seconds each option is looked at
+const NO_SPOT_STATS = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.STRATBOARD_NO_SPOT_STATS === '1';
+const REACH = 8; // seconds of travel for the "move" options
+const SEEN = 4; // an enemy spotted this recently counts as known (at the last spot seen)
+const TRADE_DIST = 900; // units: a teammate this close can trade
+const NADE_RANGE = 2200; // units: how far a standard grenade spot can be from the thrower
+const NADE = /grenade|flashbang|molotov|incendiary|decoy/i;
+
+// ---- calibration (percentiles of level-10 players' own loss) ------------------------------------------------
+// costScale: the engine's raw losses exaggerate; level-10 rounds show what a point of it really costs (the cost shown)
+const CAL = CALIBRATION as { thresholds?: number[] | null; scale?: number; costScale?: number };
+const TH = CAL.thresholds ?? [0.01, 0.03, 0.06, 0.12];
+export const COST_SCALE = CAL.costScale ?? 0.2;
+/** chess.com-style accuracy from the real cost (win-chance points). */
+export const searchAccuracy = (costPct: number) => Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * costPct * (CAL.scale || 1)) - 3.1669));
+export const searchClass = (loss: number): SearchClass =>
+  loss <= 0.003 ? 'Best' : loss <= TH[0] ? 'Excellent' : loss <= TH[1] ? 'Good' : loss <= TH[2] ? 'Inaccuracy' : loss <= TH[3] ? 'Mistake' : 'Blunder';
+export const SEARCH_COLOR: Record<SearchClass, string> = {
+  Best: '#1baca6', Excellent: '#5c9ced', Good: '#7fbf4d', Inaccuracy: '#f7c045', Mistake: '#e58f2a', Blunder: '#ca3431',
+};
+
+// ---- travel times: one distance field per callout, per map (cached) ----------------------------------------
+const FIELDS = new WeakMap<TacticalEngine, Map<string, Float64Array>>();
+function calloutField(engine: TacticalEngine, name: string): Float64Array | null {
+  let m = FIELDS.get(engine);
+  if (!m) { m = new Map(); FIELDS.set(engine, m); }
+  if (m.has(name)) return m.get(name)!;
+  const c = engine.map.callouts.find(x => x.name === name);
+  if (!c) return null;
+  const f = engine.grid.distanceField([c.pos]);
+  m.set(name, f);
+  return f;
+}
+
+type UtilSpot = { type: 'smoke' | 'molotov'; side: Side; x: number; y: number };
+const SPOTS = UTIL_SPOTS as unknown as Record<string, UtilSpot[]>;
+
+/** Everything a round needs for searching, computed once. */
+export function roundSearcher(engine: TacticalEngine, r: DemoRound) {
+  const ids = Object.keys(r.frames.players);
+  const side = (id: string) => r.frames.players[id]?.side;
+  const ft = r.frames.t;
+  const idx = (t: number) => { let lo = 0, hi = ft.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (ft[m] <= t) lo = m; else hi = m - 1; } return lo; };
+  const deathT = new Map(r.kills.map(k => [k.victim, k.t]));
+  const alive = (id: string, t: number) => { const f = r.frames.players[id]; return !!f && !!f.alive[idx(t)] && !((deathT.get(id) ?? Infinity) <= t); };
+  const world = (id: string, t: number): Vec2 => { const f = r.frames.players[id], k = idx(t); return { x: f.x[k], y: f.y[k] }; };
+  const radar = (w: Vec2) => worldToRadar(w, engine.map.radar);
+  const pos = (id: string, t: number) => radar(world(id, t));
+  const scale = engine.map.radar.scale; // world units per radar px
+  const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y) * scale; // radar points → units
+  const where = (id: string, t: number) => (alive(id, t) ? pos(id, t) : null);
+  const areas = controlCounts(engine, ids, side, where, Math.ceil(r.duration));
+  const kills = r.kills.map(q => ({ t: q.t, killer: q.attacker, victim: q.victim }));
+  const smokesAt = (t: number): SmokeDisc[] => r.util.filter(u => u.type === 'smoke' && u.t <= t && t <= (u.end ?? u.t + 18))
+    .map(u => ({ pos: radar({ x: u.x, y: u.y }), r: SMOKE_RADIUS_UNITS / scale }));
+  const spotted = (id: string, t: number) => { const f = r.frames.players[id], k = idx(t); return f.fl ? !!(f.fl[k] & FL.spotted) : false; };
+  const sites = Object.entries(engine.map.sites) as ['A' | 'B', { center: Vec2; radius: number }][];
+  const siteAt = (p: Vec2) => sites.find(([, s]) => Math.hypot(s.center.x - p.x, s.center.y - p.y) < s.radius * 1.2)?.[0] ?? null;
+  const secPerPx = (s: Side) => engine.secPerPx(s, 'rifle');
+
+  /** A fighter at time t as the duel model reads them; `moving` = peeking into the fight. */
+  const fighter = (id: string, t: number, at: Vec2, moving: boolean, flashed = false): DuelFighter => {
+    const g = gearAt(r, id, t);
+    const inv = g?.inv ?? [];
+    // the gun they'd fight with: their best one
+    const guns = inv.map(w => ({ w, g: gunFromName(w) })).filter(x => x.g).sort((a, b) => b.g!.killRate - a.g!.killRate);
+    const f = r.frames.players[id], k = idx(t);
+    return {
+      hp: f.hp[k] ?? 100, armor: (g?.armor ?? 0) > 0, helmet: !!g?.helmet, w: guns[0]?.w ?? f.w?.[k] ?? '',
+      moving, scoped: false, crouch: false, air: false, flashed,
+      mates: ids.filter(o => o !== id && side(o) === side(id) && alive(o, t) && dist(pos(o, t), at) < 1000).length,
+    };
+  };
+
+  /** The win chance for `s` with some changes applied to the round at time t. */
+  const winFor = (s: Side, t: number, d: { mine?: number; theirs?: number; myHp?: number; theirHp?: number; plant?: boolean; dt?: number; myAreas?: number; trade?: number } = {}) => {
+    const tt = Math.min(r.duration, t + (d.dt ?? 0));
+    const live = ids.filter(id => alive(id, t));
+    const mine = live.filter(id => side(id) === s), theirs = live.filter(id => side(id) && side(id) !== s);
+    const hp = (xs: string[]) => xs.reduce((a, id) => a + (r.frames.players[id].hp[idx(t)] ?? 100), 0);
+    const eq = (xs: string[]) => { const v = xs.map(id => equipValue(r.econ?.[id])).filter((e): e is number => e !== null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+    const nMine = mine.length + (d.mine ?? 0), nTheirs = theirs.length + (d.theirs ?? 0);
+    const planted = r.plant !== null && t >= r.plant ? r.plant : d.plant ? tt : null;
+    if (nMine <= 0) return planted !== null && s === 'T' ? 0.05 : 0;
+    if (nTheirs <= 0) return s === 'CT' && planted !== null ? 0.9 : 1;
+    const sec = Math.min(areas.ct.length - 1, Math.max(0, Math.floor(t)));
+    const tp = tradePending(kills, ids, side, where, t, scale);
+    const my = { n: nMine, hp: hp(mine) + (d.myHp ?? 0), eq: eq(mine), areas: (s === 'CT' ? areas.ct[sec] : areas.t[sec]) + (d.myAreas ?? 0) };
+    const th = { n: nTheirs, hp: hp(theirs) + (d.theirHp ?? 0), eq: eq(theirs), areas: s === 'CT' ? areas.t[sec] : areas.ct[sec] };
+    const ct = s === 'CT' ? my : th, T = s === 'CT' ? th : my;
+    const z = learnedLogit({
+      ct: ct.n, t: T.n, ctHp: ct.hp, tHp: T.hp, ctEquip: ct.eq, tEquip: T.eq, planted, time: tt, ctAreas: ct.areas, tAreas: T.areas,
+      tradeCT: tp.ct + (s === 'CT' ? d.trade ?? 0 : 0), tradeT: tp.t + (s === 'T' ? d.trade ?? 0 : 0),
+    });
+    const pCT = z === null ? 0.5 : 1 / (1 + Math.exp(-z));
+    return s === 'CT' ? pCT : 1 - pCT;
+  };
+
+  /** Enemies the player's team knows about at t: their last spot seen in the last few seconds. */
+  const known = (id: string, t: number) => ids.filter(e => side(e) && side(e) !== side(id) && alive(e, t)).flatMap(e => {
+    for (let u = t; u >= t - SEEN; u -= 0.5) if (alive(e, u) && spotted(e, u)) return [{ id: e, at: pos(e, u), seenAgo: t - u }];
+    return [];
+  });
+
+  return { ids, side, alive, pos, world, dist, known, fighter, winFor, smokesAt, siteAt, secPerPx, idx, spotted, radar, scale };
+}
+export type RoundSearcher = ReturnType<typeof roundSearcher>;
+
+interface Plan { kind: OptionKind; label: string; to: Vec2; travel: number; nade?: Vec2; flash?: string; smoke?: SmokeDisc; deny?: string; he?: string; plant?: boolean; defuse?: boolean }
+
+/** The search at one moment, for one player (null when there's nothing to decide: dead, or no enemy left). */
+export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearcher, id: string, t: number): SearchMoment | null {
+  const s = S.side(id);
+  if (!s || !S.alive(id, t)) return null;
+  const foes = S.ids.filter(e => S.side(e) && S.side(e) !== s && S.alive(e, t));
+  if (!foes.length) return null;
+  const me = S.pos(id, t);
+  const enemies = S.known(id, t);
+  const smokes = S.smokesAt(t);
+  const map = engine.map.id;
+  const phase = phaseOf(t, r.plant);
+  const mates = S.ids.filter(o => S.side(o) === s && S.alive(o, t));
+  const adv = advantageOf([mates.length, foes.length]);
+  const spx = S.secPerPx(s);
+  const before = S.winFor(s, t);
+
+  // ---- the options ------------------------------------------------------------------------------------------
+  const plans: Plan[] = [];
+  const here = placeOf(engine, me) || 'here';
+  plans.push({ kind: 'hold', label: `Hold ${here}`, to: me, travel: 0 });
+  // callouts reachable in REACH seconds (the closest few, plus every one level-10 players use here)
+  const cell = engine.grid.snap(me);
+  const reach = engine.map.callouts.filter(c => !c.minor).map(c => {
+    const f = calloutField(engine, c.name);
+    return { c, sec: f && cell >= 0 ? f[cell] * spx : Infinity };
+  }).filter(x => x.sec > 0.8 && x.sec <= REACH).sort((a, b) => a.sec - b.sec);
+  const used = new Set((proSituationSpots(map, s, phase, adv) ?? proSpots(map, s, phase)).filter(p => p.share >= 0.03).map(p => p.place));
+  const picked = [...reach.filter(x => used.has(x.c.name)).slice(0, 6), ...reach.slice(0, 4)];
+  for (const x of picked) if (!plans.some(p => p.label === `Move to ${x.c.name}`)) plans.push({ kind: 'move', label: `Move to ${x.c.name}`, to: x.c.pos, travel: x.sec });
+  // peek each known enemy: the first point on the way to them that sees them
+  for (const e of enemies.slice(0, 3)) {
+    const path = engine.grid.shortestPath(me, e.at);
+    if (!path) continue;
+    let travelPx = 0, at: Vec2 | null = null;
+    for (let i = 1; i < path.length; i++) {
+      travelPx += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y);
+      if (engine.grid.lineOfSight(path[i], e.at, smokes)) { at = path[i]; break; }
+    }
+    if (!at || travelPx * spx > REACH) continue;
+    const where = placeOf(engine, e.at) || 'the enemy';
+    plans.push({ kind: 'peek', label: `Peek ${where}`, to: at, travel: travelPx * spx });
+    // with a grenade they really have
+    const inv = gearAt(r, id, t)?.inv ?? [];
+    if (inv.some(w => /flash/i.test(w))) plans.push({ kind: 'flash', label: `Flash and peek ${where}`, to: at, travel: travelPx * spx + 0.6, nade: e.at, flash: e.id });
+    if (inv.some(w => /high explosive|hegrenade/i.test(w)) && S.dist(me, e.at) < NADE_RANGE) plans.push({ kind: 'he', label: `HE ${where}`, to: me, travel: 1.2, nade: e.at, he: e.id });
+    if (inv.some(w => /molotov|incendiary/i.test(w)) && S.dist(me, e.at) < NADE_RANGE) plans.push({ kind: 'molotov', label: `Molotov ${where}`, to: me, travel: 1.4, nade: e.at, deny: e.id });
+  }
+  // a smoke they have, on the standard spot nearest the enemies they know about (or the nearest one), then hold
+  const inv = gearAt(r, id, t)?.inv ?? [];
+  if (inv.some(w => /smoke/i.test(w))) {
+    const spots = (SPOTS[map] ?? []).filter(x => x.type === 'smoke' && x.side === s).map(x => S.radar({ x: x.x, y: x.y })).filter(p => S.dist(me, p) < NADE_RANGE);
+    const target = enemies[0]?.at;
+    const best = spots.sort((a, b) => (target ? S.dist(a, target) - S.dist(b, target) : S.dist(a, me) - S.dist(b, me)))[0];
+    if (best) plans.push({ kind: 'smoke', label: `Smoke ${placeOf(engine, best) || 'a standard spot'} and hold`, to: me, travel: 1.4, nade: best, smoke: { pos: best, r: SMOKE_RADIUS_UNITS / S.scale } });
+  }
+  // the bomb
+  const bomb = bombAt(r, t);
+  if (s === 'T' && r.plant === null && bomb?.kind === 'carry' && bomb.id === id && S.siteAt(me)) plans.push({ kind: 'plant', label: 'Plant the bomb', to: me, travel: 3.2, plant: true });
+  // (no "go defuse" option: whether a T is guarding the bomb is exactly what the engine can't know)
+
+  // ---- what they did: where they were H seconds later (or when they died), and any grenade or the plant ----------
+  const until = Math.min(r.duration, t + H);
+  const diedAt = r.kills.find(k => k.victim === id)?.t;
+  const endT = diedAt !== undefined && diedAt < until ? Math.max(t, diedAt - 0.3) : until;
+  const end = S.pos(id, endT);
+  const threw = r.util.find(u => u.thrower === id && (u.throwT ?? u.t - 1.5) >= t && (u.throwT ?? u.t - 1.5) < until);
+  const planted = r.plant !== null && r.plant >= t && r.plant < until + 1 && r.bomb?.some(b => b.kind === 'plant' && b.id === id);
+  let did: Plan;
+  if (planted) did = { kind: 'plant', label: 'Planted the bomb', to: me, travel: 3.2, plant: true };
+  else if (threw) {
+    const nadeAt = S.radar({ x: threw.x, y: threw.y });
+    const nearest = enemies.slice().sort((a, b) => S.dist(a.at, nadeAt) - S.dist(b.at, nadeAt))[0];
+    did = threw.type === 'smoke' ? { kind: 'smoke', label: `Smoked ${placeOf(engine, nadeAt) || ''}`.trim(), to: end, travel: endT - t, nade: nadeAt, smoke: { pos: nadeAt, r: SMOKE_RADIUS_UNITS / S.scale } }
+      : threw.type === 'flash' ? { kind: 'flash', label: `Flashed ${placeOf(engine, nadeAt) || ''}`.trim(), to: end, travel: endT - t, nade: nadeAt, flash: nearest && S.dist(nearest.at, nadeAt) < 900 ? nearest.id : undefined }
+        : threw.type === 'he' ? { kind: 'he', label: `HE at ${placeOf(engine, nadeAt) || ''}`.trim(), to: end, travel: endT - t, nade: nadeAt, he: nearest && S.dist(nearest.at, nadeAt) < 350 ? nearest.id : undefined }
+          : { kind: 'molotov', label: `Molotov at ${placeOf(engine, nadeAt) || ''}`.trim(), to: end, travel: endT - t, nade: nadeAt, deny: nearest && S.dist(nearest.at, nadeAt) < 300 ? nearest.id : undefined };
+  } else if (S.dist(me, end) < 150) did = { kind: 'hold', label: `Held ${here}`, to: me, travel: 0 };
+  else did = { kind: 'actual', label: `Moved to ${placeOf(engine, end) || 'a new spot'}`, to: end, travel: endT - t };
+
+  // ---- step 1 and 2: value every option the same way --------------------------------------------------------------
+  const value = (p: Plan): SearchOption => {
+    const dt = Math.max(1, p.travel);
+    const sm = p.smoke ? [...smokes, p.smoke] : smokes;
+    const myF = (moving: boolean) => S.fighter(id, t, p.to, moving);
+    // fights: known enemies that can see where the option leaves them (a denied / smoked-off enemy can't)
+    const contacts = enemies.filter(e => e.id !== p.deny && S.dist(p.to, e.at) < 3000 && engine.grid.lineOfSight(p.to, e.at, sm))
+      .sort((a, b) => S.dist(p.to, a.at) - S.dist(p.to, b.at)).slice(0, 2);
+    const peeking = p.travel > 0 && !enemies.some(e => engine.grid.lineOfSight(me, e.at, smokes));
+    const mateNear = S.ids.some(o => o !== id && S.side(o) === s && S.alive(o, t) && S.dist(S.pos(o, t), p.to) < TRADE_DIST);
+    const posGain = (() => {
+      // (left out when checking the engine on the same demos the spot stats were learned from: tools/calibrate-search.ts)
+      if (NO_SPOT_STATS) return 0;
+      const place = placeOf(engine, p.to);
+      const sp = (proSituationSpots(map, s, phase, adv) ?? proSpots(map, s, phase)).find(x => x.place === place);
+      return sp?.gain !== undefined && (sp.n ?? 0) >= 8 ? sp.gain * 0.5 : 0; // half: the models already count part of it
+    })();
+    const hpDmg = p.he ? -Math.min(40, 25) : 0;
+    const base = { plant: p.plant, dt, theirHp: hpDmg, myAreas: p.kind === 'move' || p.kind === 'peek' || p.kind === 'actual' ? 1 : 0 };
+    let win: number, death = 0, killsE = 0;
+    if (!contacts.length) {
+      // no known enemy sees it: the risk of the ones nobody has seen, from how holding that spot goes for level-10 players
+      const place = placeOf(engine, p.to);
+      const pressure = enemies.filter(e => S.dist(p.to, e.at) < 1500).length;
+      const risk = place ? proRisk(map, s, place, pressure, !mateNear) : null;
+      death = risk && risk.n >= 8 ? (risk.died / risk.n) * 0.35 : 0;
+      win = (1 - death) * S.winFor(s, t, base) + death * S.winFor(s, t, { ...base, mine: -1, trade: mateNear ? 1 : 0 });
+    } else {
+      // fight them one after another; each fight from the duel model
+      const qs = contacts.map(e => {
+        const sit: DuelSituation = {
+          a: { f: myF(peeking), aim: null },
+          b: { f: S.fighter(e.id, t, e.at, false, p.flash === e.id), aim: null },
+          range: S.dist(p.to, e.at) * 0.0254, sawFirst: 0,
+        };
+        return duelChance(sit) ?? 0.5;
+      });
+      let alivePr = 1, fight = 0;
+      for (let k = 0; k < qs.length; k++) {
+        const dieHere = alivePr * (1 - qs[k]);
+        fight += dieHere * S.winFor(s, t, { ...base, theirs: -k, mine: -1, trade: mateNear ? 1 : 0 });
+        death += dieHere;
+        killsE += alivePr * qs[k];
+        alivePr *= qs[k];
+      }
+      fight += alivePr * S.winFor(s, t, { ...base, theirs: -qs.length });
+      // step 2, the enemy's reply: they can also back off instead of taking a fight that's bad for them
+      const theyBackOff = S.winFor(s, t, { ...base, myAreas: (base.myAreas ?? 0) + 1 });
+      if (fight > theyBackOff) { win = theyBackOff; death = 0; killsE = 0; } else win = fight;
+    }
+    return { kind: p.kind, label: p.label, to: p.to, nade: p.nade, win: Math.min(1, Math.max(0, win + posGain)), death: +death.toFixed(3), kills: +killsE.toFixed(3) };
+  };
+
+  const options = plans.map(value).sort((a, b) => b.win - a.win);
+  const mine = value(did);
+  const best = options[0];
+  const loss = Math.max(0, best.win - mine.win);
+  return {
+    t, player: id, side: s, options: options.slice(0, 6), did: mine, loss: +loss.toFixed(4), cost: +(loss * COST_SCALE).toFixed(4), cls: searchClass(loss),
+    accuracy: +searchAccuracy(loss * COST_SCALE * 100).toFixed(1), before: +before.toFixed(4),
+  };
+}
+
+export interface RoundSearch {
+  /** Every 2 s of every living player (from 10 s in). */
+  moments: SearchMoment[];
+  /** Per player: moments, average accuracy, and counts per class. */
+  players: Record<string, { n: number; accuracy: number; counts: Record<SearchClass, number> }>;
+}
+const EMPTY_COUNTS = (): Record<SearchClass, number> => ({ Best: 0, Excellent: 0, Good: 0, Inaccuracy: 0, Mistake: 0, Blunder: 0 });
+
+/** The whole round, every 2 s for every player. */
+export function searchRound(engine: TacticalEngine, r: DemoRound, every = 2): RoundSearch {
+  const S = roundSearcher(engine, r);
+  const moments: SearchMoment[] = [];
+  for (let t = 10; t < r.duration - 2; t += every)
+    for (const id of S.ids) { const m = searchMoment(engine, r, S, id, t); if (m) moments.push(m); }
+  const players: RoundSearch['players'] = {};
+  for (const m of moments) {
+    const p = (players[m.player] ??= { n: 0, accuracy: 0, counts: EMPTY_COUNTS() });
+    p.n++; p.accuracy += m.accuracy; p.counts[m.cls]++;
+  }
+  for (const p of Object.values(players)) p.accuracy = +(p.accuracy / p.n).toFixed(1);
+  return { moments, players };
+}
+
+/** The moments worth a card: the costliest Mistakes and Blunders (or Blunders only), a few seconds apart, per player. */
+export function keySearchMoments(rs: RoundSearch, perPlayer = 2, blundersOnly = false): SearchMoment[] {
+  const out: SearchMoment[] = [];
+  const by = new Map<string, SearchMoment[]>();
+  for (const m of rs.moments) if (m.cls === 'Blunder' || (!blundersOnly && m.cls === 'Mistake')) by.set(m.player, [...(by.get(m.player) ?? []), m]);
+  for (const list of by.values()) {
+    const picked: SearchMoment[] = [];
+    for (const m of list.sort((a, b) => b.loss - a.loss)) if (picked.length < perPlayer && !picked.some(x => Math.abs(x.t - m.t) < 8)) picked.push(m);
+    out.push(...picked);
+  }
+  return out;
+}

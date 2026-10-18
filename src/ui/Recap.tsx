@@ -5,6 +5,7 @@ import { judgeHold, judgeMove, USUAL_LABEL, type Usual } from '../engine/positio
 import { CLASS_COLOR, engineHold, engineLine, engineMove } from '../engine/engineEval';
 import { roundAnalysis } from '../engine/analysis';
 import { proPositions } from '../map/positions';
+import { SEARCH_COLOR, type RoundSearch } from '../engine/search';
 import { moveLook, NoteMark } from './NoteMark';
 import { brief } from './MoveFeed';
 import type { TacticalEngine } from '../engine/predict';
@@ -169,7 +170,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
 
       {tab === 'economy' && <Economy replay={replay} totalRounds={rv.data.rounds.length} />}
       {tab === 'positions' && <Positions engine={engine} replay={replay} until={all ? Infinity : s.time} focus={filter !== 'all' && filter !== 'key' && filter !== 'util' ? filter : s.me}
-        onJump={jump} />}
+        onJump={jump} search={recap.search} />}
 
       {tab === 'moves' && <>
       <section>
@@ -419,10 +420,56 @@ function Letter({ moves, round, id, upTo }: { moves: Move[]; round: DemoRound; i
 const USUAL_COLOR: Record<Usual, string> = { common: '#3ddc84', rare: '#f0c33c', unusual: '#e5483a', unknown: '#6e7886' };
 
 /**
+ * The search engine for one player this round: accuracy over the round as a line (a dot every 2 s, coloured by
+ * class), and the moments where they gave up the most, each with the engine's best option.
+ */
+function EngineSection({ search, id, until, duration, onJump }: { search: RoundSearch; id: string; until: number; duration: number; onJump: (t: number) => void }) {
+  const ms = search.moments.filter(m => m.player === id && m.t <= until);
+  if (!ms.length) return null;
+  const acc = ms.reduce((a, m) => a + m.accuracy, 0) / ms.length;
+  const W = 300, Hh = 46, x = (t: number) => (t / Math.max(1, duration)) * W, y = (a: number) => Hh - 3 - (a / 100) * (Hh - 6);
+  // the costliest, one per decision (the same grenade or move seen at two moments counts once)
+  const worst = ms.filter(m => m.cls === 'Inaccuracy' || m.cls === 'Mistake' || m.cls === 'Blunder').sort((a, b) => b.loss - a.loss)
+    .filter((m, i, xs) => !xs.slice(0, i).some(o => o.did.label === m.did.label && Math.abs(o.t - m.t) <= 4)).slice(0, 6).sort((a, b) => a.t - b.t);
+  const counts = (['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'] as const).map(c => [c, ms.filter(m => m.cls === c).length] as const).filter(([, n]) => n);
+  return (
+    <div className="engine-sec">
+      <div className="engine-head">
+        <b>Engine</b>
+        <span className="pos-acc" title="Every 2 s, what they did against the best option the engine calculated (100 = always the best). Level-10 players average about 88.">Accuracy <b className="num">{acc.toFixed(1)}</b></span>
+        <span className="engine-counts">{counts.map(([c, n]) => <i key={c} style={{ color: SEARCH_COLOR[c] }} title={c}>{n} {c}</i>)}</span>
+      </div>
+      <svg className="engine-graph" viewBox={`0 0 ${W} ${Hh}`} preserveAspectRatio="none" role="img" aria-label="Accuracy over the round">
+        <polyline points={ms.map(m => `${x(m.t)},${y(m.accuracy)}`).join(' ')} fill="none" stroke="currentColor" strokeOpacity={0.35} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        {ms.map(m => (
+          <circle key={m.t} cx={x(m.t)} cy={y(m.accuracy)} r={2.2} fill={SEARCH_COLOR[m.cls]} onClick={() => onJump(m.t)} style={{ cursor: 'pointer' }}>
+            <title>{`${fmt(m.t)} ${m.cls}: ${m.did.label} (best: ${m.options[0].label})`}</title>
+          </circle>
+        ))}
+      </svg>
+      {worst.length > 0 && (
+        <ol className="pos-list engine-list">
+          {worst.map(m => (
+            <li key={m.t} className="pos-row" onClick={() => onJump(m.t)} title="Watch it (turn on Engine lines to see both on the map)">
+              <div className="pos-top">
+                <span className="muted num">{fmt(m.t)}</span>
+                <b>{m.did.label}</b>
+                <span className="usual" style={{ color: SEARCH_COLOR[m.cls], borderColor: SEARCH_COLOR[m.cls] }}>{m.cls} −{(m.cost * 100).toFixed(1)}%</span>
+              </div>
+              <p>Best: <b style={{ color: SEARCH_COLOR.Best }}>{m.options[0].label}</b>{m.options[0].death < m.did.death - 0.1 ? ` (${Math.round(m.options[0].death * 100)}% to die instead of ${Math.round(m.did.death * 100)}%)` : ''}. Then: {m.options.slice(1, 3).map(o => o.label).join(', ')}.</p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+/**
  * Positions tab: one player's decisions this round (where they held, where they moved and why), each next to what
  * FACEIT level-10 players do in the same situation.
  */
-function Positions({ engine, replay, until, focus, onJump }: { engine: TacticalEngine; replay: Replay; until: number; focus: string | null; onJump: (t: number) => void }) {
+function Positions({ engine, replay, until, focus, onJump, search }: { engine: TacticalEngine; replay: Replay; until: number; focus: string | null; onJump: (t: number) => void; search?: RoundSearch }) {
   const ids = replay.board.players.map(p => p.id);
   const [who, setWho] = useState<string | null>(null);
   const id = who && ids.includes(who) ? who : focus && ids.includes(focus) ? focus : ids[0];
@@ -444,6 +491,7 @@ function Positions({ engine, replay, until, focus, onJump }: { engine: TacticalE
         <span className={`muted ${side.toLowerCase()}`}>{side}</span>
         {accuracy !== null && <span className="pos-acc" title="Positioning accuracy this round, like a chess engine's: how close each choice was to the best level-10 option (100 = always the best)">Accuracy <b className="num">{accuracy.toFixed(1)}</b></span>}
       </div>
+      {search && <EngineSection search={search} id={id} until={until} duration={replay.round.duration} onJump={onJump} />}
       {(() => { const t = roundAnalysis(engine.map.id, id, dec, until); return t ? <p className="pos-summary">{t}</p> : null; })()}
       {!known && <p className="muted">No level-10 positions for {engine.map.name} yet: run <code>npm run learn:positions</code> on demos of this map.</p>}
       {rows.length === 0 && <p className="muted">No decisions yet this round.</p>}

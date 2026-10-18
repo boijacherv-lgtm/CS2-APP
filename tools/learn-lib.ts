@@ -27,9 +27,25 @@ export const PARSE_V = 6; // 6: gear over the round (inventory, armour, kit, mon
 // ---- the demo folder -------------------------------------------------------------------------------------
 /** Demos in a folder (and one level of subfolders), as paths relative to it. */
 export function listDemos(folder: string): string[] {
-  return fs.readdirSync(folder, { withFileTypes: true }).flatMap(d =>
-    d.isDirectory() && !d.name.startsWith('.') ? fs.readdirSync(path.join(folder, d.name)).map(f => path.join(d.name, f)) : [d.name])
-    .filter(f => /\.dem(\.gz|\.zst)?$/i.test(f)).sort();
+  // up to three folders deep, following links: a link to a folder on an external disk (one the Mac can only read,
+  // e.g. NTFS) keeps the demos there while everything the learners save stays in this folder
+  const out: string[] = [];
+  const walk = (rel: string, depth: number) => {
+    let names: string[];
+    try { names = fs.readdirSync(path.join(folder, rel)); } catch { return; } // a disk that isn't plugged in
+    for (const n of names) {
+      if (n.startsWith('.')) continue;
+      const r = path.join(rel, n);
+      let st: fs.Stats;
+      try { st = fs.statSync(path.join(folder, r)); } catch { continue; }
+      if (st.isDirectory()) { if (depth < 3) walk(r, depth + 1); } else if (/\.dem(\.gz|\.zst)?$/i.test(n)) out.push(r);
+    }
+  };
+  walk('', 1);
+  // the same FACEIT match under two names (a download kept and the same one downloaded again) counts once
+  const matchId = (f: string) => path.basename(f).match(/1-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0]?.toLowerCase();
+  const seen = new Set<string>();
+  return out.sort().filter(f => { const id = matchId(f); if (!id) return true; if (seen.has(id)) return false; seen.add(id); return true; });
 }
 /** A demo's identity: its name (without the "(1)" of a second download) and size, so duplicates count once. */
 export const keyOf = (folder: string, f: string) => `${f.replace(/ \(\d+\)(?=\.dem)/, '')}|${fs.statSync(path.join(folder, f)).size}`;
@@ -238,7 +254,10 @@ export function needsRead(folder: string, l: Learner): (key: string) => boolean 
   const keys = cachedKeys(folder, l);
   const ef = path.join(cacheDir(folder, l), 'errors.json');
   const errors = readErrors(ef);
-  return key => !keys.has(key) || (!!errors[key] && !/MalformedMessage/.test(errors[key]));
+  // demos the parser couldn't read are skipped from then on, unless asked to try them again (a newer parser):
+  // --retry-broken on learn:all, or STRATBOARD_RETRY_BROKEN=1
+  const retryBroken = process.argv.includes('--retry-broken') || process.env.STRATBOARD_RETRY_BROKEN === '1';
+  return key => !keys.has(key) || (!!errors[key] && (retryBroken || !/MalformedMessage/.test(errors[key])));
 }
 export function writeCache(folder: string, l: Learner, demos: Record<string, unknown>) {
   openCache(folder, l);

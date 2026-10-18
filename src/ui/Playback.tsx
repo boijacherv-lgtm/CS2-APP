@@ -89,6 +89,10 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
         <button className={s.popups ? 'on' : ''} onClick={e => { s.setPopups(!s.popups); e.currentTarget.blur(); }}
           title={s.popups ? 'Move windows: on (a window with the grade and comments for each graded move)' : 'Move windows: off'} aria-label="Move windows"><Icon name="chat" /></button>
       )}
+      {review && (
+        <button className={s.engineLines ? 'on' : ''} onClick={e => { s.setEngineLines(!s.engineLines); e.currentTarget.blur(); }}
+          title={s.engineLines ? 'Engine lines: on (the best option and what was done, for the selected player, or yours with Mine)' : 'Engine lines: off'} aria-label="Engine lines"><Icon name="route" /></button>
+      )}
       {review && s.popups && (
         <button className={s.readSlow ? 'on' : ''} onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
           title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'} aria-label="Slow motion while reading"><Icon name="slow" /></button>

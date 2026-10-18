@@ -5,10 +5,10 @@ import { gunFromName, primaryGun } from './guns';
 import { lifeOf, segmentHitsCircle, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
 import type { TacticalEngine } from './predict';
 import UTIL_SPOTS from '../map/generated/util-spots.json';
-import { isDecision, placeOf as calloutOfSpot, roundDecisions } from './situations';
-import { engineHold, engineLine, engineMove, type EngineVerdict } from './engineEval';
+import { placeOf as calloutOfSpot } from './situations';
 import { analyzeRound } from './analyst';
 import { duelOdds as duelModelOdds, pctOdds } from './duelModel';
+import { COST_SCALE, keySearchMoments, searchRound, type RoundSearch } from './search';
 import { ACTION_TEXT, judgeMoment, keyMoments, momentLine, pctPlay, PLAY_MODEL, roundMoments, type Action, type MomentVerdict } from './playModel';
 import { controlCounts, learnedLogit, tradePending, WIN_MODEL } from './winprob';
 import { analystBench, proTradeConversion } from './analystModel';
@@ -637,6 +637,8 @@ export interface Review {
   turningPoint: Move | null;
   /** The play model (playModel.ts): every player's moments against level-10 choices. */
   play?: RoundPlay;
+  /** The search engine (search.ts): every player's moments, calculated. */
+  search?: RoundSearch;
 }
 export interface PlayKey { t: number; player: string; did: Action; best: Action; /** level-10 share of what they did, and of the usual choice */ share: number; agree: number }
 export interface RoundPlay {
@@ -1169,35 +1171,27 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     }
   } catch { /* the analyst is extra */ }
 
-  // positioning decisions, like a chess engine's verdict on each move (shown with "Mine")
+  // the search engine (search.ts): every 2 s of every player, what they could have done, calculated ahead; its
+  // clearest mistakes become moves (shown with "Mine")
+  let search: RoundSearch | undefined;
   try {
-    const dec = roundDecisions(engine, r);
-    const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 1000) / 10)}%`;
-    const noteOf = (v: EngineVerdict): Annotation => {
-      if (v.cls === 'Blunder') return '??';
-      if (v.cls === 'Mistake') return '?';
-      if (v.cls === 'Inaccuracy') return '?!';
-      // the best move when it isn't the obvious one (not what most level-10 players do, and clearly better)
-      const common = v.candidates.reduce((a, c) => (c.share > a.share ? c : a), v.candidates[0]);
-      return v.cls === 'Best' && common.place !== v.best!.place && v.best!.gain - (v.candidates[1]?.gain ?? 0) >= 0.03 ? '!' : 'book';
-    };
-    const why = (v: EngineVerdict, what: 'hold' | 'move', chosen: string) => [
-      `Engine: ${v.cls}, accuracy ${Math.round(v.accuracy)}.`,
-      engineLine(v, what, chosen),
-      `Options: ${v.candidates.slice(0, 4).map(c => `${c.place} ${pct(c.gain)}`).join(', ')}.`,
-      ...(v.next.length ? [`Next, level-10 players usually go: ${v.next.map(c => `${c.place} ${Math.round(c.share * 100)}% of the time`).join(', ')}.`] : []),
-    ];
-    for (const h of dec.holds) {
-      if (!isDecision(h) || !sideOf.has(h.player)) continue;
-      const v = engineHold(engine.map.id, h);
-      if (v) moves.push({ t: h.from, player: h.player, side: h.side, kind: 'position', gain: -v.loss, note: noteOf(v), tags: [], title: `${name(h.player)} ${h.contact ? 'fought at' : 'held'} ${h.place}`, why: why(v, 'hold', h.place) });
+    search = searchRound(engine, r);
+    const signed = (c: number) => (Math.abs(c) < 0.0005 ? '±0%' : `${c > 0 ? '−' : '+'}${Math.abs(Math.round(c * 1000) / 10)}%`);
+    for (const m of keySearchMoments(search, 1, true)) {
+      if (!sideOf.has(m.player)) continue;
+      const best = m.options[0];
+      moves.push({
+        t: m.t, player: m.player, side: m.side, kind: 'position', gain: -m.cost, note: m.cls === 'Blunder' ? '??' : '?', tags: [],
+        title: `${name(m.player)}: ${m.did.label}; best was ${best.label.charAt(0).toLowerCase()}${best.label.slice(1)}`,
+        why: [
+          `Engine: ${m.cls}, accuracy ${Math.round(m.accuracy)}. It cost about ${(m.cost * 100).toFixed(1)}% of the round.`,
+          `Options: ${m.options.slice(0, 4).map((o, i) => (i === 0 ? `${o.label} (best)` : `${o.label} ${signed((best.win - o.win) * COST_SCALE)}`)).join(', ')}.`,
+          ...(m.did.death >= 0.25 ? [`What you did: about ${Math.round(m.did.death * 100)}% to die in the next seconds${m.did.kills ? `, ${m.did.kills.toFixed(1)} kills expected` : ''}.`] : []),
+          ...(best.death < m.did.death - 0.1 ? [`${best.label}: ${Math.round(best.death * 100)}% to die${best.kills ? `, ${best.kills.toFixed(1)} kills expected` : ''}.`] : []),
+        ],
+      });
     }
-    for (const m of dec.moves) {
-      if (!isDecision({ place: m.from, from: m.t }) || !sideOf.has(m.player)) continue;
-      const v = engineMove(engine.map.id, m);
-      if (v) moves.push({ t: m.t, player: m.player, side: m.side, kind: 'position', gain: -v.loss, note: noteOf(v), tags: [], title: `${name(m.player)}: ${m.from} → ${m.to}${m.trigger ? ` after "${m.trigger}"` : ''}`, why: why(v, 'move', m.to) });
-    }
-  } catch { /* positions are extra */ }
+  } catch { /* the engine is extra */ }
 
   // step 4, "what would a level-10 player do now": every 2 s of every player against the level-10 choices
   let play: RoundPlay | undefined;
@@ -1206,7 +1200,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const vs = roundMoments(engine, r, 2).map(m => judgeMoment(m, PLAY_MODEL!)).filter((v): v is MomentVerdict => !!v && sideOf.has(v.player));
       const stats: RoundPlay['stats'] = {};
       for (const v of vs) { const x = (stats[v.player] ??= { n: 0, usual: 0 }); x.n++; if (v.usual) x.usual++; }
-      const key = keyMoments(vs);
+      const key = keyMoments(vs).filter(v => !moves.some(m => m.kind === 'position' && m.player === v.player && Math.abs(m.t - v.t) < 6));
       for (const v of key)
         moves.push({ t: v.t, player: v.player, side: v.side, kind: 'position', gain: 0, note: v.pro[0].share >= 0.75 && v.share < 0.03 ? '?' : '?!', tags: [],
           title: `${name(v.player)} chose to ${ACTION_TEXT[v.did]}; a level-10 player would ${ACTION_TEXT[v.pro[0].a]}`,
@@ -1224,7 +1218,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     players[m.player].counts[m.note]++;
   }
   const turningPoint = moves.filter(m => m.kind !== 'death' && m.kind !== 'position').reduce<Move | null>((best, m) => (!best || Math.abs(m.gain) > Math.abs(best.gain) ? m : best), null);
-  return { curve, moves, players, roles: playerRoles(engine, rep, moves), turningPoint, ...(play ? { play } : {}) };
+  return { curve, moves, players, roles: playerRoles(engine, rep, moves), turningPoint, ...(play ? { play } : {}), ...(search ? { search } : {}) };
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;

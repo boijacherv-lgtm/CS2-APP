@@ -6,7 +6,7 @@
 //   3. merges the results into the learners' caches and runs each learner, which now only has to aggregate,
 //      then calibrates the positioning engine
 //
-//   npm run learn:all -- <folder> [--workers 4]
+//   npm run learn:all -- <folder> [--workers 4] [--retry-broken]   (--retry-broken: read again the demos the parser failed on)
 //
 // Workers default to what fits in memory (the demo reader can peak near 3 GB on a big demo).
 import fs from 'node:fs';
@@ -43,7 +43,7 @@ async function run() {
     let done = 0;
     await Promise.all(shards.map((shard, w) => new Promise<void>((resolve, reject) => {
       // each worker writes its results straight into the learners' caches (one file per demo)
-      const child = spawn('npx', ['vite-node', path.join(import.meta.dirname, 'learn-worker.ts'), folder!, needs.join(','), ...shard], { stdio: ['ignore', 'pipe', 'inherit'] });
+      const child = spawn('npx', ['vite-node', path.join(import.meta.dirname, 'learn-worker.ts'), folder!, needs.join(','), ...shard], { stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, ...(args.includes('--retry-broken') ? { STRATBOARD_RETRY_BROKEN: '1' } : {}) } });
       let buf = '';
       child.stdout.on('data', (c: Buffer) => {
         buf += c.toString();
@@ -55,7 +55,8 @@ async function run() {
     console.log(`\nRead ${todo.length} demos in ${((Date.now() - t0) / 60000).toFixed(1)} min.\n`);
   }
   // 3b. every learner aggregates from its (now complete) cache; learn-positions also calibrates the engine
-  for (const tool of ['train-coach', 'learn-spots', 'learn-positions', 'learn-analyst']) {
+  // (calibrate-search last: it reads the position stats and win model the others just wrote)
+  for (const tool of ['train-coach', 'learn-spots', 'learn-positions', 'learn-analyst', 'calibrate-search']) {
     console.log(`\n=== ${tool}`);
     // aggregating thousands of demos needs more than Node's default heap
     execFileSync('npx', ['vite-node', path.join(import.meta.dirname, `${tool}.ts`), folder!], { stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 64 * 1024 * 1024,

@@ -1,0 +1,36 @@
+{
+ "thresholds": [
+  0.0151,
+  0.0315,
+  0.0497,
+  0.0695
+ ],
+ "scale": 2.231,
+ "costScale": 0.525,
+ "moments": 509932,
+ "rounds": 2708,
+ "check": {
+  "corr": 0.326,
+  "clearRounds": 888,
+  "beatBy": 0.24
+ },
+ "calibratedAt": "2026-10-18",
+ "byLoss": {
+  "small": {
+   "n": 129957,
+   "resid": 0.0017
+  },
+  "medium": {
+   "n": 222449,
+   "resid": -0.0033
+  },
+  "big": {
+   "n": 45617,
+   "resid": -0.0318
+  },
+  "best": {
+   "n": 111909,
+   "resid": 0.0144
+  }
+ }
+}

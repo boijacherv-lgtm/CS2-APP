@@ -8,6 +8,7 @@ import { COACH_MODEL } from '../engine/coachModels';
 import { buildMatchReport, IMPACT_PER_POINT, type MatchReport, type PlayerReport, type RoundSummary } from '../engine/match';
 import { LETTER_COLOR, RATING_SCALE, type DemoData, type Letter, type PlayKey } from '../engine/recap';
 import { ACTION_TEXT, PLAY_MODEL } from '../engine/playModel';
+import { SEARCH_COLOR, type SearchMoment } from '../engine/search';
 import { MAPS } from '../map/catalog';
 import { navigate } from '../shell/router';
 import { useStore } from '../store';
@@ -365,21 +366,51 @@ function DecisionsCard({ rounds, player, onRound, onHotRound }: {
       if (st) { n += st.n; usual += st.usual; }
       for (const k of r?.play?.key ?? []) if (k.player === player) key.push({ ...k, round: i });
     });
-    return n ? { n, usual: usual / n, key: key.sort((x, y) => (y.agree - y.share) - (x.agree - x.share)).slice(0, 6) } : null;
+    // the search engine: accuracy over the match and its clearest mistakes
+    let en = 0, ea = 0;
+    const ekey: (SearchMoment & { round: number })[] = [];
+    rounds.forEach((r, i) => {
+      const st = r?.search?.players[player];
+      if (st) { en += st.n; ea += st.accuracy * st.n; }
+      for (const m of r?.search?.key ?? []) if (m.player === player) ekey.push({ ...m, round: i });
+    });
+    const engine = en ? { accuracy: ea / en, n: en, key: ekey.sort((x, y) => y.cost - x.cost).slice(0, 6) } : null;
+    return n || en ? { n, usual: n ? usual / n : 0, key: key.sort((x, y) => (y.agree - y.share) - (x.agree - x.share)).slice(0, 6), engine } : null;
   }, [rounds, player]);
-  if (!a || !PLAY_MODEL) return null;
-  const pro = PLAY_MODEL.bench.usual;
+  if (!a || (!PLAY_MODEL && !a.engine)) return null;
+  const pro = PLAY_MODEL?.bench.usual ?? 0.82;
   const diff = a.usual - pro;
   return (
     <section className="recap-card positioning">
       <div className="coach-head">
         <h2 className="display">Decisions</h2>
-        <span className="muted">what a level-10 player does in the same situation · every 2 s · {a.n} moments</span>
+        <span className="muted">what a level-10 player does in the same situation, and the engine · every 2 s · {Math.max(a.n, a.engine?.n ?? 0)} moments</span>
       </div>
-      <p className="coach-summary">
+      {a.n > 0 && <p className="coach-summary">
         {Math.round(a.usual * 100)}% of your choices (hold, push, fall back, reposition, grenade, bomb) were ones level-10 players make in that
         situation; level-10 players themselves: {Math.round(pro * 100)}%. {diff >= -0.03 ? 'You read situations like they do.' : diff >= -0.08 ? 'A few of your choices are ones they rarely make.' : 'You often do what level-10 players almost never do in that spot: look at the moments below.'}
-      </p>
+      </p>}
+      {a.engine && (
+        <>
+          <h3>Engine</h3>
+          <p className="coach-summary">
+            Accuracy <b className="num">{a.engine.accuracy.toFixed(1)}</b> over {a.engine.n} moments: every 2 s, what you did against the best option the engine
+            calculated from there (hold, move, peek, a grenade you had, the bomb). Level-10 players average about 88.
+          </p>
+          {a.engine.key.length > 0 && (
+            <div className="pos-worst">
+              {a.engine.key.map((m, i) => (
+                <button key={i} className="ghost" onClick={() => onRound(m.round)} onMouseEnter={() => onHotRound(m.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review (turn on Engine lines to see it on the map)">
+                  <span className="muted num">R{m.round + 1} {Math.floor(m.t / 60)}:{String(Math.floor(m.t % 60)).padStart(2, '0')}</span>
+                  <b>{m.did.label}</b>
+                  <span className="usual" style={{ color: SEARCH_COLOR[m.cls], borderColor: SEARCH_COLOR[m.cls] }}>{m.cls} −{(m.cost * 100).toFixed(1)}%</span>
+                  <span className="muted">best: {m.options[0].label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
       {a.key.length > 0 && (
         <><h3>Least level-10 choices</h3>
           <div className="pos-worst">
@@ -405,13 +436,14 @@ function tone(id: FeatureId, v: number) {
 
 function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; players: PlayerReport[]; score: number; focus: string; onPick: (id: string) => void }) {
   const hasLvl10 = players.some(p => p.lvl10);
+  const hasEngine = players.some(p => p.engineAccuracy !== null);
   return (
     <div className="sb-wrap">
       <table className="sb">
         <thead>
           <tr className="sb-groups">
             <th className={team === 0 ? 'ct' : 't'}>{team === 0 ? 'Team A' : 'Team B'} <span className="num">{score}</span></th>
-            <th colSpan={hasLvl10 ? 5 : 4}>Rating</th><th colSpan={5}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
+            <th colSpan={(hasLvl10 ? 5 : 4) + (hasEngine ? 1 : 0)}>Rating</th><th colSpan={5}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
           </tr>
           <tr>
             <th className="sb-name muted">{team === 0 ? 'started CT' : 'started T'}</th>
@@ -420,6 +452,7 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
             <th title="Game rating minus their real rating">±</th>
             <th title="Grade among the players of this lobby">Lobby</th>
             {hasLvl10 && <th title="Grade against FACEIT level-10 players">Lvl 10</th>}
+            {hasEngine && <th title="Engine accuracy: every 2 s, what they did against the best option the engine calculated (100 = always the best; level-10 players average about 88)">Acc</th>}
             <th>K</th><th>D</th><th>ADR</th><th title="Rounds with a kill, assist, survival or trade">KAST</th><th>HS%</th>
             <th title="Opening kills – opening deaths">Open</th><th title="Clutch kills (last alive vs 2+)">Clutch</th><th title="Rounds with 3+ kills">3K+</th>
             <th title="HE + fire damage">Dmg</th><th title="Kills on enemies they flashed">Flash</th>
@@ -441,6 +474,7 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
                 <td className={delta === null ? '' : delta >= 1000 ? 'hi' : delta <= -1000 ? 'lo' : ''}>{delta === null ? '' : `${delta >= 0 ? '+' : '−'}${fmt(Math.abs(delta))}`}</td>
                 <td title={lobbyText(p.lobbyZ)}><LetterChip letter={p.letter} /></td>
                 {hasLvl10 && <td title={p.lvl10 ? lvl10Text(p.lvl10.z) : ''}>{p.lvl10 ? <LetterChip letter={p.lvl10.letter} /> : ''}</td>}
+                {hasEngine && <td className={p.engineAccuracy === null ? '' : p.engineAccuracy >= 90 ? 'hi' : p.engineAccuracy < 82 ? 'lo' : ''} title={`${p.engineMoments} moments`}>{p.engineAccuracy !== null ? p.engineAccuracy.toFixed(0) : ''}</td>}
                 <td className="sep">{p.kills}</td><td>{p.deaths}</td>
                 <td className={tone('adr', p.adr)}>{p.adr.toFixed(0)}</td>
                 <td className={tone('kast', p.kast)}>{p.kast.toFixed(0)}%</td>

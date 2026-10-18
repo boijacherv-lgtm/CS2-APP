@@ -65,6 +65,8 @@ interface Store {
   readSlow: boolean;
   /** Review: show a window for each graded move (remembered in this browser). Off = no windows, no slow motion. */
   popups: boolean;
+  /** Review: the search engine's lines on the map (best option and what was done) for the player in focus. Remembered. */
+  engineLines: boolean;
   /** The right-hand panel (analysis / review) is open. Remembered; starts closed on narrow screens. */
   drawerOpen: boolean;
   /** Until when (performance.now ms) the replay runs in slow motion for reading; 0 = not. */
@@ -144,6 +146,7 @@ interface Store {
   setSpeed(x: number): void;
   setReadSlow(on: boolean): void;
   setPopups(on: boolean): void;
+  setEngineLines(on: boolean): void;
   setDrawerOpen(on: boolean): void;
   loadPreset(name: string): void;
   /** Replace the T side with a scripted T play (CTs stay). */
@@ -200,6 +203,7 @@ export const useStore = create<Store>((set, get) => {
     speed: 1,
     readSlow: true,
     popups: loadJson<{ on: boolean }>(LS_POPUPS, { on: true }).on,
+    engineLines: loadJson<{ on: boolean }>('stratboard.engineLines', { on: true }).on,
     drawerOpen: loadJson<{ on: boolean }>(LS_DRAWER, { on: typeof window === 'undefined' || window.innerWidth >= 1280 }).on,
     slowUntil: 0,
     slowSpeed: 0.3,
@@ -371,6 +375,7 @@ export const useStore = create<Store>((set, get) => {
       })),
     setSpeed: speed => set({ speed }),
     setDrawerOpen: drawerOpen => { saveJson(LS_DRAWER, { on: drawerOpen }); set({ drawerOpen }); },
+    setEngineLines: engineLines => { saveJson('stratboard.engineLines', { on: engineLines }); set({ engineLines }); },
     setPopups: popups => {
       saveJson(LS_POPUPS, { on: popups });
       set({ popups, ...(popups ? {} : { slowUntil: 0, readHold: false }) });

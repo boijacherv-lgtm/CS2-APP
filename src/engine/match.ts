@@ -3,6 +3,7 @@ import type { Side } from './types';
 import type { Hold, Move } from './situations';
 import type { AnalystRound } from './analyst';
 import { gradeAgainst } from './coach';
+import { keySearchMoments, type RoundSearch, type SearchMoment } from './search';
 import { COACH_MODEL } from './coachModels';
 
 /**
@@ -42,6 +43,8 @@ export interface RoundSummary {
   analyst?: AnalystRound;
   /** Every player's moments against level-10 choices (playModel.ts). */
   play?: RoundPlay;
+  /** The search engine (search.ts), kept small: each player's accuracy, and the round's clearest mistakes. */
+  search?: { players: RoundSearch['players']; key: SearchMoment[] };
 }
 
 export { cappedDamage };
@@ -78,7 +81,8 @@ export function summarizeRound(rep: Replay, rv: Review): RoundSummary {
       ],
     };
   }
-  return { n: r.n, winner: r.winner, lines, ...(rv.play ? { play: rv.play } : {}) };
+  const search = rv.search ? { players: rv.search.players, key: keySearchMoments(rv.search, 3).map(m => ({ ...m, options: m.options.slice(0, 3) })) } : undefined;
+  return { n: r.n, winner: r.winner, lines, ...(rv.play ? { play: rv.play } : {}), ...(search ? { search } : {}) };
 }
 
 /** Rating points per impact point per round (an average +5 impact a round ≈ +750). */
@@ -96,6 +100,8 @@ export interface PlayerReport {
   openingKills: number; openingDeaths: number; clutches: number; multiKills: number;
   utilDamage: number; flashAssists: number; whiffs: number; upsets: number;
   impactPerRound: number; // win chance added per round, in % points
+  /** The search engine's accuracy over the match (0–100, like chess.com), and the moments it's measured on. */
+  engineAccuracy: number | null; engineMoments: number;
   pointsPerRound: number;
   /** Grade among the 10 players of this lobby (who did best in this match). */
   letter: Letter;
@@ -148,6 +154,8 @@ export function buildMatchReport(data: DemoData, rounds: (RoundSummary | null)[]
     const knownRatings = duels.some(d => rankOf(d.opp) !== null);
     const duelRating = duels.length && knownRatings ? performance(opp, won) : null;
     const pointsPerRound = sum(l => l.points) / n;
+    const eng = rounds.map(rs => rs?.search?.players[id]).filter((x): x is NonNullable<typeof x> => !!x && x.n > 0);
+    const engN = eng.reduce((a, x) => a + x.n, 0);
     const roleCount = new Map<Role, number>();
     for (const l of got) roleCount.set(l.role, (roleCount.get(l.role) ?? 0) + 1);
     return {
@@ -159,6 +167,7 @@ export function buildMatchReport(data: DemoData, rounds: (RoundSummary | null)[]
       clutches: tagCount('CLUTCH'), multiKills: got.filter(l => l.kills >= 3).length,
       utilDamage: sum(l => l.utilDamage), flashAssists: tagCount('FLASH ASSIST'), whiffs: tagCount('WHIFF'), upsets: tagCount('UPSET'),
       impactPerRound: (sum(l => l.impact) / n) * 100, pointsPerRound,
+      engineAccuracy: engN ? +(eng.reduce((a, x) => a + x.accuracy * x.n, 0) / engN).toFixed(1) : null, engineMoments: engN,
       letter: 'C', lobbyZ: 0, lvl10: null, roundsLetter: matchLetter(got.map(l => l.letter)),
       duelsWon: won, duelsLost: duels.length - won, avgOpponent: opp.length ? opp.reduce((a, b) => a + b, 0) / opp.length : null,
       duelRating, gameRating: duelRating !== null ? Math.round(duelRating + IMPACT_PER_POINT * pointsPerRound) : null,
