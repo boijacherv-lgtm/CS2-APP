@@ -7,7 +7,7 @@ import type { DuelFighter } from './analyst';
 import { gunFromName } from './guns';
 import { placeOf, phaseOf } from './situations';
 import { advantageOf, proRisk, proSituationSpots, proSpots } from '../map/positions';
-import { SMOKE_RADIUS_UNITS, type SmokeDisc } from './grid';
+import { CELL, SMOKE_RADIUS_UNITS, type SmokeDisc } from './grid';
 import type { Side, Vec2 } from './types';
 import UTIL_SPOTS from '../map/generated/util-spots.json';
 import CALIBRATION from './models/search-calibration.json';
@@ -17,7 +17,7 @@ import CALIBRATION from './models/search-calibration.json';
  * done in the next few seconds and calculates each option a couple of steps ahead with the learned models, then
  * grades what they actually did by how much round win chance it gave up against the best option.
  *
- *   options      hold the spot · move to any callout they could reach in ~8 s · peek each enemy their team knows
+ *   options      hold the spot · move to a spot level-10 players use then, reachable in ~8 s · peek each enemy their team knows
  *                about · throw a grenade they really carry (flash and peek, smoke and hold, molotov an enemy's spot,
  *                HE an enemy) · plant when they can
  *   step 1       where the option leaves them: which known enemies can see that spot (smokes included). Each fight
@@ -66,6 +66,7 @@ export interface SearchMoment {
 const H = 5; // seconds each option is looked at
 const NO_SPOT_STATS = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.STRATBOARD_NO_SPOT_STATS === '1';
 const REACH = 8; // seconds of travel for the "move" options
+const PEEK_REACH = 4; // seconds: how far a peek can be
 const SEEN = 4; // an enemy spotted this recently counts as known (at the last spot seen)
 const TRADE_DIST = 900; // units: a teammate this close can trade
 const NADE_RANGE = 2200; // units: how far a standard grenade spot can be from the thrower
@@ -95,6 +96,38 @@ function calloutField(engine: TacticalEngine, name: string): Float64Array | null
   const f = engine.grid.distanceField([c.pos]);
   m.set(name, f);
   return f;
+}
+
+/** The way from `start` to a callout, following its distance field downhill: a point every few cells (radar). */
+function pathDown(engine: TacticalEngine, field: Float64Array, start: Vec2): Vec2[] {
+  const g = engine.grid, w = g.w;
+  let i = g.snap(start);
+  const out: Vec2[] = [];
+  for (let step = 0; i >= 0 && step < 900 && field[i] > CELL * 1.5; step++) {
+    const x = i % w, y = (i / w) | 0;
+    let next = -1, best = field[i];
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= g.h) continue;
+        const j = ny * w + nx;
+        if (field[j] < best) { best = field[j]; next = j; }
+      }
+    if (next < 0) break;
+    i = next;
+    if (step % 5 === 4) out.push({ x: ((i % w) + 0.5) * CELL, y: (((i / w) | 0) + 0.5) * CELL });
+  }
+  return out;
+}
+/** Points along a polyline about every `step` radar px. */
+function along(pts: Vec2[], step = 20): Vec2[] {
+  const out: Vec2[] = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / step));
+    for (let k = 1; k <= n; k++) out.push({ x: a.x + ((b.x - a.x) * k) / n, y: a.y + ((b.y - a.y) * k) / n });
+  }
+  return out;
 }
 
 type UtilSpot = { type: 'smoke' | 'molotov'; side: Side; x: number; y: number };
@@ -171,7 +204,7 @@ export function roundSearcher(engine: TacticalEngine, r: DemoRound) {
 }
 export type RoundSearcher = ReturnType<typeof roundSearcher>;
 
-interface Plan { kind: OptionKind; label: string; to: Vec2; travel: number; nade?: Vec2; flash?: string; smoke?: SmokeDisc; deny?: string; he?: string; plant?: boolean; defuse?: boolean }
+interface Plan { kind: OptionKind; label: string; to: Vec2; travel: number; /** the way there (radar), to see who can shoot them on it */ path?: Vec2[]; nade?: Vec2; flash?: string; smoke?: SmokeDisc; deny?: string; he?: string; plant?: boolean; defuse?: boolean }
 
 /** The search at one moment, for one player (null when there's nothing to decide: dead, or no enemy left). */
 export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearcher, id: string, t: number): SearchMoment | null {
@@ -200,8 +233,11 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
     return { c, sec: f && cell >= 0 ? f[cell] * spx : Infinity };
   }).filter(x => x.sec > 0.8 && x.sec <= REACH).sort((a, b) => a.sec - b.sec);
   const used = new Set((proSituationSpots(map, s, phase, adv) ?? proSpots(map, s, phase)).filter(p => p.share >= 0.03).map(p => p.place));
-  const picked = [...reach.filter(x => used.has(x.c.name)).slice(0, 6), ...reach.slice(0, 4)];
-  for (const x of picked) if (!plans.some(p => p.label === `Move to ${x.c.name}`)) plans.push({ kind: 'move', label: `Move to ${x.c.name}`, to: x.c.pos, travel: x.sec });
+  // only spots level-10 players actually go to at this point of the round (a safe spot nobody plays, like running
+  // back to spawn mid-round, isn't a real option); the nearest two only when there's no data for this situation
+  const usedHere = reach.filter(x => used.has(x.c.name)).slice(0, 7);
+  const picked = usedHere.length >= 2 ? usedHere : [...usedHere, ...reach.slice(0, 2)];
+  for (const x of picked) if (!plans.some(p => p.label === `Move to ${x.c.name}`)) plans.push({ kind: 'move', label: `Move to ${x.c.name}`, to: x.c.pos, travel: x.sec, path: pathDown(engine, calloutField(engine, x.c.name)!, me) });
   // peek each known enemy: the first point on the way to them that sees them
   for (const e of enemies.slice(0, 3)) {
     const path = engine.grid.shortestPath(me, e.at);
@@ -211,12 +247,14 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
       travelPx += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y);
       if (engine.grid.lineOfSight(path[i], e.at, smokes)) { at = path[i]; break; }
     }
-    if (!at || travelPx * spx > REACH) continue;
+    // a peek is a swing at an enemy close by, not a walk across the map
+    if (!at || travelPx * spx > PEEK_REACH) continue;
     const where = placeOf(engine, e.at) || 'the enemy';
-    plans.push({ kind: 'peek', label: `Peek ${where}`, to: at, travel: travelPx * spx });
+    const way = along(path.slice(0, path.indexOf(at) + 1));
+    plans.push({ kind: 'peek', label: `Peek ${where}`, to: at, travel: travelPx * spx, path: way });
     // with a grenade they really have
     const inv = gearAt(r, id, t)?.inv ?? [];
-    if (inv.some(w => /flash/i.test(w))) plans.push({ kind: 'flash', label: `Flash and peek ${where}`, to: at, travel: travelPx * spx + 0.6, nade: e.at, flash: e.id });
+    if (inv.some(w => /flash/i.test(w))) plans.push({ kind: 'flash', label: `Flash and peek ${where}`, to: at, travel: travelPx * spx + 0.6, nade: e.at, flash: e.id, path: way });
     if (inv.some(w => /high explosive|hegrenade/i.test(w)) && S.dist(me, e.at) < NADE_RANGE) plans.push({ kind: 'he', label: `HE ${where}`, to: me, travel: 1.2, nade: e.at, he: e.id });
     if (inv.some(w => /molotov|incendiary/i.test(w)) && S.dist(me, e.at) < NADE_RANGE) plans.push({ kind: 'molotov', label: `Molotov ${where}`, to: me, travel: 1.4, nade: e.at, deny: e.id });
   }
@@ -250,7 +288,11 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
         : threw.type === 'he' ? { kind: 'he', label: `HE at ${placeOf(engine, nadeAt) || ''}`.trim(), to: end, travel: endT - t, nade: nadeAt, he: nearest && S.dist(nearest.at, nadeAt) < 350 ? nearest.id : undefined }
           : { kind: 'molotov', label: `Molotov at ${placeOf(engine, nadeAt) || ''}`.trim(), to: end, travel: endT - t, nade: nadeAt, deny: nearest && S.dist(nearest.at, nadeAt) < 300 ? nearest.id : undefined };
   } else if (S.dist(me, end) < 150) did = { kind: 'hold', label: `Held ${here}`, to: me, travel: 0 };
-  else did = { kind: 'actual', label: `Moved to ${placeOf(engine, end) || 'a new spot'}`, to: end, travel: endT - t };
+  else {
+    const way: Vec2[] = [];
+    for (let u = t + 0.5; u <= endT; u += 0.5) way.push(S.pos(id, u));
+    did = { kind: 'actual', label: `Moved to ${placeOf(engine, end) || 'a new spot'}`, to: end, travel: endT - t, path: way };
+  }
 
   // ---- step 1 and 2: value every option the same way --------------------------------------------------------------
   const value = (p: Plan): SearchOption => {
@@ -258,16 +300,23 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
     const sm = p.smoke ? [...smokes, p.smoke] : smokes;
     const myF = (moving: boolean) => S.fighter(id, t, p.to, moving);
     // fights: known enemies that can see where the option leaves them (a denied / smoked-off enemy can't)
-    const contacts = enemies.filter(e => e.id !== p.deny && S.dist(p.to, e.at) < 3000 && engine.grid.lineOfSight(p.to, e.at, sm))
-      .sort((a, b) => S.dist(p.to, a.at) - S.dist(p.to, b.at)).slice(0, 2);
-    const peeking = p.travel > 0 && !enemies.some(e => engine.grid.lineOfSight(me, e.at, smokes));
+    // fights: known enemies that can see where the option leaves them, or see them on the way there (a denied /
+    // smoked-off enemy can't); the ones on the way first
+    const sees = (e: { at: Vec2 }, q: Vec2) => S.dist(q, e.at) < 3000 && engine.grid.lineOfSight(q, e.at, sm);
+    const live = enemies.filter(e => e.id !== p.deny);
+    const onWay = live.filter(e => !sees(e, p.to) && (p.path ?? []).some((q, i) => i % 2 === 0 && sees(e, q)));
+    const atEnd = live.filter(e => sees(e, p.to)).sort((a, b) => S.dist(p.to, a.at) - S.dist(p.to, b.at));
+    const contacts = [...onWay, ...atEnd].slice(0, 3);
+    const peeking = p.travel > 0 && contacts.some(e => !engine.grid.lineOfSight(me, e.at, smokes));
     const mateNear = S.ids.some(o => o !== id && S.side(o) === s && S.alive(o, t) && S.dist(S.pos(o, t), p.to) < TRADE_DIST);
     const posGain = (() => {
       // (left out when checking the engine on the same demos the spot stats were learned from: tools/calibrate-search.ts)
       if (NO_SPOT_STATS) return 0;
       const place = placeOf(engine, p.to);
       const sp = (proSituationSpots(map, s, phase, adv) ?? proSpots(map, s, phase)).find(x => x.place === place);
-      return sp?.gain !== undefined && (sp.n ?? 0) >= 8 ? sp.gain * 0.5 : 0; // half: the models already count part of it
+      // a nudge, not the decider: a third of it, at most ±3 points (the models already count part of it, and a spot's
+      // record says less about this moment than who can see you)
+      return sp?.gain !== undefined && (sp.n ?? 0) >= 8 ? Math.max(-0.03, Math.min(0.03, sp.gain / 3)) : 0;
     })();
     const hpDmg = p.he ? -Math.min(40, 25) : 0;
     const base = { plant: p.plant, dt, theirHp: hpDmg, myAreas: p.kind === 'move' || p.kind === 'peek' || p.kind === 'actual' ? 1 : 0 };
