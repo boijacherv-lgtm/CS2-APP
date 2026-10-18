@@ -406,11 +406,17 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             const best = engineNow.options[0], did = engineNow.did;
             const same = Math.hypot(best.to.x - did.to.x, best.to.y - did.to.y) < 12 && best.kind === did.kind;
             // a dark outline under each line so it reads on any part of the radar
-            const line = (to: Vec2, color: string, dash?: number[]) => Math.hypot(to.x - from.x, to.y - from.y) > 8
-              ? <Group>
-                  <Arrow points={[from.x, from.y, to.x, to.y]} stroke="#000" fill="#000" strokeWidth={6 * k} pointerLength={11 * k} pointerWidth={11 * k} opacity={0.55} />
-                  <Arrow points={[from.x, from.y, to.x, to.y]} stroke={color} fill={color} strokeWidth={3.6 * k} pointerLength={9 * k} pointerWidth={9 * k} dash={dash} />
-                </Group>
+            // along the route the option takes (around walls), not a straight line
+            const line = (to: Vec2, color: string, dash?: number[], path?: Vec2[]) => Math.hypot(to.x - from.x, to.y - from.y) > 8
+              ? (() => {
+                  const pts = [from, ...(path ?? []).filter(q => Math.hypot(q.x - from.x, q.y - from.y) > 6), to].flatMap(q => [q.x, q.y]);
+                  return (
+                    <Group>
+                      <Arrow points={pts} tension={0.25} stroke="#000" fill="#000" strokeWidth={6 * k} pointerLength={11 * k} pointerWidth={11 * k} opacity={0.55} />
+                      <Arrow points={pts} tension={0.25} stroke={color} fill={color} strokeWidth={3.6 * k} pointerLength={9 * k} pointerWidth={9 * k} dash={dash} />
+                    </Group>
+                  );
+                })()
               : <Circle x={to.x} y={to.y} radius={TOKEN_R * 1.7 * k} stroke={color} strokeWidth={3.2 * k} dash={dash} shadowColor="#000" shadowBlur={4} shadowOpacity={0.8} />;
             const tag = (to: Vec2, text: string, color: string, dy: number) => (
               <Text x={to.x + 10 * k} y={to.y + dy * k} text={text} fontSize={12 * k} fontStyle="bold" fill={color} stroke="#000" strokeWidth={3 * k} fillAfterStrokeEnabled />
@@ -418,9 +424,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             const doneColor = SEARCH_COLOR[engineNow.cls];
             return (
               <Group>
-                {!same && line(did.to, doneColor, [6 * k, 4 * k])}
+                {!same && line(did.to, doneColor, [6 * k, 4 * k], did.path)}
                 {!same && did.nade && <ThrowArc from={from} to={did.nade} k={k} color={doneColor} dashed />}
-                {line(best.to, SEARCH_COLOR.Best)}
+                {line(best.to, SEARCH_COLOR.Best, undefined, best.path)}
                 {best.nade && <ThrowArc from={from} to={best.nade} k={k} color={SEARCH_COLOR.Best} />}
                 {tag(best.to, `Best: ${best.label}`, SEARCH_COLOR.Best, -16)}
                 {!same && tag(did.to, `${engineNow.cls}: ${did.label}`, doneColor, 4)}

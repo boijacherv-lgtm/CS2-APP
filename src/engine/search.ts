@@ -42,6 +42,8 @@ export interface SearchOption {
   to: Vec2;
   /** Grenade target (radar). */
   nade?: Vec2;
+  /** The way there (a few radar points), for drawing it along the real route. */
+  path?: Vec2[];
   /** Round win chance for their side after it (0..1). */
   win: number;
   /** Chance of dying in it, and expected kills. */
@@ -69,6 +71,8 @@ const REACH = 8; // seconds of travel for the "move" options
 const PEEK_REACH = 4; // seconds: how far a peek can be
 const PLANT_REACH = 6; // seconds: a site this close counts as "go plant"
 const SEEN = 4; // an enemy spotted this recently counts as known (at the last spot seen)
+const HEARD = 600; // units (~15 m): an enemy this close is heard
+const SHOTS_HEARD = 2000; // units (~50 m): gunfire this close tells where they are
 const TRADE_DIST = 900; // units: a teammate this close can trade
 const NADE_RANGE = 2200; // units: how far a standard grenade spot can be from the thrower
 const NADE = /grenade|flashbang|molotov|incendiary|decoy/i;
@@ -196,10 +200,23 @@ export function roundSearcher(engine: TacticalEngine, r: DemoRound) {
   };
 
   /** Enemies the player's team knows about at t: their last spot seen in the last few seconds. */
-  const known = (id: string, t: number) => ids.filter(e => side(e) && side(e) !== side(id) && alive(e, t)).flatMap(e => {
-    for (let u = t; u >= t - SEEN; u -= 0.5) if (alive(e, u) && spotted(e, u)) return [{ id: e, at: pos(e, u), seenAgo: t - u }];
-    return [];
-  });
+  /**
+   * Enemies the player knows about at t: spotted by their team in the last few seconds (at the last spot seen), or
+   * heard: close by (footsteps, ~15 m), or shooting in the last 3 s within ~50 m (where the shots came from).
+   */
+  const shotsBy = new Map<string, number[]>();
+  for (const sh of r.shots ?? []) shotsBy.set(sh.id, [...(shotsBy.get(sh.id) ?? []), sh.t]);
+  const known = (id: string, t: number) => {
+    const me = pos(id, t);
+    return ids.filter(e => side(e) && side(e) !== side(id) && alive(e, t)).flatMap(e => {
+      for (let u = t; u >= t - SEEN; u -= 0.5) if (alive(e, u) && spotted(e, u)) return [{ id: e, at: pos(e, u), seenAgo: t - u }];
+      const now = pos(e, t);
+      if (dist(me, now) < HEARD) return [{ id: e, at: now, seenAgo: 0 }];
+      const shot = (shotsBy.get(e) ?? []).filter(x => x <= t && t - x <= 3).at(-1);
+      if (shot !== undefined && dist(me, pos(e, shot)) < SHOTS_HEARD) return [{ id: e, at: pos(e, shot), seenAgo: t - shot }];
+      return [];
+    });
+  };
 
   return { ids, side, alive, pos, world, dist, known, fighter, winFor, smokesAt, siteAt, secPerPx, idx, spotted, radar, scale };
 }
@@ -369,7 +386,8 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
       const theyBackOff = S.winFor(s, t, { ...base, myAreas: (base.myAreas ?? 0) + 1 });
       if (fight > theyBackOff) { win = theyBackOff; death = 0; killsE = 0; } else win = fight;
     }
-    return { kind: p.kind, label: p.label, to: p.to, nade: p.nade, win: Math.min(1, Math.max(0, win + posGain)), death: +death.toFixed(3), kills: +killsE.toFixed(3) };
+    const way = p.path?.length ? [...p.path.filter((_, i, xs) => i % Math.max(1, Math.ceil(xs.length / 10)) === 0), p.to].map(q => ({ x: Math.round(q.x), y: Math.round(q.y) })) : undefined;
+    return { kind: p.kind, label: p.label, to: p.to, nade: p.nade, ...(way ? { path: way } : {}), win: Math.min(1, Math.max(0, win + posGain)), death: +death.toFixed(3), kills: +killsE.toFixed(3) };
   };
 
   let options = plans.map(value).sort((a, b) => b.win - a.win);
