@@ -67,6 +67,7 @@ const H = 5; // seconds each option is looked at
 const NO_SPOT_STATS = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.STRATBOARD_NO_SPOT_STATS === '1';
 const REACH = 8; // seconds of travel for the "move" options
 const PEEK_REACH = 4; // seconds: how far a peek can be
+const PLANT_REACH = 6; // seconds: a site this close counts as "go plant"
 const SEEN = 4; // an enemy spotted this recently counts as known (at the last spot seen)
 const TRADE_DIST = 900; // units: a teammate this close can trade
 const NADE_RANGE = 2200; // units: how far a standard grenade spot can be from the thrower
@@ -87,13 +88,13 @@ export const SEARCH_COLOR: Record<SearchClass, string> = {
 
 // ---- travel times: one distance field per callout, per map (cached) ----------------------------------------
 const FIELDS = new WeakMap<TacticalEngine, Map<string, Float64Array>>();
-function calloutField(engine: TacticalEngine, name: string): Float64Array | null {
+function calloutField(engine: TacticalEngine, name: string, at?: Vec2): Float64Array | null {
   let m = FIELDS.get(engine);
   if (!m) { m = new Map(); FIELDS.set(engine, m); }
   if (m.has(name)) return m.get(name)!;
-  const c = engine.map.callouts.find(x => x.name === name);
-  if (!c) return null;
-  const f = engine.grid.distanceField([c.pos]);
+  const pos = at ?? engine.map.callouts.find(x => x.name === name)?.pos;
+  if (!pos) return null;
+  const f = engine.grid.distanceField([pos]);
   m.set(name, f);
   return f;
 }
@@ -268,7 +269,18 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
   }
   // the bomb
   const bomb = bombAt(r, t);
-  if (s === 'T' && r.plant === null && bomb?.kind === 'carry' && bomb.id === id && S.siteAt(me)) plans.push({ kind: 'plant', label: 'Plant the bomb', to: me, travel: 3.2, plant: true });
+  // the bomb carrier can plant: right here when on a site, or at a site they can reach in a few seconds (walk there,
+  // then 3.2 s planting, with whoever sees them on the way), so the option doesn't come and go as they cross a line
+  if (s === 'T' && r.plant === null && bomb?.kind === 'carry' && bomb.id === id) {
+    const onSite = S.siteAt(me);
+    if (onSite) plans.push({ kind: 'plant', label: `Plant on ${onSite}`, to: me, travel: 3.2, plant: true });
+    for (const [name, site] of Object.entries(engine.map.sites)) {
+      if (name === onSite) continue;
+      const f = calloutField(engine, `site:${name}`, site.center);
+      const sec = f && cell >= 0 ? f[cell] * spx : Infinity;
+      if (sec <= PLANT_REACH) plans.push({ kind: 'plant', label: `Go plant on ${name}`, to: site.center, travel: sec + 3.2, plant: true, path: pathDown(engine, f!, me) });
+    }
+  }
   // (no "go defuse" option: whether a T is guarding the bomb is exactly what the engine can't know)
 
   // ---- what they did: where they were H seconds later (or when they died), and any grenade or the plant ----------
@@ -277,9 +289,15 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
   const endT = diedAt !== undefined && diedAt < until ? Math.max(t, diedAt - 0.3) : until;
   const end = S.pos(id, endT);
   const threw = r.util.find(u => u.thrower === id && (u.throwT ?? u.t - 1.5) >= t && (u.throwT ?? u.t - 1.5) < until);
-  const planted = r.plant !== null && r.plant >= t && r.plant < until + 1 && r.bomb?.some(b => b.kind === 'plant' && b.id === id);
+  // they planted within ~10 s (walking to the spot and planting is one decision)
+  const plantEv = r.bomb?.find(b => b.kind === 'plant' && b.id === id);
+  const planted = r.plant !== null && plantEv && r.plant >= t && r.plant <= t + 3.2 + PLANT_REACH;
   let did: Plan;
-  if (planted) did = { kind: 'plant', label: 'Planted the bomb', to: me, travel: 3.2, plant: true };
+  if (planted) {
+    const way: Vec2[] = [];
+    for (let u = t + 0.5; u <= r.plant!; u += 0.5) way.push(S.pos(id, u));
+    did = { kind: 'plant', label: r.plant! - t <= 4 ? 'Planted the bomb' : 'Went and planted', to: S.radar({ x: plantEv!.x, y: plantEv!.y }), travel: Math.max(3.2, r.plant! - t), plant: true, path: way };
+  }
   else if (threw) {
     const nadeAt = S.radar({ x: threw.x, y: threw.y });
     const nearest = enemies.slice().sort((a, b) => S.dist(a.at, nadeAt) - S.dist(b.at, nadeAt))[0];
@@ -354,8 +372,10 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
     return { kind: p.kind, label: p.label, to: p.to, nade: p.nade, win: Math.min(1, Math.max(0, win + posGain)), death: +death.toFixed(3), kills: +killsE.toFixed(3) };
   };
 
-  const options = plans.map(value).sort((a, b) => b.win - a.win);
+  let options = plans.map(value).sort((a, b) => b.win - a.win);
   const mine = value(did);
+  // what they did can beat every option on the list (a plan the list doesn't have): then it is the best one
+  if (mine.win >= options[0].win) options = [mine, ...options];
   const best = options[0];
   const loss = Math.max(0, best.win - mine.win);
   return {

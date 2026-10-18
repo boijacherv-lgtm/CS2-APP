@@ -312,6 +312,10 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const engineFocus = recap?.search && s.engineLines ? s.selectedId ?? (mineScope ? s.me : null) : null;
   const engineNow = useMemo(() => {
     if (!engineFocus || !recap?.search) return null;
+    // while one of the engine's cards for this player is current (its first 3 s), show that moment, so the map and
+    // the card agree; otherwise the latest moment
+    const card = recap.moves.find(m => m.kind === 'position' && m.player === engineFocus && m.title.includes('; best was') && m.t <= s.time + 0.01 && s.time - m.t < 3);
+    if (card) { const at = recap.search.moments.find(m => m.player === engineFocus && Math.abs(m.t - card.t) < 0.01); if (at) return at; }
     let best: (typeof recap.search.moments)[number] | null = null;
     for (const m of recap.search.moments) if (m.player === engineFocus && m.t <= s.time + 0.01 && s.time - m.t < 2.5 && (!best || m.t > best.t)) best = m;
     return best;
