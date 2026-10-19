@@ -2,6 +2,8 @@ import { worldToRadar } from './coords';
 import type { TacticalEngine } from './predict';
 import { bombAt, equipValue, FL, gearAt, type DemoRound } from './recap';
 import { roundWinChance } from './winprob';
+import { mlpPredict, type Mlp } from './mlp';
+import { placeOf } from './situations';
 import type { Side, Vec2 } from './types';
 import MODEL from './models/play.json';
 
@@ -29,7 +31,7 @@ export const PLAY_FEATURES = [
   'armour', 'main gun', 'smoke or flash',
   'from T spawn', 'from CT spawn', 'toward enemy side',
 ];
-export interface Moment { t: number; player: string; side: Side; f: number[]; a: number; /** log-odds the player's side wins, from the win model */ wl: number }
+export interface Moment { t: number; player: string; side: Side; f: number[]; a: number; /** log-odds the player's side wins, from the win model */ wl: number; /** where: "de_mirage|T|Window" (for the network's spot embedding) */ spot?: string }
 
 const NEAR = 1500, MATE = 1000, STEP = 150; // game units
 const NADE = /flash|smoke|hegrenade|molotov|incgrenade|decoy|incendiary|grenade/i;
@@ -103,7 +105,7 @@ export function roundMoments(engine: TacticalEngine, r: DemoRound, every = 2, wi
       ];
       const pCT = winCT === null ? 0.5 : Math.min(0.99, Math.max(0.01, winCT));
       const pMe = s === 'CT' ? pCT : 1 - pCT;
-      out.push({ t, player: id, side: s, f: feats, a: actionOf(r, id, t, foes, pos, alive), wl: Math.log(pMe / (1 - pMe)) });
+      out.push({ t, player: id, side: s, f: feats, a: actionOf(r, id, t, foes, pos, alive), wl: Math.log(pMe / (1 - pMe)), spot: `${engine.map.id}|${s}|${placeOf(engine, rp) || '?'}` });
     }
   }
   return out;
@@ -129,6 +131,8 @@ function actionOf(r: DemoRound, id: string, t: number, foes: string[], pos: (id:
 // ---- the models ----------------------------------------------------------------------------------------------
 export interface PlayModel {
   policy: { w: number[][]; samples: number; accuracy: number; logLoss: number; baseLogLoss: number };
+  /** The neural network with map spots (mlp.ts), used instead of the linear policy when it did better on unseen demos. */
+  mlp?: Mlp & { accuracy: number; logLoss: number };
   /** Level-10 players judged by the same model: share of their moments with a usual choice. */
   bench: { usual: number };
 }
@@ -136,7 +140,8 @@ const PM = MODEL as unknown as Partial<PlayModel>;
 export const PLAY_MODEL: PlayModel | null = PM.policy?.w?.length === ACTIONS.length && PM.policy.w[0].length === PLAY_FEATURES.length ? (PM as PlayModel) : null;
 
 const dot = (w: number[], f: number[]) => w.reduce((a, v, i) => a + v * f[i], 0);
-export function policy(f: number[], m: PlayModel): number[] {
+export function policy(f: number[], m: PlayModel, spot?: string): number[] {
+  if (m.mlp) return mlpPredict(m.mlp, f, spot);
   const z = m.policy.w.map(w => dot(w, f)), mx = Math.max(...z);
   const e = z.map(v => Math.exp(v - mx)), s = e.reduce((a, b) => a + b, 0);
   return e.map(v => v / s);
@@ -208,7 +213,7 @@ export function situationText(m: Moment): string {
 export function judgeMoment(m: Moment, model: PlayModel): MomentVerdict | null {
   // the first seconds are buying and leaving spawn, not decisions
   if (!JUDGED.has(m.a) || m.t < 10) return null;
-  const raw = policy(m.f, model);
+  const raw = policy(m.f, model, m.spot);
   // shares among the real choices (taking a fight isn't one); the bomb only when they could play it
   const can = (c: number) => c !== 6 || m.f[20] > 0 || (m.f[9] > 0 && m.side === 'CT');
   const cs = CHOICES.filter(can);

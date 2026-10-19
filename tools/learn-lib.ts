@@ -20,7 +20,7 @@ import { roundMoments } from '../src/engine/playModel';
 // ---- cache versions: bump when that learner's per-demo numbers are computed differently -----------------------
 export const COACH_V = 3; // 3: impact leaves out positioning decisions
 export const POSITIONS_V = 7; // + paths only the first 8 s after leaving a spot
-export const ANALYST_V = 12; // play moments: where on the map (seconds from each spawn)
+export const ANALYST_V = 13; // play moments: where on the map (seconds from each spawn)
 /** Bump when tools/demo-core.mjs reads demos differently (new fields), so saved reads are redone. */
 export const PARSE_V = 6; // 6: gear over the round (inventory, armour, kit, money once a second)
 
@@ -128,7 +128,7 @@ export function positionsFromDemo(d: DemoData): PositionsCached {
 }
 
 // ---- learn:analyst --------------------------------------------------------------------------------------------
-export type PlaySamples = { x: number[][]; a: number[]; wl: number[]; y: number[]; t: number[] };
+export type PlaySamples = { x: number[][]; a: number[]; wl: number[]; y: number[]; t: number[]; spot?: string[] };
 export type AnalystCached = { map: string | null; rounds: AnalystRound[]; win?: { x: number[][]; y: number[]; base: number[] }; play?: PlaySamples; error?: string };
 /** Every round's analyst facts, plus the win-chance training samples. */
 export function analystFromDemo(d: DemoData): AnalystCached {
@@ -139,11 +139,11 @@ export function analystFromDemo(d: DemoData): AnalystCached {
 
 /** Play-model training samples: every player's situation every 3 s, what they did, the win log-odds, and whether their side won. */
 export function playSamples(engine: ReturnType<typeof getEngine>, d: DemoData): PlaySamples {
-  const out: PlaySamples = { x: [], a: [], wl: [], y: [], t: [] };
+  const out: PlaySamples = { x: [], a: [], wl: [], y: [], t: [], spot: [] };
   for (const r of d.rounds) {
     if (!r.winner) continue;
     for (const m of roundMoments(engine, r, 3)) {
-      out.x.push(m.f.map(v => +v.toFixed(2))); out.a.push(m.a); out.wl.push(+m.wl.toFixed(2)); out.y.push(m.side === r.winner ? 1 : 0); out.t.push(m.t);
+      out.x.push(m.f.map(v => +v.toFixed(2))); out.a.push(m.a); out.wl.push(+m.wl.toFixed(2)); out.y.push(m.side === r.winner ? 1 : 0); out.t.push(m.t); out.spot!.push(m.spot ?? '');
     }
   }
   return out;

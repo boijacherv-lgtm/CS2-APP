@@ -16,6 +16,7 @@ import { equipValue, evalState, type DemoData } from '../src/engine/recap';
 import { worldToRadar } from '../src/engine/coords';
 import { controlCounts, fitLogistic, fitWin, tradePending, winFeatures } from '../src/engine/winprob';
 import { ACTIONS, fitPolicy, judgeMoment, policy, type PlayModel } from '../src/engine/playModel';
+import { trainMlp } from '../src/engine/mlp';
 import { DUEL_FEATURES, duelProfiles, duelSamples, type DuelModel } from '../src/engine/duelModel';
 import { analyzeRound, type AnalystRound } from '../src/engine/analyst';
 import { benchmarks } from '../src/engine/analystBench';
@@ -60,8 +61,8 @@ const byMap: Record<string, AnalystRound[]> = {};
 const demos: Record<string, number> = {};
 const dTrain: number[][] = [], yTrain: number[] = [], dTest: number[][] = [], yTest: number[] = [];
 const wx: number[][] = [], wy: number[] = [], wb: number[] = [];
-type Play = { x: number[][]; a: number[]; wl: number[]; y: number[]; t: number[] };
-const empty = (): Play => ({ x: [], a: [], wl: [], y: [], t: [] });
+type Play = { x: number[][]; a: number[]; wl: number[]; y: number[]; t: number[]; spot: string[] };
+const empty = (): Play => ({ x: [], a: [], wl: [], y: [], t: [], spot: [] });
 const tr = empty(), te = empty();
 let used = 0;
 for (const [k, c] of eachCached<Cached>(folder, 'analyst')) {
@@ -74,7 +75,7 @@ for (const [k, c] of eachCached<Cached>(folder, 'analyst')) {
   if (c.win) { wx.push(...c.win.x); wy.push(...c.win.y); wb.push(...c.win.base); }
   if (c.play) {
     const to = test ? te : tr, p = c.play;
-    for (let i = 0; i < p.x.length; i += stride) { to.x.push(p.x[i]); to.a.push(p.a[i]); to.wl.push(p.wl[i]); to.y.push(p.y[i]); to.t.push(p.t[i]); }
+    for (let i = 0; i < p.x.length; i += stride) { to.x.push(p.x[i]); to.a.push(p.a[i]); to.wl.push(p.wl[i]); to.y.push(p.y[i]); to.t.push(p.t[i]); to.spot.push(p.spot?.[i] ?? ''); }
   }
 }
 if (stride > 1) console.log(`${used} demos: play moments thinned to every ${stride}th.`);
@@ -120,11 +121,24 @@ if (!NAME && wx.length > 1000) {
     let ll = 0, base = 0, hit = 0;
     te.x.forEach((x, i) => { const p = policy(x, probe); ll -= Math.log(Math.max(1e-6, p[te.a[i]])); base -= Math.log(Math.max(1e-6, freq[te.a[i]])); if (p.indexOf(Math.max(...p)) === te.a[i]) hit++; });
     const n = te.x.length || 1;
-    const all = { x: [...tr.x, ...te.x], a: [...tr.a, ...te.a], wl: [...tr.wl, ...te.wl], y: [...tr.y, ...te.y], t: [...tr.t, ...te.t] };
+    const all = { x: [...tr.x, ...te.x], a: [...tr.a, ...te.a], wl: [...tr.wl, ...te.wl], y: [...tr.y, ...te.y], t: [...tr.t, ...te.t], spot: [...tr.spot, ...te.spot] };
     const model: PlayModel = { policy: { w: fitPolicy(all.x, all.a), samples: all.x.length, accuracy: +(hit / n).toFixed(3), logLoss: +(ll / n).toFixed(4), baseLogLoss: +(base / n).toFixed(4) }, bench: { usual: 0 } };
     // level-10 players judged by the same models (a sample of moments)
     const js = all.x.filter((_, i) => i % 7 === 0).map((x, j) => judgeMoment({ t: all.t[j * 7], player: '', side: x[5] ? 'T' : 'CT', f: x, a: all.a[j * 7], wl: all.wl[j * 7] }, model)).filter(v => v);
-    model.bench = { usual: +(js.filter(v => v!.usual).length / js.length).toFixed(3) };
+    // the bigger model: a small neural network with each map spot learned (mlp.ts), checked on the same unseen demos;
+    // used only when it beats the linear one there
+    if (!process.argv.includes('--no-mlp') && tr.spot.some(Boolean)) {
+      const t2 = Date.now();
+      console.log('  training the network with map spots…');
+      const { net, testLoss, testAcc } = trainMlp({ x: tr.x, spot: tr.spot, y: tr.a }, { x: te.x, spot: te.spot, y: te.a },
+        { classes: ACTIONS.length, epochs: Number(process.env.MLP_EPOCHS ?? 8), h1: Number(process.env.MLP_H1 ?? 48), h2: Number(process.env.MLP_H2 ?? 24), embDim: Number(process.env.MLP_EMB ?? 8), log: l => console.log(l) });
+      console.log(`  network: unseen demos ${Math.round(testAcc * 100)}% right, log loss ${testLoss} (linear: ${Math.round(model.policy.accuracy * 100)}%, ${model.policy.logLoss}), ${Object.keys(net.vocab).length} spots, ${((Date.now() - t2) / 60000).toFixed(1)} min`);
+      if (testLoss < model.policy.logLoss) model.mlp = { ...net, accuracy: testAcc, logLoss: testLoss };
+      else console.log('  kept the linear model (the network wasn\'t better on unseen demos)');
+    }
+    // level-10 players judged by the final model
+    const js2 = all.x.filter((_, i) => i % 7 === 0).map((x, j) => judgeMoment({ t: all.t[j * 7], player: '', side: x[5] ? 'T' : 'CT', f: x, a: all.a[j * 7], wl: all.wl[j * 7], spot: all.spot[j * 7] }, model)).filter(v => v);
+    model.bench = { usual: +(js2.filter(v => v!.usual).length / js2.length).toFixed(3) };
     fs.writeFileSync(PLAY_OUT, JSON.stringify(model) + '\n');
     console.log(`Play model: ${model.policy.samples} moments; on unseen demos it predicts the level-10 choice ${Math.round(model.policy.accuracy * 100)}% of the time, log loss ${model.policy.logLoss} (guessing by frequency: ${model.policy.baseLogLoss}).`);
     console.log(`  level-10 players make a usual choice ${Math.round(model.bench.usual * 100)}% of the time. ${((Date.now() - t1) / 1000).toFixed(0)} s`);
