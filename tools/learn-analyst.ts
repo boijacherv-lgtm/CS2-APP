@@ -131,7 +131,7 @@ if (!NAME && wx.length > 1000) {
       const t2 = Date.now();
       console.log('  training the network with map spots…');
       const { net, testLoss, testAcc } = trainMlp({ x: tr.x, spot: tr.spot, y: tr.a }, { x: te.x, spot: te.spot, y: te.a },
-        { classes: ACTIONS.length, epochs: Number(process.env.MLP_EPOCHS ?? 8), h1: Number(process.env.MLP_H1 ?? 48), h2: Number(process.env.MLP_H2 ?? 24), embDim: Number(process.env.MLP_EMB ?? 8), log: l => console.log(l) });
+        { classes: ACTIONS.length, epochs: Number(process.env.MLP_EPOCHS ?? 25), h1: Number(process.env.MLP_H1 ?? 96), h2: Number(process.env.MLP_H2 ?? 48), embDim: Number(process.env.MLP_EMB ?? 12), log: l => console.log(l) });
       console.log(`  network: unseen demos ${Math.round(testAcc * 100)}% right, log loss ${testLoss} (linear: ${Math.round(model.policy.accuracy * 100)}%, ${model.policy.logLoss}), ${Object.keys(net.vocab).length} spots, ${((Date.now() - t2) / 60000).toFixed(1)} min`);
       if (testLoss < model.policy.logLoss) model.mlp = { ...net, accuracy: testAcc, logLoss: testLoss };
       else console.log('  kept the linear model (the network wasn\'t better on unseen demos)');

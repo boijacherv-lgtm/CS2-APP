@@ -49,7 +49,7 @@ export function MatchReportPage() {
 
   return (
     <div className="report">
-      <MatchHeader data={data} view={view} me={me} done={report.done} />
+      <MatchHeader data={data} view={view} me={me} done={report.done} error={report.error} />
 
       {hasPro && (
         <div className="seg-mini level-toggle" role="group" aria-label="Compare with">
@@ -97,7 +97,7 @@ export function MatchReportPage() {
 }
 
 /** Map art, the final score (yours first when you played) and the result. */
-function MatchHeader({ data, view, me, done }: { data: DemoData; view: MatchReport; me: string | null; done: boolean }) {
+function MatchHeader({ data, view, me, done, error }: { data: DemoData; view: MatchReport; me: string | null; done: boolean; error?: string }) {
   const map = MAPS.find(m => m.id === data.map);
   const mine = me ? view.players.find(p => p.id === me) : undefined;
   const [a, b] = mine && mine.team === 1 ? [view.score[1], view.score[0]] : view.score;
@@ -118,6 +118,7 @@ function MatchHeader({ data, view, me, done }: { data: DemoData; view: MatchRepo
         {mine && mine.gameRating !== null && <> · you: game rating <b>{fmt(mine.gameRating)}</b>{delta !== null && <span className={delta >= 0 ? 'up' : 'down'}> ({delta >= 0 ? '+' : '−'}{fmt(Math.abs(delta))} vs your Premier)</span>}</>}
         {!ranked && ' · no ratings in this demo (estimates are relative to an average 10,000 player)'}
         {!done && <> · <b>grading rounds {view.graded}/{view.total}…</b></>}
+        {done && error && <> · <b className="down">grading stopped after {view.graded}/{view.total} rounds: {error}</b></>}
       </p>
       {!done && <div className="report-progress"><i style={{ width: `${(view.graded / view.total) * 100}%` }} /></div>}
     </header>

@@ -51,12 +51,18 @@ function useMatchGrader() {
     const rounds: (RoundSummary | null)[] = Array(data.rounds.length).fill(null);
     useStore.setState({ report: { data, rounds: [...rounds], done: false } });
     const w = new Worker(new URL('../engine/match.worker.ts', import.meta.url), { type: 'module' });
+    let error: string | undefined;
+    const finish = () => { useStore.setState({ report: { data, rounds: [...rounds], done: true, ...(error ? { error } : {}) } }); w.terminate(); };
     w.onmessage = (e: MessageEvent<MatchWorkerOut>) => {
       const m = e.data;
-      if ('done' in m) { useStore.setState({ report: { data, rounds: [...rounds], done: true } }); w.terminate(); return; }
+      if ('error' in m) { error = m.error; console.error('grading stopped:', m.error); return; }
+      if ('done' in m) { finish(); return; }
       rounds[m.i] = m.summary;
       useStore.setState({ report: { data, rounds: [...rounds], done: false } });
     };
+    // the worker itself crashed (out of memory, failed to load): stop waiting, keep what was graded
+    w.onerror = e => { e.preventDefault(); error = e.message || 'the grader crashed (the match may be too big for this browser)'; finish(); };
+    w.onmessageerror = () => { error = 'a graded round could not be read back'; finish(); };
     w.postMessage({ data, context: useStore.getState().board.context } satisfies MatchWorkerIn);
     return () => w.terminate();
   }, [data]);

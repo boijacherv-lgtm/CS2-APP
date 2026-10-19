@@ -97,7 +97,8 @@ interface Store {
   /** The loaded match (kept while you switch back to Tactical). */
   review: { data: DemoData; round: number } | null;
   /** Every round of the loaded match graded in the background (Match report page). */
-  report: { data: DemoData; rounds: (RoundSummary | null)[]; done: boolean } | null;
+  /** The match report: rounds graded so far (in a worker); `error` when grading stopped early. */
+  report: { data: DemoData; rounds: (RoundSummary | null)[]; done: boolean; error?: string } | null;
   /** The tactical board, parked while Review mode shows a match. */
   parked: { board: BoardState; mapId: string; level: number } | null;
   /** The board currently shows a demo replay (never park it as the tactical board or bring it into Tactical). */
