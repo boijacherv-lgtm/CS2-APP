@@ -3,7 +3,7 @@
 Downloads training demos for Stratboard's coach on a PC with more space, straight onto the external disk
 **"Внешка"**: the helpers find it by its name when it's plugged in (else `--out <folder>`).
 
-- `faceit-download-helper.mjs` + `faceit-links.txt`: FACEIT level-10 matches (461 needed, ~80 per map, ~85 GB)
+- `faceit-download-helper.mjs` + `faceit-links.txt`: FACEIT level-10 matches (the current list: 353 new demos to bring every map to about 120, ~65 GB; matches already downloaded aren't on it)
 - `hltv-download-helper.mjs`: HLTV pro matches (60 per map, ~70–90 GB)
 
 You download each demo yourself in the browser (logged in to FACEIT; HLTV's bot check passed by you). The helpers

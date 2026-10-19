@@ -66,7 +66,9 @@ for (const r of rows) if (r.kind === 'needed') target[r.map] = (target[r.map] ??
 const PROGRESS = path.join(OUT, 'progress.json');
 const progress = fs.existsSync(PROGRESS) ? JSON.parse(fs.readFileSync(PROGRESS, 'utf8')) : { done: {}, skipped: {} };
 const save = () => fs.writeFileSync(PROGRESS, JSON.stringify(progress, null, 1));
-const doneOn = map => Object.values(progress.done).filter(d => d.map === map).length;
+// only matches on the current list count toward its targets (progress.json also keeps earlier lists' downloads)
+const onList = new Set(rows.map(r => r.id));
+const doneOn = map => Object.entries(progress.done).filter(([id, d]) => d.map === map && onList.has(id)).length;
 const full = map => doneOn(map) >= (target[map] ?? 0);
 const queue = () => rows.filter(r => !progress.done[r.id] && !progress.skipped[r.id] && !full(r.map));
 

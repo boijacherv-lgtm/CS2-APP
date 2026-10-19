@@ -92,7 +92,9 @@ const STATE = path.join(FOLDER, '.stratboard-faceit.json');
 type State = { seen: Record<string, { map?: string; got?: string; skip?: string; at: number }> };
 const state: State = fs.existsSync(STATE) ? JSON.parse(fs.readFileSync(STATE, 'utf8')) : { seen: {} };
 const saveState = () => { if (!DRY) fs.writeFileSync(STATE, JSON.stringify(state, null, 1)); };
-const supported = new Set(MAPS.map(m => m.id));
+// --maps de_inferno,de_cache…: only these maps (and only they have to fill up); default every map the site has
+const supported = new Set(opt('maps') ? opt('maps')!.split(',').map(x => x.trim()) : MAPS.map(m => m.id));
+const known_maps = new Set(MAPS.map(m => m.id));
 
 /** Demos per map in a folder: the ones already read (analyst cache) plus the ones this script fetched but not read yet. */
 function perMap(folder: string): Record<string, number> {
@@ -103,6 +105,16 @@ function perMap(folder: string): Record<string, number> {
   for (const f of listDemos(folder)) { const k = keyOf(folder, f); const c = cache[k]; if (c?.map && !c.error) { counts[c.map] = (counts[c.map] ?? 0) + 1; read.add(path.join(folder, f)); } }
   for (const s of Object.values(state.seen)) if (s.got && s.map && path.dirname(s.got) === folder && fs.existsSync(s.got) && !read.has(s.got)) counts[s.map] = (counts[s.map] ?? 0) + 1;
   return counts;
+}
+
+/** FACEIT match ids already downloaded or tried: from the demos' file names, and the helper's progress files. */
+function known(folder: string): Set<string> {
+  const ids = new Set<string>();
+  const MATCH = /1-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  for (const f of listDemos(folder)) { const m = path.basename(f).match(MATCH); if (m) ids.add(m[0].toLowerCase()); }
+  for (const p of (opt('known') ?? '').split(',').map(x => home(x.trim())).filter(Boolean))
+    try { const j = JSON.parse(fs.readFileSync(p, 'utf8')); for (const id of [...Object.keys(j.done ?? {}), ...Object.keys(j.skipped ?? {})]) ids.add(id.toLowerCase()); } catch { /* not there */ }
+  return ids;
 }
 
 // ---- 1. candidates: top players' recent matches, and pro hubs' matches --------------------------------------
@@ -160,14 +172,19 @@ async function download(url: string, file: string) {
   fs.renameSync(tmp, file);
 }
 
+const LINKS_OUT = path.join(FOLDER, 'faceit-links.txt');
 async function main() {
+  if (!DL_TOKEN || DRY) fs.writeFileSync(LINKS_OUT, 'map\tmatch room (open it and click Watch demo)\tsource\n');
   const t0 = Date.now();
   const links: string[] = [];
   let got = 0;
   const run = async (label: string, folder: string, matchIds: string[]) => {
     fs.mkdirSync(folder, { recursive: true });
     const counts = perMap(folder);
-    const todo = [...new Set(matchIds)].filter(id => !state.seen[id]);
+    // not the matches already here (a demo in the folder, linked disk included) or already tried by the download
+    // helper (--known <its progress.json>: downloaded, or skipped because it had no demo)
+    const have = known(folder);
+    const todo = [...new Set(matchIds)].filter(id => !state.seen[id] && !have.has(id));
     console.log(`\n${label}: ${matchIds.length} matches found, ${todo.length} new. Demos per map now: ${Object.entries(counts).map(([m, n]) => `${m.replace('de_', '')} ${n}`).join(', ') || 'none'}`);
     const full = () => Number.isFinite(PER_MAP) && [...supported].every(m => (counts[m] ?? 0) >= PER_MAP);
     for (const id of todo) {
@@ -181,11 +198,15 @@ async function main() {
       const map = m.voting?.map?.pick?.[0];
       const demo = m.demo_url?.[0];
       const skip = !map ? 'no map' : !supported.has(map) ? `${map} isn't supported` : !demo ? 'no demo (yet)' : Number.isFinite(PER_MAP) && (counts[map] ?? 0) >= PER_MAP ? `${map} has ${PER_MAP} already` : null;
-      if (skip) { if (skip !== 'no demo (yet)' && !/already/.test(skip)) state.seen[id] = { map, skip, at: Date.now() }; continue; }
+      // (a map left out with --maps, or one already full, isn't remembered as skipped: another run may want it)
+      if (skip) { if (skip !== 'no demo (yet)' && !/already/.test(skip) && !(map && known_maps.has(map))) state.seen[id] = { map, skip, at: Date.now() }; continue; }
       const ext = /\.zst$/i.test(demo!) ? '.dem.zst' : /\.gz$/i.test(demo!) ? '.dem.gz' : '.dem';
       const file = path.join(folder, `faceit-${id}${ext}`);
       if (!DL_TOKEN || DRY) {
         links.push(`${map}\thttps://www.faceit.com/en/cs2/room/${id}\t${label}`);
+        // written as found, so a stopped run keeps what it found
+        fs.appendFileSync(LINKS_OUT, `${links.at(-1)}\n`);
+        if (links.length % 25 === 0) console.log(`  ${links.length} links so far: ${[...supported].map(m => `${m.replace('de_', '')} ${counts[m] ?? 0}`).join(', ')}`);
         counts[map!] = (counts[map!] ?? 0) + 1;
         continue;
       }
@@ -223,8 +244,7 @@ async function main() {
   saveState();
 
   if (links.length) {
-    const out = path.join(FOLDER, 'faceit-links.txt');
-    fs.writeFileSync(out, `map\tmatch room (open it and click Watch demo)\tsource\n${links.join('\n')}\n`);
+    const out = LINKS_OUT;
     console.log(`\n${DL_TOKEN ? 'Dry run' : 'No FACEIT_DOWNLOADS_TOKEN yet'}: ${links.length} matches to download, listed in ${out}.`);
   }
   console.log(`\nDownloaded ${got} demos in ${((Date.now() - t0) / 60000).toFixed(1)} min.`);
