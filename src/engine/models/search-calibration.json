@@ -5,8 +5,8 @@
   0.0326,
   0.0475
  ],
- "scale": 2.005,
- "costScale": 0.922,
+ "scale": 2.002,
+ "costScale": 0.923,
  "moments": 509932,
  "rounds": 2708,
  "check": {
@@ -14,23 +14,23 @@
   "clearRounds": 595,
   "beatBy": 0.294
  },
- "calibratedAt": "2026-10-18",
+ "calibratedAt": "2026-10-19",
  "byLoss": {
   "best": {
-   "n": 151728,
-   "resid": 0.0125
+   "n": 151723,
+   "resid": 0.0126
   },
   "small": {
-   "n": 180776,
+   "n": 180772,
    "resid": 0.0013
   },
   "medium": {
-   "n": 167278,
+   "n": 167285,
    "resid": -0.009
   },
   "big": {
-   "n": 10150,
-   "resid": -0.0966
+   "n": 10152,
+   "resid": -0.0967
   }
  }
 }

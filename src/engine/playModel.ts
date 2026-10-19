@@ -27,6 +27,7 @@ export const PLAY_FEATURES = [
   'enemies spotted near', 'enemies spotted', 'nearest known enemy', 'spotted', 'teammates near', 'trade window', 'distance to a site',
   'grenades left', 'has the bomb', 'AWP', 'low health', 'speed now', 'closing in',
   'armour', 'main gun', 'smoke or flash',
+  'from T spawn', 'from CT spawn', 'toward enemy side',
 ];
 export interface Moment { t: number; player: string; side: Side; f: number[]; a: number; /** log-odds the player's side wins, from the win model */ wl: number }
 
@@ -93,6 +94,12 @@ export function roundMoments(engine: TacticalEngine, r: DemoRound, every = 2, wi
         Math.min(1.2, d(me, pos(id, Math.max(0, t - 1))) / 250),
         (() => { const back = pos(id, Math.max(0, t - 2)); const near = (p: Vec2) => Math.min(...foes.map(o => d(p, pos(o, t)))); return Math.max(-1, Math.min(1, (near(back) - near(me)) / 500)); })(),
         (gear?.armor ?? 0) > 0 ? 1 : 0, inv.some(w => MAIN.test(w)) ? 1 : 0, inv.some(w => /smoke|flash/i.test(w)) ? 1 : 0,
+        // where on the map: seconds from each spawn (the map's own timing), and how far toward the enemy's side
+        ...(() => {
+          const c = engine.grid.snap(rp), tt = c >= 0 ? engine.tTime[c] : NaN, ct = c >= 0 ? engine.ctTime[c] : NaN;
+          const ts = Number.isFinite(tt) ? Math.min(40, tt) / 20 : 1, cs = Number.isFinite(ct) ? Math.min(40, ct) / 20 : 1;
+          return [ts, cs, s === 'T' ? ts - cs : cs - ts];
+        })(),
       ];
       const pCT = winCT === null ? 0.5 : Math.min(0.99, Math.max(0.01, winCT));
       const pMe = s === 'CT' ? pCT : 1 - pCT;

@@ -758,3 +758,10 @@ a.btn:hover { border-color: #45505e; }
 /* Match recap: compare with level 10 or pro */
 .level-toggle { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 10px; }
 .level-toggle .muted { font-size: 12px; margin-right: 4px; }
+
+/* Match recap: your habits across matches */
+.habits-all { margin-top: 8px; }
+.habits-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+.habits-table th, .habits-table td { padding: 3px 6px; text-align: right; border-bottom: 1px solid var(--border); }
+.habits-table th:first-child, .habits-table td:first-child { text-align: left; }
+.habits-table tr.lo td:first-child { color: #ff8a7a; } .habits-table tr.hi td:first-child { color: #7fd18b; }

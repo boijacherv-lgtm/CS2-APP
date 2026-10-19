@@ -117,6 +117,9 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
   };
   const radar = (w: Vec2) => worldToRadar(w, engine.map.radar);
   const sees = (a: Vec2, b: Vec2) => engine.grid.lineOfSight(radar(a), radar(b));
+  /** Smokes up at time t (they block sight). */
+  const smokesUp = (t: number): SmokeDisc[] => r.util.filter(u => u.type === 'smoke' && u.t <= t && t <= (u.end ?? u.t + 18))
+    .map(u => ({ pos: radar({ x: u.x, y: u.y }), r: SMOKE_RADIUS_UNITS / engine.map.radar.scale }));
   const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y);
   const place = (w: Vec2) => placeOf(engine, radar(w));
   const facing = (id: string, t: number) => { const f = r.frames.players[id]; return (f.yaw[idx(t)] * Math.PI) / 180; };
@@ -209,7 +212,18 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
       const d = dist(mp, { x: k.x, y: k.y });
       nearest = nearest === null ? d : Math.min(nearest, d);
       let saw = false;
-      for (let dt = 0; dt <= 3 && !saw; dt += 0.5) if (alive(m, k.t + dt) && alive(k.attacker, k.t + dt) && sees(pos(m, k.t + dt), pos(k.attacker, k.t + dt))) saw = true;
+      // could see the killer: a clear line AND roughly facing them (within ~70°), not just a line behind their back
+      const facesHim = (t: number) => {
+        const a = pos(m, t), b = pos(k.attacker, t);
+        const off = Math.abs(((facing(m, t) - Math.atan2(b.y - a.y, b.x - a.x) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+        return off <= 1.22;
+      };
+      // …and no smoke in between
+      const clear = (t: number) => engine.grid.lineOfSight(radar(pos(m, t)), radar(pos(k.attacker, t)), smokesUp(t));
+      // …and the killer actually seen by the team then (on the radar), when the demo has it: you can't trade a player
+      // nobody saw
+      const seenThen = (t: number) => { const f = r.frames.players[k.attacker]; return !f?.fl || !!(f.fl[idx(t)] & 16); };
+      for (let dt = 0; dt <= 3 && !saw; dt += 0.5) if (alive(m, k.t + dt) && alive(k.attacker, k.t + dt) && clear(k.t + dt) && facesHim(k.t + dt) && seenThen(k.t + dt)) saw = true;
       if (d < 800 || saw)
         chances.push({ mate: m, dist: Math.round(d), sees: saw, traded: revenge?.attacker === m, diedAfter: kills.some(o => o.victim === m && o.t > k.t && o.t - k.t <= 5), place: place(mp) });
     }

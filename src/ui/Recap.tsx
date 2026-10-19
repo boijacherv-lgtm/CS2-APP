@@ -5,7 +5,7 @@ import { judgeHold, judgeMove, USUAL_LABEL, type Usual } from '../engine/positio
 import { CLASS_COLOR, engineHold, engineLine, engineMove } from '../engine/engineEval';
 import { roundAnalysis } from '../engine/analysis';
 import { proPositions } from '../map/positions';
-import { SEARCH_COLOR, type RoundSearch } from '../engine/search';
+import { OPENING, SEARCH_COLOR, type RoundSearch } from '../engine/search';
 import { moveLook, NoteMark } from './NoteMark';
 import { brief } from './MoveFeed';
 import type { TacticalEngine } from '../engine/predict';
@@ -429,7 +429,7 @@ function EngineSection({ search, id, until, duration, onJump }: { search: RoundS
   const acc = ms.reduce((a, m) => a + m.accuracy, 0) / ms.length;
   const W = 300, Hh = 46, x = (t: number) => (t / Math.max(1, duration)) * W, y = (a: number) => Hh - 3 - (a / 100) * (Hh - 6);
   // the costliest, one per decision (the same grenade or move seen at two moments counts once)
-  const worst = ms.filter(m => m.cls === 'Inaccuracy' || m.cls === 'Mistake' || m.cls === 'Blunder').sort((a, b) => b.loss - a.loss)
+  const worst = ms.filter(m => m.t >= OPENING && (m.cls === 'Inaccuracy' || m.cls === 'Mistake' || m.cls === 'Blunder')).sort((a, b) => b.loss - a.loss)
     .filter((m, i, xs) => !xs.slice(0, i).some(o => o.did.label === m.did.label && Math.abs(o.t - m.t) <= 4)).slice(0, 6).sort((a, b) => a.t - b.t);
   const counts = (['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'] as const).map(c => [c, ms.filter(m => m.cls === c).length] as const).filter(([, n]) => n);
   return (

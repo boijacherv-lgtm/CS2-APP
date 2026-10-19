@@ -9,6 +9,7 @@ import type { LevelGrade } from '../engine/level';
 import { buildMatchReport, IMPACT_PER_POINT, type MatchReport, type PlayerReport, type RoundSummary } from '../engine/match';
 import { LETTER_COLOR, RATING_SCALE, type DemoData, type Letter, type PlayKey } from '../engine/recap';
 import { ACTION_TEXT, PLAY_MODEL } from '../engine/playModel';
+import { habits, loadHabits, saveMatch, summarizeMatch, type MatchSummary } from '../engine/habits';
 import { SEARCH_COLOR, type SearchMoment } from '../engine/search';
 import { MAPS } from '../map/catalog';
 import { navigate } from '../shell/router';
@@ -63,6 +64,7 @@ export function MatchReportPage() {
           <CoachCard p={focus} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
         </div>
       )}
+      {me && view.players.some(p => p.id === me) && <HabitsCard data={data} rounds={report.rounds} done={report.done} me={me} player={view.players.find(p => p.id === me)!} />}
       {focus && <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
       {focus && <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
       {focus && <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />}
@@ -439,6 +441,46 @@ function DecisionsCard({ rounds, player, onRound, onHotRound }: {
               </button>
             ))}
           </div></>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Your habits across matches (habits.ts): every match you open as yourself is summed up and kept in this browser;
+ * with two or more, what you do differently from level-10 players match after match, and what to work on first.
+ */
+function HabitsCard({ data, rounds, done, me, player }: { data: DemoData; rounds: (RoundSummary | null)[]; done: boolean; me: string; player: PlayerReport }) {
+  const [list, setList] = useState<MatchSummary[]>(() => loadHabits(me));
+  useEffect(() => {
+    if (!done || !player.played) return;
+    // a match's identity: the map, the rounds and when its kills happened
+    const id = `${data.map}|${data.rounds.length}|${data.rounds.slice(0, 3).map(r => r.kills.map(k => k.t.toFixed(1)).join(',')).join(';')}`;
+    setList(saveMatch(me, summarizeMatch(id, data.map, player, rounds.map(r => r?.analyst))));
+  }, [done, data, me, player, rounds]);
+  const h = useMemo(() => habits(list), [list]);
+  return (
+    <section className="recap-card positioning habits">
+      <div className="coach-head">
+        <h2 className="display">Your habits</h2>
+        <span className="muted">across your last {list.length} match{list.length === 1 ? '' : 'es'} in this browser, against FACEIT level 10{PRO_MODEL ? ' and pros' : ''}</span>
+      </div>
+      {!h ? <p className="muted">Open another of your matches: from two on, this shows what you do differently match after match (one match is noise, several are a habit).</p> : (
+        <>
+          {h.work.length > 0 && <><h3>Work on</h3><div className="pos-items">{h.work.map(r => (
+            <div key={r.id} className="pos-item work"><b>{r.label}: {r.fmt(r.you)}</b><p>Level 10: {r.fmt(r.lvl10)}{r.pro !== null ? `, pros: ${r.fmt(r.pro)}` : ''}. {r.tip}</p></div>
+          ))}</div></>}
+          {h.good.length > 0 && <><h3>Your strengths</h3><div className="pos-items">{h.good.map(r => (
+            <div key={r.id} className="pos-item good"><b>{r.label}: {r.fmt(r.you)}</b><p>Level 10: {r.fmt(r.lvl10)}{r.pro !== null ? `, pros: ${r.fmt(r.pro)}` : ''}.</p></div>
+          ))}</div></>}
+          <details className="habits-all"><summary className="muted">All numbers</summary>
+            <table className="habits-table"><thead><tr><th /><th>You</th><th>Level 10</th>{PRO_MODEL && <th>Pros</th>}</tr></thead>
+              <tbody>{h.rows.map(r => (
+                <tr key={r.id} className={r.z <= -0.25 ? 'lo' : r.z >= 0.4 ? 'hi' : ''}><td>{r.label}</td><td className="num">{r.fmt(r.you)}</td><td className="num">{r.fmt(r.lvl10)}</td>{PRO_MODEL && <td className="num">{r.pro !== null ? r.fmt(r.pro) : '–'}</td>}</tr>
+              ))}</tbody>
+            </table>
+          </details>
+        </>
       )}
     </section>
   );

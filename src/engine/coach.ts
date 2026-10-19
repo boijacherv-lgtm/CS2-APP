@@ -110,7 +110,7 @@ export const DEFAULT_MODEL: CoachModel = {
 };
 
 /** Which way is better for each number. */
-const BETTER: Record<FeatureId, 'low' | 'high'> = {
+export const BETTER: Record<FeatureId, 'low' | 'high'> = {
   untradedDeaths: 'low', isolatedDeaths: 'low', openingDeaths: 'low', whiffs: 'low', unusedUtil: 'low', wastedFlashes: 'low',
   teamHarm: 'low', awpLost: 'low', lowHpFights: 'low', adr: 'high', kast: 'high', hs: 'high', utilDamage: 'high',
   flashAssists: 'high', trades: 'high', impact: 'high',

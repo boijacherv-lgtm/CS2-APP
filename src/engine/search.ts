@@ -69,6 +69,8 @@ const H = 5; // seconds each option is looked at
 const NO_SPOT_STATS = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.STRATBOARD_NO_SPOT_STATS === '1';
 const REACH = 8; // seconds of travel for the "move" options
 const PEEK_REACH = 4; // seconds: how far a peek can be
+/** Seconds into the round before the engine's cards start (the opening is the team's plan). */
+export const OPENING = 20;
 const PLANT_REACH = 6; // seconds: a site this close counts as "go plant"
 const SEEN = 4; // an enemy spotted this recently counts as known (at the last spot seen)
 const HEARD = 600; // units (~15 m): an enemy this close is heard
@@ -430,7 +432,9 @@ export function searchRound(engine: TacticalEngine, r: DemoRound, every = 2): Ro
 export function keySearchMoments(rs: RoundSearch, perPlayer = 2, blundersOnly = false): SearchMoment[] {
   const out: SearchMoment[] = [];
   const by = new Map<string, SearchMoment[]>();
-  for (const m of rs.moments) if (m.cls === 'Blunder' || (!blundersOnly && m.cls === 'Mistake')) by.set(m.player, [...(by.get(m.player) ?? []), m]);
+  // not the opening seconds: where a player goes first is the team's plan and their role, not a call the engine can judge
+  // …nor a round already lost (under 15% to win, as for deaths): nothing much left to decide
+  for (const m of rs.moments) if (m.t >= OPENING && m.before >= 0.15 && (m.cls === 'Blunder' || (!blundersOnly && m.cls === 'Mistake'))) by.set(m.player, [...(by.get(m.player) ?? []), m]);
   for (const list of by.values()) {
     const picked: SearchMoment[] = [];
     for (const m of list.sort((a, b) => b.loss - a.loss)) if (picked.length < perPlayer && !picked.some(x => Math.abs(x.t - m.t) < 8)) picked.push(m);
