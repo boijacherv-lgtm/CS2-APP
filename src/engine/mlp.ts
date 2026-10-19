@@ -135,7 +135,8 @@ export function trainMlp(train: TrainSet, test: TrainSet, o: MlpOptions): { net:
     if (r.loss < best.loss) best = { loss: r.loss, acc: r.acc, snap: JSON.stringify(net) };
   }
   const round = (m: number[][]) => m.map(r => r.map(v => +v.toFixed(5)));
-  const out = JSON.parse(best.snap) as Mlp;
+  // no held-out set to pick an epoch on (a tiny folder): the last one
+  const out = (best.snap ? JSON.parse(best.snap) : JSON.parse(JSON.stringify(net))) as Mlp;
   return {
     net: { ...out, emb: round(out.emb), w1: round(out.w1), w2: round(out.w2), w3: round(out.w3), b1: out.b1.map(v => +v.toFixed(5)), b2: out.b2.map(v => +v.toFixed(5)), b3: out.b3.map(v => +v.toFixed(5)), mu: out.mu.map(v => +v.toFixed(5)), sd: out.sd.map(v => +v.toFixed(5)) },
     testLoss: +best.loss.toFixed(4), testAcc: +best.acc.toFixed(3),

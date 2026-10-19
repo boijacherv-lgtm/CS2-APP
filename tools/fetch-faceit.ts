@@ -24,9 +24,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { MAPS } from '../src/map/catalog';
-import { keyOf, listDemos, readCache } from './learn-lib';
+import { keyOf, listDemos, readCache, runTool } from './learn-lib';
 
 // ---- options and keys ---------------------------------------------------------------------------------------
 const args = process.argv.slice(2).filter(a => a !== '--');
@@ -250,7 +249,7 @@ async function main() {
   console.log(`\nDownloaded ${got} demos in ${((Date.now() - t0) / 60000).toFixed(1)} min.`);
   if (got && !flag('no-train') && !DRY) {
     console.log('\nTraining on the level-10 folder (learn:all)…');
-    execFileSync('npx', ['vite-node', path.join(import.meta.dirname, 'learn-all.ts'), FOLDER], { stdio: 'inherit' });
+    runTool('learn-all.ts', [FOLDER]);
   }
 }
 main().catch(e => { console.error(`\n${(e as Error).message}`); process.exit(1); });

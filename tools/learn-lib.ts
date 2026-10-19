@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { parseDemo } from './demo.mjs';
+import { spawn, spawnSync, type SpawnOptions } from 'node:child_process';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { buildReplay, equipValue, evalState, reviewRound, type DemoData, type Role } from '../src/engine/recap';
 import { buildMatchReport, summarizeRound, type RoundSummary } from '../src/engine/match';
@@ -270,3 +271,33 @@ export function writeCache(folder: string, l: Learner, demos: Record<string, unk
 }
 /** A cached result that should be redone: an error other than a broken file. */
 export const retry = (c: { error?: string } | undefined) => !c || (!!c.error && !/MalformedMessage/.test(c.error));
+
+// ---- running the other tools (same on Windows, macOS and Linux: node + vite-node, no npx / shell) ----------------
+const VITE_NODE = path.resolve(import.meta.dirname, '../node_modules/vite-node/vite-node.mjs');
+/** Starts a tools/*.ts script in its own process. */
+export const startTool = (script: string, args: string[], opts: SpawnOptions = {}) =>
+  spawn(process.execPath, [VITE_NODE, path.join(import.meta.dirname, script), ...args], opts);
+/** Runs a tools/*.ts script and waits for it; its output goes to ours unless `opts.stdio` says otherwise. */
+export function runTool(script: string, args: string[], opts: SpawnOptions & { maxBuffer?: number } = {}) {
+  const r = spawnSync(process.execPath, [VITE_NODE, path.join(import.meta.dirname, script), ...args], { stdio: 'inherit', maxBuffer: 64 * 1024 * 1024, ...opts });
+  if (r.status !== 0) throw new Error(`${script} exited with ${r.status}`);
+  return r;
+}
+
+// ---- demos read on another computer (a training pack, tools/pack-training.ts → tools/import-training.ts) --------
+// Their results sit in the learners' caches like any other demo's; this list says which keys they are, so training
+// counts them although the demo files aren't here. The same FACEIT match is counted once.
+export const IMPORTED = '.stratboard-imported.json';
+export type ImportedEntry = { matchId: string | null; map: string | null; pack: string };
+export function importedKeys(folder: string): Record<string, ImportedEntry> {
+  try { return JSON.parse(fs.readFileSync(path.join(folder, IMPORTED), 'utf8')); } catch { return {}; }
+}
+export const matchIdOf = (f: string) => path.basename(f).match(/1-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0]?.toLowerCase() ?? null;
+/** Every demo training should count: the demo files here (one per match) and the imported ones of other matches. */
+export function liveKeys(folder: string): Set<string> {
+  const files = listDemos(folder);
+  const out = new Set(files.map(f => keyOf(folder, f)));
+  const here = new Set(files.map(matchIdOf).filter(Boolean));
+  for (const [k, e] of Object.entries(importedKeys(folder))) if (!e.matchId || !here.has(e.matchId)) out.add(k);
+  return out;
+}

@@ -9,11 +9,10 @@
 //
 // Each demo's decisions are cached in <folder>/.stratboard-cache/positions; adding demos later only reads the new ones.
 import fs from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { keyOf as keyOfDemo, listDemos, loadDemo, positionsFromDemo, readCache, writeCacheEntry } from './learn-lib';
+import { keyOf as keyOfDemo, listDemos, loadDemo, positionsFromDemo, readCache, runTool, writeCacheEntry, liveKeys } from './learn-lib';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { equipValue, type DemoData } from '../src/engine/recap';
 import { worldToRadar } from '../src/engine/coords';
@@ -55,6 +54,9 @@ files.forEach((f, i) => {
   console.log(`[${i + 1}/${files.length}] ${f}  ${c.error ? `skipped: ${c.error}` : `${c.map}, ${c.rounds.length} rounds`}  ${((Date.now() - t) / 1000).toFixed(0)} s`);
   save(key);
 });
+
+// plus the demos imported from another computer's training pack
+for (const k of liveKeys(folder)) seen.add(k);
 
 // ---- learn -------------------------------------------------------------------------------------------
 /**
@@ -216,5 +218,5 @@ for (const [map, s] of Object.entries(out)) {
 console.log(`\nSaved ${path.relative(process.cwd(), OUT)} in ${((Date.now() - t0) / 60000).toFixed(1)} min.`);
 
 // calibrate the positioning engine on these same decisions (a separate process, so it reads the new positions.json)
-try { execFileSync('npx', ['vite-node', path.join(import.meta.dirname, 'calibrate-engine.ts'), folder], { stdio: 'inherit' }); }
+try { runTool('calibrate-engine.ts', [folder]); }
 catch { console.error('Calibration failed: run npm run calibrate:engine -- <folder> by hand.'); }

@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { coachFromDemo, listDemos, loadDemo, readCache, writeCacheEntry } from './learn-lib';
+import { coachFromDemo, listDemos, liveKeys, loadDemo, readCache, writeCacheEntry } from './learn-lib';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { buildReplay, reviewRound, type DemoData, type Role } from '../src/engine/recap';
 import { buildMatchReport, summarizeRound, type RoundSummary } from '../src/engine/match';
@@ -61,7 +61,8 @@ files.forEach((f, i) => {
 });
 
 // only the demos that are still in the folder
-const live = new Set(files.map(keyOf));
+// the demos here and the ones imported from another computer's training pack
+const live = liveKeys(folder);
 const used = Object.entries(cache).filter(([k, c]) => live.has(k) && c.samples.length);
 const samples = used.flatMap(([, c]) => c.samples);
 if (!samples.length) { console.error('\nNo usable games: nothing to train on.'); process.exit(1); }

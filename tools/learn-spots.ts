@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { keyOf as keyOfDemo, listDemos, loadDemo, readCache, spotsFromDemo, writeCacheEntry } from './learn-lib';
+import { keyOf as keyOfDemo, listDemos, liveKeys, loadDemo, readCache, spotsFromDemo, writeCacheEntry } from './learn-lib';
 import type { DemoData } from '../src/engine/recap';
 
 const args = process.argv.slice(2).filter(a => a !== '--');
@@ -43,6 +43,9 @@ files.forEach((f, i) => {
     writeCacheEntry(folder, 'spots', key, cache[key]);
   }
 });
+
+// plus the demos imported from another computer's training pack
+for (const k of liveKeys(folder)) seen.add(k);
 
 // group landings into spots per map / type / side: greedy, densest first
 type Spot = { type: Landing['type']; side: Landing['side']; x: number; y: number; throws: number; demos: number };

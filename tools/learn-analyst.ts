@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { analystFromDemo, cachedKeys, eachCached, keyOf as keyOfDemo, listDemos, loadDemo, needsRead, writeCacheEntry } from './learn-lib';
+import { analystFromDemo, cachedKeys, eachCached, keyOf as keyOfDemo, listDemos, liveKeys, loadDemo, needsRead, writeCacheEntry } from './learn-lib';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { equipValue, evalState, type DemoData } from '../src/engine/recap';
 import { worldToRadar } from '../src/engine/coords';
@@ -50,6 +50,9 @@ for (const [key, f] of keys) {
   writeCacheEntry(folder, 'analyst', key, c);
   console.log(`[${i0}/${keys.size}] ${f}  ${c.error ? `skipped: ${c.error}` : `${c.map}, ${c.rounds.length} rounds`}  ${((Date.now() - t) / 1000).toFixed(0)} s`);
 }
+
+// plus the demos imported from another computer's training pack (no file here, their results already cached)
+for (const k of liveKeys(folder)) if (!keys.has(k)) keys.set(k, '');
 
 // one pass over the cache, one demo at a time, keeping only what each model needs. Every 5th demo is held out to
 // check the duel and play models on demos they didn't learn from. With many demos the play moments are thinned
@@ -127,7 +130,7 @@ if (!NAME && wx.length > 1000) {
     const js = all.x.filter((_, i) => i % 7 === 0).map((x, j) => judgeMoment({ t: all.t[j * 7], player: '', side: x[5] ? 'T' : 'CT', f: x, a: all.a[j * 7], wl: all.wl[j * 7] }, model)).filter(v => v);
     // the bigger model: a small neural network with each map spot learned (mlp.ts), checked on the same unseen demos;
     // used only when it beats the linear one there
-    if (!process.argv.includes('--no-mlp') && tr.spot.some(Boolean)) {
+    if (!process.argv.includes('--no-mlp') && tr.spot.some(Boolean) && te.x.length >= 1000) {
       const t2 = Date.now();
       console.log('  training the network with map spots…');
       const { net, testLoss, testAcc } = trainMlp({ x: tr.x, spot: tr.spot, y: tr.a }, { x: te.x, spot: te.spot, y: te.a },

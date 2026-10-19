@@ -34,3 +34,31 @@ The Mac reads the disk (it can't write to NTFS). Copy `faceit-demos` and `pro-de
 ```bash
 npm run learn:all -- ~/Desktop/APPS/faceit-demos
 ```
+
+## Reading the demos for training (optional, saves sending 65 GB)
+
+The slow part of training is reading each demo. It can run on this PC; the result is one small file (a
+"training pack", about 1 MB per 10 demos) to send instead of the disk.
+
+1. Install **Node.js 24** (nodejs.org, LTS) and **Git** (git-scm.com), or skip Git and download the code as a ZIP:
+   github.com/boijacherv-lgtm/CS2-APP → **Code → Download ZIP**, then unzip it.
+2. In PowerShell, get the code and its libraries (once; `git pull` later to update):
+
+   ```powershell
+   cd $HOME
+   git clone https://github.com/boijacherv-lgtm/CS2-APP.git
+   cd CS2-APP
+   npm ci
+   ```
+
+3. Read the new demos and pack them (only the matches on the current list, so last time's demos aren't read again;
+   about 1–2 hours for 350 demos, it uses every CPU core; keep the PC awake):
+
+   ```powershell
+   npm run pack:training -- E:\faceit-demos --only E:\stratboard\faceit-links.txt
+   ```
+
+   It saves `training-pack-<date>.json.gz` in the `CS2-APP` folder. Send that file (Telegram, Drive, email…).
+   `--out D:\packs\my-pack.json.gz` saves it elsewhere; `--workers 2` uses fewer cores (less memory).
+
+On the Mac, the pack is added with `npm run import:training -- <pack> --train`.
