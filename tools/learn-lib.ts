@@ -20,7 +20,7 @@ import { roundMoments } from '../src/engine/playModel';
 // ---- cache versions: bump when that learner's per-demo numbers are computed differently -----------------------
 export const COACH_V = 3; // 3: impact leaves out positioning decisions
 export const POSITIONS_V = 7; // + paths only the first 8 s after leaving a spot
-export const ANALYST_V = 13; // play moments: where on the map (seconds from each spawn)
+export const ANALYST_V = 14; // play actions: push / fall back by walking distance, not straight lines through walls
 /** Bump when tools/demo-core.mjs reads demos differently (new fields), so saved reads are redone. */
 export const PARSE_V = 6; // 6: gear over the round (inventory, armour, kit, money once a second)
 

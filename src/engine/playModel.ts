@@ -3,6 +3,7 @@ import type { TacticalEngine } from './predict';
 import { bombAt, equipValue, FL, gearAt, type DemoRound } from './recap';
 import { roundWinChance } from './winprob';
 import { mlpPredict, type Mlp } from './mlp';
+import { walkDistance } from './search';
 import { placeOf } from './situations';
 import type { Side, Vec2 } from './types';
 import MODEL from './models/play.json';
@@ -105,14 +106,14 @@ export function roundMoments(engine: TacticalEngine, r: DemoRound, every = 2, wi
       ];
       const pCT = winCT === null ? 0.5 : Math.min(0.99, Math.max(0.01, winCT));
       const pMe = s === 'CT' ? pCT : 1 - pCT;
-      out.push({ t, player: id, side: s, f: feats, a: actionOf(r, id, t, foes, pos, alive), wl: Math.log(pMe / (1 - pMe)), spot: `${engine.map.id}|${s}|${placeOf(engine, rp) || '?'}` });
+      out.push({ t, player: id, side: s, f: feats, a: actionOf(engine, r, id, t, foes, pos, alive), wl: Math.log(pMe / (1 - pMe)), spot: `${engine.map.id}|${s}|${placeOf(engine, rp) || '?'}` });
     }
   }
   return out;
 }
 
 /** What the player did in the 3 s after t. */
-function actionOf(r: DemoRound, id: string, t: number, foes: string[], pos: (id: string, t: number) => Vec2, alive: (id: string, t: number) => boolean): number {
+function actionOf(engine: TacticalEngine, r: DemoRound, id: string, t: number, foes: string[], pos: (id: string, t: number) => Vec2, alive: (id: string, t: number) => boolean): number {
   const t1 = t + 3;
   const plant = (r.bomb ?? []).find(b => b.kind === 'plant' && b.id === id);
   const defuse = (r.bomb ?? []).find(b => b.kind === 'defuse' && b.id === id);
@@ -122,8 +123,10 @@ function actionOf(r: DemoRound, id: string, t: number, foes: string[], pos: (id:
   const end = alive(id, t1) ? t1 : Math.max(t, (r.kills.find(q => q.victim === id)?.t ?? t1) - 0.3);
   const a = pos(id, t), b = pos(id, end);
   if (Math.hypot(b.x - a.x, b.y - a.y) < STEP) return 0;
-  const near = (p: Vec2, at: number) => Math.min(...foes.filter(o => alive(o, at)).map(o => { const q = pos(o, at); return Math.hypot(q.x - p.x, q.y - p.y); }), Infinity);
-  const before = near(a, t), after = near(b, t); // to where the enemies were: did they close in on them or back off
+  // to where the enemies were: did they close in on them or back off, measured by walking distance (a walk toward
+  // a spot behind a wall from them, e.g. CT Mid → CT Spawn with Ts at Long, isn't a push)
+  const near = (p: Vec2, at: number) => Math.min(...foes.filter(o => alive(o, at)).map(o => walkDistance(engine, p, pos(o, at))), Infinity);
+  const before = near(a, t), after = near(b, t);
   if (!Number.isFinite(before)) return 3;
   return after < before - STEP ? 1 : after > before + STEP ? 2 : 3;
 }

@@ -94,7 +94,20 @@ export const SEARCH_COLOR: Record<SearchClass, string> = {
 
 // ---- travel times: one distance field per callout, per map (cached) ----------------------------------------
 const FIELDS = new WeakMap<TacticalEngine, Map<string, Float64Array>>();
-function calloutField(engine: TacticalEngine, name: string, at?: Vec2): Float64Array | null {
+/**
+ * Walking distance (world units) from a spot to another, both in world coordinates: along the map to the callout
+ * nearest the target (its distance field is cached per map), plus the last straight bit. Through walls never.
+ */
+export function walkDistance(engine: TacticalEngine, from: Vec2, to: Vec2): number {
+  const R = engine.map.radar, toR = worldToRadar(to, R), fromR = worldToRadar(from, R);
+  let best = engine.map.callouts[0], bd = Infinity;
+  for (const c of engine.map.callouts) { if (c.minor) continue; const d = Math.hypot(c.pos.x - toR.x, c.pos.y - toR.y); if (d < bd) { bd = d; best = c; } }
+  const f = best && calloutField(engine, best.name);
+  const cell = engine.grid.snap(fromR);
+  const along = f && cell >= 0 ? f[cell] : Infinity;
+  return Number.isFinite(along) ? (along + bd) * R.scale : Math.hypot(to.x - from.x, to.y - from.y);
+}
+export function calloutField(engine: TacticalEngine, name: string, at?: Vec2): Float64Array | null {
   let m = FIELDS.get(engine);
   if (!m) { m = new Map(); FIELDS.set(engine, m); }
   if (m.has(name)) return m.get(name)!;
