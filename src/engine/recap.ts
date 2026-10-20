@@ -865,6 +865,9 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const special = others >= 1 || multi >= 3 || (firstKill && aSide === 'T');
       const awhy = [`${aSide} win chance ${pct(aSide === 'CT' ? before : 1 - before)} → ${pct(aSide === 'CT' ? after : 1 - after)}.`];
       if (firstKill) awhy.push('Opening kill.');
+      // the credit isn't the whole swing when the ratings made the duel lopsided: say why the numbers differ
+      if (aOdds !== null && Math.abs(gain - forSide(aSide, ctDelta)) >= 0.02)
+        awhy.push(`Counted as ${signedPct(gain)} of the ${signedPct(forSide(aSide, ctDelta))}: ${aOdds > 0.5 ? `by rating they were expected to win this duel (${pct(aOdds)})` : `by rating it was an upset (${pct(aOdds)} on paper), so it counts more`}.`);
       if (others >= 1) awhy.push(`Won it while ${others} more ${others > 1 ? 'enemies' : 'enemy'} had sight on them.`);
       if (multi >= 2) awhy.push(`Part of a ${multi}-kill burst.`);
       if (vi >= 0 && wasBlind) awhy.push('The victim was flashed: teamwork kill.');
@@ -1261,6 +1264,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+const signedPct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
 
 /**
  * What each player did this round, guessed from how they played it:

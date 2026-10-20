@@ -36,7 +36,7 @@ export function activeView(o: Record<Overlay, boolean>): ViewName | null {
   return null;
 }
 
-const LS_OVERLAYS = 'stratboard.overlays', LS_FOLDED = 'stratboard.folded', LS_POPUPS = 'stratboard.popups', LS_DRAWER = 'stratboard.drawer', LS_EVAL = 'stratboard.evalScope';
+const LS_OVERLAYS = 'stratboard.overlays', LS_FOLDED = 'stratboard.folded', LS_POPUPS = 'stratboard.popups', LS_DRAWER = 'stratboard.drawer', LS_EVAL = 'stratboard.evalScope', LS_CLAIMED = 'stratboard.claimed';
 function loadJson<T>(key: string, fallback: T): T {
   try { const raw = localStorage.getItem(key); return raw ? { ...fallback, ...JSON.parse(raw) } : fallback; } catch { return fallback; }
 }
@@ -77,10 +77,15 @@ interface Store {
   readHold: boolean;
   /** Review: a move opened from the killfeed or the ticker, while the replay stays on that time `t`. */
   feedPick: { key: string; t: number } | null;
+  /** Review: the text of the move card on screen (the map labels the places it names). */
+  cardText: string | null;
   /** Review: evaluate every move ('all') or only the signed-in player's ('mine'). Remembered. */
   evalScope: EvalScope;
   /** SteamID of the signed-in player (null when not logged in with Steam). */
   me: string | null;
+  /** The player picked with "This is me" (no Steam login needed); a Steam login wins over it. Remembered. */
+  claimed: string | null;
+  setClaimed(id: string | null): void;
   setEvalScope(scope: EvalScope): void;
   /** Players fight and die during the timeline. */
   combat: boolean;
@@ -202,7 +207,7 @@ export const useStore = create<Store>((set, get) => {
     draftRoute: null,
     playing: false,
     speed: 1,
-    readSlow: true,
+    readSlow: loadJson<{ on: boolean }>('stratboard.readSlow', { on: true }).on,
     popups: loadJson<{ on: boolean }>(LS_POPUPS, { on: true }).on,
     engineLines: loadJson<{ on: boolean }>('stratboard.engineLines', { on: true }).on,
     drawerOpen: loadJson<{ on: boolean }>(LS_DRAWER, { on: typeof window === 'undefined' || window.innerWidth >= 1280 }).on,
@@ -210,8 +215,11 @@ export const useStore = create<Store>((set, get) => {
     slowSpeed: 0.3,
     readHold: false,
     feedPick: null,
+    cardText: null,
     evalScope: loadJson<{ v: EvalScope }>(LS_EVAL, { v: 'all' }).v,
     me: null,
+    claimed: loadJson<{ id: string | null }>(LS_CLAIMED, { id: null }).id,
+    setClaimed: claimed => { saveJson(LS_CLAIMED, { id: claimed }); set({ claimed }); },
     setEvalScope: evalScope => { saveJson(LS_EVAL, { v: evalScope }); set({ evalScope, slowUntil: 0, readHold: false, feedPick: null }); },
     combat: true,
     seed: 1,
@@ -381,7 +389,7 @@ export const useStore = create<Store>((set, get) => {
       saveJson(LS_POPUPS, { on: popups });
       set({ popups, ...(popups ? {} : { slowUntil: 0, readHold: false }) });
     },
-    setReadSlow: readSlow => set({ readSlow, ...(readSlow ? {} : { slowUntil: 0 }) }),
+    setReadSlow: readSlow => { saveJson('stratboard.readSlow', { on: readSlow }); set({ readSlow, ...(readSlow ? {} : { slowUntil: 0 }) }); },
     loadPreset: name => {
       const preset = presetsFor(get().mapId, get().level)[name];
       if (!preset) return;
@@ -414,3 +422,6 @@ export const useStore = create<Store>((set, get) => {
     redo: () => set(s => (s.future.length ? { board: s.future[0], future: s.future.slice(1), past: [...s.past, s.board] } : s)),
   };
 });
+
+/** You: the Steam login, or else the player picked with "This is me". */
+export const whoAmI = (s: Pick<Store, 'me' | 'claimed'>) => s.me ?? s.claimed;

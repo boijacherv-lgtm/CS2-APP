@@ -246,7 +246,7 @@ export function analystReport(rounds: (AnalystRound | null | undefined)[], playe
   const conv = rate(myChances.filter(c => c.traded).length, myChances.length);
   const myTradeTimes = rs.flatMap(x => x.r.trades.filter(t => t.tradedBy === player).map(t => t.tradeTime!));
   stats.Trades = [
-    { label: 'Your deaths traded', you: pct(tradedMine), pro: pct(bench.trades.tradedRate), better: cmp(tradedMine, bench.trades.tradedRate) },
+    { label: `Your deaths traded (${myDeaths.filter(d => d.traded).length} of ${myDeaths.length})`, you: pct(tradedMine), pro: pct(bench.trades.tradedRate), better: cmp(tradedMine, bench.trades.tradedRate) },
     { label: 'Trades taken when you could', you: `${pct(conv)} (${myChances.filter(c => c.traded).length}/${myChances.length})`, pro: pct(bench.trades.chanceConversion), better: cmp(conv, bench.trades.chanceConversion) },
     { label: 'Time to trade', you: myTradeTimes.length ? `${s1(avg(myTradeTimes))} s` : '–', pro: `${s1(bench.trades.avgTradeTime)} s`, better: myTradeTimes.length ? cmp(avg(myTradeTimes), bench.trades.avgTradeTime, false, 0.3) : null },
     ...(bench.trades.within ? [{ label: 'Trades within 2 s', you: myTradeTimes.length ? pct(rate(myTradeTimes.filter(t => t <= 2).length, myTradeTimes.length)) : '–', pro: pct(bench.trades.within.find(w => w.s === 2)?.share ?? 0), better: null }] : []),
@@ -287,7 +287,7 @@ export function analystReport(rounds: (AnalystRound | null | undefined)[], playe
   for (const [place, c] of [...counts].sort((a, b) => b[1].n - a[1].n).slice(0, 4)) {
     const sp = tradeSpotOf(bench, place);
     if (!sp || !place) continue;
-    stats.Trades.push({ label: `Deaths at ${place} traded`, you: `${c.tr}/${c.n}`, pro: `${pct(sp.tradedRate)}${sp.traders[0] ? ` · from ${sp.traders.slice(0, 2).map(t => `${t.place} ${pct(t.conv)}`).join(', ')}` : ''}`, better: c.n >= 3 ? cmp(c.tr / c.n, sp.tradedRate, true, 0.1) : null });
+    stats.Trades.push({ label: `Team deaths at ${place} traded`, you: `${c.tr}/${c.n}`, pro: `${pct(sp.tradedRate)}${sp.traders[0] ? ` · from ${sp.traders.slice(0, 2).map(t => `${t.place} ${pct(t.conv)}`).join(', ')}` : ''}`, better: c.n >= 3 ? cmp(c.tr / c.n, sp.tradedRate, true, 0.1) : null });
   }
   if (tradedMine >= bench.trades.tradedRate + 0.1 && myDeaths.length >= 6)
     findings.push({ topic: 'Trades', good: true, weight: 2, rounds: [], title: 'You die where you can be traded', detail: `${pct(tradedMine)} of your deaths were traded (level-10: ${pct(bench.trades.tradedRate)}).` });

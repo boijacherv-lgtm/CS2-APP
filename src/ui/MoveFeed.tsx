@@ -85,6 +85,11 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
     : picked ? recap.moves.find(m => moveKey(m) === picked) : held && pending ? pending : stepped;
   const card = cardMove && moveKey(cardMove) !== closed ? cardMove : undefined;
   const cardKey = card ? moveKey(card) : '';
+  // the map labels the places this card names, even the detailed callouts it doesn't show at this zoom
+  useEffect(() => {
+    useStore.setState({ cardText: card ? [card.title, ...(card.why ?? [])].join(' ') : null });
+    return () => useStore.setState({ cardText: null });
+  }, [cardKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // pausing keeps the card you were reading open (it becomes the picked move until the replay moves on)
   // (not when you jumped elsewhere: seeking or ◀ ▶ also stop playback)
   const lastPlaying = useRef({ key: '', t: 0 });
@@ -183,7 +188,7 @@ export function KillFeed({ recap, round, time, names }: { recap: Review; round: 
   const chip = (m: Move | undefined) => m && shown(m) && m.note !== 'book'
     ? <NoteMark m={m} className="kf-mark" title={`${NOTE_INFO[m.note].label}: ${signedPct(m.gain)} win chance`} />
     : null;
-  const who = (id: string) => <b className={sideOf(id) === 'CT' ? 'ct' : 't'}>{names[id] ?? '?'}</b>;
+  const who = (id: string) => <b className={sideOf(id) === 'CT' ? 'ct' : 't'} title={names[id]}>{names[id] ?? '?'}</b>;
   return (
     <div className="killfeed" role="log" aria-label="Kills">
       {rows.map((k, i) => {

@@ -9,25 +9,30 @@ import { LETTER_COLOR } from '../engine/recap';
  * text) is greyscale, like CS2's own menus, and white is the interactive colour.
  */
 export const T = {
-  bg0: '#0B0D10', // page
-  bg1: '#101317', // around the map
-  surface1: '#161A20', // panels, drawer
-  surface2: '#1D232B', // cards, inputs
-  surface3: '#262D37', // hover, selected
-  border: '#2A313B',
-  borderStrong: '#3B4452',
-  text1: '#E8EBF0',
-  text2: '#A3ACB9',
-  text3: '#6E7886',
-  ct: '#6AA6FF', ctDim: '#22385A',
-  t: '#F2B33D', tDim: '#5A4317',
+  // Tactical night: near-black layers a small step apart, so the map, the team colours and the grades carry the colour
+  bg0: '#0A0C10', // page
+  bg1: '#0E1116', // around the map, tracks of bars and toggles
+  surface1: '#13171D', // panels, drawer, cards
+  surface2: '#1A1F27', // cards inside cards, inputs
+  surface3: '#232A34', // hover, selected
+  border: '#222831',
+  borderStrong: '#343C48',
+  text1: '#E8ECF2',
+  text2: '#9AA4B2',
+  text3: '#687384',
+  ct: '#5B9BFF', ctDim: '#1F3558',
+  t: '#F2B13C', tDim: '#5A4317',
   smoke: '#C9D1D9', flash: '#FFF6A8', molly: '#FF6B2C', mollyCore: '#FFB020', he: '#7BD88F',
   bomb: '#E5483A', c4: '#B8963A',
-  good: '#3DDC84', warn: '#F0C33C', bad: '#E5483A',
+  good: '#22C55E', warn: '#F0C33C', bad: '#E5483A',
+  // the same on dark text: health, money, a better or worse number
+  goodSoft: '#7FD18B', badSoft: '#FF7A6E',
+  // what the screen points at right now: a place a card names, a lineup, the spot ranking
+  highlight: '#FFD166',
 } as const;
 
 /** Overlay surface over the map: solid enough to read on a busy radar (no blur: the canvas repaints every frame). */
-export const OVERLAY = 'rgba(11, 13, 16, 0.88)';
+export const OVERLAY = 'rgba(10, 12, 16, 0.88)';
 
 export const SIDE_COLOR = { CT: T.ct, T: T.t } as const;
 export const UTIL_COLOR = { smoke: T.smoke, flash: T.flash, molotov: T.molly, he: T.he } as const;

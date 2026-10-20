@@ -62,7 +62,7 @@ function NameTag({ name, side, fs, y, strong, dead }: { name: string; side: 'CT'
   );
 }
 const PICK_SCREEN_PX = 14;
-const ERASE = '#ff4d4d';
+const ERASE = TOK.bad;
 const FOV_DEG = (FOV * 180) / Math.PI;
 const deg = (r: number) => (r * 180) / Math.PI;
 
@@ -109,7 +109,14 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const tokenPx = Math.max(7.5, Math.min(11, 1024 * view.scale * 0.016));
   const k = tokenPx / (TOKEN_R * view.scale);
   // zoomed in (1.6× the whole-map view or more): room for names, guns and the detailed callouts
-  const zoomedIn = view.scale >= fitView(size.w, size.h).scale * ZOOM_DETAIL;
+  // Review shows each team's panel down the sides: the map fits between them
+  const rosters = s.mode === 'review' && !!s.review;
+  const rostersRef = useRef(rosters);
+  rostersRef.current = rosters;
+  const zoomedIn = view.scale >= fitView(size.w, size.h, rosters).scale * ZOOM_DETAIL;
+  // a callout the move card on screen names ("smoke at Lamp Room"), as a whole word
+  const cardText = s.mode === 'review' ? s.cardText : null;
+  const named = (name: string) => !!cardText && new RegExp(`(^|[^\\w])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w])`, 'i').test(cardText);
   // Review: each player's nickname in a tag under their token, always 10 px on screen (sizes below are in token units)
   const names = s.mode === 'review' ? s.review?.data.names ?? null : null;
   const nameFs = NAME_PX * TOKEN_R / tokenPx;
@@ -134,7 +141,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     const ro = new ResizeObserver(() => {
       const w = Math.max(el.clientWidth, 100), h = Math.max(el.clientHeight, 100);
       setSize({ w, h });
-      setView(fitView(w, h));
+      setView(fitView(w, h, rostersRef.current));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -271,7 +278,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size.w, size.h]);
 
-  const fit = () => setView(fitView(size.w, size.h));
+  const fit = () => setView(fitView(size.w, size.h, rosters));
+  // the panels came or went (a match loaded, Review ↔ Tactical): fit again
+  useEffect(() => { setView(fitView(size.w, size.h, rosters)); }, [rosters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Where each player is at the current round time (routes animate them).
   const baked = useMemo(() => new Map(s.board.players.map(p => [p.id, bakeRoute(engine, p)])), [engine, s.board.players]);
@@ -283,6 +292,19 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     })),
     [s.board.players, baked, s.time, sim],
   );
+  // Review: name tags that would sit on top of another player's (spawns, a stack in a fight): only the first one
+  // shows; the others come back on hover or selection. The living go first, so a dead player's tag never covers them.
+  const crowded = useMemo(() => {
+    const out = new Set<string>();
+    if (!names) return out;
+    const placed: Vec2[] = [];
+    const order = [...live].sort((a, b) => Number(b[1].alive) - Number(a[1].alive));
+    for (const [id, l] of order) {
+      if (placed.some(q => Math.abs(q.x - l.pos.x) * view.scale < NAME_GAP.x && Math.abs(q.y - l.pos.y) * view.scale < NAME_GAP.y)) out.add(id);
+      else placed.push(l.pos);
+    }
+    return out;
+  }, [live, names, view.scale]);
   // review: each team's players down the sides with their health and gear (the top bar then only has the clock)
   const rosterRound = recap && s.review ? s.review.data.rounds[s.review.round] ?? null : null;
   const roster = (side: 'CT' | 'T') => rosterRound && (
@@ -452,14 +474,16 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           })()}
           {/* main callouts with the Callouts layer; detailed ones too once you zoom in (or with "All callout names") */}
           {(s.overlays.callouts || s.overlays.calloutsAll) && MAP.callouts
-            .filter(c => !c.minor || s.overlays.calloutsAll || zoomedIn)
+            .filter(c => !c.minor || s.overlays.calloutsAll || zoomedIn || named(c.name))
             .map((c, i) => {
-              // a fixed size on screen (like CS2's radar): small spaced capitals, quieter for the detailed spots
-              const fs = (c.minor ? 8 : 9.5) / view.scale;
+              // a fixed size on screen (like CS2's radar): small spaced capitals, quieter for the detailed spots;
+              // a place the move card on screen names stands out
+              const hot = named(c.name);
+              const fs = (c.minor && !hot ? 8 : 9.5) / view.scale;
               return (
                 <Text key={`${c.name}-${i}`} text={c.name.toUpperCase()} x={c.pos.x - 80} y={c.pos.y - fs / 2} width={160} align="center" fontSize={fs}
-                  letterSpacing={0.6 / view.scale} fill={c.minor ? '#b9c1cc' : '#eef1f5'} stroke="#000" strokeWidth={2.2 / view.scale} fillAfterStrokeEnabled
-                  fontStyle={c.minor ? 'normal' : 'bold'} opacity={c.minor ? 0.6 : 0.78} />
+                  letterSpacing={0.6 / view.scale} fill={hot ? TOK.highlight : c.minor ? '#b9c1cc' : '#eef1f5'} stroke="#000" strokeWidth={2.2 / view.scale} fillAfterStrokeEnabled
+                  fontStyle={c.minor && !hot ? 'normal' : 'bold'} opacity={hot ? 1 : c.minor ? 0.6 : 0.78} />
               );
             })}
           {visionLayer && visionLayer.cones.map(v => (
@@ -467,7 +491,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               stroke={v.side === 'CT' ? 'rgba(78,163,255,0.5)' : 'rgba(232,163,60,0.5)'} strokeWidth={0.7 * k} />
           ))}
           {visionLayer && visionLayer.spotted.map((l, i) => (
-            <Line key={`spot-${i}`} points={[l.a.x, l.a.y, l.b.x, l.b.y]} stroke="#ff4d4d" strokeWidth={1.4 * k} dash={[5 * k, 3 * k]} opacity={0.85} />
+            <Line key={`spot-${i}`} points={[l.a.x, l.a.y, l.b.x, l.b.y]} stroke={TOK.bad} strokeWidth={1.4 * k} dash={[5 * k, 3 * k]} opacity={0.85} />
           ))}
           {losPoly && <Line points={losPoly} closed fill="rgba(78,163,255,0.13)" stroke="rgba(78,163,255,0.45)" strokeWidth={0.8} />}
           {s.overlays.threat && s.mode !== 'review' && entries.map(e => {
@@ -479,7 +503,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               <Group key={e.id} listening={false}>
                 <Line points={[a.x, a.y, b.x, b.y]} stroke={col} strokeWidth={3.5 * k} lineCap="round" opacity={0.95} />
                 {s.overlays.entryCards && <Group x={e.center.x + 6 * k} y={e.center.y + 6 * k} scaleX={k * 0.75} scaleY={k * 0.75}>
-                  <Rect width={w} height={pressure ? 39 : 28} cornerRadius={4} fill="#0b0e12" opacity={0.86} stroke={col} strokeWidth={1.2} />
+                  <Rect width={w} height={pressure ? 39 : 28} cornerRadius={4} fill={TOK.bg0} opacity={0.86} stroke={col} strokeWidth={1.2} />
                   <Rect width={3} height={pressure ? 39 : 28} cornerRadius={[4, 0, 0, 4]} fill={col} />
                   <Text x={7} y={4} width={w - 10} text={`${e.name} · ${entryClock(e, s.time)}`} fontSize={9.5} fontStyle="bold" fill="#fff" wrap="none" ellipsis />
                   <Text x={7} y={16} width={w - 10} text={e.headline} fontSize={8} fill={col} wrap="none" ellipsis />
@@ -523,15 +547,15 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           {s.overlays.lineups && [...BUILTIN_LINEUPS, ...s.customLineups].filter(l => l.map === MAP.id && l.level === s.level).map(l => (
             <Group key={`lu-${l.id}`} listening={false} opacity={0.75}>
               <ThrowArc from={l.from} to={l.to} k={k} color={UTIL_COLOR[l.type]} dashed />
-              <Circle x={l.from.x} y={l.from.y} radius={3 * k} fill="#ffd23f" stroke="#000" strokeWidth={0.8 * k} />
+              <Circle x={l.from.x} y={l.from.y} radius={3 * k} fill={TOK.highlight} stroke="#000" strokeWidth={0.8 * k} />
               <Text x={l.to.x + 5 * k} y={l.to.y - 5 * k} text={l.name} fontSize={8 * k} fill="#fff" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled />
             </Group>
           ))}
           {s.board.utility.filter(u => u.from || u.path).map(u => <NadeFlight key={`fly-${u.id}`} u={u} t={s.time} k={k} />)}
           {s.tool === 'lineup' && s.draftLineup?.from && (
             <Group listening={false}>
-              <Circle x={s.draftLineup.from.x} y={s.draftLineup.from.y} radius={4 * k} fill="#ffd23f" stroke="#000" strokeWidth={1 * k} />
-              {(s.draftLineup.to ?? hover) && <ThrowArc from={s.draftLineup.from} to={(s.draftLineup.to ?? hover)!} k={k} color="#ffd23f" />}
+              <Circle x={s.draftLineup.from.x} y={s.draftLineup.from.y} radius={4 * k} fill={TOK.highlight} stroke="#000" strokeWidth={1 * k} />
+              {(s.draftLineup.to ?? hover) && <ThrowArc from={s.draftLineup.from} to={(s.draftLineup.to ?? hover)!} k={k} color={TOK.highlight} />}
             </Group>
           )}
           {s.board.utility.map(u => {
@@ -561,7 +585,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 <Circle radius={TOKEN_R * 0.85} fill="#2a2f36" stroke={COLORS[p.side]} strokeWidth={1.5} />
                 <Line points={[-5, -5, 5, 5]} stroke={COLORS[p.side]} strokeWidth={2.2} lineCap="round" />
                 <Line points={[-5, 5, 5, -5]} stroke={COLORS[p.side]} strokeWidth={2.2} lineCap="round" />
-                {names ? <NameTag name={names[p.id] ?? p.label} side={p.side} fs={nameFs} y={TOKEN_R * 0.85 + 3} dead />
+                {names ? (!crowded.has(p.id) || hoverPlayer === p.id) && <NameTag name={names[p.id] ?? p.label} side={p.side} fs={nameFs} y={TOKEN_R * 0.85 + 3} dead />
                   : <Text text={p.label} fontSize={8} fill={COLORS[p.side]} x={7} y={-12} fontStyle="bold" />}
               </Group>
             );
@@ -600,7 +624,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 )}
                 {(live.get(lp.id)?.hp ?? 100) < 100 && (
                   <Arc innerRadius={TOKEN_R + 1.5} outerRadius={TOKEN_R + 4} angle={(360 * (live.get(lp.id)!.hp)) / 100} rotation={-90}
-                    fill={live.get(lp.id)!.hp > 50 ? '#3ddc84' : live.get(lp.id)!.hp > 25 ? '#ffb020' : '#ff4d4d'} listening={false} />
+                    fill={live.get(lp.id)!.hp > 50 ? TOK.good : live.get(lp.id)!.hp > 25 ? '#ffb020' : TOK.bad} listening={false} />
                 )}
                 {/* where they're looking, like the arrow on CS2's radar */}
                 <Line points={[TOKEN_R - 1, -5, TOKEN_R + 7, 0, TOKEN_R - 1, 5]} closed rotation={deg(p.facing ?? engine.facing(p))}
@@ -610,8 +634,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                   stroke={s.selectedId === p.id ? '#fff' : '#000a'} strokeWidth={s.selectedId === p.id ? 2.5 : 1.5} />
                 {/* in Review the nickname goes in the tag underneath; the plan's numbers stay in the circle */}
                 {!names && <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />}
-                {names && <NameTag name={names[p.id] ?? p.label} side={p.side} fs={nameFs} y={TOKEN_R + 3} strong={hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)} />}
-                {s.overlays.playerInfo && (zoomedIn || hoverPlayer === p.id || s.selectedId === p.id) && <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? '#ffd23f' : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
+                {names && (!crowded.has(p.id) || hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)) &&
+                  <NameTag name={names[p.id] ?? p.label} side={p.side} fs={nameFs} y={TOKEN_R + 3} strong={hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)} />}
+                {s.overlays.playerInfo && (zoomedIn || hoverPlayer === p.id || s.selectedId === p.id) && <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? TOK.highlight : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
                   width={40} x={-20} y={names ? TOKEN_R + 5 + nameFs * 1.5 : 13} align="center" fontStyle="bold" listening={false} />}
                 {s.overlays.playerInfo && batch?.players[p.id] && (
                   <Text text={`${Math.round(batch.players[p.id].pKill * 100)}% K`} fontSize={8} fontStyle="bold" width={40} x={-20} y={names ? TOKEN_R + 13 + nameFs * 1.5 : 21} align="center"
@@ -646,11 +671,11 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           })}
           {spots && spots.best.map((sp, i) => (
             <Group key={`spot-${i}`} x={sp.pos.x} y={sp.pos.y} listening={false}>
-              <Circle radius={9 * k} fill="#ffd23f" stroke="#000" strokeWidth={1.5 * k} shadowColor="#000" shadowBlur={5} shadowOpacity={0.6} />
+              <Circle radius={9 * k} fill={TOK.highlight} stroke="#000" strokeWidth={1.5 * k} shadowColor="#000" shadowBlur={5} shadowOpacity={0.6} />
               <Text text={String(i + 1)} fontSize={11 * k} fontStyle="bold" fill="#111" width={18 * k} x={-9 * k} y={-5.5 * k} align="center" />
               <Group x={11 * k} y={-8 * k} scaleX={k * 0.75} scaleY={k * 0.75}>
-                <Rect width={86} height={20} cornerRadius={4} fill="#0b0e12" opacity={0.88} stroke="#ffd23f" strokeWidth={1} />
-                <Text x={5} y={5} text={`${sp.score} · ${sp.where || 'here'}`} fontSize={9.5} fontStyle="bold" fill="#ffd23f" width={80} wrap="none" ellipsis />
+                <Rect width={86} height={20} cornerRadius={4} fill={TOK.bg0} opacity={0.88} stroke={TOK.highlight} strokeWidth={1} />
+                <Text x={5} y={5} text={`${sp.score} · ${sp.where || 'here'}`} fontSize={9.5} fontStyle="bold" fill={TOK.highlight} width={80} wrap="none" ellipsis />
               </Group>
             </Group>
           ))}
@@ -659,8 +684,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             if (!pl) return null;
             return (
               <Group x={pl.pos.x} y={pl.pos.y} listening={false}>
-                <Circle radius={17 * k} stroke="#ffd23f" strokeWidth={1.5 * k} dash={[4 * k, 3 * k]} />
-                <Text x={-40 * k} y={-30 * k} width={80 * k} align="center" fontSize={8.5 * k} fontStyle="bold" fill="#ffd23f" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
+                <Circle radius={17 * k} stroke={TOK.highlight} strokeWidth={1.5 * k} dash={[4 * k, 3 * k]} />
+                <Text x={-40 * k} y={-30 * k} width={80 * k} align="center" fontSize={8.5 * k} fontStyle="bold" fill={TOK.highlight} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
                   text={`now: ${spots.current.score}${spots.currentRank ? ` · #${spots.currentRank}` : ''}`} />
               </Group>
             );
@@ -776,7 +801,7 @@ function FacingHandle({ engine, player, k, aiming, onAim, onPreview, onCommit }:
       <Line points={[player.pos.x, player.pos.y, player.pos.x + Math.cos(f) * R, player.pos.y + Math.sin(f) * R]}
         stroke="#fff" strokeWidth={1.2 * k} dash={[3 * k, 3 * k]} listening={false} />
       <Circle x={player.pos.x + Math.cos(f) * R} y={player.pos.y + Math.sin(f) * R} radius={7 * k} hitStrokeWidth={16 * k}
-        fill={aiming ? '#ffd23f' : '#fff'} stroke="#000" strokeWidth={1.5 * k} draggable={!aiming} listening={!aiming}
+        fill={aiming ? TOK.highlight : '#fff'} stroke="#000" strokeWidth={1.5 * k} draggable={!aiming} listening={!aiming}
         onClick={e => { e.cancelBubble = true; onAim(); }} onTap={e => { e.cancelBubble = true; onAim(); }}
         onMouseEnter={e => { e.target.getStage()!.container().style.cursor = 'grab'; }}
         onMouseLeave={e => { e.target.getStage()!.container().style.cursor = ''; }}
@@ -799,9 +824,14 @@ const ZOOM_DETAIL = 1.6;
 
 /** Room the overlays take around the map (px): the HUD on top, zoom at the side, the eval bar and the dock below. */
 const FIT_PAD = { top: 52, bottom: 92, side: 44 };
-/** The whole radar, as big as fits between the overlays. */
-function fitView(w: number, h: number) {
-  const aw = Math.max(200, w - FIT_PAD.side * 2), ah = Math.max(200, h - FIT_PAD.top - FIT_PAD.bottom);
+/** Review's team panels down each side (196 px and their margin), hidden on a board under 700 px wide. */
+/** How close (screen px, across and down) two players' name tags may be before the second one hides: about a tag's size. */
+const NAME_GAP = { x: 64, y: 16 };
+const ROSTER_PAD = 212, ROSTER_MIN_W = 700;
+/** The whole radar, as big as fits between the overlays (and Review's team panels, without shrinking it below half the width). */
+function fitView(w: number, h: number, rosters = false) {
+  const side = rosters && w >= ROSTER_MIN_W ? ROSTER_PAD : FIT_PAD.side;
+  const aw = Math.max(200, w * 0.5, w - side * 2), ah = Math.max(200, h - FIT_PAD.top - FIT_PAD.bottom);
   const scale = Math.min(aw, ah) / 1024;
   return { scale, x: (w - 1024 * scale) / 2, y: FIT_PAD.top + (ah - 1024 * scale) / 2 };
 }
@@ -853,7 +883,7 @@ function BombOnMap({ at, k, state, age, planted }: { at: Vec2; k: number; state:
   }
   return (
     <Group listening={false}>
-      <Circle x={at.x} y={at.y} radius={16 * k} stroke="#ffd23f" strokeWidth={1.5 * k} dash={[3 * k, 2.5 * k]} />
+      <Circle x={at.x} y={at.y} radius={16 * k} stroke={TOK.highlight} strokeWidth={1.5 * k} dash={[3 * k, 2.5 * k]} />
       <C4 x={at.x} y={at.y} k={k * 1.35} />
     </Group>
   );
@@ -1099,9 +1129,9 @@ function useRadarImage(src?: string) {
 }
 
 export function threatColor(x: number) {
-  if (x > 0.66) return '#ff4d4d';
+  if (x > 0.66) return TOK.bad;
   if (x > 0.4) return '#ffb020';
-  return '#3ddc84';
+  return TOK.good;
 }
 
 function toolHint(t: string) {

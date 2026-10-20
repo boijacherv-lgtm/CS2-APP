@@ -31,7 +31,6 @@ type Judged =
   | { round: number; kind: 'hold'; h: Hold; v: HoldVerdict }
   | { round: number; kind: 'move'; m: Move; v: MoveVerdict };
 
-const PLURAL: Record<MoveClass, string> = { Best: 'best', Excellent: 'excellent', Good: 'good', Inaccuracy: 'inaccuracies', Mistake: 'mistakes', Blunder: 'blunders' };
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 /** "Try X…" → "try X…" inside a sentence, but place names (Big Box…) keep their capitals. */
 const lower = (t: string) => (/^(Try|Don't|Fall|After|You) /.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t);
@@ -144,10 +143,10 @@ export function matchAnalysis(map: string, player: string, rounds: ({ holds: Hol
     : `Your positioning is often off level-10 play: ${share}.`;
   const summary = [
     likeLine,
-    work[0] ? `The main thing: ${lower(work[0].title)} (${work[0].rounds.map(i => `R${i + 1}`).join(', ')}).` : 'Nothing stands out as a positioning mistake.',
+    work[0] ? `The main thing: ${lower(work[0].title)} (${work[0].rounds.map(i => `R${i + 1}`).join(', ')}).` : null,
     work[1] ? `Also: ${lower(work[1].title)}.` : '',
     good[0] ? `Keep it up: ${lower(good[0].title)}.` : '',
-  ].filter(Boolean).join(' ');
+  ];
   // the engine: every decision against the best level-10 option
   const engined = all.map(x => ({ x, e: x.kind === 'hold' ? engineHold(map, x.h) : engineMove(map, x.m) })).filter(y => y.e);
   const accuracy = engined.length ? +(engined.reduce((a, y) => a + y.e!.accuracy, 0) / engined.length).toFixed(1) : null;
@@ -158,8 +157,9 @@ export function matchAnalysis(map: string, player: string, rounds: ({ holds: Hol
     what: y.x.kind === 'hold' ? `${y.x.h.contact ? 'Fought at' : 'Held'} ${y.x.h.place}` : `${y.x.m.from} → ${y.x.m.to}`,
     best: y.e!.best!.place, loss: y.e!.loss, cls: y.e!.cls,
   }));
-  const engineLine = accuracy === null ? '' : `Positioning accuracy ${accuracy} (${(['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'] as MoveClass[]).filter(c => classes[c]).map(c => `${classes[c]} ${classes[c]! > 1 ? PLURAL[c] : c.toLowerCase()}`).join(', ')}).`;
-  return { summary: [engineLine, summary].filter(Boolean).join(' '), work: work.slice(0, 5), good: good.slice(0, 3), decisions: known.length, likePros, mostCommon, demos: pos.demos, accuracy, classes, worst };
+  // no habit repeated across rounds: say so, without hiding the single costly spots listed under it
+  if (summary[1] === null) summary[1] = worst.length ? 'No spot you keep getting wrong; the single spots below cost the most.' : 'Nothing stands out as a positioning mistake.';
+  return { summary: summary.filter(Boolean).join(' '), work: work.slice(0, 5), good: good.slice(0, 3), decisions: known.length, likePros, mostCommon, demos: pos.demos, accuracy, classes, worst };
 }
 
 /** One paragraph about a player's positioning in one round (the Positions tab). */

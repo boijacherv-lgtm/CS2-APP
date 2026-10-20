@@ -292,7 +292,7 @@ function UtilityEval({ engine, batch, impact }: {
             <div className="util-head">
               <b>{UTIL_NAME[u.type]}</b>
               <span className="muted">{where(u.pos) || 'map'} · {fmt(u.throwAt)}</span>
-              <span className="pct" style={{ color: imp ? (imp.ctWinDelta > 0.02 ? '#3ddc84' : imp.ctWinDelta < -0.02 ? '#ff4d4d' : 'var(--muted)') : undefined }}
+              <span className="pct" style={{ color: imp ? (imp.ctWinDelta > 0.02 ? 'var(--good)' : imp.ctWinDelta < -0.02 ? 'var(--bad)' : 'var(--muted)') : undefined }}
                 title="Change in CT round wins compared to the same rounds without this grenade">
                 {imp ? `${sign(imp.ctWinDelta)} CT` : batch?.done ? '…' : ''}
               </span>

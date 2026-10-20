@@ -62,19 +62,35 @@ export interface LevelGrade {
   /** On the ladder: 0 = a typical level-10 game, `proAt` = a typical pro game. */
   score: number; proAt: number;
   perf: number; mech: number | null;
+  /** The lobby's average Premier rating when it held the grade at A (too weak a lobby to show pro level). */
+  capped?: number;
 }
+/**
+ * Performance is measured against the players in the lobby, so a strong game in a lobby far below level 10 isn't
+ * evidence of pro level: below this average Premier rating (about where FACEIT level 10 starts) the grade stops at A.
+ */
+export const PRO_LOBBY = 18000;
+/** Fights a match's mechanics count as fully measured from; with fewer they're shrunk toward a typical game. */
+const MECH_FIGHTS = 10;
 /** The one grade for a player's match. */
-export function levelGrade(p: PlayerReport, rounds: (AnalystRound | undefined)[]): LevelGrade | null {
+export function levelGrade(p: PlayerReport, rounds: (AnalystRound | undefined)[], lobbyRating: number | null = null): LevelGrade | null {
   if (!LEVEL_MODEL || !p.played) return null;
   const L = LEVEL_MODEL;
   const perf = (zAgainst(coachFeatures(p), COACH_MODEL, p.roles[0]?.role ?? 'Rifler') - L.perf.lvl10) / L.perf.sd;
-  const idx = mechanicsIndex(mechanicsOf(rounds, p.id), L);
-  const mech = idx === null ? null : (idx - L.index.lvl10) / L.index.sd;
+  const m = mechanicsOf(rounds, p.id);
+  const idx = mechanicsIndex(m, L);
+  // one match's mechanics are noisy: with few fights, closer to a typical game
+  const mech = idx === null ? null : ((idx - L.index.lvl10) / L.index.sd) * (m.fights / (m.fights + MECH_FIGHTS));
   // both parts in level-10 spreads; without mechanics (older demos), performance alone
   const score = mech === null ? perf : (perf + mech) / 2;
   const proAt = Math.max(0.15, mech === null ? (L.perf.pro - L.perf.lvl10) / L.perf.sd : ((L.perf.pro - L.perf.lvl10) / L.perf.sd + (L.index.pro - L.index.lvl10) / L.index.sd) / 2);
   // steps of half the level-10 → pro gap; S+ is clearly beyond a typical pro game, D/F clearly below level 10
   const d = proAt / 2;
-  const letter: Letter = score >= 2 * proAt ? 'S+' : score >= proAt ? 'S' : score >= d ? 'A' : score >= -d ? 'B' : score >= -2 * d ? 'C' : score >= -4 * d ? 'D' : 'F';
-  return { letter, score: +score.toFixed(3), proAt: +proAt.toFixed(3), perf: +perf.toFixed(3), mech: mech === null ? null : +mech.toFixed(3) };
+  let letter: Letter = score >= 2 * proAt ? 'S+' : score >= proAt ? 'S' : score >= d ? 'A' : score >= -d ? 'B' : score >= -2 * d ? 'C' : score >= -4 * d ? 'D' : 'F';
+  const capped = lobbyRating !== null && lobbyRating < PRO_LOBBY && (letter === 'S' || letter === 'S+');
+  if (capped) letter = 'A';
+  return {
+    letter, score: +score.toFixed(3), proAt: +proAt.toFixed(3), perf: +perf.toFixed(3), mech: mech === null ? null : +mech.toFixed(3),
+    ...(capped ? { capped: Math.round(lobbyRating!) } : {}),
+  };
 }

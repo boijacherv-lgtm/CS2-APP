@@ -71,7 +71,7 @@ export interface Deviation { feature: FeatureId; label: string; value: string; n
 /** Short names and how to show each number. */
 export const FEATURE_LABEL: Record<FeatureId, string> = {
   untradedDeaths: 'Untraded deaths', isolatedDeaths: 'Dying alone', openingDeaths: 'Opening deaths', whiffs: 'Missed sprays',
-  unusedUtil: 'Died with grenades', wastedFlashes: 'Wasted flashes', teamHarm: 'Team damage / flashes', awpLost: 'AWP lost',
+  unusedUtil: 'Died with grenades', wastedFlashes: 'Wasted flashes', teamHarm: 'Hurt or flashed a teammate', awpLost: 'AWP lost',
   lowHpFights: 'Fights while hurt', adr: 'ADR', kast: 'KAST', hs: 'Headshots', utilDamage: 'Grenade damage',
   flashAssists: 'Flash assists', trades: 'Trades', impact: 'Impact',
 };
@@ -81,7 +81,7 @@ function show(id: FeatureId, v: number): string {
     case 'kast': case 'hs': return `${Math.round(v)}%`;
     case 'utilDamage': return `${v.toFixed(1)} / round`;
     case 'impact': return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
-    default: return `${Math.round(v * 100)}% of rounds`;
+    default: return `in ${Math.round(v * 100)}% of rounds`;
   }
 }
 
@@ -126,6 +126,9 @@ type Lines = { line: RoundLine; i: number }[];
 const has = (l: RoundLine, t: Tag) => l.tags.includes(t);
 const roundsWith = (lines: Lines, f: (l: RoundLine) => boolean) => lines.filter(x => f(x.line)).map(x => x.i);
 
+/** "Don't lose the AWP" → "don't lose the AWP" (acronyms and sides keep their capitals). */
+const lowerFirst = (t: string) => (/^[A-Z][a-z]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t);
+
 /** One player's match as numbers (the coach's input, and what training learns from). */
 export function coachFeatures(p: PlayerReport): Features {
   const lines = played(p);
@@ -140,7 +143,8 @@ export function coachFeatures(p: PlayerReport): Features {
     unusedUtil: count('UNUSED UTIL'),
     wastedFlashes: count('WASTED'),
     teamHarm: count('TEAM FLASH') + count('TEAM DAMAGE'),
-    awpLost: count('AWP LOST'),
+    // only rounds they bought the AWP: dying with one picked up off the floor isn't an AWPer's mistake
+    awpLost: rate(l => l.role === 'AWPer' && has(l, 'AWP LOST')),
     lowHpFights: rate(l => l.deaths > 0 && has(l, 'LOW HP')),
     adr: p.adr, kast: p.kast, hs: p.hs,
     utilDamage: p.utilDamage / n,
@@ -238,7 +242,7 @@ function examples(id: FeatureId, lines: Lines): number[] {
     case 'unusedUtil': return roundsWith(lines, l => has(l, 'UNUSED UTIL'));
     case 'wastedFlashes': return roundsWith(lines, l => has(l, 'WASTED'));
     case 'teamHarm': return roundsWith(lines, l => has(l, 'TEAM FLASH') || has(l, 'TEAM DAMAGE'));
-    case 'awpLost': return roundsWith(lines, l => has(l, 'AWP LOST'));
+    case 'awpLost': return roundsWith(lines, l => l.role === 'AWPer' && has(l, 'AWP LOST'));
     case 'lowHpFights': return roundsWith(lines, l => l.deaths > 0 && has(l, 'LOW HP'));
     case 'flashAssists': return roundsWith(lines, l => has(l, 'FLASH ASSIST'));
     case 'trades': return roundsWith(lines, l => has(l, 'TRADE'));
@@ -278,7 +282,7 @@ export function coach(p: PlayerReport, model: CoachModel = DEFAULT_MODEL): Coach
   if (sides.CT !== null && sides.T !== null && Math.abs(sides.CT - sides.T) > 5) {
     const weak = sides.CT < sides.T ? 'CT' : 'T';
     notes.push({
-      feature: 'impact', kind: 'improve', title: `Your ${weak} side`, score: Math.abs(sides.CT - sides.T) / 5,
+      feature: 'impact', kind: 'improve', title: weak === 'CT' ? 'Your CT side: one angle at a time, fall back after contact' : 'Your T side: fight with utility and a teammate', score: Math.abs(sides.CT - sides.T) / 5,
       detail: `You did much better on ${weak === 'CT' ? 'T' : 'CT'} (${(weak === 'CT' ? sides.T! : sides.CT!).toFixed(1)}% a round) than on ${weak} (${(weak === 'CT' ? sides.CT : sides.T)!.toFixed(1)}%). ${weak === 'CT'
         ? 'On CT: hold one angle at a time, fall back after first contact instead of re-peeking, and save utility to retake.'
         : 'On T: come in with utility and a teammate, don\'t peek alone for info, and play the post-plant from safe spots.'}`,
@@ -289,7 +293,7 @@ export function coach(p: PlayerReport, model: CoachModel = DEFAULT_MODEL): Coach
   const strengths = notes.filter(x => x.kind === 'strength').sort((a, b) => b.score - a.score).slice(0, 3);
   const summary = n === 0 ? 'Not graded yet.'
     : improve.length === 0 ? `A solid game as ${role.toLowerCase()}: nothing stands out as a weakness.`
-    : `Main thing to work on: ${improve[0].title.toLowerCase()}.${strengths.length ? ` Keep it up: ${strengths[0].title.toLowerCase()}.` : ''}`;
+    : `Main thing to work on: ${lowerFirst(improve[0].title)}.${strengths.length ? ` Keep it up: ${lowerFirst(strengths[0].title)}.` : ''}`;
   profile.sort((a, b) => Math.abs(b.z) - Math.abs(a.z));
   return { player: p.id, improve, strengths, sides, summary, profile };
 }

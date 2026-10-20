@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { coach, modelFor, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
-import { CLASS_COLOR } from '../engine/engineEval';
 import { analystReport, type Finding, type Topic } from '../engine/analystBench';
 import { analystBench, proAnalystAvailable } from '../engine/analystModel';
 import { matchAnalysis, type AnalysisItem } from '../engine/analysis';
@@ -9,14 +8,16 @@ import type { LevelGrade } from '../engine/level';
 import { buildMatchReport, IMPACT_PER_POINT, type MatchReport, type PlayerReport, type RoundSummary } from '../engine/match';
 import { LETTER_COLOR, RATING_SCALE, type DemoData, type Letter, type PlayKey } from '../engine/recap';
 import { ACTION_TEXT, PLAY_MODEL } from '../engine/playModel';
-import { habits, loadHabits, saveMatch, summarizeMatch, type MatchSummary } from '../engine/habits';
+import { habits } from '../engine/habits';
+import { useProfile } from './profileApi';
+import { matchKey } from '../engine/profile';
+import { ShareDialog } from '../site/Profile';
 import { SEARCH_COLOR, type SearchMoment } from '../engine/search';
 import { MAPS } from '../map/catalog';
 import { navigate } from '../shell/router';
-import { useStore } from '../store';
+import { useStore, whoAmI } from '../store';
 import { ReviewStart } from './Recap';
 import { Icon, type IconName } from './Icon';
-import { steamFetch } from './steamApi';
 
 /**
  * Match recap, read top to bottom: the result → your game (grade, rating, key numbers) and the coach → everyone's
@@ -27,18 +28,17 @@ export function MatchReportPage() {
   const report = useStore(s => s.report);
   const view = useMemo(() => (report ? buildMatchReport(report.data, report.rounds) : null), [report]);
   const [picked, setPicked] = useState<string | null>(null);
-  // you, if you're logged in with Steam and played in this match
-  const [me, setMe] = useState<string | null>(null);
-  useEffect(() => {
-    steamFetch('/me').then(r => (r.ok ? r.json() : null)).then(j => setMe(j?.me?.steamId ?? null)).catch(() => {});
-  }, []);
+  // you: logged in with Steam, or picked with "This is me" (opens on your game when you played in this match)
+  const me = useStore(whoAmI);
   // a round the coach points at (hovering R12 outlines that column in the grid)
   const [hotRound, setHotRound] = useState<number | null>(null);
+  // your default comparison (Settings), when the pro models are there
+  const [level, setLevel] = useState<Level>(() => (useProfile.getState().data.prefs.compare === 'pro' && (!!PRO_MODEL || proAnalystAvailable) ? 'pro' : 'lvl10'));
+  const [fullBoard, setFullBoard] = useState(false);
   if (!report || !view) return <div className="app single"><ReviewStart /></div>;
 
   // the pro level, once it's trained (HLTV demos): the coach and the analyst compare with it instead
   const hasPro = !!PRO_MODEL || proAnalystAvailable;
-  const [level, setLevel] = useState<Level>('lvl10');
   const focusId = [picked, me].find(id => id && view.players.some(p => p.id === id)) ?? view.players[0]?.id;
   const focus = view.players.find(p => p.id === focusId)!;
   const data = report.data;
@@ -52,10 +52,12 @@ export function MatchReportPage() {
       <MatchHeader data={data} view={view} me={me} done={report.done} error={report.error} />
 
       {hasPro && (
-        <div className="seg-mini level-toggle" role="group" aria-label="Compare with">
+        <div className="level-row">
           <span className="muted">Compare with</span>
-          <button className={level === 'lvl10' ? 'on' : ''} onClick={() => setLevel('lvl10')} title="FACEIT level-10 players">Level 10</button>
-          <button className={level === 'pro' ? 'on' : ''} onClick={() => setLevel('pro')} title="Pro players (HLTV demos)">Pro</button>
+          <div className="seg-mini level-toggle" role="group" aria-label="Compare with">
+            <button className={level === 'lvl10' ? 'on' : ''} onClick={() => setLevel('lvl10')} title="FACEIT level-10 players">Level 10</button>
+            <button className={level === 'pro' ? 'on' : ''} onClick={() => setLevel('pro')} title="Pro players (HLTV demos)">Pro</button>
+          </div>
         </div>
       )}
       {focus && (
@@ -64,15 +66,18 @@ export function MatchReportPage() {
           <CoachCard p={focus} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
         </div>
       )}
-      {me && view.players.some(p => p.id === me) && <HabitsCard data={data} rounds={report.rounds} done={report.done} me={me} player={view.players.find(p => p.id === me)!} />}
+      {me && view.players.some(p => p.id === me) && <HabitsCard />}
       {focus && <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
       {focus && <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
       {focus && <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />}
 
       <section className="recap-card">
-        <h2 className="display">Scoreboard</h2>
+        <div className="coach-head">
+          <h2 className="display">Scoreboard</h2>
+          <button className="ghost sb-more" onClick={() => setFullBoard(!fullBoard)} aria-expanded={fullBoard}>{fullBoard ? 'Fewer columns' : 'More columns'}</button>
+        </div>
         {([0, 1] as const).map(t => (
-          <Scoreboard key={t} team={t} players={view.players.filter(p => p.team === t)} score={view.score[t]} focus={focusId} onPick={setPicked} />
+          <Scoreboard key={t} team={t} players={view.players.filter(p => p.team === t)} score={view.score[t]} focus={focusId} onPick={setPicked} full={fullBoard} />
         ))}
       </section>
 
@@ -88,8 +93,10 @@ export function MatchReportPage() {
         </p>
         <p>
           <b>Round grades</b> (S+ … F) come from how much the player changed their team's win chance, plus bonuses for clutches and
-          multi-kills and penalties for team damage, team flashes and dying with unused grenades. The <b>coach</b> compares each number
-          with what's normal for a Premier player; the bars show how far, better (right) or worse (left).
+          multi-kills and penalties for team damage, team flashes and dying with unused grenades. <b>Lobby</b> grades the match against
+          the other nine players; <b>Level</b> places it between a typical FACEIT level-10 game (B) and a typical pro game (S). The{' '}
+          <b>coach</b> compares each number with FACEIT level-10 players of the same role (or pros, with Pro); the bars show how far,
+          better (right) or worse (left).
         </p>
       </section>
     </div>
@@ -104,6 +111,10 @@ function MatchHeader({ data, view, me, done, error }: { data: DemoData; view: Ma
   const result = mine ? (a > b ? 'Victory' : a < b ? 'Defeat' : 'Draw') : null;
   const delta = mine && mine.gameRating !== null && mine.rank !== null ? mine.gameRating - mine.rank : null;
   const ranked = Object.keys(data.ranks ?? {}).length;
+  // your match, once it's on your profile: a share card
+  const key = matchKey(data.map, data.rounds);
+  const saved = useProfile(s => s.data.matches.find(m => m.id === key)), profileName = useProfile(s => s.me?.name ?? null);
+  const [share, setShare] = useState(false);
   return (
     <header className="recap-head" style={{ '--map-art': map ? `url(${map.levels[0].image})` : 'none' } as React.CSSProperties}>
       <div className="recap-head-main">
@@ -112,7 +123,9 @@ function MatchHeader({ data, view, me, done, error }: { data: DemoData; view: Ma
           <b className={mine ? (mine.team === 0 ? 'ct' : 't') : 'ct'}>{a}</b><i>:</i><b className={mine ? (mine.team === 0 ? 't' : 'ct') : 't'}>{b}</b>
         </span>
         {result && <span className={`recap-result ${result.toLowerCase()}`}>{result}</span>}
+        {saved && <button className="recap-share" onClick={() => setShare(true)}><Icon name="share" size={14} /> Share</button>}
       </div>
+      {share && saved && <ShareDialog m={saved} player={profileName ?? saved.name ?? 'Me'} onClose={() => setShare(false)} />}
       <p className="muted">
         {data.rounds.length} rounds · {mine ? 'your team first' : 'team that started CT first'}
         {mine && mine.gameRating !== null && <> · you: game rating <b>{fmt(mine.gameRating)}</b>{delta !== null && <span className={delta >= 0 ? 'up' : 'down'}> ({delta >= 0 ? '+' : '−'}{fmt(Math.abs(delta))} vs your Premier)</span>}</>}
@@ -145,18 +158,24 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
         <select value={p.id} onChange={e => onPlayer(e.target.value)} title="Whose game">
           {players.map(x => <option key={x.id} value={x.id}>{x.name}{x.id === me ? ' (you)' : ''}</option>)}
         </select>
-        <span className="muted">{p.roles.slice(0, 2).map(r => r.role).join(' / ')}</span>
+        <span className="muted">{rolesText(p, false)}</span>
+        {p.id !== me && (
+          <button className="ghost this-is-me" onClick={() => { useStore.getState().setClaimed(p.id); onPlayer(p.id); }}
+            title="Open your own game first and evaluate only your moves in Review (remembered in this browser)">This is me</button>
+        )}
       </div>
       <div className="perf-main">
         <div className="perf-grades">
           <div className="perf-grade" title={`Against the other players in this lobby (round grades, impact, ADR, KAST, duels): ${lobbyText(p.lobbyZ)}`}>
             <span className="perf-letter display" style={{ background: LETTER_COLOR[p.letter] }}>{p.letter}</span>
             <span className="muted">Lobby</span>
+            <span className="perf-sub muted">vs these 10</span>
           </div>
           {p.level ? (
             <div className="perf-grade" title={levelText(p.level)}>
               <span className="perf-letter display small" style={{ background: LETTER_COLOR[p.level.letter] }}>{p.level.letter}</span>
               <span className="muted">Level</span>
+              <span className="perf-sub muted">B lvl 10 · S pro</span>
             </div>
           ) : p.lvl10 && (
             <div className="perf-grade" title={`Against FACEIT level-10 players (the coach's numbers): ${lvl10Text(p.lvl10.z)}`}>
@@ -187,8 +206,8 @@ function Gauge({ rating, rank }: { rating: number | null; rank: number | null })
   return (
     <div className="gauge" title="Estimated rating for this game (the tick is their real Premier rating)">
       <svg viewBox="0 0 120 66" aria-hidden>
-        <path d="M 12 60 A 48 48 0 0 1 108 60" fill="none" stroke="var(--surface-3)" strokeWidth="9" strokeLinecap="round" />
-        {rating !== null && <path d={arc(rating)} fill="none" stroke="var(--text-1)" strokeWidth="9" strokeLinecap="round" />}
+        <path d="M 12 60 A 48 48 0 0 1 108 60" fill="none" stroke="var(--surface-3)" strokeWidth="6" strokeLinecap="round" />
+        {rating !== null && <path d={arc(rating)} fill="none" stroke="var(--text-1)" strokeWidth="6" strokeLinecap="round" />}
         {rank !== null && (() => { const [x1, y1] = pt(rank, 40); const [x2, y2] = pt(rank, 56); return <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--t)" strokeWidth="2.5" />; })()}
       </svg>
       <b className="display num">{rating !== null ? fmt(rating) : '–'}</b>
@@ -210,7 +229,7 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
     <section className="recap-card coach">
       <div className="coach-head">
         <h2 className="display">Coach</h2>
-        <span className="muted">CT {side(c.sides.CT)} · T {side(c.sides.T)} win chance a round</span>
+        <span className="muted" title="How much you changed your team's chance to win the round, on average, on each side">Win chance you added a round: CT {side(c.sides.CT)} · T {side(c.sides.T)}</span>
       </div>
       {model.trainedOn > 0 && (
         <p className="coach-vs muted" title={`Learned from ${model.trainedOn} player-games${model.source ? ` in ${model.source.demos} demos` : ''}`}>
@@ -302,6 +321,8 @@ function AnalystCard({ data, rounds, player, level, done, onRound, onHotRound }:
       {work.length > 0 && <><h3>Work on</h3><div className="pos-items">{work.map(card)}</div></>}
       {good.length > 0 && <><h3>Keep</h3><div className="pos-items">{good.map(card)}</div></>}
       {!work.length && !good.length && <p className="muted">Nothing stands out yet.</p>}
+      <details className="an-more">
+      <summary>All the numbers, by topic</summary>
       <div className="tabs an-tabs" role="tablist">
         {TOPICS.map(t => <button key={t} role="tab" aria-selected={topic === t} className={topic === t ? 'on' : ''} onClick={() => setTopic(t)}>{t}</button>)}
       </div>
@@ -317,6 +338,7 @@ function AnalystCard({ data, rounds, player, level, done, onRound, onHotRound }:
           ))}
         </tbody>
       </table>
+      </details>
     </section>
   );
 }
@@ -349,18 +371,17 @@ function PositioningCard({ data, rounds, player, done, onRound, onHotRound }: {
     <section className="recap-card positioning">
       <div className="coach-head">
         <h2 className="display">Positioning</h2>
-        <span className="muted">vs FACEIT level 10 in the same situations · {a.demos} matches on this map{a.accuracy !== null ? ` · accuracy ${a.accuracy}` : ''}{a.likePros !== null ? ` · ${Math.round(a.likePros * 100)}% level-10 decisions` : ''}</span>
+        <span className="muted">vs FACEIT level 10 in the same situations · {a.demos} matches on this map{a.likePros !== null ? ` · ${Math.round(a.likePros * 100)}% level-10 decisions` : ''}</span>
       </div>
       <p className="coach-summary">{a.summary}{!done && <span className="muted"> (updates while rounds are graded)</span>}</p>
       {a.worst.length > 0 && (
-        <><h3>Biggest positional mistakes</h3>
+        <><h3>Spots where level-10 players win more from elsewhere</h3>
           <div className="pos-worst">
             {a.worst.map((w, i) => (
               <button key={i} className="ghost" onClick={() => onRound(w.round)} onMouseEnter={() => onHotRound(w.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">
                 <span className="muted num">R{w.round + 1} {Math.floor(w.t / 60)}:{String(Math.floor(w.t % 60)).padStart(2, '0')}</span>
                 <b>{w.what}</b>
-                <span className="usual" style={{ color: CLASS_COLOR[w.cls], borderColor: CLASS_COLOR[w.cls] }}>{w.cls} −{Math.round(w.loss * 1000) / 10}%</span>
-                <span className="muted">best: {w.best}</span>
+                <span className="muted">better: <b>{w.best}</b>, +{Math.round(w.loss * 100)}% rounds won</span>
               </button>
             ))}
           </div></>
@@ -432,13 +453,13 @@ function DecisionsCard({ rounds, player, onRound, onHotRound }: {
         </>
       )}
       {a.key.length > 0 && (
-        <><h3>Least level-10 choices</h3>
+        <><h3>Choices level-10 players rarely make</h3>
           <div className="pos-worst">
             {a.key.map((k, i) => (
               <button key={i} className="ghost" onClick={() => onRound(k.round)} onMouseEnter={() => onHotRound(k.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">
                 <span className="muted num">R{k.round + 1} {Math.floor(k.t / 60)}:{String(Math.floor(k.t % 60)).padStart(2, '0')}</span>
-                <b>{ACTION_TEXT[k.did]}</b>
-                <span className="muted">level-10 players {ACTION_TEXT[k.best]} {Math.round(k.agree * 100)}% of the time, do this {Math.round(k.share * 100)}%</span>
+                <b>Chose to {ACTION_TEXT[k.did]}</b>
+                <span className="muted">level-10 players {ACTION_TEXT[k.best]} here {Math.round(k.agree * 100)}% of the time; {Math.round(k.share * 100)}% {ACTION_TEXT[k.did]}</span>
               </button>
             ))}
           </div></>
@@ -451,20 +472,15 @@ function DecisionsCard({ rounds, player, onRound, onHotRound }: {
  * Your habits across matches (habits.ts): every match you open as yourself is summed up and kept in this browser;
  * with two or more, what you do differently from level-10 players match after match, and what to work on first.
  */
-function HabitsCard({ data, rounds, done, me, player }: { data: DemoData; rounds: (RoundSummary | null)[]; done: boolean; me: string; player: PlayerReport }) {
-  const [list, setList] = useState<MatchSummary[]>(() => loadHabits(me));
-  useEffect(() => {
-    if (!done || !player.played) return;
-    // a match's identity: the map, the rounds and when its kills happened
-    const id = `${data.map}|${data.rounds.length}|${data.rounds.slice(0, 3).map(r => r.kills.map(k => k.t.toFixed(1)).join(',')).join(';')}`;
-    setList(saveMatch(me, summarizeMatch(id, data.map, player, rounds.map(r => r?.analyst))));
-  }, [done, data, me, player, rounds]);
+function HabitsCard() {
+  // your profile's matches (this one is added once it's graded: Shell.tsx)
+  const list = useProfile(s => s.data.matches);
   const h = useMemo(() => habits(list), [list]);
   return (
     <section className="recap-card positioning habits">
       <div className="coach-head">
         <h2 className="display">Your habits</h2>
-        <span className="muted">across your last {list.length} match{list.length === 1 ? '' : 'es'} in this browser, against FACEIT level 10{PRO_MODEL ? ' and pros' : ''}</span>
+        <span className="muted">across the {list.length} match{list.length === 1 ? '' : 'es'} on your <a href="#/profile">profile</a>, against FACEIT level 10{PRO_MODEL ? ' and pros' : ''}</span>
       </div>
       {!h ? <p className="muted">Open another of your matches: from two on, this shows what you do differently match after match (one match is noise, several are a habit).</p> : (
         <>
@@ -494,32 +510,35 @@ function tone(id: FeatureId, v: number) {
   return z > 1 ? 'hi' : z < -1 ? 'lo' : '';
 }
 
-function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; players: PlayerReport[]; score: number; focus: string; onPick: (id: string) => void }) {
+/** The players' numbers: the main ones, or every column with `full`. */
+function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1; players: PlayerReport[]; score: number; focus: string; onPick: (id: string) => void; full: boolean }) {
   const hasLevel = players.some(p => p.level);
   const hasLvl10 = !hasLevel && players.some(p => p.lvl10);
-  const hasEngine = players.some(p => p.engineAccuracy !== null);
+  const hasEngine = full && players.some(p => p.engineAccuracy !== null);
   return (
     <div className="sb-wrap">
       <table className="sb">
         <thead>
-          <tr className="sb-groups">
+          {full && <tr className="sb-groups">
             <th className={team === 0 ? 'ct' : 't'}>{team === 0 ? 'Team A' : 'Team B'} <span className="num">{score}</span></th>
             <th colSpan={(hasLvl10 || hasLevel ? 5 : 4) + (hasEngine ? 1 : 0)}>Rating</th><th colSpan={5}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
-          </tr>
+          </tr>}
           <tr>
-            <th className="sb-name muted">{team === 0 ? 'started CT' : 'started T'}</th>
+            <th className="sb-name muted">{full ? (team === 0 ? 'started CT' : 'started T') : <span className={team === 0 ? 'ct' : 't'}>{team === 0 ? 'Team A' : 'Team B'} <span className="num">{score}</span></span>}</th>
             <th title="Premier rating at the start of the match">Rank</th>
             <th title="Estimated rating for this game: duel performance + round impact">Game</th>
-            <th title="Game rating minus their real rating">±</th>
+            {full && <th title="Game rating minus their real rating">±</th>}
             <th title="Grade among the players of this lobby">Lobby</th>
             {hasLevel && <th title="One grade from FACEIT level 10 to pro: B = a typical level-10 game, S = a typical pro game (performance and mechanics)">Level</th>}
             {hasLvl10 && <th title="Grade against FACEIT level-10 players">Lvl 10</th>}
             {hasEngine && <th title="Engine accuracy: every 2 s, what they did against the best option the engine calculated (100 = always the best; level-10 players average about 88)">Acc</th>}
-            <th>K</th><th>D</th><th>ADR</th><th title="Rounds with a kill, assist, survival or trade">KAST</th><th>HS%</th>
-            <th title="Opening kills – opening deaths">Open</th><th title="Clutch kills (last alive vs 2+)">Clutch</th><th title="Rounds with 3+ kills">3K+</th>
-            <th title="HE + fire damage">Dmg</th><th title="Kills on enemies they flashed">Flash</th>
-            <th title="Win chance added per round">Impact</th><th title="Died right after spraying and missing">Whiffs</th><th title="Duels won against much higher-rated players">Upsets</th>
-            <th>Roles</th>
+            <th>K</th><th>D</th><th title="Average damage a round">ADR</th><th title="Rounds with a kill, assist, survival or trade">KAST</th>
+            {full && <><th>HS%</th>
+              <th title="Opening kills – opening deaths">Open</th><th title="Clutch kills (last alive vs 2+)">Clutch</th><th title="Rounds with 3+ kills">3K+</th>
+              <th title="HE + fire damage">Dmg</th><th title="Kills on enemies they flashed">Flash</th></>}
+            <th title="Win chance added per round">Impact</th>
+            {full && <><th title="Died right after spraying and missing">Whiffs</th><th title="Duels won against much higher-rated players">Upsets</th>
+              <th>Roles</th></>}
           </tr>
         </thead>
         <tbody>
@@ -529,11 +548,11 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
             return (
               <tr key={p.id} className={p.id === focus ? 'focus' : ''} onClick={() => onPick(p.id)} title="Show their game in the cards above">
                 <td className="sb-name"><b className={team === 0 ? 'ct' : 't'}>{p.name}</b></td>
-                <td>{p.rank !== null ? fmt(p.rank) : <span className="muted">–</span>}</td>
+                <td>{p.rank !== null ? fmt(p.rank) : <span className="muted" title="No Premier rating in the demo (unranked, or not played this season)">–</span>}</td>
                 <td title={p.duelRating !== null ? `Duels ${p.duelsWon}–${p.duelsLost} vs avg ${fmt(p.avgOpponent ?? 0)} → ${fmt(p.duelRating)}; impact ${p.pointsPerRound >= 0 ? '+' : ''}${p.pointsPerRound.toFixed(1)} pts/round` : 'No duels yet'}>
                   <b>{p.gameRating !== null ? fmt(p.gameRating) : '–'}</b>
                 </td>
-                <td className={delta === null ? '' : delta >= 1000 ? 'hi' : delta <= -1000 ? 'lo' : ''}>{delta === null ? '' : `${delta >= 0 ? '+' : '−'}${fmt(Math.abs(delta))}`}</td>
+                {full && <td className={delta === null ? '' : delta >= 1000 ? 'hi' : delta <= -1000 ? 'lo' : ''}>{delta === null ? '' : `${delta >= 0 ? '+' : '−'}${fmt(Math.abs(delta))}`}</td>}
                 <td title={lobbyText(p.lobbyZ)}><LetterChip letter={p.letter} /></td>
                 {hasLvl10 && <td title={p.lvl10 ? lvl10Text(p.lvl10.z) : ''}>{p.lvl10 ? <LetterChip letter={p.lvl10.letter} /> : ''}</td>}
                 {hasLevel && <td title={p.level ? levelText(p.level) : ''}>{p.level ? <LetterChip letter={p.level.letter} /> : ''}</td>}
@@ -541,13 +560,13 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
                 <td className="sep">{p.kills}</td><td>{p.deaths}</td>
                 <td className={tone('adr', p.adr)}>{p.adr.toFixed(0)}</td>
                 <td className={tone('kast', p.kast)}>{p.kast.toFixed(0)}%</td>
-                <td className={tone('hs', p.hs)}>{p.hs.toFixed(0)}%</td>
-                <td className="sep">{p.openingKills}–{p.openingDeaths}</td><td>{p.clutches || ''}</td><td>{p.multiKills || ''}</td>
-                <td className={`sep ${tone('utilDamage', p.utilDamage / n)}`}>{p.utilDamage || ''}</td>
-                <td className={tone('flashAssists', p.flashAssists / n)}>{p.flashAssists || ''}</td>
+                {full && <><td className={tone('hs', p.hs)}>{p.hs.toFixed(0)}%</td>
+                  <td className="sep">{p.openingKills}–{p.openingDeaths}</td><td>{p.clutches || ''}</td><td>{p.multiKills || ''}</td>
+                  <td className={`sep ${tone('utilDamage', p.utilDamage / n)}`}>{p.utilDamage || ''}</td>
+                  <td className={tone('flashAssists', p.flashAssists / n)}>{p.flashAssists || ''}</td></>}
                 <td className={`sep ${tone('impact', p.impactPerRound)}`}>{p.impactPerRound >= 0 ? '+' : ''}{p.impactPerRound.toFixed(1)}%</td>
-                <td>{p.whiffs || ''}</td><td>{p.upsets || ''}</td>
-                <td className="muted sb-roles">{p.roles.slice(0, 2).map(r => `${r.role} ×${r.rounds}`).join(', ')}</td>
+                {full && <><td>{p.whiffs || ''}</td><td>{p.upsets || ''}</td>
+                  <td className="muted sb-roles">{rolesText(p, true)}</td></>}
               </tr>
             );
           })}
@@ -555,6 +574,13 @@ function Scoreboard({ team, players, score, focus, onPick }: { team: 0 | 1; play
       </table>
     </div>
   );
+}
+
+/** Their main roles: the top two, and the AWP whenever they had it for a few rounds (the coach talks about it then). */
+function rolesText(p: PlayerReport, counts: boolean) {
+  const top = p.roles.slice(0, 2);
+  const awp = p.roles.find(r => r.role === 'AWPer' && r.rounds >= 2 && !top.includes(r));
+  return [...top, ...(awp ? [awp] : [])].map(r => (counts || r === awp ? `${r.role} ×${r.rounds}` : r.role)).join(counts ? ', ' : ' / ');
 }
 
 const spreads = (z: number) => `${Math.abs(z).toFixed(1)} spreads`;
@@ -565,12 +591,20 @@ function lobbyText(z: number) {
 function levelText(l: LevelGrade) {
   const where = l.score >= l.proAt ? 'at or above a typical pro game' : l.score >= 0 ? `between a typical level-10 game and a typical pro game (${Math.round((l.score / l.proAt) * 100)}% of the way)` : 'below a typical level-10 game';
   const part = (v: number | null) => (v === null ? 'not measured' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}`);
-  return `Level, from FACEIT level 10 (B) to pro (S): ${where}. Performance ${part(l.perf)}, mechanics (reaction, crosshair, sound, counter-strafing) ${part(l.mech)}, in level-10 spreads.`;
+  const cap = l.capped ? ` Held at A: this lobby averages ${l.capped.toLocaleString('en-US')} Premier, and a pro-level grade needs a lobby near level-10 strength.` : '';
+  return `Level, from FACEIT level 10 (B) to pro (S): ${where}.${cap} Performance ${part(l.perf)}, mechanics (reaction, crosshair, sound, counter-strafing) ${part(l.mech)}, in level-10 spreads.`;
 }
 
 function lvl10Text(z: number) {
   return Math.abs(z) < 0.1 ? 'on par with a typical level-10 player' : `${spreads(z)} ${z > 0 ? 'better' : 'worse'} than a typical level-10 player`;
 }
+
+/** What each round grade means (recap.ts roundGrade), shown under the grid. */
+const ROUND_LEGEND: [Letter, string][] = [
+  ['S+', 'won a clutch or held a site with a big round'], ['S', '3+ kills'], ['A', 'a double kill, a key trade or great utility'],
+  ['B', 'an impact kill, the plant or useful utility'], ['C', 'no real impact'], ['D', 'died early untraded, or a costly mistake'],
+  ['F', 'a round-losing blunder'],
+];
 
 const REASON_ICON: Record<string, IconName> = { ct_killed: 'skull', t_killed: 'skull', bomb_exploded: 'bomb', bomb_defused: 'scissors', target_saved: 'timer' };
 
@@ -586,6 +620,9 @@ function RoundGrid({ data, players, focus, hot, onPick, onRound }: {
     <section className="recap-card">
       <h2 className="display">Round grades</h2>
       <p className="muted">Click a name to focus that player · click a grade to watch the round in Review.</p>
+      <p className="rg-legend muted">
+        {ROUND_LEGEND.map(([l, t]) => <span key={l}><LetterChip letter={l} /> {t}</span>)}
+      </p>
       <div className="sb-wrap">
         <table className="rg">
           <thead>

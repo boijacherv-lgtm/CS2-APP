@@ -2,7 +2,7 @@ import { Arc, Arrow, Circle, Group, Line, Path, Star, Text } from 'react-konva';
 import { HE_RADIUS_U } from '../engine/combat';
 import { lifeOf, popAt, SMOKE_RADIUS_UNITS } from '../engine/grid';
 import { NOTE_INFO, type Annotation } from '../engine/recap';
-import { UTIL_COLOR } from './tokens';
+import { T as TOK, UTIL_COLOR } from './tokens';
 import type { Utility, Vec2 } from '../engine/types';
 
 /**
@@ -158,7 +158,7 @@ export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable,
 }) {
   const phase = nadePhase(u, t);
   const R = u.type === 'smoke' ? SMOKE_RADIUS_UNITS / unitsPerPx : u.type === 'molotov' ? MOLLY_RADIUS_U / unitsPerPx : HE_RADIUS_U / unitsPerPx;
-  const ring = doomed ? '#ff4d4d' : selected ? '#ffffff' : undefined;
+  const ring = doomed ? TOK.bad : selected ? '#ffffff' : undefined;
   // replays don't spoil: a grenade shows up only once it's in the air
   if (!editable && phase === 'planned') return null;
   return (
@@ -199,7 +199,7 @@ export function NadeFlight({ u, t, k }: { u: Utility; t: number; k: number }) {
     <Group listening={false}>
       <Arrow points={[u.from.x, u.from.y, c.x, c.y, u.pos.x, u.pos.y]} tension={0.5} stroke={NADE_COLOR[u.type]} fill={NADE_COLOR[u.type]}
         strokeWidth={1.4 * k} dash={[5 * k, 4 * k]} pointerLength={4 * k} pointerWidth={4 * k} opacity={t < u.throwAt ? 0.35 : 0.75} />
-      <Circle x={u.from.x} y={u.from.y} radius={3 * k} fill="#ffd23f" stroke="#000" strokeWidth={0.8 * k} />
+      <Circle x={u.from.x} y={u.from.y} radius={3 * k} fill={TOK.highlight} stroke="#000" strokeWidth={0.8 * k} />
       {flying && <Group x={at.x} y={at.y}><NadeIcon type={u.type} size={5.5 * k} /></Group>}
     </Group>
   );

@@ -2,15 +2,18 @@ import { useSyncExternalStore } from 'react';
 
 /** Pages, addressed by the URL hash so Back/Forward and bookmarks work without a server. */
 export type Cs2Mode = 'tactical' | 'review' | 'report';
-export type Route = { page: 'home' } | { page: 'cs2'; mode: Cs2Mode };
+export type SitePage = 'home' | 'profile' | 'pricing' | 'settings';
+export type Route = { page: SitePage } | { page: 'cs2'; mode: Cs2Mode };
+const PAGES: SitePage[] = ['profile', 'pricing', 'settings'];
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('?')[0].split('/').filter(Boolean); // ?… carries messages (e.g. Steam sign-in)
   if (parts[0] === 'cs2') return { page: 'cs2', mode: parts[1] === 'review' || parts[1] === 'report' ? parts[1] : 'tactical' };
+  if (PAGES.includes(parts[0] as SitePage)) return { page: parts[0] as SitePage };
   return { page: 'home' };
 }
 
-export const routeHref = (r: Route) => (r.page === 'home' ? '#/' : `#/cs2/${r.mode}`);
+export const routeHref = (r: Route) => (r.page === 'cs2' ? `#/cs2/${r.mode}` : r.page === 'home' ? '#/' : `#/${r.page}`);
 
 export function navigate(r: Route) {
   const href = routeHref(r);

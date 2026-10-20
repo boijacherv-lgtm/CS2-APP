@@ -9,5 +9,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["src", "../src/engine/sharecode.ts"]
+  "include": ["src", "../src/engine/sharecode.ts", "../src/engine/profile.ts"]
 }

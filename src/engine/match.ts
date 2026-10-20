@@ -183,7 +183,10 @@ export function buildMatchReport(data: DemoData, rounds: (RoundSummary | null)[]
   if (COACH_MODEL.trainedOn > 0) for (const p of players) if (p.played) p.lvl10 = gradeAgainst(p, COACH_MODEL);
   if (PRO_MODEL) for (const p of players) if (p.played) p.pro = gradeAgainst(p, PRO_MODEL);
   const analyst = rounds.map(r => r?.analyst);
-  for (const p of players) p.level = levelGrade(p, analyst);
+  // the lobby's strength (Premier ratings, when the demo has them): a weak lobby can't show pro level
+  const known = ids.map(rankOf).filter((r): r is number => r !== null);
+  const lobbyRating = known.length >= 5 ? known.reduce((a, b) => a + b, 0) / known.length : null;
+  for (const p of players) p.level = levelGrade(p, analyst, lobbyRating);
   players.sort((a, b) => a.team - b.team || (b.gameRating ?? -1e9) - (a.gameRating ?? -1e9) || b.pointsPerRound - a.pointsPerRound);
   return { players, score, graded: rounds.filter(Boolean).length, total: data.rounds.length };
 }

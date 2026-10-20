@@ -1,6 +1,6 @@
-import { useRef } from 'react';
-import { type DemoData, type DemoRound, type Review } from '../engine/recap';
-import { moveLook } from './NoteMark';
+import { useMemo, useRef } from 'react';
+import { NOTE_INFO, type Annotation, type DemoData, type DemoRound, type Review } from '../engine/recap';
+import { moveLook, NoteMark } from './NoteMark';
 import { SIDE_COLOR, T } from './tokens';
 import { useShown } from './shown';
 import { Icon } from './Icon';
@@ -87,16 +87,17 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
       {review && <EvalToggle />}
       {review && (
         <button className={s.popups ? 'on' : ''} onClick={e => { s.setPopups(!s.popups); e.currentTarget.blur(); }}
-          title={s.popups ? 'Move windows: on (a window with the grade and comments for each graded move)' : 'Move windows: off'} aria-label="Move windows"><Icon name="chat" /></button>
+          title={s.popups ? 'Move windows: on (a window with the grade and comments for each graded move)' : 'Move windows: off'} aria-label="Move windows"><Icon name="chat" /><span className="pb-label">Cards</span></button>
       )}
       {review && (
         <button className={s.engineLines ? 'on' : ''} onClick={e => { s.setEngineLines(!s.engineLines); e.currentTarget.blur(); }}
-          title={s.engineLines ? 'Engine lines: on (the best option and what was done, for the selected player, or yours with Mine)' : 'Engine lines: off'} aria-label="Engine lines"><Icon name="route" /></button>
+          title={s.engineLines ? 'Engine lines: on (the best option and what was done, for the selected player, or yours with Mine)' : 'Engine lines: off'} aria-label="Engine lines"><Icon name="route" /><span className="pb-label">Lines</span></button>
       )}
       {review && s.popups && (
-        <button className={s.readSlow ? 'on' : ''} onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
-          title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'} aria-label="Slow motion while reading"><Icon name="slow" /></button>
+        <button onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
+          title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'} aria-label="Slow motion while reading" className={`pb-slow ${s.readSlow ? 'on' : ''}`}><Icon name="slow" /><span className="pb-label">Slow</span></button>
       )}
+      {review && <NoteKey />}
       {review && recap && round
         ? <Timeline end={end} recap={recap} round={round} time={s.time} spoilers={s.reviewSpoilers} onSeek={t => { s.setPlaying(false); s.setTime(t); }} />
         : <input className="playbar-range" type="range" min={0} max={max} step={0.1} value={Math.min(s.time, max)}
@@ -175,17 +176,45 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
   );
 }
 
-/** Evaluate every move, or only the signed-in player's ("Mine" needs Steam login and being in this match). */
+/** What the grade marks mean (on the map, the timeline, the killfeed and the cards). */
+function NoteKey() {
+  return (
+    <details className="note-key">
+      <summary title="What the marks mean">Key</summary>
+      <div className="note-key-pop">
+        {(Object.keys(NOTE_INFO) as Annotation[]).map(a => (
+          <div key={a} className="note-key-row">
+            <NoteMark m={{ note: a, kind: 'kill' }} />
+            <span><b>{NOTE_INFO[a].label}</b> <span className="muted">{NOTE_INFO[a].tip}</span></span>
+          </div>
+        ))}
+        <p className="muted">The % on a card is how much the move changed its team's chance to win the round.</p>
+      </div>
+    </details>
+  );
+}
+
+/**
+ * Evaluate every move, or only yours. Without knowing who you are (no Steam login, no "This is me" yet) "Mine" is a
+ * list of the match's players to pick yourself from, remembered for next time.
+ */
 function EvalToggle() {
-  const scope = useStore(s => s.evalScope), setScope = useStore(s => s.setEvalScope);
+  const scope = useStore(s => s.evalScope), setScope = useStore(s => s.setEvalScope), setClaimed = useStore(s => s.setClaimed);
+  const data = useStore(s => s.review?.data);
   const { mine, canMine } = useShown();
+  const ids = useMemo(() => (data ? [...new Set(data.rounds.flatMap(r => Object.keys(r.frames.players)))] : []), [data]);
   return (
     <div className="seg-mini eval-toggle" role="group" aria-label="Whose moves are evaluated">
       <button className={!mine ? 'on' : ''} onClick={() => setScope('all')} title="Evaluate every move: every kill, death, grenade and flash">All</button>
-      <button className={mine ? 'on' : ''} disabled={!canMine} onClick={() => setScope('mine')}
-        title={canMine ? 'Evaluate only your moves' : 'Log in with Steam (and be in this match) to see only your moves'}>
-        Mine{scope === 'mine' && !canMine ? <Icon name="warning" size={11} /> : null}
-      </button>
+      {canMine || !ids.length ? (
+        <button className={mine ? 'on' : ''} disabled={!canMine} onClick={() => setScope('mine')} title="Evaluate only your moves">Mine</button>
+      ) : (
+        <select className="mine-pick" value="" title="Which player are you? Only your moves are evaluated (remembered in this browser)"
+          onChange={e => { if (e.target.value) { setClaimed(e.target.value); setScope('mine'); } }}>
+          <option value="">Mine…</option>
+          {ids.map(id => <option key={id} value={id}>{data!.names[id] ?? id}</option>)}
+        </select>
+      )}
     </div>
   );
 }

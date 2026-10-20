@@ -2,6 +2,8 @@ import {
   ArrowArcLeft, ArrowArcRight, BookOpen, ArrowCounterClockwise, ArrowUUpLeft, ArrowUUpRight, CaretDown, CaretLeft, CaretRight, CaretUp,
   ChartBar, ChatCircleText, Check, Circle, Crosshair, CrosshairSimple, Cursor, DiceFive, Eraser, GridFour, HourglassMedium, List,
   Path, Pause, Play, SidebarSimple, SkipBack, SkipForward, Skull, Stack, Star, Sword, Timer, UploadSimple, Warning, X,
+  ArrowRight, Bell, Copy, DownloadSimple, GearSix, Lightning, LockSimple, MapTrifold, ShareNetwork, ShieldCheck, SignOut, Target,
+  TrendDown, TrendUp, Trophy, UserCircle, UsersThree,
   type Icon as PhIcon, type IconWeight,
 } from '@phosphor-icons/react';
 import { CS2_ICONS, type Cs2Icon } from './cs2Icons';
@@ -31,6 +33,11 @@ const ICONS = {
   upload: { C: UploadSimple }, hourglass: { C: HourglassMedium }, grid: { C: GridFour }, star: { C: Star, weight: 'fill' },
   stats: { C: ChartBar }, cross: { C: X }, book: { C: BookOpen, weight: 'fill' },
   up: { C: CaretUp, weight: 'fill' }, down: { C: CaretDown, weight: 'fill' }, dot: { C: Circle, weight: 'fill' },
+  // the site: profile, pricing, settings
+  arrowRight: { C: ArrowRight }, bell: { C: Bell }, copy: { C: Copy }, download: { C: DownloadSimple }, gear: { C: GearSix },
+  bolt: { C: Lightning, weight: 'fill' }, lock: { C: LockSimple }, map: { C: MapTrifold }, share: { C: ShareNetwork }, shield: { C: ShieldCheck },
+  signOut: { C: SignOut }, goal: { C: Target }, trendUp: { C: TrendUp }, trendDown: { C: TrendDown }, trophy: { C: Trophy }, user: { C: UserCircle },
+  friends: { C: UsersThree },
   // equipment: CS2's own pictograms
   bomb: { src: 'equipment/c4' }, burst: { src: 'equipment/hegrenade' }, flame: { src: 'equipment/inferno' },
   scissors: { src: 'equipment/defuser' }, helmet: { src: 'equipment/armor_helmet' }, vest: { src: 'equipment/armor' },

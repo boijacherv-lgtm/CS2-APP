@@ -16,6 +16,13 @@ const player = (rounds: RoundLine[], o: Partial<PlayerReport> = {}): PlayerRepor
 });
 
 describe('coach', () => {
+  it("doesn't count an AWP picked up off the floor as an AWPer's loss", () => {
+    const picked = Array.from({ length: 20 }, (_, i) => line({ deaths: 1, tags: i < 6 ? ['AWP LOST', 'TRADED'] : ['TRADED'] }));
+    expect(coachFeatures(player(picked)).awpLost).toBe(0);
+    const bought = picked.map(l => ({ ...l, role: 'AWPer' as const }));
+    expect(coachFeatures(player(bought)).awpLost).toBeCloseTo(0.3);
+  });
+
   it('tells a player who keeps dying untraded to play near a teammate, with the rounds to watch', () => {
     const rounds = Array.from({ length: 20 }, (_, i) => line({ deaths: i < 14 ? 1 : 0 }));
     const c = coach(player(rounds));
@@ -44,7 +51,7 @@ describe('coach', () => {
   it('training on a set learns per role, and judges a player against their role', () => {
     const riflers = Array.from({ length: 30 }, () => ({ features: coachFeatures(player(Array.from({ length: 20 }, () => line({ deaths: 0 })))), role: 'Rifler' as const }));
     // AWPers in this set lose the AWP a lot; a few lurkers (too few for their own numbers)
-    const awpRounds = Array.from({ length: 20 }, (_, i) => line({ deaths: 1, tags: i < 6 ? ['AWP LOST', 'TRADED'] : ['TRADED'] }));
+    const awpRounds = Array.from({ length: 20 }, (_, i) => line({ deaths: 1, role: 'AWPer', tags: i < 6 ? ['AWP LOST', 'TRADED'] : ['TRADED'] }));
     const awpers = Array.from({ length: MIN_ROLE_GAMES + 5 }, () => ({ features: coachFeatures(player(awpRounds)), role: 'AWPer' as const }));
     const lurks = Array.from({ length: 3 }, () => ({ features: coachFeatures(player(awpRounds)), role: 'Lurk' as const }));
     const m = trainCoachSet([...riflers, ...awpers, ...lurks], 'Test', { demos: 5, trainedAt: '2026-10-17', maps: { de_mirage: 5 } });

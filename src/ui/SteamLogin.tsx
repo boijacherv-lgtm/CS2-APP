@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
-import { STEAM_AVAILABLE } from '../env';
-import { steamFetch, steamLoginHref, steamSignOut } from './steamApi';
+import { steamLoginHref } from './steamApi';
 
 /**
  * "Log in with Steam", the way Leetify / FACEIT do it: Steam OpenID. The browser goes to Steam's own
@@ -8,8 +6,6 @@ import { steamFetch, steamLoginHref, steamSignOut } from './steamApi';
  * password, token or session. Locally the dev server checks it (tools/steam.mjs); on the website the
  * Cloudflare Worker does (worker/).
  */
-
-type Me = { steamId: string; name: string | null; avatar: string | null } | null;
 
 /** Steam's logo mark. */
 export function SteamLogo({ size = 18 }: { size?: number }) {
@@ -31,35 +27,5 @@ export function SteamLoginButton({ compact }: { compact?: boolean }) {
       title="Opens Steam's own login page; you can scan its QR code with the Steam app. The app only receives your SteamID.">
       <SteamLogo /> Log in with Steam
     </a>
-  );
-}
-
-/** Your Steam account in the nav bar: avatar + name, or the login button. Hidden without the dev server. */
-export function SteamAccount() {
-  const [me, setMe] = useState<Me | undefined>(undefined); // undefined = unknown / no server
-  const load = useCallback(async () => {
-    try {
-      const res = await steamFetch('/me');
-      if (!res.ok) throw new Error();
-      setMe((await res.json()).me);
-    } catch { setMe(undefined); }
-  }, []);
-  useEffect(() => {
-    if (!STEAM_AVAILABLE) return; // website built without the Worker
-    load();
-    const t = setInterval(load, 30000);
-    window.addEventListener('focus', load);
-    return () => { clearInterval(t); window.removeEventListener('focus', load); };
-  }, [load]);
-
-  if (me === undefined) return null;
-  if (!me) return <SteamLoginButton compact />;
-  const signOut = async () => { await steamSignOut(); load(); };
-  return (
-    <div className="steam-me">
-      {me.avatar && <img src={me.avatar} alt="" width={26} height={26} />}
-      <a href={`https://steamcommunity.com/profiles/${me.steamId}`} target="_blank" rel="noreferrer">{me.name ?? me.steamId}</a>
-      <button onClick={signOut} title="Forget your Steam account on this computer">Sign out</button>
-    </div>
   );
 }

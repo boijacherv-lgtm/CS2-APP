@@ -7,6 +7,7 @@
  *   Your matches       Valve's official match-history Web API (GetNextMatchSharingCode) with the site's own
  *                      Web API key (secret STEAM_API_KEY) + each user's game authentication code and one
  *                      share code, which they paste once. Stored per SteamID in KV.
+ *   Profile            the matches you reviewed (summaries), goals and settings, per SteamID (profile.ts).
  *   Demos              The Stratboard server (server/, on an always-on machine) asks /internal/* which matches are
  *                      new, fetches each demo with its own *bot* Steam account, parses it and sends back the
  *                      result (gzipped JSON in KV, served at /demo/:outcomeId). Guarded by secret SERVER_TOKEN.
@@ -14,6 +15,7 @@
  * Never add Steam login automation (steam-session / steam-user / logging in as the user): Steam flagged that
  * as malicious on the owner's account. Public and official APIs only.
  */
+import { forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
 export interface Env {
@@ -60,6 +62,12 @@ export default {
       if (path.startsWith('/internal/')) return await internal(req, env, path, json);
 
       if (req.method === 'GET' && path === '/profiles') return json({ profiles: await profiles(env, new URL(req.url).searchParams.get('ids') ?? '') });
+      // a friend's profile, when they made it public (name, avatar and their last matches' numbers)
+      const pub = path.match(/^\/public\/(7656\d{13})$/);
+      if (req.method === 'GET' && pub) {
+        const p = await publicProfileOf(env.SB, pub[1]);
+        return p ? json({ steamId: pub[1], ...(await publicProfile(env, pub[1])), ...p }) : json({ error: 'That player has no public Stratboard profile.' }, 404);
+      }
 
       // everything else needs a logged-in user
       const token = req.headers.get('Authorization')?.match(/^Bearer ([\w-]{20,})$/)?.[1];
@@ -68,6 +76,14 @@ export default {
       if (!steamId) return json({ error: 'Log in with Steam first.' }, 401);
 
       if (req.method === 'GET' && path === '/status') return json(status(env, steamId, await loadUser(env, steamId)));
+      if (req.method === 'GET' && path === '/resolve') {
+        const id = await resolveSteamId(new URL(req.url).searchParams.get('q') ?? '', env.STEAM_API_KEY);
+        return id ? json({ steamId: id }) : json({ error: 'No Steam account found for that.' }, 404);
+      }
+      if (path.startsWith('/profile')) {
+        const out = await profileRoute(env.SB, steamId, req.method, path, req.method === 'POST' ? await body(req) : {});
+        if (out) return json(out);
+      }
       const demo = path.match(/^\/demo\/(\d{5,25})$/);
       if (req.method === 'GET' && demo) {
         const u = await loadUser(env, steamId);
@@ -81,7 +97,7 @@ export default {
       if (req.method !== 'POST') return json({ error: 'Not found.' }, 404);
       const input = await body(req);
       if (path === '/signout') { await env.SB.delete(`session:${token}`); return json({ ok: true }); }
-      if (path === '/forget') { await env.SB.delete(`user:${steamId}`); return json({ ok: true }); }
+      if (path === '/forget') { await env.SB.delete(`user:${steamId}`); await forgetProfile(env.SB, steamId); return json({ ok: true }); }
       if (path === '/settings') return json(await saveSettings(env, steamId, input));
       if (path === '/sync') return json(await sync(env, steamId));
       return json({ error: 'Not found.' }, 404);

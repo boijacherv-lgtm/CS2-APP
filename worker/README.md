@@ -5,6 +5,9 @@ Gives the website (https://tsakhstvo.xyz) **Log in with Steam** and **Your match
 - **Log in with Steam** is Steam OpenID: you log in on Steam's own page, Steam sends you back to the website, the site
   hands Steam's signed answer to this Worker, which confirms it with Steam and returns a session token. The Worker only
   ever learns your SteamID. No passwords, no Steam sessions.
+- **Profile** keeps, per SteamID, a summary of each match you reviewed as yourself (numbers only, never the demo),
+  your goals and settings (`stats:<steamid>` in KV; see `src/profile.ts`). Friends can look you up only if you turn
+  on Public profile in the site's Settings. `/forget` deletes it together with your match list.
 - **Your matches** uses Valve's official match-history Web API with the site's own Web API key (a secret here) plus each
   user's game authentication code and one share code (pasted once). Stored per SteamID in Cloudflare KV.
 - Never add Steam login automation here (steam-session / steam-user / logging in as a user): Steam flagged that as

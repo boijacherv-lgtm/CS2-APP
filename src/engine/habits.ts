@@ -2,10 +2,12 @@ import { BETTER, coachFeatures, FEATURE_LABEL, modelFor, type FeatureId, type Fe
 import { COACH_MODEL, PRO_MODEL } from './coachModels';
 import { LEVEL_MODEL, mechanicsOf, type Mechanics } from './level';
 import type { AnalystRound } from './analyst';
-import type { PlayerReport } from './match';
+import type { MatchReport, PlayerReport } from './match';
+import { matchKey, type GoalId, type ProfileMatch } from './profile';
+import type { DemoData } from './recap';
 
 /**
- * Your habits across matches: each match you open (as yourself) is summed up and kept in this browser; together they
+ * Your habits across matches: each match you open (as yourself) is summed up and kept on your profile; together they
  * say what you do differently from level-10 players and pros, match after match. One match is noise; several are a
  * habit. The coach's numbers and the mechanics (sound, reaction, crosshair, counter-strafing) both count.
  */
@@ -17,6 +19,17 @@ export function summarizeMatch(id: string, map: string, p: PlayerReport, analyst
   const m = mechanicsOf(analyst, p.id);
   return { id, map, at: Date.now(), rounds: p.played, features: coachFeatures(p), mech: { react: m.react, aim: m.aim, loud: m.loud, stopped: m.stopped },
     engine: p.engineAccuracy, level: p.level?.letter ?? null };
+}
+
+/** The match for your profile: the habit numbers plus the result and the scoreboard line. */
+export function profileMatchOf(data: DemoData, view: MatchReport, p: PlayerReport, analyst: (AnalystRound | undefined)[]): ProfileMatch {
+  const s = summarizeMatch(matchKey(data.map, data.rounds), data.map, p, analyst);
+  const us = view.score[p.team], them = view.score[p.team === 0 ? 1 : 0];
+  return {
+    ...s, level: p.level?.letter ?? null, result: us > them ? 'win' : us < them ? 'loss' : 'tie', score: [us, them],
+    kills: p.kills, deaths: p.deaths, adr: +p.adr.toFixed(1), kast: +p.kast.toFixed(1), hs: +p.hs.toFixed(1), impact: +p.impactPerRound.toFixed(2),
+    lobby: p.letter, gameRating: p.gameRating, rank: p.rank, name: p.name,
+  };
 }
 
 export interface HabitRow {
@@ -86,14 +99,22 @@ export function habits(list: MatchSummary[]): { rows: HabitRow[]; work: HabitRow
   return { rows: rows.sort((a, b) => a.z - b.z), work, good, matches: list.length };
 }
 
-// ---- kept in this browser ---------------------------------------------------------------------------------
-const KEY = (player: string) => `stratboard.habits.${player}`;
-export function loadHabits(player: string): MatchSummary[] {
-  try { return JSON.parse(localStorage.getItem(KEY(player)) ?? '[]'); } catch { return []; }
+/** One habit as a goal: its name, how to show it, the level-10 value and which way is better. */
+export interface GoalInfo { id: GoalId; label: string; fmt: (v: number) => string; lvl10: number | null; higherBetter: boolean; tip: string }
+const MECH_GOAL: Record<keyof Mechanics, { label: string; fmt: (v: number) => string; higherBetter: boolean }> = {
+  loud: { label: 'Running near enemies', fmt: PCT, higherBetter: false },
+  react: { label: 'Reaction time', fmt: v => `${(v * 1000).toFixed(0)} ms`, higherBetter: false },
+  aim: { label: 'Crosshair off the head', fmt: v => `${v.toFixed(1)}°`, higherBetter: false },
+  stopped: { label: 'Counter-strafed shots', fmt: PCT, higherBetter: true },
+};
+export function goalInfo(id: GoalId): GoalInfo {
+  if (id in MECH_GOAL) {
+    const k = id as keyof Mechanics, g = MECH_GOAL[k];
+    return { id, ...g, lvl10: LEVEL_MODEL?.mech[k]?.mean ?? null, tip: TIP[k] };
+  }
+  const f = id as FeatureId;
+  return { id, label: FEATURE_LABEL[f], fmt: FMT[f] ?? PCT, lvl10: modelFor(COACH_MODEL, 'Rifler').features[f]?.baseline ?? null, higherBetter: BETTER[f] !== 'low', tip: TIP[f] };
 }
-/** Adds or replaces this match (the last 30 kept). */
-export function saveMatch(player: string, s: MatchSummary): MatchSummary[] {
-  const list = [s, ...loadHabits(player).filter(m => m.id !== s.id)].slice(0, 30);
-  try { localStorage.setItem(KEY(player), JSON.stringify(list)); } catch { /* private mode: just this time */ }
-  return list;
-}
+/** Every habit that can be a goal, in a sensible order. */
+export const GOAL_CHOICES: GoalId[] = ['isolatedDeaths', 'untradedDeaths', 'openingDeaths', 'loud', 'stopped', 'aim', 'react', 'unusedUtil', 'wastedFlashes',
+  'teamHarm', 'whiffs', 'lowHpFights', 'trades', 'utilDamage', 'flashAssists', 'adr', 'kast', 'hs', 'impact', 'awpLost'];

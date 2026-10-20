@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
 import { isDecision, roundDecisions } from '../engine/situations';
 import { judgeHold, judgeMove, USUAL_LABEL, type Usual } from '../engine/positioning';
-import { CLASS_COLOR, engineHold, engineLine, engineMove } from '../engine/engineEval';
+import { engineHold, engineLine, engineMove } from '../engine/engineEval';
 import { roundAnalysis } from '../engine/analysis';
 import { proPositions } from '../map/positions';
 import { OPENING, SEARCH_COLOR, type RoundSearch } from '../engine/search';
@@ -12,7 +12,8 @@ import type { TacticalEngine } from '../engine/predict';
 import { equipValue, LETTER_COLOR, LETTER_INFO, moments, type Moment, movesUntil, NOTE_INFO, NOTES, roundFacts, roundGrade, TAG_INFO, teamEconomy, type Annotation, type DemoData, type DemoRound, type Move, type Replay, type Review, type Tag } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { gunFromName, primaryGun } from '../engine/guns';
-import { useStore } from '../store';
+import { useStore, whoAmI } from '../store';
+import { T as TOK } from './tokens';
 import { SteamMatches } from './SteamMatches';
 import { DemoFolder } from './DemoFolder';
 import { ONLINE, STEAM_AVAILABLE } from '../env';
@@ -29,15 +30,28 @@ function useDemoLoader() {
   const startReview = useStore(s => s.startReview);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Reading in the browser: the share done (null when it can't be told), and the seconds since it started. */
+  const [progress, setProgress] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!busy) return;
+    const t0 = performance.now();
+    setElapsed(0);
+    const id = setInterval(() => setElapsed(Math.round((performance.now() - t0) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [busy]);
   const load = async (file: File) => {
     setBusy(true);
+    setProgress(null);
     try {
       let data: DemoData;
       if (file.name.endsWith('.json')) data = JSON.parse(await file.text());
       else if (ONLINE) {
         // website: read it right here in the browser (nothing is uploaded)
-        setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB) in your browser…`);
-        data = await readDemoInBrowser(file, pass => setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB) in your browser… step ${pass} of ~${DEMO_PASSES}`));
+        // about 6 MB a second on a laptop: a 250 MB demo takes ~40 s
+        setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB) in your browser. Usually about ${Math.max(5, Math.round(file.size / 6e6 / 5) * 5)} s.`);
+        setProgress(0);
+        data = await readDemoInBrowser(file, pass => setProgress(Math.min(0.97, pass / DEMO_PASSES)));
       } else {
         setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB)… big demos take a few seconds.`);
         const res = await fetch(`/api/demo?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
@@ -55,7 +69,7 @@ function useDemoLoader() {
       setBusy(false);
     }
   };
-  return { load, status, busy };
+  return { load, status, busy, progress, elapsed };
 }
 
 /** Sidebar controls for the loaded match. */
@@ -77,7 +91,7 @@ export function DemoLoader() {
 
 /** Review mode with no match loaded: a big place to drop a demo. */
 export function ReviewStart() {
-  const { load, status, busy } = useDemoLoader();
+  const { load, status, busy, progress, elapsed } = useDemoLoader();
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   return (
@@ -98,6 +112,12 @@ export function ReviewStart() {
             <div className="dz-icon"><Icon name={busy ? 'hourglass' : 'upload'} size={34} /></div>
             <h2>{busy ? 'Reading your match…' : 'Drop a demo here'}</h2>
             <p>{busy ? status : 'or click to choose a .dem file (or a .json you saved before)'}</p>
+            {busy && progress !== null && (
+              <div className="dz-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
+                <i style={{ width: `${Math.max(3, progress * 100)}%` }} />
+                <span className="muted num">{Math.round(progress * 100)}% · {elapsed} s</span>
+              </div>
+            )}
             <input ref={input} type="file" accept=".dem,.json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ''; }} />
           </div>
           {status && !busy && <p className="warn-text center">{status}</p>}
@@ -312,7 +332,7 @@ function scoreboard(recap: Review, seen: Move[]) {
   return out;
 }
 
-const BUY_COLOR: Record<string, string> = { 'Full buy': '#3ddc84', 'Force buy': '#ffb020', 'Semi-eco': '#e58f2a', Eco: '#e5483a', 'Pistol round': '#a39b8f' };
+const BUY_COLOR: Record<string, string> = { 'Full buy': TOK.good, 'Force buy': '#ffb020', 'Semi-eco': '#e58f2a', Eco: '#e5483a', 'Pistol round': '#a39b8f' };
 const usd = (v: number) => `$${Math.round(v).toLocaleString('en-US')}`;
 /** Grenades in an inventory, as CS2's buy-menu pictograms. */
 const NADE_PICS: { re: RegExp; src: Cs2Icon; name: string }[] = [
@@ -417,7 +437,7 @@ function Letter({ moves, round, id, upTo }: { moves: Move[]; round: DemoRound; i
   return <span className="letter" style={{ background: LETTER_COLOR[letter] }} title={`${letter}: ${why} (${LETTER_INFO[letter]})`}>{letter}</span>;
 }
 
-const USUAL_COLOR: Record<Usual, string> = { common: '#3ddc84', rare: '#f0c33c', unusual: '#e5483a', unknown: '#6e7886' };
+const USUAL_COLOR: Record<Usual, string> = { common: TOK.good, rare: '#f0c33c', unusual: '#e5483a', unknown: '#6e7886' };
 
 /**
  * The search engine for one player this round: accuracy over the round as a line (a dot every 2 s, coloured by
@@ -479,8 +499,6 @@ function Positions({ engine, replay, until, focus, onJump, search }: { engine: T
     ...dec.holds.filter(h => h.player === id && h.from <= until && isDecision(h)).map(h => ({ t: h.from, kind: 'hold' as const, h, v: judgeHold(engine.map.id, h), e: engineHold(engine.map.id, h) })),
     ...dec.moves.filter(m => m.player === id && m.t <= until && isDecision({ place: m.from, from: m.t })).map(m => ({ t: m.t, kind: 'move' as const, m, v: judgeMove(engine.map.id, m), e: engineMove(engine.map.id, m) })),
   ].sort((a, b) => a.t - b.t);
-  const judged = rows.filter(r => r.e);
-  const accuracy = judged.length ? judged.reduce((a, r) => a + r.e!.accuracy, 0) / judged.length : null;
   const side = replay.board.players.find(p => p.id === id)?.side ?? 'CT';
   return (
     <section className="positions">
@@ -489,7 +507,6 @@ function Positions({ engine, replay, until, focus, onJump, search }: { engine: T
           {ids.map(x => <option key={x} value={x}>{replay.names[x] ?? x}</option>)}
         </select>
         <span className={`muted ${side.toLowerCase()}`}>{side}</span>
-        {accuracy !== null && <span className="pos-acc" title="Positioning accuracy this round, like a chess engine's: how close each choice was to the best level-10 option (100 = always the best)">Accuracy <b className="num">{accuracy.toFixed(1)}</b></span>}
       </div>
       {search && <EngineSection search={search} id={id} until={until} duration={replay.round.duration} onJump={onJump} />}
       {(() => { const t = roundAnalysis(engine.map.id, id, dec, until); return t ? <p className="pos-summary">{t}</p> : null; })()}
@@ -502,9 +519,8 @@ function Positions({ engine, replay, until, focus, onJump, search }: { engine: T
               <span className="muted num">{fmt(r.t)}</span>
               <b>{r.kind === 'hold' ? `${r.h.contact ? 'Fought at' : 'Held'} ${r.h.place}` : `${r.m.from} → ${r.m.to}`}</b>
               {r.kind === 'hold' && !r.h.contact && <span className="muted num">{Math.round(r.h.to - r.h.from)} s</span>}
-              {r.e
-                ? <span className="usual" style={{ color: CLASS_COLOR[r.e.cls], borderColor: CLASS_COLOR[r.e.cls] }} title={`Accuracy ${r.e.accuracy}`}>{r.e.cls}</span>
-                : <span className="usual" style={{ color: USUAL_COLOR[r.v.kind], borderColor: USUAL_COLOR[r.v.kind] }} title={r.v.basis}>{USUAL_LABEL[r.v.kind]}</span>}
+              {/* how common the choice is among level-10 players; the engine's grades (Best … Blunder) are only the search's, above */}
+              <span className="usual" style={{ color: USUAL_COLOR[r.v.kind], borderColor: USUAL_COLOR[r.v.kind] }} title={r.v.basis}>{USUAL_LABEL[r.v.kind]}</span>
             </div>
             {r.e && (
               <div className="pos-engine">
