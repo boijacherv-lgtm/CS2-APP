@@ -18,7 +18,7 @@ export interface ProfileMatch {
   /** The match's identity (map, rounds, kill times: see matchKey). */
   id: string;
   map: string;
-  /** When it was reviewed (ms). */
+  /** When it was played (the demo file's date), or else when it was reviewed (ms). */
   at: number;
   rounds: number;
   result: 'win' | 'loss' | 'tie';
@@ -126,7 +126,13 @@ export function withMatch(list: ProfileMatch[], m: ProfileMatch): ProfileMatch[]
 // ---- what the profile page shows ------------------------------------------------------------------------------
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
-export interface Averages { matches: number; wins: number; winRate: number; kd: number | null; adr: number; kast: number; hs: number; impact: number; rating: number | null; engine: number | null }
+export interface Averages {
+  matches: number; wins: number; winRate: number; kd: number | null; adr: number; kast: number; hs: number; impact: number; engine: number | null;
+  /** The in-game Premier rating at the newest of these matches, and how far it moved since the oldest (both need it in the demo). */
+  premier: number | null; premierMoved: number | null;
+}
+/** A Premier rating as the game shows it (competitive skill groups and missing ratings don't count). */
+export const premierOf = (m: Pick<ProfileMatch, 'rank'>) => (m.rank !== null && m.rank >= 1000 ? m.rank : null);
 export function averages(list: ProfileMatch[]): Averages | null {
   if (!list.length) return null;
   const deaths = list.reduce((a, m) => a + m.deaths, 0);
@@ -135,12 +141,16 @@ export function averages(list: ProfileMatch[]): Averages | null {
     matches: list.length, wins, winRate: wins / list.length,
     kd: deaths ? list.reduce((a, m) => a + m.kills, 0) / deaths : null,
     adr: avg(list.map(m => m.adr))!, kast: avg(list.map(m => m.kast))!, hs: avg(list.map(m => m.hs))!, impact: avg(list.map(m => m.impact))!,
-    rating: avg(list.flatMap(m => (m.gameRating !== null ? [m.gameRating] : []))),
+    ...(() => {
+      // newest first: the first rating is the latest, the last one where these matches started
+      const rs = [...list].sort((a, b) => b.at - a.at).flatMap(m => (premierOf(m) !== null ? [premierOf(m)!] : []));
+      return { premier: rs[0] ?? null, premierMoved: rs.length >= 2 ? rs[0] - rs[rs.length - 1] : null };
+    })(),
     engine: avg(list.flatMap(m => (m.engine !== null ? [m.engine] : []))),
   };
 }
 
-export interface MapStat { map: string; matches: number; wins: number; winRate: number; adr: number; kd: number | null; rating: number | null; best: Letter | null }
+export interface MapStat { map: string; matches: number; wins: number; winRate: number; adr: number; kd: number | null; best: Letter | null }
 /** Per map, most played first. */
 export function mapStats(list: ProfileMatch[]): MapStat[] {
   const by = new Map<string, ProfileMatch[]>();
@@ -148,7 +158,7 @@ export function mapStats(list: ProfileMatch[]): MapStat[] {
   return [...by].map(([map, ms]) => {
     const a = averages(ms)!;
     const best = ms.map(m => m.level ?? m.lobby).sort((x, y) => LETTERS.indexOf(x) - LETTERS.indexOf(y))[0] ?? null;
-    return { map, matches: ms.length, wins: a.wins, winRate: a.winRate, adr: a.adr, kd: a.kd, rating: a.rating, best };
+    return { map, matches: ms.length, wins: a.wins, winRate: a.winRate, adr: a.adr, kd: a.kd, best };
   }).sort((a, b) => b.matches - a.matches || b.winRate - a.winRate);
 }
 

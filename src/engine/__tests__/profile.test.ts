@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FEATURE_LABEL } from '../coach';
 import { LETTERS } from '../recap';
 import { averages, cleanGoals, cleanMatch, cleanPrefs, FEATURE_IDS, goalSeries, mapStats, MAX_GOALS, MAX_HISTORY, MECH_IDS, withMatch, type ProfileMatch } from '../profile';
-import { profileRoute, publicProfileOf, type ProfileKV } from '../../../worker/src/profile';
+import { addMatchFromServer, profileRoute, publicProfileOf, type ProfileKV } from '../../../worker/src/profile';
 
 const match = (o: Partial<ProfileMatch> = {}): ProfileMatch => ({
   id: 'de_mirage|24|1.0', map: 'de_mirage', at: 1000, rounds: 24, result: 'win', score: [13, 11],
@@ -65,6 +65,12 @@ describe('profile', () => {
     expect(goalSeries(list, 'loud')).toEqual([0.2, 0.2, 0.2]);
   });
 
+  it('shows the in-game Premier rating: the newest, and how far it moved', () => {
+    const list = [match({ id: 'a', at: 1, rank: 10000 }), match({ id: 'b', at: 2, rank: 12 }), match({ id: 'c', at: 3, rank: 10450 })];
+    expect(averages(list)).toMatchObject({ premier: 10450, premierMoved: 450 });
+    expect(averages([match({ rank: null })])).toMatchObject({ premier: null, premierMoved: null });
+  });
+
   it('stores what the website sends, per Steam account, and shares only public profiles', async () => {
     const kv = memoryKV();
     await profileRoute(kv, '76561190000000001', 'POST', '/profile/match', { match: match() });
@@ -77,5 +83,13 @@ describe('profile', () => {
     await profileRoute(kv, '76561190000000001', 'POST', '/profile/prefs', { public: true });
     expect((await publicProfileOf(kv, '76561190000000001'))!.matches).toHaveLength(1);
     expect(await profileRoute(kv, '76561190000000001', 'POST', '/profile/other', {})).toBeNull();
+  });
+
+  it('takes matches the demo bot graded, and only real summaries', async () => {
+    const kv = memoryKV();
+    expect(await addMatchFromServer(kv, '76561190000000002', match({ id: 'bot' }))).toBe(true);
+    expect(await addMatchFromServer(kv, '76561190000000002', { id: 'junk' })).toBe(false);
+    const p = await profileRoute(kv, '76561190000000002', 'GET', '/profile', {}) as { matches: { id: string }[] };
+    expect(p.matches.map(m => m.id)).toEqual(['bot']);
   });
 });

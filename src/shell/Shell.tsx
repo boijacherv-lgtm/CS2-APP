@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { App as Cs2App } from '../App';
 import type { RoundSummary } from '../engine/match';
-import type { MatchWorkerIn, MatchWorkerOut } from '../engine/match.worker';
 import { MatchReportPage } from '../ui/Report';
 import { finishSteamLogin } from '../ui/steamApi';
+import { gradeMatch } from '../ui/gradeMatch';
 import { Home } from '../site/Home';
 import { NavBar } from '../site/Nav';
 import { Pricing } from '../site/Pricing';
@@ -49,26 +49,10 @@ function useMatchGrader() {
   const data = useStore(s => s.review?.data);
   useEffect(() => {
     if (!data) return;
-    const rounds: (RoundSummary | null)[] = Array(data.rounds.length).fill(null);
-    useStore.setState({ report: { data, rounds: [...rounds], done: false } });
-    const w = new Worker(new URL('../engine/match.worker.ts', import.meta.url), { type: 'module' });
-    let error: string | undefined;
-    const finish = () => {
-      useStore.setState({ report: { data, rounds: [...rounds], done: true, ...(error ? { error } : {}) } });
-      w.terminate();
-    };
-    w.onmessage = (e: MessageEvent<MatchWorkerOut>) => {
-      const m = e.data;
-      if ('error' in m) { error = m.error; console.error('grading stopped:', m.error); return; }
-      if ('done' in m) { finish(); return; }
-      rounds[m.i] = m.summary;
-      useStore.setState({ report: { data, rounds: [...rounds], done: false } });
-    };
-    // the worker itself crashed (out of memory, failed to load): stop waiting, keep what was graded
-    w.onerror = e => { e.preventDefault(); error = e.message || 'the grader crashed (the match may be too big for this browser)'; finish(); };
-    w.onmessageerror = () => { error = 'a graded round could not be read back'; finish(); };
-    w.postMessage({ data, context: useStore.getState().board.context } satisfies MatchWorkerIn);
-    return () => w.terminate();
+    useStore.setState({ report: { data, rounds: Array(data.rounds.length).fill(null), done: false } });
+    const g = gradeMatch(data, useStore.getState().board.context, rounds => useStore.setState({ report: { data, rounds, done: false } }));
+    g.done.then(({ rounds, error }) => useStore.setState({ report: { data, rounds, done: true, ...(error ? { error } : {}) } }));
+    return () => g.stop();
   }, [data]);
 }
 

@@ -17,7 +17,7 @@ import { T as TOK } from './tokens';
 import { SteamMatches } from './SteamMatches';
 import { DemoFolder } from './DemoFolder';
 import { ONLINE, STEAM_AVAILABLE } from '../env';
-import { DEMO_PASSES, readDemoInBrowser } from './readDemo';
+import { readDemoFile } from './readDemo';
 import { GameIcon, Icon } from './Icon';
 import type { Cs2Icon } from './cs2Icons';
 import { shownNow, useShown } from './shown';
@@ -44,23 +44,13 @@ function useDemoLoader() {
     setBusy(true);
     setProgress(null);
     try {
-      let data: DemoData;
-      if (file.name.endsWith('.json')) data = JSON.parse(await file.text());
-      else if (ONLINE) {
+      if (ONLINE && !file.name.endsWith('.json')) {
         // website: read it right here in the browser (nothing is uploaded)
         // about 6 MB a second on a laptop: a 250 MB demo takes ~40 s
         setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB) in your browser. Usually about ${Math.max(5, Math.round(file.size / 6e6 / 5) * 5)} s.`);
         setProgress(0);
-        data = await readDemoInBrowser(file, pass => setProgress(Math.min(0.97, pass / DEMO_PASSES)));
-      } else {
-        setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB)… big demos take a few seconds.`);
-        const res = await fetch(`/api/demo?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.error ?? res.statusText);
-        data = body;
-      }
-      if (!MAPS.some(m => m.id === data.map)) throw new Error(`${data.map} isn't one of the supported maps.`);
-      if (!data.rounds.length) throw new Error('No rounds found in this demo.');
+      } else setStatus(`Reading ${file.name} (${(file.size / 1e6).toFixed(0)} MB)… big demos take a few seconds.`);
+      const data = await readDemoFile(file, setProgress);
       setStatus(null);
       startReview(data);
     } catch (e) {

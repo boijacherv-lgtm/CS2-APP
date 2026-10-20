@@ -217,6 +217,16 @@
 .site-table.compare td:first-child { color: var(--text-2); }
 .site-table.compare td.num { font-weight: 700; }
 
+/* ---- add matches ---- */
+.add-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.add-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 12px; align-items: center; padding: 8px 10px; border-radius: 9px;
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; }
+.add-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, monospace; font-size: 12px; color: var(--text-2); }
+.add-state { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.add-state > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.add-bar { flex: 1; height: 6px; border-radius: 99px; background: var(--bg-1); overflow: hidden; min-width: 60px; }
+.add-bar i { display: block; height: 100%; background: var(--text-1); transition: width .4s var(--ease-out); }
+
 /* ---- share dialog ---- */
 .dialog-back { position: fixed; inset: 0; z-index: 100; background: #000b; display: grid; place-items: center; padding: 20px; animation: fade-in .15s var(--ease-out); }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }

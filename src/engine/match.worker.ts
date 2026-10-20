@@ -1,9 +1,7 @@
 /// <reference lib="webworker" />
-import { getEngine } from '../map/catalog';
-import { summarizeRound, type RoundSummary } from './match';
-import { roundDecisions } from './situations';
-import { analyzeRound } from './analyst';
-import { buildReplay, reviewRound, type DemoData } from './recap';
+import type { RoundSummary } from './match';
+import { gradeRounds } from './gradeRounds';
+import type { DemoData } from './recap';
 import type { BoardState } from './types';
 
 /**
@@ -22,15 +20,5 @@ self.onmessage = (e: MessageEvent<MatchWorkerIn>) => {
 };
 
 function gradeAll({ data, context }: MatchWorkerIn) {
-  const engine = getEngine(data.map, 0);
-  for (let i = 0; i < data.rounds.length; i++) {
-    let summary: RoundSummary | null = null;
-    try {
-      const rep = buildReplay(engine, data, i, context);
-      summary = summarizeRound(rep, reviewRound(engine, rep));
-      try { summary.decisions = roundDecisions(engine, data.rounds[i]); } catch { /* positions are extra */ }
-      try { summary.analyst = analyzeRound(engine, data.rounds[i], data.rounds.slice(0, i), data.rounds.length); } catch { /* the analyst is extra */ }
-    } catch (err) { console.warn(`round ${i + 1} could not be graded`, err); }
-    post({ i, summary });
-  }
+  gradeRounds(data, context, (i, summary) => post({ i, summary }));
 }

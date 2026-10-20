@@ -1,11 +1,12 @@
 // Stratboard server: every few minutes, for every user of the website, ask Valve for their new matches (through
-// the Worker), then for each new match get the demo with the bot, parse it and send it to the Worker.
+// the Worker), then for each new match get the demo with the bot, parse it, grade it and send both to the Worker
+// (the demo for Review, the grading for the user's profile).
 // Runs on any always-on machine with Node.js. Only outgoing connections.
 //   npm start        run forever
 //   npm run once     one round, then exit (for testing)
 import { CYCLE_MINUTES, SERVER_TOKEN, WORKER_URL } from './config.mjs';
 import { Bot } from './bot.mjs';
-import { Gone, parsedDemo, summary } from './process.mjs';
+import { canGrade, Gone, gradedMatch, parsedDemo, summary } from './process.mjs';
 
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19).replace('T', ' '), ...a);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -24,6 +25,8 @@ async function worker(method, route, body, raw = false) {
 }
 
 const uploaded = new Set(); // demos the Worker already has (this run)
+const grading = canGrade();
+if (!grading) log('The app is installed without its dev tools: matches are added, but not to profiles. Run `npm ci` in the repo (see server/README.md).');
 
 async function cycle(bot) {
   const { users } = await worker('GET', '/users');
@@ -37,6 +40,13 @@ async function cycle(bot) {
         const { gz } = await parsedDemo(m.outcomeId, info, log);
         if (!uploaded.has(m.outcomeId)) { await worker('PUT', `/demo/${m.outcomeId}`, gz, true); uploaded.add(m.outcomeId); }
         await worker('POST', `/result/${steamId}`, { outcomeId: m.outcomeId, parsed: true, info: summary(gz, steamId, info.time) });
+        // the match on their profile too (its demo stays usable even if grading fails)
+        if (grading) {
+          try {
+            const entry = (await gradedMatch(m.outcomeId, gz, info.time, log))[steamId];
+            if (entry) { await worker('POST', `/profile/${steamId}`, { match: entry }); log('  ✓ on their profile'); }
+          } catch (e) { log(`  ! profile: ${e.message}`); }
+        }
         log('  ✓ ready');
       } catch (e) {
         const gone = e instanceof Gone;

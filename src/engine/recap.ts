@@ -205,6 +205,8 @@ export interface DemoData {
   rounds: DemoRound[];
   /** Each player's Premier (or competitive) rating at the start of the match. */
   ranks?: Record<string, PlayerRank>;
+  /** When the match was played (ms): the demo file's date, which CS2 sets as it saves the demo after the match. */
+  playedAt?: number;
 }
 
 // ---- replay -----------------------------------------------------------------------------------

@@ -15,7 +15,7 @@
  * Never add Steam login automation (steam-session / steam-user / logging in as the user): Steam flagged that
  * as malicious on the owner's account. Public and official APIs only.
  */
-import { forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
+import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
 export interface Env {
@@ -304,6 +304,12 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
     if (bytes.byteLength > MAX_DEMO_BYTES) return json({ error: 'Too big.' }, 413);
     await env.SB.put(`demo:${demoPut[1]}`, bytes);
     return json({ ok: true, bytes: bytes.byteLength });
+  }
+  // a match the server graded, for this user's profile
+  const profileFor = path.match(/^\/internal\/profile\/(7656\d{13})$/);
+  if (req.method === 'POST' && profileFor) {
+    const ok = await addMatchFromServer(env.SB, profileFor[1], (await body(req)).match);
+    return ok ? json({ ok: true }) : json({ error: 'That isn\'t a match summary.' }, 400);
   }
   // what came of one match for one user
   const resultFor = path.match(/^\/internal\/result\/(7656\d{13})$/);

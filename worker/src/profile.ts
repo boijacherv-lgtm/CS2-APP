@@ -9,6 +9,7 @@
  *   POST /profile/notify    tell me when Pro launches
  *   GET  /public/:steamId   a friend's name, avatar and last matches, only if their profile is public
  *   GET  /resolve?q=        a Steam profile link, vanity name or SteamID → SteamID (logged-in only)
+ *   POST /internal/profile/:steamId   the demo bot adds a match it graded (server token only)
  */
 import { cleanGoals, cleanMatch, cleanPrefs, EMPTY_PROFILE, FREE_HISTORY, withMatch, type ProfileData } from '../../src/engine/profile';
 
@@ -62,4 +63,14 @@ export async function resolveSteamId(q: string, apiKey: string | undefined): Pro
   if (!res.ok) return null;
   const r = ((await res.json()) as { response?: { success?: number; steamid?: string } }).response;
   return r?.success === 1 && r.steamid && /^7656\d{13}$/.test(r.steamid) ? r.steamid : null;
+}
+
+/** The demo bot adds a match it graded to a user's profile (/internal/profile/:steamId, with the server token). */
+export async function addMatchFromServer(kv: ProfileKV, steamId: string, raw: unknown): Promise<boolean> {
+  const m = cleanMatch(raw);
+  if (!m) return false;
+  const p = await loadProfile(kv, steamId);
+  p.matches = withMatch(p.matches, m);
+  await save(kv, steamId, p);
+  return true;
 }

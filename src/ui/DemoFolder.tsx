@@ -157,6 +157,7 @@ export function DemoFolder() {
       // a demo CS2 is still writing keeps growing: wait until it's finished
       if (Date.now() - file.lastModified < 5000) throw new Error('still downloading');
       const data = await readDemoInBrowser(file, pass => setReading({ name: f.name, pass }));
+      if (file.lastModified) data.playedAt = file.lastModified; // when it was played (CS2 saves it right after)
       if (!MAPS.some(m => m.id === data.map)) throw new Error(`${data.map} isn't one of the supported maps`);
       await setItem(DEMO(f.name), await gzipJson(data));
       const s = summarize(data, steamId);

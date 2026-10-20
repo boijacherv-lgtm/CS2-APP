@@ -1,4 +1,4 @@
-import type { ProfileMatch } from '../engine/profile';
+import { premierOf, type ProfileMatch } from '../engine/profile';
 import { LETTER_COLOR } from '../engine/recap';
 import { mapName } from './format';
 import { T } from '../ui/tokens';
@@ -55,7 +55,7 @@ export async function drawShareCard(canvas: HTMLCanvasElement, m: ProfileMatch, 
   // the numbers
   const stats: [string, string][] = [
     ['K / D', `${m.kills} / ${m.deaths}`], ['ADR', m.adr.toFixed(0)], ['KAST', `${m.kast.toFixed(0)}%`],
-    ...(m.gameRating !== null ? [['RATING', m.gameRating.toLocaleString('en-US')] as [string, string]] : []),
+    ...(premierOf(m) !== null ? [['PREMIER', premierOf(m)!.toLocaleString('en-US')] as [string, string]] : []),
   ];
   stats.forEach(([k, v], i) => {
     const cx = x + 210 + (i % 2) * 210, cy = 370 + Math.floor(i / 2) * 105;

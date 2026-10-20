@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { GOAL_CHOICES, goalInfo, habits } from '../engine/habits';
-import { averages, FREE_HISTORY, goalSeries, hasPro, mapStats, MAX_GOALS, type Averages, type GoalId, type ProfileMatch } from '../engine/profile';
+import { averages, FREE_HISTORY, premierOf, goalSeries, hasPro, mapStats, MAX_GOALS, type Averages, type GoalId, type ProfileMatch } from '../engine/profile';
 import { LETTER_COLOR } from '../engine/recap';
 import { Icon } from '../ui/Icon';
 import { findFriend, setGoals, useProfile, type PublicProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
 import { copyCard, drawShareCard, shareFileName } from './shareCard';
+import { AddMatches } from './AddMatches';
 
 /** Your profile: your last matches, how they trend, your goals, your maps, a friend next to you, and share cards. */
 export function Profile() {
@@ -46,7 +47,9 @@ export function Profile() {
             numbers, your trends and your goals.</p>
           <a className="cta primary" href="#/cs2/review">Review a match</a>
         </section>
-      ) : (
+      ) : null}
+      <AddMatches />
+      {!matches.length ? null : (
         <>
           {last && <Kpis now={last} was={before} />}
 
@@ -82,10 +85,16 @@ function Kpis({ now, was }: { now: Averages; was: Averages | null }) {
     { label: 'ADR', v: now.adr.toFixed(0), d: was ? now.adr - was.adr : null },
     { label: 'KAST', v: `${now.kast.toFixed(0)}%`, d: was ? now.kast - was.kast : null },
     { label: 'Headshots', v: `${now.hs.toFixed(0)}%`, d: was ? now.hs - was.hs : null },
-    { label: 'Game rating', v: now.rating !== null ? fmtInt(now.rating) : '–', d: was && now.rating !== null && was.rating !== null ? now.rating - was.rating : null },
   ];
   return (
     <section className="kpi-strip" aria-label={`Averages over your last ${now.matches} matches`}>
+      <div className="kpi-tile premier" title="Your in-game Premier rating at the start of your newest reviewed match">
+        <span>Premier</span>
+        <b>{now.premier !== null ? fmtInt(now.premier) : '–'}</b>
+        {now.premierMoved !== null && now.premierMoved !== 0
+          ? <i className={now.premierMoved > 0 ? 'up' : 'down'}><Icon name={now.premierMoved > 0 ? 'trendUp' : 'trendDown'} size={12} /> {now.premierMoved > 0 ? '+' : '−'}{fmtInt(Math.abs(now.premierMoved))} over these {now.matches}</i>
+          : <i className="muted">{now.premier !== null ? `over these ${now.matches}` : 'not in these demos'}</i>}
+      </div>
       {items.map(i => (
         <div key={i.label} className="kpi-tile">
           <span>{i.label}</span>
@@ -111,7 +120,7 @@ function MatchRow({ m, onShare }: { m: ProfileMatch; onShare: () => void }) {
       <span className={`match-score ${m.result}`}>{m.score[0]}:{m.score[1]}</span>
       <span className="match-stat"><small>K/D</small>{m.kills}/{m.deaths}</span>
       <span className="match-stat"><small>ADR</small>{m.adr.toFixed(0)}</span>
-      <span className="match-stat"><small>Rating</small>{m.gameRating !== null ? fmtInt(m.gameRating) : '–'}</span>
+      <span className="match-stat" title="Your Premier rating going into this match"><small>Premier</small>{premierOf(m) !== null ? fmtInt(premierOf(m)!) : '–'}</span>
       <span className="letter-chip" style={{ background: LETTER_COLOR[grade] }} title={m.level ? 'Level: B = a typical level-10 game, S = a typical pro game' : 'Grade among the lobby'}>{grade}</span>
       <button className="ghost icon-btn" onClick={onShare} title="Share card" aria-label="Share card"><Icon name="share" size={16} /></button>
     </div>
@@ -261,7 +270,7 @@ function Friend({ mine }: { mine: Averages | null }) {
   const rows: [string, (a: Averages) => string, (a: Averages) => number | null][] = [
     ['Win rate', a => pct(a.winRate), a => a.winRate], ['K/D', a => fmtKd(a.kd), a => a.kd], ['ADR', a => a.adr.toFixed(0), a => a.adr],
     ['KAST', a => `${a.kast.toFixed(0)}%`, a => a.kast], ['Headshots', a => `${a.hs.toFixed(0)}%`, a => a.hs],
-    ['Impact', a => `${a.impact >= 0 ? '+' : ''}${a.impact.toFixed(1)}%`, a => a.impact], ['Game rating', a => (a.rating !== null ? fmtInt(a.rating) : '–'), a => a.rating],
+    ['Impact', a => `${a.impact >= 0 ? '+' : ''}${a.impact.toFixed(1)}%`, a => a.impact], ['Premier', a => (a.premier !== null ? fmtInt(a.premier) : '–'), a => a.premier],
   ];
   return (
     <section className="site-card friend">

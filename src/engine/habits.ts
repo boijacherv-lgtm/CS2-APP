@@ -26,7 +26,8 @@ export function profileMatchOf(data: DemoData, view: MatchReport, p: PlayerRepor
   const s = summarizeMatch(matchKey(data.map, data.rounds), data.map, p, analyst);
   const us = view.score[p.team], them = view.score[p.team === 0 ? 1 : 0];
   return {
-    ...s, level: p.level?.letter ?? null, result: us > them ? 'win' : us < them ? 'loss' : 'tie', score: [us, them],
+    // when it was played when the demo file says so (imported in any order, the profile stays in match order)
+    ...s, at: data.playedAt ?? s.at, level: p.level?.letter ?? null, result: us > them ? 'win' : us < them ? 'loss' : 'tie', score: [us, them],
     kills: p.kills, deaths: p.deaths, adr: +p.adr.toFixed(1), kast: +p.kast.toFixed(1), hs: +p.hs.toFixed(1), impact: +p.impactPerRound.toFixed(2),
     lobby: p.letter, gameRating: p.gameRating, rank: p.rank, name: p.name,
   };
