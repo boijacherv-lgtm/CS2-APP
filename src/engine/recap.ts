@@ -11,7 +11,7 @@ import { duelOdds as duelModelOdds, pctOdds } from './duelModel';
 import { COST_SCALE, keySearchMoments, searchRound, type RoundSearch } from './search';
 import { ACTION_TEXT, judgeMoment, keyMoments, momentLine, pctPlay, PLAY_MODEL, roundMoments, type Action, type MomentVerdict } from './playModel';
 import { controlCounts, learnedLogit, tradePending, WIN_MODEL } from './winprob';
-import { analystBench, proTradeConversion } from './analystModel';
+import { analystBench, proAnalystAvailable, proTradeConversion } from './analystModel';
 import { tradeSpotOf } from './analystBench';
 import type { BoardState, Player, Side, Utility, UtilType, Vec2, Weapon } from './types';
 
@@ -619,10 +619,11 @@ export const CALLOUT_SECS = 3.5;
 export const QUEUE_SECS = 8;
 /** How long reading a move's window takes (real ms): a base plus time for every character, less for small moves. */
 export const readMs = (m: Move) => {
-  const chars = m.title.length + m.why.join(' ').length;
+  // the card shows the grade and the title (the reasons open on demand and pause the replay), so that's what's read
+  const chars = m.title.length + m.tags.join(' ').length;
   // annotated moves get the full time; book moves a quicker look
   const big = m.note !== 'book';
-  return big ? Math.max(1800, Math.min(4000, 800 + 20 * chars)) : Math.max(1200, Math.min(2500, 500 + 12 * chars));
+  return big ? Math.max(1500, Math.min(2800, 700 + 22 * chars)) : Math.max(1000, Math.min(1800, 400 + 12 * chars));
 };
 export const moveKey = (m: Move) => `${m.t}-${m.player}-${m.kind}-${m.util ?? ''}`;
 
@@ -1128,13 +1129,14 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   // the analyst's view (analyst.ts): missed trades and bad rotations become the responsible player's move
   try {
     const an = analyzeRound(engine, r);
-    const bench = analystBench(engine.map.id);
+    const bench = analystBench(engine.map.id), proBench = proAnalystAvailable ? analystBench(engine.map.id, 'pro') : null;
+    const pc = (v: number) => `${Math.round(v * 100)}%`;
     for (const tr of an.trades) {
       if (tr.traded) continue;
-      // where level-10 teams trade a death at this spot (for the victim's card and the missed trades below)
-      const sp = tradeSpotOf(bench, tr.place);
+      // where level-10 teams (and pros) trade a death at this spot (for the victim's card and the missed trades below)
+      const sp = tradeSpotOf(bench, tr.place), pp = proBench ? tradeSpotOf(proBench, tr.place) : null;
       const spotLine = sp && sp.traders.length
-        ? `Level-10 teams trade ${Math.round(sp.tradedRate * 100)}% of deaths at ${tr.place}, mostly from ${sp.traders.slice(0, 2).map(t => `${t.place} ${Math.round(t.conv * 100)}% of the time, about ${t.dist} m away`).join(', or ')}; usually within ${sp.avgTime.toFixed(1)} s.`
+        ? `Deaths at ${tr.place} traded: level 10 ${pc(sp.tradedRate)}${pp ? ` · pros ${pc(pp.tradedRate)}` : ''}, mostly from ${sp.traders.slice(0, 2).map(t => `${t.place} (${t.dist} m)`).join(' or ')}, within ${sp.avgTime.toFixed(1)} s.`
         : null;
       const death = moves.find(m => m.kind === 'death' && m.player === tr.victim && Math.abs(m.t - tr.t) < 0.06);
       if (death && spotLine) death.why.push(spotLine);
@@ -1150,7 +1152,11 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
           t: Math.min(r.duration, tr.t + 2), player: c.mate, side: sideOf.get(c.mate)!, kind: 'teamplay', gain: 0, note: '?', tags: ['NO TRADE'],
           title: `${name(c.mate)} didn't trade ${name(tr.victim)}${tr.place ? ` at ${tr.place}` : ''}`,
           why: [`${name(tr.victim)} died ${Math.round(c.dist * 0.0254)} m from you and you could see ${name(tr.killer)} within 3 s, but didn't take the trade.`,
-            (() => { const at = sp?.traders.find(t => t.place === c.place); return at ? `Level-10 players at ${c.place} trade a death at ${tr.place} ${Math.round(at.conv * 100)}% of the time.` : `Level-10 players take ${Math.round(proTradeConversion() * 100)}% of those chances.`; })(),
+            (() => {
+              const at = sp?.traders.find(t => t.place === c.place), pro = pp?.traders.find(t => t.place === c.place);
+              return at ? `From ${c.place} this trade is taken: level 10 ${pc(at.conv)}${pro ? ` · pros ${pc(pro.conv)}` : ''}.`
+                : `Chances like this taken: level 10 ${pc(proTradeConversion())}${proBench ? ` · pros ${pc(proBench.trades.chanceConversion)}` : ''}.`;
+            })(),
             ...(spotLine ? [spotLine] : []),
             'Swing right away: the killer is reloading or turning, and the trade window closes in about 2 s.'],
         });
@@ -1199,8 +1205,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const kill = moves.find(m => m.kind === 'kill' && m.player === d.killer && Math.abs(m.t - d.t) < 0.06);
       const lost = duelModelOdds(d, 'victim'), won = duelModelOdds(d, 'killer');
       if (death && lost) {
-        death.why.push(`Duel odds: level-10 players win this fight ${pctOdds(lost.p)} of the time from where it started.`);
-        if (lost.peek !== null && lost.held !== null) death.why.push(`With this health, guns and help, a level-10 peek here wins ${pctOdds(lost.peek)}; holding still for the enemy to come wins ${pctOdds(lost.held)}.`);
+        death.why.push(`Duel odds ${pctOdds(lost.p)}${lost.peek !== null && lost.held !== null ? `; for level 10 from here: peeking wins ${pctOdds(lost.peek)}, holding ${pctOdds(lost.held)}` : ''}.`);
         if (lost.peek !== null && lost.peek < 0.35 && lost.p < 0.4 && !d.withFlash) {
           death.tags.push('BAD PEEK');
           // a bad peek alone and already hurt is a mistake, not just an inaccuracy

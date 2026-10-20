@@ -209,7 +209,8 @@ export const useStore = create<Store>((set, get) => {
     speed: 1,
     readSlow: loadJson<{ on: boolean }>('stratboard.readSlow', { on: true }).on,
     popups: loadJson<{ on: boolean }>(LS_POPUPS, { on: true }).on,
-    engineLines: loadJson<{ on: boolean }>('stratboard.engineLines', { on: true }).on,
+    // the arrows (engine lines, and the card's line to its player): a debugging view, off unless turned on
+    engineLines: loadJson<{ on: boolean }>('stratboard.arrows', { on: false }).on,
     drawerOpen: loadJson<{ on: boolean }>(LS_DRAWER, { on: typeof window === 'undefined' || window.innerWidth >= 1280 }).on,
     slowUntil: 0,
     slowSpeed: 0.3,
@@ -384,7 +385,7 @@ export const useStore = create<Store>((set, get) => {
       })),
     setSpeed: speed => set({ speed }),
     setDrawerOpen: drawerOpen => { saveJson(LS_DRAWER, { on: drawerOpen }); set({ drawerOpen }); },
-    setEngineLines: engineLines => { saveJson('stratboard.engineLines', { on: engineLines }); set({ engineLines }); },
+    setEngineLines: engineLines => { saveJson('stratboard.arrows', { on: engineLines }); set({ engineLines }); },
     setPopups: popups => {
       saveJson(LS_POPUPS, { on: popups });
       set({ popups, ...(popups ? {} : { slowUntil: 0, readHold: false }) });

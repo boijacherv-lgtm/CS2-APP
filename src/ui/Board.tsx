@@ -30,7 +30,7 @@ import { TeamRoster } from './Roster';
 import { proSpots } from '../map/positions';
 import { phaseOf } from '../engine/situations';
 import { SEARCH_COLOR } from '../engine/search';
-import { useStore } from '../store';
+import { useStore, whoAmI } from '../store';
 
 Konva.dragDistance = 4;
 
@@ -331,7 +331,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   // review: each grenade's letter (when it's evaluated: every move, or only yours), shown on the grenade itself
   const { shown, mine: mineScope } = useShown();
   // the search engine's lines for the player in focus (selected, or you with "Mine"): its best option at this moment and what they did
-  const engineFocus = recap?.search && s.engineLines ? s.selectedId ?? (mineScope ? s.me : null) : null;
+  const engineFocus = recap?.search && s.engineLines ? s.selectedId ?? (mineScope ? whoAmI(s) : null) : null;
   const engineNow = useMemo(() => {
     if (!engineFocus || !recap?.search) return null;
     // while one of the engine's cards for this player is current (its first 3 s), show that moment, so the map and

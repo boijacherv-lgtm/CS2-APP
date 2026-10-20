@@ -108,32 +108,52 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
     return () => onFocus(null);
   }, [focusKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // the line from the card to the player
+  // the reasons, on demand: open for this card only (a new card starts closed again)
+  const [openKey, setOpenKey] = useState('');
+  const open = !!card && openKey === cardKey;
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (open) { setOpenKey(''); return; }
+    setOpenKey(cardKey);
+    if (playing) stop(); // reading the reasons: hold the replay here until Continue
+  };
+
+  // with the arrows on (a debugging view): a line from the card to the player it's about
+  const arrows = useStore(st => st.engineLines);
   const anchorEl = useRef<HTMLDivElement | null>(null);
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   useLayoutEffect(() => {
     const el = anchorEl.current, board = boardRef.current;
-    if (!el || !board) { setAnchor(null); return; }
+    if (!arrows || !el || !board) { setAnchor(null); return; }
     const r = el.getBoundingClientRect(), b = board.getBoundingClientRect();
     setAnchor({ x: r.right - b.left, y: r.top - b.top + 18 });
-  }, [cardKey, boardRef]);
-  const who = card && simStateAt(sim, card.player, time);
+  }, [cardKey, boardRef, arrows]);
+  // the card's player is always ringed in the grade's colour; the arrows add the line to it
+  const who = card ? simStateAt(sim, card.player, time) : null;
   const px = who ? view.x + who.pos.x * view.scale : 0, py = who ? view.y + who.pos.y * view.scale : 0;
 
   if (!card) return null;
   const g = moveLook(card);
   return (
     <>
-      {who && anchor && (
+      {who && (
         <svg className="feed-link" aria-hidden>
-          <line x1={anchor.x} y1={anchor.y} x2={px} y2={py} stroke={g.color} strokeWidth={1.5} strokeDasharray="4 3" />
-          <circle cx={px} cy={py} r={15} fill="none" stroke={g.color} strokeWidth={2} />
+          {arrows && anchor && <line x1={anchor.x} y1={anchor.y} x2={px} y2={py} stroke={g.color} strokeWidth={1.5} strokeDasharray="4 3" />}
+          {/* a dark halo, a white ring and the grade's colour inside: visible on any part of any radar */}
+          <circle cx={px} cy={py} r={20} fill="none" stroke="#000" strokeOpacity={0.55} strokeWidth={7} />
+          <circle key={cardKey} className="feed-ring" cx={px} cy={py} r={20} fill="none" stroke="#fff" strokeWidth={3} />
+          <circle cx={px} cy={py} r={16.5} fill="none" stroke={g.color} strokeWidth={3} />
+          <circle className="feed-ring-pulse" cx={px} cy={py} r={20} fill="none" stroke="#fff" strokeWidth={2} />
         </svg>
       )}
-      <div className={`feed-card ${reading && !held ? 'reading' : ''}`} key={cardKey} ref={anchorEl} style={{ borderColor: g.color }}
+      <div className={`feed-card ${reading && !held ? 'reading' : ''} ${open ? 'open' : ''}`} key={cardKey} ref={anchorEl} style={{ borderColor: g.color }}
         onClick={skip} title={reading && !held ? 'Click for the next move' : undefined}>
         <div className="feed-card-head">
-          <NoteMark m={card} className="feed-mark" size={14} />
+          <button className="feed-mark-btn" onClick={toggle} aria-expanded={open} disabled={!card.why.length}
+            title={card.why.length ? (open ? 'Hide the reasons' : 'Why? Show the reasons (pauses the replay)') : undefined}>
+            <NoteMark m={card} className="feed-mark" size={14} />
+            {card.why.length > 0 && <Icon name="chevronDown" size={10} className="feed-mark-caret" />}
+          </button>
           <div className="feed-who"><b style={{ color: g.color }}>{g.label}</b><span className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</span></div>
           <span className={`feed-gain ${Math.round(card.gain * 100) > 0 ? 'up' : Math.round(card.gain * 100) < 0 ? 'down' : 'flat'}`} title="Change in their team's win chance">
             {signedPct(card.gain)}
@@ -146,7 +166,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
             {card.tags.map(t => <span key={t} className="tag" title={TAG_INFO[t].tip} style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }}>{t}</span>)}
           </div>
         )}
-        {card.why.length > 0 && <ul>{card.why.map((w, i) => <li key={i}>{brief(w)}</li>)}</ul>}
+        {open && <ul className="feed-why">{card.why.map((w, i) => <li key={i}>{brief(w)}</li>)}</ul>}
         <div className="feed-card-foot" onClick={e => e.stopPropagation()}>
           {!playing && !picked && !held && group.length > 1 && (
             <span className="feed-pager">

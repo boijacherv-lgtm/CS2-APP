@@ -91,7 +91,7 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
       )}
       {review && (
         <button className={s.engineLines ? 'on' : ''} onClick={e => { s.setEngineLines(!s.engineLines); e.currentTarget.blur(); }}
-          title={s.engineLines ? 'Engine lines: on (the best option and what was done, for the selected player, or yours with Mine)' : 'Engine lines: off'} aria-label="Engine lines"><Icon name="route" /><span className="pb-label">Lines</span></button>
+          title={s.engineLines ? 'Arrows: on (the engine\'s best option against what was done, and a line from each card to its player)' : 'Arrows: off (turn on to see the engine\'s lines and which player a card is about)'} aria-label="Arrows"><Icon name="route" /><span className="pb-label">Arrows</span></button>
       )}
       {review && s.popups && (
         <button onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
