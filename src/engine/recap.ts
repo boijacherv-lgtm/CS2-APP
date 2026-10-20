@@ -1174,7 +1174,13 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const ft = r.frames.t;
       let k = 0; while (k < ft.length - 1 && ft[k + 1] <= d.t - 0.2) k++;
       const w = f.w[k] ?? '';
-      if (/knife|bayonet|karambit|dagger|flashbang|hegrenade|smokegrenade|molotov|incgrenade|decoy|c4/.test(w)) { death.tags.push('KNIFE OUT'); if (death.note === 'book' || death.note === '?!') death.note = '?'; death.why.push(`Had ${/c4/.test(w) ? 'the bomb' : /knife|bayonet|karambit|dagger/.test(w) ? 'the knife' : 'a grenade'} out instead of a gun.`); }
+      if (/knife|bayonet|karambit|dagger|flashbang|hegrenade|smokegrenade|molotov|incgrenade|decoy|c4/.test(w)) {
+        death.tags.push('KNIFE OUT');
+        const what = /c4/.test(w) ? 'the bomb' : /knife|bayonet|karambit|dagger/.test(w) ? 'the knife' : 'a grenade';
+        // outgunned (an SMG or shotgun against rifles): reaching for utility instead of taking the fight is a sound plan
+        if (death.tags.includes('OUTGUNNED')) death.why.push(`Had ${what} out: with a weaker gun, playing utility instead of the duel is reasonable; the risk is being caught while switching.`);
+        else { if (death.note === 'book' || death.note === '?!') death.note = '?'; death.why.push(`Had ${what} out instead of a gun.`); }
+      }
       else if (f.am[k] >= 0 && f.am[k] <= 3 && w !== 'awp' && gunFromName(w)) { death.tags.push('NO AMMO'); death.why.push(`Only ${f.am[k]} bullet${f.am[k] === 1 ? '' : 's'} left in the magazine.`); }
       if (d.detail?.vMovingShot) { death.tags.push('MOVING SHOT'); death.why.push('Their first shot was fired while still moving (no counter-strafe).'); }
       const k0 = Math.max(1, k - 6);
