@@ -66,7 +66,7 @@ export const canGrade = () => fs.existsSync(VITE_NODE);
 
 /**
  * Every player's profile entry for this match ({ steamId: entry }), graded once (about 20–60 s) and kept on disk.
- * Runs the app's grading (tools/grade-profile.ts); needs the app's full install (npm ci in the repo, not --omit=dev).
+ * Runs the app's grading (tools/grade-profile.ts); needs the app's full install (npm install in the repo, not --omit=dev).
  */
 export async function gradedMatch(outcomeId, gz, playedAt, log) {
   const file = path.join(GRADED, `${outcomeId}.json`);

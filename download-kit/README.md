@@ -48,8 +48,11 @@ The slow part of training is reading each demo. It can run on this PC; the resul
    cd $HOME
    git clone https://github.com/boijacherv-lgtm/CS2-APP.git
    cd CS2-APP
-   npm ci
+   npm install
    ```
+
+   Use `npm install`, not `npm ci`: the demo reader lists builds for other systems that were never published, and
+   newer npm versions refuse `npm ci` because of them.
 
 3. Read the new demos and pack them (only the matches on the current list, so last time's demos aren't read again;
    about 1–2 hours for 350 demos, it uses every CPU core; keep the PC awake):

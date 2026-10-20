@@ -22,11 +22,11 @@ The same steps work on macOS / Linux (use `openssl rand -hex 32` for the token a
 2. **Code and tools:** Node.js 20+ installed. In the repo folder (the one with `package.json`):
    ```powershell
    git pull
-   npm ci
+   npm install
    cd server
    npm ci --omit=dev
    ```
-   `npm ci` in the repo installs the app's tools too: the bot uses them to grade each match for profiles.
+   `npm install` in the repo installs the app's tools too (not `npm ci`: the demo reader lists builds for other systems that were never published, and newer npm versions refuse `npm ci` over them): the bot uses them to grade each match for profiles.
 3. **A shared secret:** make one and keep the output:
    ```powershell
    [guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')
@@ -74,5 +74,5 @@ All `/internal/*` calls carry `SERVER_TOKEN`; without it the Worker refuses them
 | `Worker /users: 403` | the Worker's SERVER_TOKEN doesn't match `server/.env`: `npx wrangler secret put SERVER_TOKEN` with the value from `server/.env` |
 | `CS2 did not answer about this match` (every time) | Steam sometimes ignores brand-new or limited bot accounts; try again later, or make the bot account non-limited |
 | `gone: The demo has expired` | normal for matches older than about a month |
-| `matches are added, but not to profiles` | the repo was installed with `--omit=dev`: run `npm ci` in the repo folder |
-| `! profile: grading failed` | the match is still in Review; run `git pull` and `npm ci` (the app changed), then restart |
+| `matches are added, but not to profiles` | the repo was installed with `--omit=dev`: run `npm install` in the repo folder |
+| `! profile: grading failed` | the match is still in Review; run `git pull` and `npm install` (the app changed), then restart |

@@ -26,7 +26,7 @@ async function worker(method, route, body, raw = false) {
 
 const uploaded = new Set(); // demos the Worker already has (this run)
 const grading = canGrade();
-if (!grading) log('The app is installed without its dev tools: matches are added, but not to profiles. Run `npm ci` in the repo (see server/README.md).');
+if (!grading) log('The app is installed without its dev tools: matches are added, but not to profiles. Run `npm install` in the repo (see server/README.md).');
 
 async function cycle(bot) {
   const { users } = await worker('GET', '/users');
