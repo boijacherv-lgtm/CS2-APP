@@ -9,6 +9,7 @@ import { NavBar } from '../site/Nav';
 import { Pricing } from '../site/Pricing';
 import { Profile } from '../site/Profile';
 import { Settings } from '../site/Settings';
+import { Dev } from '../site/Dev';
 import '../site/site.css';
 import { useStore, whoAmI } from '../store';
 import { buildMatchReport } from '../engine/match';
@@ -38,7 +39,7 @@ export function Shell() {
       <NavBar route={route} />
       <main className="shell-main">
         {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : <Cs2App />)
-          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : <Home />}
+          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : <Home />}
       </main>
     </div>
   );

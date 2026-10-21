@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -96,8 +97,12 @@ function steamApi(): Plugin {
   };
 }
 
+/** Which code a build is (the dev page shows it): the commit and when it was built. */
+const commit = (() => { try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
+
 export default defineConfig({
   plugins: [react(), demoApi(), steamApi()],
+  define: { __BUILD__: JSON.stringify({ commit, time: new Date().toISOString() }) },
   // the Steam cache (match list, downloaded demos) changes while the server runs; don't watch it
   server: { port: 5173, open: false, watch: { ignored: ['**/.steam-cache/**'] } },
 });

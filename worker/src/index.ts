@@ -15,6 +15,7 @@
  * Never add Steam login automation (steam-session / steam-user / logging in as the user): Steam flagged that
  * as malicious on the owner's account. Public and official APIs only.
  */
+import { adminStats, isOwner, saveHeartbeat } from './admin';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
@@ -28,6 +29,8 @@ export interface Env {
   SITE_ORIGINS: string;
   /** Where Steam sends the browser back after logging in (the website, e.g. https://tsakhstvo.xyz/). */
   RETURN_TO: string;
+  /** Comma-separated SteamIDs that may open the dev page (GET /admin/stats). */
+  OWNER_IDS?: string;
 }
 
 interface Match {
@@ -72,10 +75,14 @@ export default {
       // everything else needs a logged-in user
       const token = req.headers.get('Authorization')?.match(/^Bearer ([\w-]{20,})$/)?.[1];
       const steamId = token ? await env.SB.get(`session:${token}`) : null;
-      if (path === '/me' && req.method === 'GET') return json({ me: steamId ? { steamId, ...(await publicProfile(env, steamId)) } : null });
+      if (path === '/me' && req.method === 'GET') return json({ me: steamId ? { steamId, ...(await publicProfile(env, steamId)), ...(isOwner(env.OWNER_IDS, steamId) ? { owner: true } : {}) } : null });
       if (!steamId) return json({ error: 'Log in with Steam first.' }, 401);
 
       if (req.method === 'GET' && path === '/status') return json(status(env, steamId, await loadUser(env, steamId)));
+      if (req.method === 'GET' && path === '/admin/stats') {
+        if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);
+        return json(await adminStats(env.SB));
+      }
       if (req.method === 'GET' && path === '/resolve') {
         const id = await resolveSteamId(new URL(req.url).searchParams.get('q') ?? '', env.STEAM_API_KEY);
         return id ? json({ steamId: id }) : json({ error: 'No Steam account found for that.' }, 404);
@@ -305,6 +312,8 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
     await env.SB.put(`demo:${demoPut[1]}`, bytes);
     return json({ ok: true, bytes: bytes.byteLength });
   }
+  // the bot's report after each round (for the dev page)
+  if (req.method === 'POST' && path === '/internal/heartbeat') return json(await saveHeartbeat(env.SB, await body(req)));
   // a match the server graded, for this user's profile
   const profileFor = path.match(/^\/internal\/profile\/(7656\d{13})$/);
   if (req.method === 'POST' && profileFor) {

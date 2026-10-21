@@ -8,7 +8,7 @@ import { steamFetch } from './steamApi';
  * routes), it lives on your account and follows you between devices; otherwise it's kept in this browser. Matches
  * reviewed before logging in are uploaded once you do.
  */
-export type SteamMe = { steamId: string; name: string | null; avatar: string | null };
+export type SteamMe = { steamId: string; name: string | null; avatar: string | null; /** may open the dev page */ owner?: boolean };
 
 interface ProfileState {
   /** undefined while unknown; null = not logged in (or no Steam on this build). */

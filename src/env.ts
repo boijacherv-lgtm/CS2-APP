@@ -9,3 +9,7 @@ export const ONLINE = import.meta.env.VITE_ONLINE === '1';
 export const API_URL = String(import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 /** Steam login + match list available here? (always locally; online only with the Worker) */
 export const STEAM_AVAILABLE = !ONLINE || !!API_URL;
+
+declare const __BUILD__: { commit: string; time: string } | undefined;
+/** This build: the git commit and when it was built (vite.config.ts), for the dev page. */
+export const BUILD = typeof __BUILD__ !== 'undefined' && __BUILD__ ? __BUILD__ : { commit: 'dev', time: '' };

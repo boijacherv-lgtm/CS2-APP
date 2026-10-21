@@ -4,7 +4,8 @@
 // Runs on any always-on machine with Node.js. Only outgoing connections.
 //   npm start        run forever
 //   npm run once     one round, then exit (for testing)
-import { CYCLE_MINUTES, SERVER_TOKEN, WORKER_URL } from './config.mjs';
+import { execSync } from 'node:child_process';
+import { CYCLE_MINUTES, ROOT, SERVER_TOKEN, WORKER_URL } from './config.mjs';
 import { Bot } from './bot.mjs';
 import { canGrade, Gone, gradedMatch, parsedDemo, summary } from './process.mjs';
 
@@ -24,11 +25,13 @@ async function worker(method, route, body, raw = false) {
   return out;
 }
 
+const VERSION = (() => { try { return execSync('git rev-parse --short HEAD', { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return null; } })();
 const uploaded = new Set(); // demos the Worker already has (this run)
 const grading = canGrade();
 if (!grading) log('The app is installed without its dev tools: matches are added, but not to profiles. Run `npm install` in the repo (see server/README.md).');
 
 async function cycle(bot) {
+  const t0 = Date.now(), done = { handled: 0, ready: 0, failed: 0, gone: 0 };
   const { users } = await worker('GET', '/users');
   for (const steamId of users) {
     try { await worker('POST', `/sync/${steamId}`); } catch (e) { log(`sync ${steamId}: ${e.message}`); }
@@ -48,14 +51,19 @@ async function cycle(bot) {
           } catch (e) { log(`  ! profile: ${e.message}`); }
         }
         log('  ✓ ready');
+        done.ready++;
       } catch (e) {
         const gone = e instanceof Gone;
         log(`  ${gone ? '✗ gone' : '! failed'}: ${e.message}`);
+        if (gone) done.gone++; else done.failed++;
         await worker('POST', `/result/${steamId}`, { outcomeId: m.outcomeId, gone, error: e.message }).catch(() => {});
       }
+      done.handled++;
       await sleep(3000); // gentle on CS2's game coordinator
     }
   }
+  // the site owner's dev page shows when the bot last ran and how it went
+  await worker('POST', '/heartbeat', { users: users.length, ...done, cycleMs: Date.now() - t0, grading, version: VERSION }).catch(e => log(`heartbeat: ${e.message}`));
 }
 
 const bot = new Bot(log);

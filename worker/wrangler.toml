@@ -8,6 +8,8 @@ compatibility_date = "2026-10-01"
 SITE_ORIGINS = "https://tsakhstvo.xyz,https://www.tsakhstvo.xyz"
 # where Steam sends the browser back after logging in
 RETURN_TO = "https://tsakhstvo.xyz/"
+# SteamIDs that may open the site's dev page (#/dev); comma-separated
+OWNER_IDS = "76561199107207687"
 
 # Logins, codes and match lists. Create it once with:  npx wrangler kv namespace create SB
 # and paste the id it prints here.

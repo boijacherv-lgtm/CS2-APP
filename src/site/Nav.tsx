@@ -87,6 +87,7 @@ function AccountMenu({ route }: { route: Route }) {
       <div className="account-pop" role="menu">
         <a role="menuitem" href="#/profile"><Icon name="user" size={16} /> Profile</a>
         <a role="menuitem" href="#/settings"><Icon name="gear" size={16} /> Settings</a>
+        {me.owner && <a role="menuitem" href="#/dev"><Icon name="stats" size={16} /> Dev</a>}
         <a role="menuitem" href={`https://steamcommunity.com/profiles/${me.steamId}`} target="_blank" rel="noreferrer"><Icon name="arrowRight" size={16} /> Steam profile</a>
         <button role="menuitem" className="ghost" onClick={signOut}><Icon name="signOut" size={16} /> Sign out</button>
       </div>
