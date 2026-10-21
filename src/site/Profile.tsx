@@ -9,7 +9,7 @@ import { SteamLoginButton } from '../ui/SteamLogin';
 import { fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
 import { copyCard, drawShareCard, shareFileName } from './shareCard';
 import { AddMatches } from './AddMatches';
-import { AreaChart, BarList, Donut, MiniLine, Radar } from './charts';
+import { AreaChart, BarList, Donut, MiniLine, Radar, StretchLine } from './charts';
 import { T } from '../ui/tokens';
 
 /** Your profile: your last matches, how they trend, your goals, your maps, a friend next to you, and share cards. */
@@ -109,7 +109,7 @@ function Kpis({ now, was, matches }: { now: Averages; was: Averages | null; matc
       <div className="kpi-tile">
         <span>Win rate</span>
         <div className="kpi-body"><b>{pct(now.winRate)}</b>
-          <span className="wl-row" aria-label="Your last matches, oldest first">{recent.map(m => <i key={m.id} className={m.result} title={`${mapName(m.map)} ${m.score[0]}:${m.score[1]}`} />)}</span>
+          <span className="wl-row" aria-label="Your last 10 matches, oldest first">{recent.map(m => <i key={m.id} className={m.result} title={`${mapName(m.map)} ${m.score[0]}:${m.score[1]}`} />)}</span>
         </div>
         {pill(was ? now.winRate - was.winRate : null, pct(Math.abs(was ? now.winRate - was.winRate : 0)))}
       </div>
@@ -211,57 +211,45 @@ function Goals({ matches }: { matches: ProfileMatch[] }) {
           )}
         </div>
       ) : (
-        <div className="goal-list">{goals.map(g => <GoalRow key={g.id} id={g.id} since={g.since} matches={matches} />)}</div>
+        <div className="goal-list">{goals.map(g => <GoalRow key={g.id} id={g.id} matches={matches} />)}</div>
       )}
     </section>
   );
 }
 
-function GoalRow({ id, since, matches }: { id: GoalId; since: number; matches: ProfileMatch[] }) {
+function GoalRow({ id, matches }: { id: GoalId; matches: ProfileMatch[] }) {
   const info = goalInfo(id);
+  // your last 10 matches, oldest first
   const series = goalSeries(matches.slice(0, 10), id);
   const vals = series.filter((v): v is number => v !== null);
   const now = vals.at(-1) ?? null;
-  const startIdx = [...matches.slice(0, 10)].sort((a, b) => a.at - b.at).findIndex(m => m.at >= since);
-  const atStart = startIdx > 0 ? series.slice(0, startIdx).filter((v): v is number => v !== null).at(-1) ?? null : null;
   const better = (a: number, b: number) => (info.higherBetter ? a > b : a < b);
-  const verdict = now === null ? 'Not measured yet'
-    : atStart !== null ? (better(now, atStart) ? 'Better than when you set it' : now === atStart ? 'Same as when you set it' : 'Worse than when you set it')
-    : info.lvl10 !== null ? (better(now, info.lvl10) ? 'At level 10 or better' : 'Below level 10') : '';
+  const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  // the trend: your last 3 matches against the 3 before (small changes are noise)
+  const recent = vals.slice(-3), before = vals.slice(-6, -3);
+  const scale = Math.max(...vals.map(Math.abs), Math.abs(info.lvl10 ?? 0), 1e-9);
+  const trend = before.length < 2 ? null : Math.abs(avg(recent) - avg(before)) < scale * 0.05 ? 'flat' : better(avg(recent), avg(before)) ? 'up' : 'down';
+  const vsLvl10 = now === null || info.lvl10 === null ? null : better(now, info.lvl10) || now === info.lvl10;
   return (
     <div className="goal-row">
       <div className="goal-top">
         <b>{info.label}</b>
-        <span className="num">{now !== null ? info.fmt(now) : '–'}</span>
+        <span className={`num ${vsLvl10 === null ? '' : vsLvl10 ? 'up' : 'down'}`}>{now !== null ? info.fmt(now) : '–'}</span>
       </div>
-      <Spark values={series} target={info.lvl10} higherBetter={info.higherBetter} />
+      {vals.length >= 2 ? (
+        <div className="goal-chart">
+          <span className="goal-axis">better</span>
+          <StretchLine values={series} target={info.lvl10} invert={!info.higherBetter} height={64} dots="all"
+            tone={v => (info.lvl10 === null ? 'flat' : better(v, info.lvl10) || v === info.lvl10 ? 'up' : 'down')} />
+          <span className="goal-axis low">worse</span>
+        </div>
+      ) : <p className="muted small">One more match and the trend starts.</p>}
       <div className="goal-foot">
-        <span className={now !== null && info.lvl10 !== null && better(now, info.lvl10) ? 'up' : 'muted'}>{verdict}</span>
-        {info.lvl10 !== null && <span className="muted">level 10: {info.fmt(info.lvl10)}</span>}
+        {vsLvl10 !== null && <span className={vsLvl10 ? 'up' : 'down'}>{vsLvl10 ? 'At level 10 or better' : 'Worse than level 10'} ({info.fmt(info.lvl10!)}, dashed line)</span>}
+        {trend && <span className={trend === 'flat' ? 'muted' : trend}>{trend === 'up' ? 'Improving' : trend === 'down' ? 'Getting worse' : 'Steady'} over your last 3</span>}
       </div>
       <p className="muted small">{info.tip}</p>
     </div>
-  );
-}
-
-/** A goal's value per match (oldest left), with the level-10 value as a dashed line. */
-function Spark({ values, target, higherBetter }: { values: (number | null)[]; target: number | null; higherBetter: boolean }) {
-  const W = 260, H = 54, P = 5;
-  const nums = values.filter((v): v is number => v !== null);
-  if (nums.length < 1) return <div className="spark empty muted small">One more match and the trend starts.</div>;
-  const all = target !== null ? [...nums, target] : nums;
-  let lo = Math.min(...all), hi = Math.max(...all);
-  if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
-  const x = (i: number) => P + (values.length === 1 ? (W - 2 * P) / 2 : (i * (W - 2 * P)) / (values.length - 1));
-  const y = (v: number) => H - P - ((v - lo) / (hi - lo)) * (H - 2 * P);
-  const pts = values.map((v, i) => (v === null ? null : [x(i), y(v)] as const)).filter((p): p is readonly [number, number] => !!p);
-  const lastV = nums.at(-1)!, good = target === null ? null : higherBetter ? lastV >= target : lastV <= target;
-  return (
-    <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Trend over your recent matches">
-      {target !== null && <line x1={0} x2={W} y1={y(target)} y2={y(target)} className="spark-target" />}
-      <polyline points={pts.map(p => p.join(',')).join(' ')} className="spark-line" />
-      {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 3.5 : 2} className={i === pts.length - 1 ? `spark-now ${good === null ? '' : good ? 'up' : 'down'}` : 'spark-pt'} />)}
-    </svg>
   );
 }
 

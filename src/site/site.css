@@ -239,12 +239,6 @@
 .chip { border-radius: 99px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; color: var(--text-2); background: var(--surface-2); }
 .chip.hint { border-color: color-mix(in srgb, var(--highlight) 55%, transparent); color: var(--text-1); }
 .chip.on { background: var(--text-1); border-color: var(--text-1); color: var(--bg-0); }
-.spark { width: 100%; height: 54px; display: block; }
-.spark.empty { height: auto; padding: 8px 0; }
-.spark-target { stroke: var(--text-3); stroke-dasharray: 4 4; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.spark-line { fill: none; stroke: var(--text-1); stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-.spark-pt { fill: var(--text-2); }
-.spark-now { fill: var(--text-1); } .spark-now.up { fill: var(--good); } .spark-now.down { fill: var(--bad); }
 .habit-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 760px) { .habit-cols { grid-template-columns: 1fr; } }
 .habit { padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--bad); display: grid; gap: 2px; margin-bottom: 8px; font-size: 13px; }
@@ -262,15 +256,14 @@
 .dash-row > .dash-narrow:first-child { order: 0; }
 .dash-row:has(> .dash-narrow:first-child) { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
 @media (max-width: 900px) { .dash-row, .dash-row:has(> .dash-narrow:first-child) { grid-template-columns: 1fr; } }
-.kpi-body { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
-.kpi-tile .mini-line { color: var(--text-2); flex: none; margin-bottom: 4px; }
-.mini-line .dot-up { fill: var(--good); } .mini-line .dot-down { fill: var(--bad); } .mini-line .dot-flat { fill: var(--text-2); }
+.kpi-body { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: 10px; min-width: 0; }
+.kpi-tile .mini-line { margin-bottom: 6px; min-width: 40px; }
 .kpi-pill { justify-self: start; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; font-style: normal; margin-top: 4px; }
 .kpi-pill.up { color: var(--good-soft); background: color-mix(in srgb, var(--good) 15%, transparent); }
 .kpi-pill.down { color: var(--bad-soft); background: color-mix(in srgb, var(--bad) 15%, transparent); }
 .kpi-pill.flat { color: var(--text-3); background: var(--surface-2); font-weight: 600; }
-.wl-row { display: flex; gap: 3px; margin-bottom: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 110px; }
-.wl-row i { width: 8px; height: 14px; border-radius: 2px; background: var(--text-3); }
+.wl-row { display: flex; gap: 2px; margin-bottom: 6px; justify-content: flex-end; min-width: 0; overflow: hidden; }
+.wl-row i { flex: 0 1 7px; min-width: 3px; height: 14px; border-radius: 2px; background: var(--text-3); }
 .wl-row i.win { background: var(--good); } .wl-row i.loss { background: var(--bad); }
 .area-chart { position: relative; }
 .area-chart svg { width: 100%; height: auto; display: block; }
@@ -306,6 +299,30 @@
 .bar-track i { display: block; height: 100%; border-radius: 99px; background: var(--text-3); }
 .bar-track i.up { background: var(--good); } .bar-track i.down { background: var(--bad); }
 .skills-tip { margin: 14px 0 0; line-height: 1.5; }
+
+/* a line that stretches to its box (StretchLine): the dots sit on top so they stay round */
+.stretch-line { position: relative; width: 100%; }
+.stretch-line svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.sl-line { fill: none; stroke: var(--text-2); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.sl-target { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 4; }
+.sl-dot { position: absolute; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--text-2); }
+.sl-dot.up { background: var(--good); } .sl-dot.down { background: var(--bad); }
+.sl-dot.now { width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; box-shadow: 0 0 0 2px var(--surface-2); }
+.mini-line .sl-line { stroke: var(--text-2); }
+.goal-chart { display: grid; grid-template-columns: minmax(0, 1fr); position: relative; padding: 8px 0 6px 44px; }
+.goal-chart .stretch-line .sl-line { stroke: var(--text-1); }
+.goal-axis { position: absolute; left: 0; top: 2px; font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; }
+.goal-axis.low { top: auto; bottom: 0; }
+.goal-top .num.up { color: var(--good-soft); } .goal-top .num.down { color: var(--bad-soft); }
+.goal-foot { flex-wrap: wrap; gap: 4px 12px; }
+.gauge-card { display: grid; justify-items: center; gap: 2px; text-align: center; }
+.gauge-card svg { width: 140px; height: 84px; }
+.gauge-track { fill: none; stroke: var(--surface-2); stroke-width: 12; stroke-linecap: round; }
+.gauge-fill { fill: none; stroke: var(--text-2); stroke-width: 12; stroke-linecap: round; }
+.gauge-fill.up { stroke: var(--good); } .gauge-fill.down { stroke: var(--bad); }
+.gauge-value { fill: var(--text-1); font: 700 24px var(--font-display); }
+.gauge-card b { font-size: 13px; }
+.gauge-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 8px; }
 
 /* ---- add matches ---- */
 .add-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

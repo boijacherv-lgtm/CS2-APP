@@ -9,14 +9,15 @@ import level from '../engine/models/level.json';
 import play from '../engine/models/play.json';
 import search from '../engine/models/search-calibration.json';
 import winprob from '../engine/models/winprob.json';
-import positions from '../map/generated/positions.json';
 import utilSpots from '../map/generated/util-spots.json';
 import { useStore, whoAmI } from '../store';
 import { Icon } from '../ui/Icon';
 import { useProfile } from '../ui/profileApi';
 import { steamFetch } from '../ui/steamApi';
 import { fmtDate, fmtInt, mapName, pct } from './format';
-import { BarList, Donut } from './charts';
+import { AreaChart, BarList, Donut, Gauge } from './charts';
+import { goalInfo } from '../engine/habits';
+import type { GoalId } from '../engine/profile';
 import { T } from '../ui/tokens';
 
 /** What the Worker counts for the owner (worker/src/admin.ts). */
@@ -24,7 +25,9 @@ interface AdminStats {
   at: number;
   keys: { users: number; profiles: number; sessions: number; demos: number };
   profiles: { count: number; read: number; matches: number; public: number; notifyPro: number; withGoals: number; lastMatchAt: number;
-    goals: Record<string, number>; maps: Record<string, number>; results: Record<string, number>; top: { steamId: string; matches: number; lastAt: number }[] };
+    goals: Record<string, number>; maps: Record<string, number>; results: Record<string, number>; top: { steamId: string; matches: number; lastAt: number }[];
+    /** Newer Workers only (the dev page copes without them). */
+    weeks?: Record<string, number>; levels?: Record<string, number>; engine?: number | null };
   lists: { count: number; read: number; withCodes: number; matches: number; parsed: number; pending: number; gone: number; failing: number; lastSyncAt: number;
     errors: { steamId: string; outcomeId: string; error: string; at: number }[]; notes: { steamId: string; note: string }[] };
   bot: { at: number; users: number; handled: number; ready: number; failed: number; gone: number; cycleMs: number; grading: boolean; version: string | null } | null;
@@ -100,6 +103,22 @@ export function Dev() {
             </div>
             <div className="dash-row">
               <section className="site-card dash-wide">
+                <div className="card-head"><h2><Icon name="trendUp" size={16} /> Matches played per week</h2><span className="muted small">on every profile, last 12 weeks</span></div>
+                {stats.profiles.weeks ? <AreaChart fmt={v => fmtInt(v)} height={200}
+                  points={Object.entries(stats.profiles.weeks).sort((a, b) => a[0].localeCompare(b[0])).map(([w, n]) => ({ label: new Date(w).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value: n, note: `week of ${w}` }))} />
+                  : <p className="muted">Redeploy the Worker (npx wrangler deploy in worker/) for weekly numbers.</p>}
+              </section>
+              <section className="site-card dash-narrow">
+                <div className="card-head"><h2><Icon name="star" size={16} /> Level grades</h2><span className="muted small">{stats.profiles.engine != null ? `engine accuracy ${stats.profiles.engine}` : ''}</span></div>
+                {stats.profiles.levels && Object.keys(stats.profiles.levels).length ? (() => {
+                  const order = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'], L = stats.profiles.levels!;
+                  const max = Math.max(...Object.values(L), 1);
+                  return <BarList rows={order.filter(g => L[g]).map(g => ({ label: `${g}${g === 'B' ? ' (typical level 10)' : g === 'S' ? ' (typical pro)' : ''}`, value: fmtInt(L[g]), share: L[g] / max, tone: (['S+', 'S', 'A'].includes(g) ? 'up' : ['D', 'F'].includes(g) ? 'down' : 'flat') as 'up' | 'down' | 'flat' }))} />;
+                })() : <p className="muted">No graded matches yet.</p>}
+              </section>
+            </div>
+            <div className="dash-row">
+              <section className="site-card dash-wide">
                 <div className="card-head"><h2><Icon name="map" size={16} /> Maps played</h2><span className="muted small">all profiles</span></div>
                 {(() => {
                   const rows = Object.entries(stats.profiles.maps).sort((a, b) => b[1] - a[1]);
@@ -117,10 +136,16 @@ export function Dev() {
               <tr><td>Profiles</td><td>{stats.profiles.public} public · {stats.profiles.withGoals} with goals · last match {ago(stats.profiles.lastMatchAt)}{stats.profiles.read < stats.profiles.count ? ` · first ${stats.profiles.read} read` : ''}</td></tr>
               <tr><td>Results</td><td>{stats.profiles.results.win ?? 0} wins · {stats.profiles.results.loss ?? 0} losses · {stats.profiles.results.tie ?? 0} draws</td></tr>
               <tr><td>Maps</td><td>{maps(stats.profiles.maps)}</td></tr>
-              <tr><td>Goals picked</td><td>{Object.entries(stats.profiles.goals).sort((a, b) => b[1] - a[1]).map(([g, n]) => `${g} ${n}`).join(' · ') || '–'}</td></tr>
               <tr><td>Match lists</td><td>{fmtInt(stats.lists.matches)} matches: {stats.lists.parsed} ready · {stats.lists.pending} waiting · {stats.lists.failing} failing · {stats.lists.gone} expired · last Valve check {ago(stats.lists.lastSyncAt)}</td></tr>
               <tr><td>Most active</td><td>{stats.profiles.top.map(t => <a key={t.steamId} href={`https://steamcommunity.com/profiles/${t.steamId}`} target="_blank" rel="noreferrer" className="dev-chip">{t.steamId.slice(-6)} · {t.matches}</a>)}</td></tr>
             </tbody></table>
+            {Object.keys(stats.profiles.goals).length > 0 && <>
+              <h3 className="dev-h">Goals players picked</h3>
+              {(() => {
+                const rows = Object.entries(stats.profiles.goals).sort((a, b) => b[1] - a[1]).slice(0, 8), max = rows[0][1];
+                return <BarList rows={rows.map(([g, n]) => ({ label: goalInfo(g as GoalId).label, value: fmtInt(n), share: n / max, tone: 'flat' as const }))} />;
+              })()}
+            </>}
             <h3 className="dev-h">Demo bot</h3>
             {stats.bot ? (
               <p className={Date.now() - stats.bot.at > 30 * 60000 ? 'warn-text' : ''}>
@@ -142,7 +167,32 @@ export function Dev() {
       </section>
 
       <section className="site-card">
-        <div className="card-head"><h2><Icon name="star" size={16} /> The coach's models</h2></div>
+        <div className="card-head"><h2><Icon name="star" size={16} /> The coach's models</h2><span className="muted small">right on demos they never saw</span></div>
+        <div className="gauge-row">
+          <Gauge value={duel.testAccuracy} label="Duels" sub={`who wins a fight · ${fmtInt(duel.samples)} fights`} tone={duel.testAccuracy >= 0.6 ? 'up' : 'flat'} />
+          <Gauge value={play.mlp.accuracy} label="Play network" sub={`what level 10 does next · ${Object.keys(play.mlp.vocab ?? {}).length} spots`} tone="up" />
+          <Gauge value={play.policy.accuracy} label="Play, simple model" sub="the network's baseline" />
+        </div>
+      </section>
+      <div className="dash-row">
+        <section className="site-card dash-narrow">
+          <div className="card-head"><h2><Icon name="route" size={16} /> Engine verdicts</h2><span className="muted small">on level-10 moments</span></div>
+          <Donut center={fmtInt(search.moments / 1000) + 'k'} sub="moments"
+            parts={[{ label: 'Best', value: search.byLoss.best.n, color: T.good }, { label: 'Small loss', value: search.byLoss.small.n, color: T.ct },
+              { label: 'Medium loss', value: search.byLoss.medium.n, color: T.warn }, { label: 'Big loss', value: search.byLoss.big.n, color: T.bad }]} />
+        </section>
+        <section className="site-card dash-wide">
+          <div className="card-head"><h2><Icon name="map" size={16} /> Training data per map</h2><span className="muted small">level-10 demos</span></div>
+          {(() => {
+            const demos = COACH_MODEL.source?.maps ?? {}, max = Math.max(...Object.values(demos), 1);
+            const nades = utilSpots as Record<string, unknown[]>;
+            return <BarList rows={Object.entries(demos).sort((a, b) => b[1] - a[1]).map(([m, n]) => ({ label: mapName(m), value: `${n} demos · ${nades[m]?.length ?? 0} grenade spots`, share: n / max, tone: n >= 70 ? 'up' as const : n >= 40 ? 'flat' as const : 'down' as const, note: n < 70 ? 'Fewer demos than the other maps: the coach is less sure here' : undefined }))} />;
+          })()}
+          <p className="muted small skills-tip">Red: thin data (under 40 demos), where the coach is least sure. The download kit's link list fills the gaps.</p>
+        </section>
+      </div>
+      <section className="site-card">
+        <div className="card-head"><h2><Icon name="stats" size={16} /> Model details</h2></div>
         <table className="site-table"><thead><tr><th>Model</th><th>Trained on</th><th>Quality</th><th>When</th></tr></thead><tbody>
           <tr><td>Coach (level 10)</td><td>{fmtInt(COACH_MODEL.trainedOn)} player-games, {COACH_MODEL.source?.demos ?? '?'} demos</td><td>{Object.keys(COACH_MODEL.roles ?? {}).length} roles</td><td>{COACH_MODEL.source?.trainedAt ?? '–'}</td></tr>
           <tr><td>Coach (pro)</td><td>{PRO_MODEL ? `${fmtInt(PRO_MODEL.trainedOn)} player-games, ${PRO_MODEL.source?.demos ?? '?'} demos` : 'not trained'}</td><td>–</td><td>{PRO_MODEL?.source?.trainedAt ?? '–'}</td></tr>
@@ -153,11 +203,6 @@ export function Dev() {
           <tr><td>Engine</td><td>{fmtInt(search.moments)} moments, {fmtInt(search.rounds)} rounds</td><td>cost scale {search.costScale}</td><td>{search.calibratedAt}</td></tr>
           <tr><td>Analyst (level 10)</td><td>{analyst.overall.demos} demos, {fmtInt(analyst.overall.rounds)} rounds</td><td>{Object.keys(analyst.maps).length} maps</td><td>{analyst.trainedAt}</td></tr>
           <tr><td>Analyst (pro)</td><td>{analystPro.overall.demos} demos, {fmtInt(analystPro.overall.rounds)} rounds</td><td>{Object.keys(analystPro.maps).length} maps</td><td>{analystPro.trainedAt}</td></tr>
-        </tbody></table>
-        <table className="site-table dev-kv"><tbody>
-          <tr><td>Training demos per map</td><td>{maps(COACH_MODEL.source?.maps ?? {})}</td></tr>
-          <tr><td>Positions per map</td><td>{maps(Object.fromEntries(Object.entries(positions).map(([m, v]) => [m, (v as { demos: number }).demos])))}</td></tr>
-          <tr><td>Grenade spots per map</td><td>{maps(Object.fromEntries(Object.entries(utilSpots).map(([m, v]) => [m, (v as unknown[]).length])))}</td></tr>
         </tbody></table>
       </section>
 

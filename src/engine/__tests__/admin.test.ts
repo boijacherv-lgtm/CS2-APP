@@ -35,5 +35,6 @@ describe('dev page stats', () => {
     expect(s.lists.errors[0].error).toBe('boom');
     expect(s.bot).toMatchObject({ handled: 2, grading: true, version: 'abc' });
     expect(s.bot).not.toHaveProperty('junk');
+    expect(Object.keys(s.profiles.weeks)).toHaveLength(12);
   });
 });

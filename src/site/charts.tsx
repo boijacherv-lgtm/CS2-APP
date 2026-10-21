@@ -5,19 +5,56 @@ import { useId, useMemo, useState } from 'react';
  * line for KPI tiles, an area chart with a hover readout, a radar, a donut and a bar list. No chart library.
  */
 
-/** A tiny line for a KPI tile: the shape of the last few values, the newest dot coloured. */
-export function MiniLine({ values, good = true, width = 96, height = 30 }: { values: number[]; good?: boolean | null; width?: number; height?: number }) {
-  if (values.length < 2) return null;
-  const lo = Math.min(...values), hi = Math.max(...values), span = hi - lo || 1, P = 3;
-  const x = (i: number) => P + (i * (width - 2 * P)) / (values.length - 1);
-  const y = (v: number) => height - P - ((v - lo) / span) * (height - 2 * P);
-  const d = values.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-  const last = values.length - 1;
+/**
+ * A line that fills whatever width it gets: the line stretches, the dots are placed on top so they stay round.
+ * `invert`: for numbers where lower is better, so up always means better. `target`: a dashed reference line.
+ */
+export function StretchLine({ values, target = null, invert = false, height = 30, dots = 'last', tone = () => 'flat', className = '' }: {
+  values: (number | null)[]; target?: number | null; invert?: boolean; height?: number; dots?: 'last' | 'all';
+  tone?: (v: number, i: number) => 'up' | 'down' | 'flat'; className?: string;
+}) {
+  const pts = values.map((v, i) => ({ v, i })).filter((p): p is { v: number; i: number } => p.v !== null);
+  if (pts.length < 2) return null;
+  const all = target !== null ? [...pts.map(p => p.v), target] : pts.map(p => p.v);
+  let lo = Math.min(...all), hi = Math.max(...all);
+  if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+  const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+  // 0–100 on both axes; up is better
+  const x = (i: number) => (values.length === 1 ? 50 : (i / (values.length - 1)) * 100);
+  const y = (v: number) => { const t = (v - lo) / (hi - lo); return (invert ? t : 1 - t) * 100; };
+  const line = pts.map(p => `${x(p.i).toFixed(2)},${y(p.v).toFixed(2)}`).join(' ');
+  const shown = dots === 'all' ? pts : [pts[pts.length - 1]];
   return (
-    <svg className="mini-line" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-      <path d={d} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" opacity={0.85} />
-      <circle cx={x(last)} cy={y(values[last])} r={2.6} className={good === null ? 'dot-flat' : good ? 'dot-up' : 'dot-down'} />
-    </svg>
+    <div className={`stretch-line ${className}`} style={{ height }} aria-hidden="true">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        {target !== null && <line x1={0} x2={100} y1={y(target)} y2={y(target)} className="sl-target" vectorEffect="non-scaling-stroke" />}
+        <polyline points={line} className="sl-line" vectorEffect="non-scaling-stroke" />
+      </svg>
+      {shown.map((p, k) => (
+        <i key={p.i} className={`sl-dot ${tone(p.v, p.i)} ${k === shown.length - 1 ? 'now' : ''}`} style={{ left: `${x(p.i)}%`, top: `${y(p.v)}%` }} />
+      ))}
+    </div>
+  );
+}
+
+/** A tiny line for a KPI tile: the shape of the last few values, the newest dot coloured. */
+export function MiniLine({ values, good = true }: { values: number[]; good?: boolean | null }) {
+  return <StretchLine values={values} className="mini-line" tone={() => (good === null ? 'flat' : good ? 'up' : 'down')} />;
+}
+
+/** A half-ring gauge with a value in the middle (a model's accuracy, a share). `value` is 0–1. */
+export function Gauge({ value, label, sub, tone = 'flat' }: { value: number; label: string; sub?: string; tone?: 'up' | 'down' | 'flat' }) {
+  const v = Math.max(0, Math.min(1, value)), R = 52, half = Math.PI * R;
+  return (
+    <div className="gauge-card">
+      <svg viewBox="0 0 140 84" role="img" aria-label={`${label}: ${Math.round(v * 100)}%`}>
+        <path d="M18 74 A52 52 0 0 1 122 74" className="gauge-track" />
+        <path d="M18 74 A52 52 0 0 1 122 74" className={`gauge-fill ${tone}`} strokeDasharray={`${v * half} ${half}`} />
+        <text x={70} y={64} textAnchor="middle" className="gauge-value">{Math.round(v * 100)}%</text>
+      </svg>
+      <b>{label}</b>
+      {sub && <span className="muted small">{sub}</span>}
+    </div>
   );
 }
 
@@ -130,7 +167,7 @@ export function Donut({ parts, center, sub }: { parts: DonutPart[]; center: stri
         {sub && <text x={70} y={88} textAnchor="middle" dominantBaseline="central" className="donut-sub">{sub}</text>}
       </svg>
       <ul className="donut-legend">
-        {parts.map(p => <li key={p.label}><i style={{ background: p.color }} />{p.label}<b>{p.value}</b></li>)}
+        {parts.map(p => <li key={p.label}><i style={{ background: p.color }} />{p.label}<b>{p.value.toLocaleString('en-US')}</b></li>)}
       </ul>
     </div>
   );

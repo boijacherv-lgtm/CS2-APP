@@ -32,6 +32,9 @@ interface UserRecord { authCode?: string; knownCode?: string; lastSyncAt?: numbe
   matches: { outcomeId: string; foundAt: number; parsed?: boolean; gone?: boolean; error?: string | null; tries?: number; map?: string | null }[] }
 
 const READ_CAP = 500; // records read per load (profiles and match lists each)
+const WEEK = 7 * 86400000;
+/** The Monday a moment falls in (UTC), as YYYY-MM-DD. */
+const weekOf = (ms: number) => { const d = new Date(ms); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
 
 export async function adminStats(kv: AdminKV) {
   const [userKeys, statKeys, sessionKeys, demoKeys] = await Promise.all([keys(kv, 'user:'), keys(kv, 'stats:'), keys(kv, 'session:'), keys(kv, 'demo:')]);
@@ -39,7 +42,14 @@ export async function adminStats(kv: AdminKV) {
   // profiles: matches reviewed, public, notify-me, goals, maps, results, last activity
   const profiles = { count: statKeys.length, read: 0, matches: 0, public: 0, notifyPro: 0, withGoals: 0, lastMatchAt: 0,
     goals: {} as Record<string, number>, maps: {} as Record<string, number>, results: { win: 0, loss: 0, tie: 0 },
+    /** Matches played per week (Monday, YYYY-MM-DD), the last 12 weeks. */
+    weeks: {} as Record<string, number>,
+    /** Level grades (B = a typical level-10 game) across every match. */
+    levels: {} as Record<string, number>,
+    engine: null as number | null,
     top: [] as { steamId: string; matches: number; lastAt: number }[] };
+  const weekFloor = Date.now() - 12 * WEEK;
+  let engineSum = 0, engineN = 0;
   for (const k of statKeys.slice(0, READ_CAP)) {
     const p = (await kv.get(k, 'json')) as ProfileData | null;
     if (!p) continue;
@@ -52,6 +62,10 @@ export async function adminStats(kv: AdminKV) {
     for (const g of p.goals ?? []) profiles.goals[g.id] = (profiles.goals[g.id] ?? 0) + 1;
     for (const m of ms) {
       profiles.maps[m.map] = (profiles.maps[m.map] ?? 0) + 1;
+      if (m.at > weekFloor) { const w = weekOf(m.at); profiles.weeks[w] = (profiles.weeks[w] ?? 0) + 1; }
+      const grade = m.level ?? null;
+      if (grade) profiles.levels[grade] = (profiles.levels[grade] ?? 0) + 1;
+      if (typeof m.engine === 'number') { engineSum += m.engine; engineN++; }
       profiles.results[m.result] = (profiles.results[m.result] ?? 0) + 1;
     }
     const lastAt = Math.max(0, ...ms.map(m => m.at));
@@ -59,6 +73,9 @@ export async function adminStats(kv: AdminKV) {
     profiles.top.push({ steamId: k.slice(6), matches: ms.length, lastAt });
   }
   profiles.top = profiles.top.sort((a, b) => b.matches - a.matches).slice(0, 10);
+  profiles.engine = engineN ? +(engineSum / engineN).toFixed(1) : null;
+  // every week of the last 12, empty ones too (a chart's x axis)
+  for (let k = 0; k < 12; k++) { const w = weekOf(Date.now() - k * WEEK); profiles.weeks[w] ??= 0; }
 
   // match lists (Your matches + the bot): who set up their codes, how the demos went, the latest errors
   const lists = { count: userKeys.length, read: 0, withCodes: 0, matches: 0, parsed: 0, pending: 0, gone: 0, failing: 0, lastSyncAt: 0,
