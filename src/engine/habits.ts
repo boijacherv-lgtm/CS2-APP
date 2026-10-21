@@ -3,6 +3,7 @@ import { COACH_MODEL, PRO_MODEL } from './coachModels';
 import { LEVEL_MODEL, mechanicsOf, type Mechanics } from './level';
 import type { AnalystRound } from './analyst';
 import type { MatchReport, PlayerReport } from './match';
+import REMARKS from './coach-remarks.json';
 import { matchKey, type GoalId, type ProfileMatch } from './profile';
 import type { DemoData } from './recap';
 
@@ -45,29 +46,8 @@ const PCT = (v: number) => `${Math.round(v * 100)}%`;
 const FMT: Partial<Record<FeatureId, (v: number) => string>> = {
   adr: v => v.toFixed(0), kast: v => `${v.toFixed(0)}%`, hs: v => `${v.toFixed(0)}%`, utilDamage: v => v.toFixed(1), impact: v => v.toFixed(1),
 };
-/** What to do about each one, in a line. */
-const TIP: Record<string, string> = {
-  untradedDeaths: 'Fight where a teammate can trade you: push with someone a step behind, or from a spot a teammate sees.',
-  isolatedDeaths: 'When you push alone and it fails, nobody can trade. Keep the aggression, but take it where a teammate can follow.',
-  openingDeaths: 'The first death of the round costs most: take the first fight with a flash, or let the entry go first.',
-  whiffs: 'Sprays that miss: stop before shooting, burst at range, and reset instead of spraying on the move.',
-  unusedUtil: 'You die with grenades in your pocket: throw something into a fight you\'re about to take.',
-  wastedFlashes: 'Flashes that blind nobody: pop them over the angle you\'re about to peek, for yourself or called for a teammate.',
-  teamHarm: 'Your utility hurts teammates: call your flashes, and throw them where your team isn\'t looking.',
-  awpLost: 'You lose the AWP often: after a shot, move back instead of re-peeking the same angle.',
-  lowHpFights: 'You take fights already hurt: reset, wait for the trade, or play for information.',
-  adr: 'Damage per round: get into more fights that matter, with utility first.',
-  kast: 'Rounds where you did something (kill, assist, survive, traded): stay alive and tradeable.',
-  hs: 'Headshots: keep your crosshair at head height while moving, and stop before the shot.',
-  utilDamage: 'Grenade damage: HEs and mollies on spots enemies hold or cross (they also soften fights).',
-  flashAssists: 'Flashes that win fights: flash for a teammate\'s peek, not only for your own.',
-  trades: 'Trading teammates: stay close enough to swing when one dies; the window is about 2 s.',
-  impact: 'Win chance you add per round: plays that change rounds, not just kills.',
-  loud: 'You run near enemies: shift-walk within about 20 m of where an enemy could be. They hear you coming.',
-  react: 'Reaction: hold angles you expect them on, crosshair already there, so you react instead of searching.',
-  aim: 'Crosshair placement: pre-aim where heads appear (corners, boxes) while you move.',
-  stopped: 'Counter-strafe: stop (tap the opposite key) before the first shot.',
-};
+/** What to do about each habit, in a line (coach-remarks.json, tips). */
+const TIP: Record<string, string> = REMARKS.tips;
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 

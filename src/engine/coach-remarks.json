@@ -1,0 +1,235 @@
+{
+  "about": "Every remark the coach makes in plain words, in one place. Edit the lines, keep the keys. Rage mode lines: the coach picks one line per move from the matching situation (checked top to bottom, the first match wins); several lines give variety. Keep rage lines about the play, never about the person. Tips: the one-line advice next to each habit on the profile and in the recap. Lines with numbers (the move cards' reasons, the coach's notes) are built from the match data in code and aren't here.",
+  "rage": {
+    "moves": {
+      "teamKill": {
+        "when": "Killed a teammate",
+        "lines": [
+          "K, didn't care about your teammate. Good job.",
+          "Cowboy.",
+          "Now like that, but at the enemy."
+        ]
+      },
+      "teamFlashDied": {
+        "when": "Team-flashed a teammate who then died (??)",
+        "lines": [
+          "Nice, next time maybe throw HE under him?",
+          "Blinded your own teammate straight into a death. Incredible support."
+        ]
+      },
+      "teamFlash": {
+        "when": "Team-flashed a teammate",
+        "lines": [
+          "Just say to your teammates to turn off the monitor, that's easier.",
+          "Call your fucking flashes.",
+          "That flash hit more of us than them."
+        ]
+      },
+      "ecoDeath": {
+        "when": "Died to an eco with full gear",
+        "lines": [
+          "NT bro, learn how to shoot.",
+          "They had pistols. You had everything. And you still died."
+        ]
+      },
+      "noTrade": {
+        "when": "Didn't trade a teammate who died nearby",
+        "lines": [
+          "Hello cuck, what's up?",
+          "They died two seconds away from you. Two seconds. Trade them!",
+          "Were you spectating? That was your trade."
+        ]
+      },
+      "knifeOut": {
+        "when": "Died with the knife or a grenade out (not when outgunned)",
+        "lines": [
+          "If you thought it was a bling peakers, you are right. ",
+          "Are we in London?",
+          "Bro just fucking hold the gun."
+        ]
+      },
+      "whiff": {
+        "when": "Sprayed and missed, then died",
+        "lines": [
+          "Nice shot.",
+          "Exceptional shooting.",
+          "We are waiting for you Doss, pray for us.",
+          "Oi oi oi, wtf was that?"
+        ]
+      },
+      "awpLost": {
+        "when": "Died with the AWP",
+        "lines": [
+          "S1mple is proud of you.",
+          "NT"
+        ]
+      },
+      "unusedUtil": {
+        "when": "Died with 2+ grenades unused",
+        "lines": [
+          "You had something. Remember?",
+          "You paid for that utility. Throw it, you hoarder."
+        ]
+      },
+      "dryPeek": {
+        "when": "Peeked a held angle with no flash or info",
+        "lines": [
+          "Well, NT.",
+          "Don't believe your gut feeling.",
+          "GN, better luck next time."
+        ]
+      },
+      "lowHp": {
+        "when": "Died taking a fight on low HP",
+        "lines": [
+          "Taking that fight on low HP? Sit the fuck down.",
+          "You were one tap from dead and you still peeked."
+        ]
+      },
+      "loud": {
+        "when": "Died after running loud near enemies",
+        "lines": [
+          "Look! Elephants running from India!",
+          "Shift exists. Use it."
+        ]
+      },
+      "movingShot": {
+        "when": "Died after shooting while moving",
+        "lines": [
+          "Shooting while running. This isn't Call of Duty.",
+          "Stop. Then shoot. It's not that hard."
+        ]
+      },
+      "noAmmo": {
+        "when": "Died with 3 bullets or fewer",
+        "lines": [
+          "That is not sniper rifle I suppose.",
+          "Empty mag, full confidence. Great combo."
+        ]
+      },
+      "openingDeath": {
+        "when": "Lost the opening duel",
+        "lines": [
+          "First blood, and it's yours. Again.",
+          "Five seconds in and you're already dead. Great start.",
+          "Opening duel lost. Your team is 4v5 because of you."
+        ]
+      },
+      "isolated": {
+        "when": "Died alone, nobody near to trade",
+        "lines": [
+          "Why the fuck did you go there alone?",
+          "Where was your team? Not there.",
+          "You went solo and died solo. Shocking."
+        ]
+      },
+      "wasted": {
+        "when": "A grenade that did nothing",
+        "lines": [
+          "Nice grenade. It hit absolutely nothing.",
+          "WOW, million damage to bricks.",
+          "Great utility. For nobody."
+        ]
+      },
+      "lateRotation": {
+        "when": "Rotated too late",
+        "lines": [
+          "Wait more, than play 1v5. GJ.",
+          "The round was lost by the time you showed up."
+        ]
+      },
+      "overRotation": {
+        "when": "Rotated away from a site that needed you",
+        "lines": [
+          "You left your site wide open to go help nobody.",
+          "Everyone rotated. Including you. Why?"
+        ]
+      },
+      "badPosition": {
+        "when": "Engine: a mistake or blunder in where you went (? / ??)",
+        "lines": [
+          "Why the fuck did you go there?",
+          "Literally anywhere else was better. The engine checked.",
+          "What was the plan there? Because there wasn't one."
+        ]
+      },
+      "inaccuracy": {
+        "when": "Engine: not the best spot (?!)",
+        "lines": [
+          "Not terrible. Not good either. Why there?",
+          "A level-10 player wouldn't have. Just saying."
+        ]
+      },
+      "brilliant": {
+        "when": "A brilliant move (!!)",
+        "lines": [
+          "Okay. That was actually filthy.",
+          "Who are you and what did you do with the player from the last round?",
+          "Fine. That was insane. Don't let it go to your head."
+        ]
+      },
+      "good": {
+        "when": "A good move (!)",
+        "lines": [
+          "Fine. That one was good. Don't get used to it.",
+          "Look at you doing something right for once.",
+          "Good. Now do that every round."
+        ]
+      },
+      "blunder": {
+        "when": "Any other blunder (??)",
+        "lines": [
+          "What the fuck was that?",
+          "That lost the round. Just so you know."
+        ]
+      },
+      "mistake": {
+        "when": "Any other mistake (?)",
+        "lines": [
+          "What was that supposed to be?",
+          "Bad. Just bad. Watch it again."
+        ]
+      }
+    },
+    "summary": {
+      "untradedDeaths": "You keep dying where nobody can trade you. Play WITH your team, for fuck's sake.",
+      "isolatedDeaths": "Stop running off alone. Every time you go solo, you die solo.",
+      "openingDeaths": "You give away the first kill every other round. Stop being the free opening.",
+      "whiffs": "You miss sprays you should hit. Stop, aim, then shoot.",
+      "unusedUtil": "You die with your grenades every round. THROW THEM.",
+      "wastedFlashes": "Your flashes blind nobody. Learn one good flash per spot.",
+      "teamHarm": "You hurt your own team more than the enemy does. Call your utility.",
+      "awpLost": "You keep losing the AWP. That's $4,750 a pop. Play it safer.",
+      "lowHpFights": "You take fights on low HP like you're immortal. You're not.",
+      "adr": "Your damage is a joke. Get into fights that matter.",
+      "kast": "Half the rounds you did nothing. Be useful.",
+      "hs": "Aim at the head. That round thing on top.",
+      "trades": "Your teammates die and you don't trade. Swing!",
+      "impact": "You barely change rounds. Kills that matter, please.",
+      "side": "One side you play fine, the other you throw. Fix it.",
+      "none": "Honestly? Not bad. Don't make me say it twice."
+    }
+  },
+  "tips": {
+    "untradedDeaths": "Fight where a teammate can trade you: push with someone a step behind, or from a spot a teammate sees.",
+    "isolatedDeaths": "When you push alone and it fails, nobody can trade. Keep the aggression, but take it where a teammate can follow.",
+    "openingDeaths": "The first death of the round costs most: take the first fight with a flash, or let the entry go first.",
+    "whiffs": "Sprays that miss: stop before shooting, burst at range, and reset instead of spraying on the move.",
+    "unusedUtil": "You die with grenades in your pocket: throw something into a fight you're about to take.",
+    "wastedFlashes": "Flashes that blind nobody: pop them over the angle you're about to peek, for yourself or called for a teammate.",
+    "teamHarm": "Your utility hurts teammates: call your flashes, and throw them where your team isn't looking.",
+    "awpLost": "You lose the AWP often: after a shot, move back instead of re-peeking the same angle.",
+    "lowHpFights": "You take fights already hurt: reset, wait for the trade, or play for information.",
+    "adr": "Damage per round: get into more fights that matter, with utility first.",
+    "kast": "Rounds where you did something (kill, assist, survive, traded): stay alive and tradeable.",
+    "hs": "Headshots: keep your crosshair at head height while moving, and stop before the shot.",
+    "utilDamage": "Grenade damage: HEs and mollies on spots enemies hold or cross (they also soften fights).",
+    "flashAssists": "Flashes that win fights: flash for a teammate's peek, not only for your own.",
+    "trades": "Trading teammates: stay close enough to swing when one dies; the window is about 2 s.",
+    "impact": "Win chance you add per round: plays that change rounds, not just kills.",
+    "loud": "You run near enemies: shift-walk within about 20 m of where an enemy could be. They hear you coming.",
+    "react": "Reaction: hold angles you expect them on, crosshair already there, so you react instead of searching.",
+    "aim": "Crosshair placement: pre-aim where heads appear (corners, boxes) while you move.",
+    "stopped": "Counter-strafe: stop (tap the opposite key) before the first shot."
+  }
+}

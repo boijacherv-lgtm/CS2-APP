@@ -1,6 +1,9 @@
 /* The site around the CS2 app: home, profile, pricing, settings, and the navbar's account menu. Tactical night:
    near-black layers, white as the interactive colour, team colours and grades the only loud ones. */
 
+/* the pixel-art logo stays crisp at any size */
+.logo-mark { image-rendering: pixelated; display: block; flex: none; }
+
 /* ---- navbar: right side ---- */
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 .modes + .nav-right { margin-left: 12px; }
