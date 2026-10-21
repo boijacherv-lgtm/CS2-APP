@@ -16,6 +16,8 @@ import { Icon } from '../ui/Icon';
 import { useProfile } from '../ui/profileApi';
 import { steamFetch } from '../ui/steamApi';
 import { fmtDate, fmtInt, mapName, pct } from './format';
+import { BarList, Donut } from './charts';
+import { T } from '../ui/tokens';
 
 /** What the Worker counts for the owner (worker/src/admin.ts). */
 interface AdminStats {
@@ -95,6 +97,21 @@ export function Dev() {
                 ['Matches on profiles', stats.profiles.matches], ['Demos stored by the bot', stats.keys.demos], ['Want Pro (notify me)', stats.profiles.notifyPro]].map(([k, v]) => (
                 <div key={k} className="kpi-tile"><span>{k}</span><b>{typeof v === 'number' ? fmtInt(v) : v}</b></div>
               ))}
+            </div>
+            <div className="dash-row">
+              <section className="site-card dash-wide">
+                <div className="card-head"><h2><Icon name="map" size={16} /> Maps played</h2><span className="muted small">all profiles</span></div>
+                {(() => {
+                  const rows = Object.entries(stats.profiles.maps).sort((a, b) => b[1] - a[1]);
+                  const max = rows[0]?.[1] ?? 1;
+                  return rows.length ? <BarList rows={rows.map(([m, n]) => ({ label: mapName(m), value: fmtInt(n), share: n / max, tone: 'flat' as const }))} /> : <p className="muted">No matches yet.</p>;
+                })()}
+              </section>
+              <section className="site-card dash-narrow">
+                <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2></div>
+                <Donut center={fmtInt(stats.profiles.matches)} sub="matches"
+                  parts={[{ label: 'Wins', value: stats.profiles.results.win ?? 0, color: T.good }, { label: 'Losses', value: stats.profiles.results.loss ?? 0, color: T.bad }, { label: 'Draws', value: stats.profiles.results.tie ?? 0, color: T.text3 }]} />
+              </section>
             </div>
             <table className="site-table dev-kv"><tbody>
               <tr><td>Profiles</td><td>{stats.profiles.public} public · {stats.profiles.withGoals} with goals · last match {ago(stats.profiles.lastMatchAt)}{stats.profiles.read < stats.profiles.count ? ` · first ${stats.profiles.read} read` : ''}</td></tr>

@@ -9,6 +9,8 @@ import { SteamLoginButton } from '../ui/SteamLogin';
 import { fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
 import { copyCard, drawShareCard, shareFileName } from './shareCard';
 import { AddMatches } from './AddMatches';
+import { AreaChart, BarList, Donut, MiniLine, Radar } from './charts';
+import { T } from '../ui/tokens';
 
 /** Your profile: your last matches, how they trend, your goals, your maps, a friend next to you, and share cards. */
 export function Profile() {
@@ -51,7 +53,11 @@ export function Profile() {
       <AddMatches />
       {!matches.length ? null : (
         <>
-          {last && <Kpis now={last} was={before} />}
+          {last && <Kpis now={last} was={before} matches={matches} />}
+          <div className="dash-row">
+            <PremierTrend matches={matches} />
+            <Results matches={matches.slice(0, pro ? matches.length : FREE_HISTORY)} />
+          </div>
 
           <section className="site-card">
             <div className="card-head">
@@ -69,7 +75,7 @@ export function Profile() {
             <Goals matches={matches} />
             <MapStats matches={matches} />
           </div>
-          <Habits matches={matches.slice(0, pro ? matches.length : FREE_HISTORY)} />
+          <Skills matches={matches.slice(0, pro ? matches.length : FREE_HISTORY)} />
         </>
       )}
       <Friend mine={last} />
@@ -78,32 +84,78 @@ export function Profile() {
   );
 }
 
-function Kpis({ now, was }: { now: Averages; was: Averages | null }) {
-  const items: { label: string; v: string; d: number | null; good?: boolean }[] = [
-    { label: 'Win rate', v: pct(now.winRate), d: was ? now.winRate - was.winRate : null },
-    { label: 'K/D', v: fmtKd(now.kd), d: was && now.kd !== null && was.kd !== null ? now.kd - was.kd : null },
-    { label: 'ADR', v: now.adr.toFixed(0), d: was ? now.adr - was.adr : null },
-    { label: 'KAST', v: `${now.kast.toFixed(0)}%`, d: was ? now.kast - was.kast : null },
-    { label: 'Headshots', v: `${now.hs.toFixed(0)}%`, d: was ? now.hs - was.hs : null },
+/** The headline numbers: each with its last 10 matches as a mini line and its change against the matches before. */
+function Kpis({ now, was, matches }: { now: Averages; was: Averages | null; matches: ProfileMatch[] }) {
+  // oldest to newest, the last 10
+  const recent = [...matches].sort((a, b) => a.at - b.at).slice(-10);
+  const series = (f: (m: ProfileMatch) => number | null) => recent.map(f).filter((v): v is number => v !== null);
+  const pill = (d: number | null, text: string) => d === null || Math.abs(d) < 1e-9
+    ? <i className="kpi-pill flat">last {now.matches}</i>
+    : <i className={`kpi-pill ${d > 0 ? 'up' : 'down'}`} title={`Against the ${was?.matches ?? 0} matches before`}><Icon name={d > 0 ? 'trendUp' : 'trendDown'} size={11} /> {text}</i>;
+  const items: { label: string; v: string; d: number | null; dt: string; line: number[] }[] = [
+    { label: 'K/D', v: fmtKd(now.kd), d: was && now.kd !== null && was.kd !== null ? now.kd - was.kd : null, dt: '', line: series(m => (m.deaths ? m.kills / m.deaths : m.kills)) },
+    { label: 'ADR', v: now.adr.toFixed(0), d: was ? now.adr - was.adr : null, dt: '', line: series(m => m.adr) },
+    { label: 'KAST', v: `${now.kast.toFixed(0)}%`, d: was ? now.kast - was.kast : null, dt: '', line: series(m => m.kast) },
+    { label: 'Headshots', v: `${now.hs.toFixed(0)}%`, d: was ? now.hs - was.hs : null, dt: '', line: series(m => m.hs) },
   ];
+  for (const i of items) i.dt = i.d === null ? '' : i.label === 'K/D' ? Math.abs(i.d).toFixed(2) : fmtInt(Math.abs(i.d));
   return (
     <section className="kpi-strip" aria-label={`Averages over your last ${now.matches} matches`}>
-      <div className="kpi-tile premier" title="Your in-game Premier rating at the start of your newest reviewed match">
+      <div className="kpi-tile" title="Your in-game Premier rating at the start of your newest reviewed match">
         <span>Premier</span>
-        <b>{now.premier !== null ? fmtInt(now.premier) : '–'}</b>
-        {now.premierMoved !== null && now.premierMoved !== 0
-          ? <i className={now.premierMoved > 0 ? 'up' : 'down'}><Icon name={now.premierMoved > 0 ? 'trendUp' : 'trendDown'} size={12} /> {now.premierMoved > 0 ? '+' : '−'}{fmtInt(Math.abs(now.premierMoved))} over these {now.matches}</i>
-          : <i className="muted">{now.premier !== null ? `over these ${now.matches}` : 'not in these demos'}</i>}
+        <div className="kpi-body"><b>{now.premier !== null ? fmtInt(now.premier) : '–'}</b><MiniLine values={series(premierOf)} good={now.premierMoved === null ? null : now.premierMoved >= 0} /></div>
+        {pill(now.premierMoved, `${now.premierMoved !== null && now.premierMoved > 0 ? '+' : '−'}${fmtInt(Math.abs(now.premierMoved ?? 0))} over ${now.matches}`)}
+      </div>
+      <div className="kpi-tile">
+        <span>Win rate</span>
+        <div className="kpi-body"><b>{pct(now.winRate)}</b>
+          <span className="wl-row" aria-label="Your last matches, oldest first">{recent.map(m => <i key={m.id} className={m.result} title={`${mapName(m.map)} ${m.score[0]}:${m.score[1]}`} />)}</span>
+        </div>
+        {pill(was ? now.winRate - was.winRate : null, pct(Math.abs(was ? now.winRate - was.winRate : 0)))}
       </div>
       {items.map(i => (
         <div key={i.label} className="kpi-tile">
           <span>{i.label}</span>
-          <b>{i.v}</b>
-          {i.d !== null && Math.abs(i.d) > 1e-9
-            ? <i className={i.d > 0 ? 'up' : 'down'}><Icon name={i.d > 0 ? 'trendUp' : 'trendDown'} size={12} /> {i.label === 'Win rate' ? pct(Math.abs(i.d)) : i.label === 'K/D' ? Math.abs(i.d).toFixed(2) : fmtInt(Math.abs(i.d))} vs the {was!.matches} before</i>
-            : <i className="muted">last {now.matches}</i>}
+          <div className="kpi-body"><b>{i.v}</b><MiniLine values={i.line} good={i.d === null ? null : i.d >= 0} /></div>
+          {pill(i.d, i.dt)}
         </div>
       ))}
+    </section>
+  );
+}
+
+/** Your Premier rating match by match (or your ADR when the demos have no ratings). */
+function PremierTrend({ matches }: { matches: ProfileMatch[] }) {
+  const chrono = [...matches].sort((a, b) => a.at - b.at);
+  const rated = chrono.filter(m => premierOf(m) !== null);
+  // Premier when the demos have it (all of them, or at least two to draw); otherwise damage per round
+  const usePremier = rated.length >= 2 || (rated.length > 0 && rated.length === chrono.length);
+  const pts = (usePremier ? rated : chrono).slice(-20).map(m => ({
+    label: new Date(m.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    value: usePremier ? premierOf(m)! : m.adr,
+    note: `${mapName(m.map)} ${m.score[0]}:${m.score[1]}`,
+  }));
+  return (
+    <section className="site-card dash-wide">
+      <div className="card-head">
+        <h2><Icon name="trendUp" size={16} /> {usePremier ? 'Premier rating' : 'Damage per round'}</h2>
+        <span className="muted small">{usePremier ? 'going into each match' : 'no Premier ratings in these demos'} · last {pts.length}</span>
+      </div>
+      {pts.length >= 2 ? <AreaChart points={pts} fmt={v => (usePremier ? fmtInt(v) : v.toFixed(0))} />
+        : <p className="muted">Two matches and the line starts.</p>}
+    </section>
+  );
+}
+
+/** Wins, losses and draws as a ring. */
+function Results({ matches }: { matches: ProfileMatch[] }) {
+  const n = (r: ProfileMatch['result']) => matches.filter(m => m.result === r).length;
+  const w = n('win'), l = n('loss'), t = n('tie');
+  return (
+    <section className="site-card dash-narrow">
+      <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2><span className="muted small">{matches.length} matches</span></div>
+      <Donut center={pct(matches.length ? w / matches.length : 0)} sub="won"
+        parts={[{ label: 'Wins', value: w, color: T.good }, { label: 'Losses', value: l, color: T.bad }, { label: 'Draws', value: t, color: T.text3 }]} />
     </section>
   );
 }
@@ -237,18 +289,35 @@ function MapStats({ matches }: { matches: ProfileMatch[] }) {
   );
 }
 
-/** What the coach sees across the matches: the habits to fix and to keep. */
-function Habits({ matches }: { matches: ProfileMatch[] }) {
+const RADAR: [string, string][] = [['adr', 'Damage'], ['hs', 'Headshots'], ['trades', 'Trading'], ['isolatedDeaths', 'With the team'],
+  ['openingDeaths', 'Opening duels'], ['utilDamage', 'Utility'], ['stopped', 'Counter-strafe'], ['loud', 'Quiet moving']];
+
+/** Your skills against level 10: a radar of the main ones, and the weakest and strongest habits as bars. */
+function Skills({ matches }: { matches: ProfileMatch[] }) {
   const h = useMemo(() => habits(matches), [matches]);
-  if (!h || (!h.work.length && !h.good.length)) return null;
+  if (!h) return null;
+  const byId = new Map(h.rows.map(r => [r.id, r]));
+  const axes = RADAR.map(([id, label]) => {
+    const r = byId.get(id);
+    return { label, you: r ? r.z : null, tip: r ? `${r.label}: ${r.fmt(r.you)} (level 10: ${r.fmt(r.lvl10)})` : `${label}: not measured` };
+  });
+  const bar = (r: (typeof h.rows)[number], tone: 'up' | 'down') => ({ label: r.label, value: r.fmt(r.you), share: Math.min(1, Math.abs(r.z) / 2), tone, note: `Level 10: ${r.fmt(r.lvl10)}. ${r.tip}` });
+  const weak = h.rows.filter(r => r.z < -0.1).slice(0, 4), strong = [...h.rows].reverse().filter(r => r.z > 0.1 && r.id !== 'awpLost').slice(0, 4); // not losing an AWP you never bought isn't a strength
   return (
-    <section className="site-card">
-      <div className="card-head"><h2><Icon name="star" size={16} /> Your habits</h2><span className="muted small">across {h.matches} matches, against FACEIT level 10</span></div>
-      <div className="habit-cols">
-        <div>{h.work.map(r => <div key={r.id} className="habit work"><b>{r.label}: {r.fmt(r.you)}</b><span className="muted">level 10: {r.fmt(r.lvl10)}</span><p>{r.tip}</p></div>)}</div>
-        <div>{h.good.map(r => <div key={r.id} className="habit good"><b>{r.label}: {r.fmt(r.you)}</b><span className="muted">level 10: {r.fmt(r.lvl10)}</span></div>)}</div>
-      </div>
-    </section>
+    <div className="dash-row">
+      <section className="site-card dash-narrow">
+        <div className="card-head"><h2><Icon name="star" size={16} /> Skill profile</h2><span className="muted small">{h.matches} matches</span></div>
+        <Radar axes={axes} />
+      </section>
+      <section className="site-card dash-wide">
+        <div className="card-head"><h2><Icon name="goal" size={16} /> Weakest and strongest</h2><span className="muted small">against FACEIT level 10</span></div>
+        <div className="habit-cols">
+          <div><h3 className="dev-h">Work on</h3>{weak.length ? <BarList rows={weak.map(r => bar(r, 'down'))} /> : <p className="muted small">Nothing below level 10.</p>}</div>
+          <div><h3 className="dev-h">Your strengths</h3>{strong.length ? <BarList rows={strong.map(r => bar(r, 'up'))} /> : <p className="muted small">Nothing above level 10 yet.</p>}</div>
+        </div>
+        {weak[0] && <p className="muted small skills-tip"><b>{weak[0].label}:</b> {weak[0].tip}</p>}
+      </section>
+    </div>
   );
 }
 
