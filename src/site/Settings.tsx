@@ -64,6 +64,7 @@ export function Settings() {
 
       <section className="site-card">
         <h2>Coach</h2>
+        <Toggle label="Rage mode" on={s.rage} text="The coach loses it at your plays: a blunt, sweary line on every graded move and in the recap (18+, strong language). It swears at the play, never at you as a person. The grades don't change." onChange={s.setRage} />
         <div className="setting">
           <div className="setting-text"><b>Compare with</b><span className="muted">What the recap's coach and analyst compare you with first.</span></div>
           <div className="seg-mini">

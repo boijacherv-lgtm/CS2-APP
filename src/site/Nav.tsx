@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { navigate, routeHref, type Route } from '../shell/router';
 import { STEAM_AVAILABLE } from '../env';
+import { GAMES, STATUS_LABEL } from './games';
 import { hasPro } from '../engine/profile';
 import { useStore } from '../store';
 import { Icon } from '../ui/Icon';
@@ -9,18 +10,12 @@ import { refreshProfile, useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { steamSignOut } from '../ui/steamApi';
 
-interface Game { id: string; short: string; name: string; live: boolean }
-/** Games on the platform. Only CS2 is built so far. */
-export const GAMES: Game[] = [
-  { id: 'cs2', short: 'CS2', name: 'Counter-Strike 2', live: true },
-  { id: 'valorant', short: 'VAL', name: 'Valorant', live: false },
-  { id: 'r6', short: 'R6', name: 'Rainbow Six Siege', live: false },
-];
-
 /** The bar on every page: the brand, the game, CS2's three modes, Pricing and your account. */
 export function NavBar({ route }: { route: Route }) {
   const loaded = useStore(s => s.review);
   const cs2 = route.page === 'cs2';
+  const gamesMenu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => { if (gamesMenu.current) gamesMenu.current.open = false; }, [route]);
   // who's logged in, again whenever you come back to the tab (a login in another tab, a session that ran out)
   useEffect(() => {
     const again = () => { refreshProfile(); };
@@ -31,11 +26,17 @@ export function NavBar({ route }: { route: Route }) {
     <header className="navbar">
       <a className="brand" href="#/"><LogoMark /><span>{APP_NAME}</span></a>
       <nav className="games" aria-label="Game">
-        {GAMES.map(g => g.live ? (
-          <a key={g.id} href={routeHref({ page: 'cs2', mode: cs2 ? route.mode : 'review' })} className={`game-tab ${cs2 ? 'on' : ''}`}>{g.short}</a>
-        ) : (
-          <span key={g.id} className="game-tab soon" title={`${g.name}: coming soon`}>{g.short}<i>soon</i></span>
-        ))}
+        <a href={routeHref({ page: 'cs2', mode: cs2 ? route.mode : 'review' })} className={`game-tab ${cs2 ? 'on' : ''}`}>CS2</a>
+        <details className="games-menu" ref={gamesMenu}>
+          <summary className="game-tab games-btn" title="Games coming to RageView">Games <Icon name="chevronDown" size={10} /></summary>
+          <div className="games-pop">
+            {GAMES.map(g => g.status === 'live' ? (
+              <a key={g.id} href={routeHref({ page: 'cs2', mode: 'review' })} className="games-row live"><b>{g.name}</b><span className="games-status live">{STATUS_LABEL[g.status]}</span></a>
+            ) : (
+              <div key={g.id} className="games-row" title={g.note}><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></div>
+            ))}
+          </div>
+        </details>
       </nav>
       {cs2 && (
         <div className="modes" role="tablist" aria-label="Mode">

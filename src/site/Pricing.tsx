@@ -34,7 +34,7 @@ export function Pricing() {
         <p className="lead">The coach is free. Pro is for people who review every match{PRO_EARLY_ACCESS ? ', and right now it\'s free too.' : '.'}</p>
       </header>
       {PRO_EARLY_ACCESS && (
-        <div className="notice"><Icon name="bolt" size={16} /> <span><b>Early access:</b> every Pro feature is unlocked for everyone while Stratboard is new. Nothing to pay, no card needed.</span></div>
+        <div className="notice"><Icon name="bolt" size={16} /> <span><b>Early access:</b> every Pro feature is unlocked for everyone while RageView is new. Nothing to pay, no card needed.</span></div>
       )}
       <div className="plans">
         <section className="plan">

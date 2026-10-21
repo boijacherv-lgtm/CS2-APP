@@ -4,6 +4,7 @@ import { moveLook, NoteMark } from './NoteMark';
 import { gunFromName } from '../engine/guns';
 import { calloutAt, NOTE_INFO, moveKey, readMs, TAG_INFO, type DemoRound, type Move, type Review } from '../engine/recap';
 import { useStore } from '../store';
+import { rageLine } from '../engine/rage';
 import { GameIcon, Icon } from './Icon';
 import { CS2_ICONS, type Cs2Icon } from './cs2Icons';
 import { useShown } from './shown';
@@ -119,7 +120,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   };
 
   // with the arrows on (a debugging view): a line from the card to the player it's about
-  const arrows = useStore(st => st.engineLines);
+  const arrows = useStore(st => st.engineLines), rage = useStore(st => st.rage);
   const anchorEl = useRef<HTMLDivElement | null>(null);
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   useLayoutEffect(() => {
@@ -161,6 +162,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
           {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close"><Icon name="close" /></button>}
         </div>
         <div className="feed-title">{brief(card.title)}</div>
+        {rage && rageLine(card) && <div className="feed-rage">{rageLine(card)}</div>}
         {card.tags.length > 0 && (
           <div className="feed-tags">
             {card.tags.map(t => <span key={t} className="tag" title={TAG_INFO[t].tip} style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }}>{t}</span>)}

@@ -10,6 +10,7 @@ import { LETTER_COLOR, RATING_SCALE, type DemoData, type Letter, type PlayKey } 
 import { ACTION_TEXT, PLAY_MODEL } from '../engine/playModel';
 import { habits } from '../engine/habits';
 import { useProfile } from './profileApi';
+import { rageSummary } from '../engine/rage';
 import { matchKey } from '../engine/profile';
 import { ShareDialog } from '../site/Profile';
 import { SEARCH_COLOR, type SearchMoment } from '../engine/search';
@@ -223,6 +224,7 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
   const role = p.roles[0]?.role ?? 'Rifler';
   const byRole = modelFor(model, role).byRole;
   const [open, setOpen] = useState<FeatureId | null>(null);
+  const rage = useStore(s => s.rage);
   const rows = c.profile.slice(0, 9);
   const side = (v: number | null) => (v === null ? '–' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
   return (
@@ -237,6 +239,7 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
         </p>
       )}
       <p className="coach-summary">{c.summary}{!done && <span className="muted"> (updates while rounds are graded)</span>}</p>
+      {rage && <p className="coach-rage">{rageSummary(c.improve[0]?.feature ?? null, !!c.improve[0]?.title.startsWith('Your '))}</p>}
       <div className="dev-axis muted"><span><Icon name="prev" size={10} /> worse than normal</span><span>better than normal <Icon name="next" size={10} /></span></div>
       <div className="dev-list">
         {rows.map(d => <DevRow key={d.feature} d={d} open={open === d.feature} onToggle={() => setOpen(open === d.feature ? null : d.feature)}

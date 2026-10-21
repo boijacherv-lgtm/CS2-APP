@@ -93,6 +93,10 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
         <button className={s.engineLines ? 'on' : ''} onClick={e => { s.setEngineLines(!s.engineLines); e.currentTarget.blur(); }}
           title={s.engineLines ? 'Arrows: on (the engine\'s best option against what was done, and a line from each card to its player)' : 'Arrows: off (turn on to see the engine\'s lines and which player a card is about)'} aria-label="Arrows"><Icon name="route" /><span className="pb-label">Arrows</span></button>
       )}
+      {review && (
+        <button className={`pb-rage ${s.rage ? 'on' : ''}`} onClick={e => { s.setRage(!s.rage); e.currentTarget.blur(); }}
+          title={s.rage ? 'Rage mode: on (the coach swears at your plays)' : 'Rage mode: off. Turn on to have the coach lose it at your plays (18+, strong language)'} aria-label="Rage mode"><Icon name="bolt" /><span className="pb-label">Rage</span></button>
+      )}
       {review && s.popups && (
         <button onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
           title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'} aria-label="Slow motion while reading" className={`pb-slow ${s.readSlow ? 'on' : ''}`}><Icon name="slow" /><span className="pb-label">Slow</span></button>

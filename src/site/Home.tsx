@@ -3,6 +3,7 @@ import { FREE_HISTORY, PRO_EARLY_ACCESS } from '../engine/profile';
 import { LETTER_COLOR } from '../engine/recap';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { Icon, type IconName } from '../ui/Icon';
+import { GAMES, STATUS_LABEL } from './games';
 
 const MATCHES = COACH_MODEL.source?.demos ?? COACH_MODEL.trainedOn;
 const PRO_MATCHES = PRO_MODEL?.source?.demos ?? 0;
@@ -14,13 +15,13 @@ export function Home() {
       <section className="hero">
         <div className="hero-text">
           <span className="eyebrow"><Icon name="bolt" size={12} /> Free CS2 coach · runs in your browser</span>
-          <h1>Find out why you lost the round.</h1>
+          <h1>You were right. Prove it.</h1>
           <p className="lead">
-            Drop a CS2 demo. Every kill, death and grenade gets a grade, an engine shows the better play, and a coach trained on {MATCHES} FACEIT
-            level-10 matches tells you what to fix first.
+            The argument after the match ends here. Drop the CS2 demo: every kill, death and grenade gets a grade, an engine shows the better
+            play, and a coach trained on {MATCHES} FACEIT level-10 matches settles who threw the round. Sometimes it's them. Sometimes it's you.
           </p>
           <div className="hero-cta">
-            <a className="cta primary" href="#/cs2/review">Review a match <Icon name="arrowRight" size={14} /></a>
+            <a className="cta primary" href="#/cs2/review">Settle it <Icon name="arrowRight" size={14} /></a>
             <a className="cta" href="#/cs2/tactical">Plan a round</a>
           </div>
           <ul className="hero-trust">
@@ -61,6 +62,24 @@ export function Home() {
         </div>
       </section>
 
+      <section className="site-section">
+        <h2 className="section-title">Games</h2>
+        <div className="games-grid">
+          {GAMES.map(g => {
+            const body = (
+              <>
+                <span className="games-badge">{g.short}</span>
+                <div><b>{g.name}</b><p>{g.note}</p></div>
+                <span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span>
+              </>
+            );
+            return g.status === 'live'
+              ? <a key={g.id} className="games-card live" href="#/cs2/review">{body}</a>
+              : <div key={g.id} className="games-card">{body}</div>;
+          })}
+        </div>
+      </section>
+
       <section className="site-section pricing-teaser">
         <div>
           <h2 className="section-title">Free to use</h2>
@@ -89,6 +108,7 @@ export function Home() {
 }
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
+  { icon: 'bolt', title: 'Rage mode', text: 'Turn it on and the coach loses it at your plays, like your angriest teammate: "Why the fuck did you go there?" Grades stay honest. 18+.' },
   { icon: 'play', title: 'Graded replay', text: 'Every round on the radar with a live win chance. Kills, deaths and grenades get a grade, like a chess game review.' },
   { icon: 'route', title: 'The engine\'s line', text: 'Every 2 s it weighs holding, moving, peeking, your grenades and the bomb, and shows where the better play was.' },
   { icon: 'star', title: 'A coach, not a scoreboard', text: `Your numbers against FACEIT level 10${PRO_MATCHES ? ' and pros' : ''}, with the one thing to work on first and the rounds to watch.` },

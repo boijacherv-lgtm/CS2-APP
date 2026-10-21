@@ -83,6 +83,9 @@ interface Store {
   evalScope: EvalScope;
   /** SteamID of the signed-in player (null when not logged in with Steam). */
   me: string | null;
+  /** Rage mode: the coach swears at the plays (an extra line on each graded move, and the recap's main point). Off by default. */
+  rage: boolean;
+  setRage(on: boolean): void;
   /** The player picked with "This is me" (no Steam login needed); a Steam login wins over it. Remembered. */
   claimed: string | null;
   setClaimed(id: string | null): void;
@@ -219,6 +222,8 @@ export const useStore = create<Store>((set, get) => {
     cardText: null,
     evalScope: loadJson<{ v: EvalScope }>(LS_EVAL, { v: 'all' }).v,
     me: null,
+    rage: loadJson<{ on: boolean }>('stratboard.rage', { on: false }).on,
+    setRage: rage => { saveJson('stratboard.rage', { on: rage }); set({ rage }); },
     claimed: loadJson<{ id: string | null }>(LS_CLAIMED, { id: null }).id,
     setClaimed: claimed => { saveJson(LS_CLAIMED, { id: claimed }); set({ claimed }); },
     setEvalScope: evalScope => { saveJson(LS_EVAL, { v: evalScope }); set({ evalScope, slowUntil: 0, readHold: false, feedPick: null }); },

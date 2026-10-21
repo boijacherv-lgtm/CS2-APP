@@ -63,14 +63,14 @@ export async function drawShareCard(canvas: HTMLCanvasElement, m: ProfileMatch, 
     g.fillStyle = T.text1; g.font = display(52); g.fillText(v, cx, cy + 52);
   });
 
-  g.fillStyle = T.text3; g.font = ui(20, 600); g.fillText('Graded by Stratboard · tsakhstvo.xyz', x, SHARE_H - 40);
+  g.fillStyle = T.text3; g.font = ui(20, 600); g.fillText('Graded by RageView · tsakhstvo.xyz', x, SHARE_H - 40);
 }
 
 function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
 }
 
-export const shareFileName = (m: ProfileMatch) => `stratboard-${m.map.replace('de_', '')}-${m.score[0]}-${m.score[1]}.png`;
+export const shareFileName = (m: ProfileMatch) => `rageview-${m.map.replace('de_', '')}-${m.score[0]}-${m.score[1]}.png`;
 
 /** Copies the picture to the clipboard (where the browser allows it). */
 export async function copyCard(canvas: HTMLCanvasElement): Promise<boolean> {

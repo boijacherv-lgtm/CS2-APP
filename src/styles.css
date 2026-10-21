@@ -243,6 +243,12 @@ td.warn, b.warn { color: #ffb020; }
 .feed-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
 .feed-card ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-2); }
 .feed-card li + li { margin-top: 3px; }
+/* Rage mode: the coach's rant, under the card's title and the recap's main point */
+.feed-rage { margin: 2px 0 6px; padding: 6px 9px; border-radius: 7px; font-weight: 700; font-size: 13px; line-height: 1.35; color: #ffd9d4;
+  background: color-mix(in srgb, var(--bad) 18%, transparent); border-left: 3px solid var(--bad); }
+.coach-rage { margin: -2px 0 12px; padding: 8px 12px; border-radius: 9px; font-weight: 700; font-size: 14px; color: #ffd9d4;
+  background: color-mix(in srgb, var(--bad) 16%, transparent); border-left: 3px solid var(--bad); }
+.playbar .pb-rage.on { border-color: var(--bad); color: var(--bad-soft); background: color-mix(in srgb, var(--bad) 14%, transparent); }
 /* the card's player: a ring in the grade's colour (and, with the arrows on, a line from the card) */
 .feed-ring-pulse { transform-box: fill-box; transform-origin: center; animation: ring-pulse 1.4s var(--ease-out) infinite; }
 @keyframes ring-pulse { from { transform: scale(1); opacity: .9; } to { transform: scale(1.9); opacity: 0; } }
@@ -425,8 +431,9 @@ td.loadout { white-space: nowrap; }
 .playbar button { text-align: center; padding: 5px 9px; flex: none; }
 .playbar .play-main { min-width: 78px; font-weight: 700; }
 .playbar .pb-label { margin-left: 4px; font-size: 12px; }
-@media (max-width: 1100px) { .playbar .pb-label { display: none; } }
-@media (max-width: 820px) { .playbar .pb-slow, .playbar .note-key { display: none; } }
+/* the playbar follows the board's width (the side panel takes room too): labels go first, then the extras */
+@container (max-width: 1050px) { .playbar .pb-label { display: none; } }
+@container (max-width: 760px) { .playbar .pb-slow, .playbar .note-key, .playbar .pb-rage { display: none; } }
 .note-key { position: relative; flex: none; }
 .note-key > summary { list-style: none; cursor: pointer; padding: 5px 9px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .note-key > summary::-webkit-details-marker { display: none; }
