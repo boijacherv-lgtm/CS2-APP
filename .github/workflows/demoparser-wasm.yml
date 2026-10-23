@@ -1,5 +1,6 @@
 # Builds LaihoE/demoparser (MIT) for the browser (WebAssembly), so the website can read .dem files itself.
-# Output is committed: public/demoparser/ (website) and tools/demoparser-node/ (same build for Node, used to test).
+# Output is committed to the build/demoparser branch (main takes only pull requests), then merged into main with a pull
+# request: public/demoparser/ (website) and tools/demoparser-node/ (same build for Node, used to test).
 # To update the parser: change PARSER_REV to a newer commit of https://github.com/LaihoE/demoparser and run this.
 name: Build demo parser (browser)
 
@@ -65,11 +66,14 @@ jobs:
             echo "LaihoE/demoparser@${PARSER_REV} (MIT), built $(date -u +%F) by .github/workflows/demoparser-wasm.yml" > "$d/VERSION"
           done
           ls -la public/demoparser tools/demoparser-node
-      - name: Commit the build
+      # main only takes pull requests ("Main protection" ruleset): the build goes to its own branch, to be merged
+      # with a pull request (gh pr create --head build/demoparser)
+      - name: Commit the build (to the build/demoparser branch)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/demoparser tools/demoparser-node
           if git diff --cached --quiet; then echo "No changes"; exit 0; fi
           git commit -m "Build demo parser for the browser (LaihoE/demoparser@${PARSER_REV:0:7})"
-          git push
+          git push --force origin HEAD:refs/heads/build/demoparser
+          echo "::notice::Built. Merge it: open a pull request from build/demoparser into main."
