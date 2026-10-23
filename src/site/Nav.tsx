@@ -3,6 +3,7 @@ import { APP_NAME, LogoMark } from '../shell/Logo';
 import { navigate, routeHref, type Route } from '../shell/router';
 import { STEAM_AVAILABLE } from '../env';
 import { GAMES, STATUS_LABEL } from './games';
+import { GameMark } from './gameMarks';
 import { hasPro } from '../engine/profile';
 import { useStore } from '../store';
 import { Icon } from '../ui/Icon';
@@ -14,8 +15,6 @@ import { steamSignOut } from '../ui/steamApi';
 export function NavBar({ route }: { route: Route }) {
   const loaded = useStore(s => s.review);
   const cs2 = route.page === 'cs2';
-  const gamesMenu = useRef<HTMLDetailsElement>(null);
-  useEffect(() => { if (gamesMenu.current) gamesMenu.current.open = false; }, [route]);
   // who's logged in, again whenever you come back to the tab (a login in another tab, a session that ran out)
   useEffect(() => {
     const again = () => { refreshProfile(); };
@@ -25,18 +24,16 @@ export function NavBar({ route }: { route: Route }) {
   return (
     <header className="navbar">
       <a className="brand" href="#/"><LogoMark /><span>{APP_NAME}</span></a>
-      <nav className="games" aria-label="Game">
-        <a href={routeHref({ page: 'cs2', mode: cs2 ? route.mode : 'review' })} className={`game-tab ${cs2 ? 'on' : ''}`}>CS2</a>
-        <details className="games-menu" ref={gamesMenu}>
-          <summary className="game-tab games-btn" title="Games coming to RageView">Games <Icon name="chevronDown" size={10} /></summary>
-          <div className="games-pop">
-            {GAMES.map(g => g.status === 'live' ? (
-              <a key={g.id} href={routeHref({ page: 'cs2', mode: 'review' })} className="games-row live"><b>{g.name}</b><span className="games-status live">{STATUS_LABEL[g.status]}</span></a>
-            ) : (
-              <div key={g.id} className="games-row" title={g.note}><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></div>
-            ))}
-          </div>
-        </details>
+      <nav className="game-bar" aria-label="Games">
+        {GAMES.map(g => g.status === 'live' ? (
+          <a key={g.id} href={routeHref({ page: 'cs2', mode: cs2 ? route.mode : 'review' })} className={`game-btn live ${cs2 ? 'on' : ''}`} title={`${g.name}: live`}>
+            <GameMark game={g} size={24} /><span>{g.short}</span>
+          </a>
+        ) : (
+          <span key={g.id} className="game-btn soon" role="img" aria-label={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`}>
+            <GameMark game={g} size={24} muted />
+          </span>
+        ))}
       </nav>
       {cs2 && (
         <div className="modes" role="tablist" aria-label="Mode">
