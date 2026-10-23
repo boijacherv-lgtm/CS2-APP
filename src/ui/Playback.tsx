@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import { NOTE_INFO, type Annotation, type DemoData, type DemoRound, type Review } from '../engine/recap';
+import { bombAt, bombTryAt, DEFUSE_KIT_SECONDS, DEFUSE_SECONDS, NOTE_INFO, PLANT_SECONDS, type Annotation, type DemoData, type DemoRound, type Review } from '../engine/recap';
 import { moveLook, NoteMark } from './NoteMark';
 import { SIDE_COLOR, T } from './tokens';
 import { useShown } from './shown';
@@ -65,6 +65,49 @@ export function RoundHud({ players, score, plantedAt }: { players: HudPlayer[]; 
         {score && <span className="hud-score t" title="Rounds won by this round's T team">{score[1]}</span>}
       </div>
       <div className="hud-team t">{tiles('T')}</div>
+    </div>
+  );
+}
+
+/**
+ * Review's score bug, top centre like a tournament broadcast: each side's score either side of the round clock, the
+ * round number under it, and a strip that becomes the bomb's: planting (filling), the 40 s fuse (draining, red),
+ * a defuse (filling blue, green when it beats the fuse, red when it can't), then defused / exploded.
+ */
+export function ScoreBug({ score, round, roundNo, time }: { score: [number, number]; round: DemoRound; roundNo: number; time: number }) {
+  const bomb = bombAt(round, time);
+  const plantedAt = bomb && bomb.kind !== 'carry' ? bomb.plantedAt : null;
+  const act = bombTryAt(round, time);
+  const fuse = plantedAt !== null ? Math.max(0, BOMB_SECONDS - (time - plantedAt)) : null;
+  const ended = bomb?.kind === 'defuse' || bomb?.kind === 'explode';
+  const left = fuse ?? ROUND_SECONDS - time;
+  let strip: { cls: string; label: string; share: number; num?: string; icon?: 'bomb' | 'scissors' } | null = null;
+  if (bomb?.kind === 'defuse') strip = { cls: 'defused', label: 'Bomb defused', share: 1, icon: 'scissors' };
+  else if (bomb?.kind === 'explode') strip = { cls: 'exploded', label: 'Bomb exploded', share: 1, icon: 'bomb' };
+  else if (act?.kind === 'defuse') {
+    const len = act.end - act.t, made = time - act.t, need = (act.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS) - made;
+    const inTime = fuse === null || need <= fuse;
+    strip = { cls: `defusing ${inTime ? 'ok' : 'late'}`, label: `Defusing${act.kit ? ' with kit' : ''}${inTime ? '' : ': no time'}`, share: Math.min(1, made / (act.done ? len : act.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS)), num: Math.max(0, need).toFixed(1), icon: 'scissors' };
+  } else if (act?.kind === 'plant') strip = { cls: 'planting', label: 'Planting', share: Math.min(1, (time - act.t) / PLANT_SECONDS), num: Math.max(0, PLANT_SECONDS - (time - act.t)).toFixed(1), icon: 'bomb' };
+  else if (fuse !== null) strip = { cls: 'fuse', label: 'Bomb planted', share: fuse / BOMB_SECONDS, num: fuse.toFixed(1), icon: 'bomb' };
+  return (
+    <div className="scorebug">
+      <div className="sb-main">
+        <span className="sb-team ct">CT</span>
+        <span className="sb-score ct num">{score[0]}</span>
+        <span className={`sb-clock num ${fuse !== null && !ended ? 'bomb' : left <= 10 && !ended ? 'low' : ''}`}>
+          {fuse !== null && !ended ? <><Icon name="bomb" size={15} className="sb-bomb-icon" />{Math.ceil(fuse)}</> : ended ? clock(ROUND_SECONDS - time) : clock(left)}
+        </span>
+        <span className="sb-score t num">{score[1]}</span>
+        <span className="sb-team t">T</span>
+      </div>
+      <div className="sb-round">Round {roundNo}</div>
+      {strip && (
+        <div className={`sb-strip ${strip.cls}`}>
+          <i style={{ width: `${Math.round(strip.share * 1000) / 10}%` }} />
+          <span>{strip.icon && <Icon name={strip.icon} size={12} />}{strip.label}{strip.num && <b className="num">{strip.num}</b>}</span>
+        </div>
+      )}
     </div>
   );
 }

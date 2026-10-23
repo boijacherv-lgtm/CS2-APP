@@ -73,7 +73,7 @@ export function DemoLoader() {
       <p className="muted">{MAPS.find(m => m.id === d.map)?.name ?? d.map} · {d.rounds.length} rounds · {Object.keys(d.names).length} players</p>
       <div className="row">
         <button onClick={() => exportJson(d)} title="Save the parsed rounds so they load instantly next time">Save .json</button>
-        <button onClick={s.exitReview} title="Close this match and load another">Load another</button>
+        <button onClick={s.exitReview} title="Close this match: load another, or go back to Tactical">Close match</button>
       </div>
     </section>
   );

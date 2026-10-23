@@ -23,7 +23,7 @@ export const COACH_V = 3; // 3: impact leaves out positioning decisions
 export const POSITIONS_V = 7; // + paths only the first 8 s after leaving a spot
 export const ANALYST_V = 14; // play actions: push / fall back by walking distance, not straight lines through walls
 /** Bump when tools/demo-core.mjs reads demos differently (new fields), so saved reads are redone. */
-export const PARSE_V = 6; // 6: gear over the round (inventory, armour, kit, money once a second)
+export const PARSE_V = 7; // 6: gear over the round (inventory, armour, kit, money once a second); 7: grenade bounces, kill flags (wallbang, smoke, blind)
 
 // ---- the demo folder -------------------------------------------------------------------------------------
 /** Demos in a folder (and one level of subfolders), as paths relative to it. */

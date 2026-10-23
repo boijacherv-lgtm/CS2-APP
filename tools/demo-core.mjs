@@ -146,6 +146,21 @@ export function buildDemoData(parser, input, progress = () => {}) {
   const bombEvents = (safe(() => p.parseEvents(input, Object.keys(BOMB_KIND), ['X', 'Y'], [])) ?? [])
     .map(e => ({ tick: num(e.tick), kind: BOMB_KIND[evName(e)], id: sid(pick(e, 'user_steamid')), x: num(pick(e, 'user_X', 'user_x')), y: num(pick(e, 'user_Y', 'user_y')) }))
     .filter(e => e.kind && Number.isFinite(e.tick)).sort((a, b) => a.tick - b.tick);
+  // planting and defusing, start to finish (or let go), for the HUD's timers: [start tick, end tick, done, kit]
+  const tryEvents = (safe(() => p.parseEvents(input, ['bomb_beginplant', 'bomb_abortplant', 'bomb_begindefuse', 'bomb_abortdefuse'], [], [])) ?? [])
+    .map(e => ({ tick: num(e.tick), name: evName(e), id: sid(pick(e, 'user_steamid')), kit: !!pick(e, 'haskit') }))
+    .filter(e => Number.isFinite(e.tick)).sort((a, b) => a.tick - b.tick);
+  const bombTries = tryEvents.filter(e => /begin/.test(e.name)).map(b => {
+    const kind = /plant/.test(b.name) ? 'plant' : 'defuse';
+    // it ends when it's let go, finished, or the same player starts again (demos often leave the abort out); never
+    // longer than it takes (3.2 s to plant, 10 s to defuse), so a lost end can't run on
+    const max = b.tick + (kind === 'plant' ? 4 : 11) * TICKRATE;
+    const abort = tryEvents.find(e => e.tick > b.tick && e.id === b.id && e.name === `bomb_abort${kind}`);
+    const again = tryEvents.find(e => e.tick > b.tick && e.id === b.id && e.name === `bomb_begin${kind}`);
+    const done = bombEvents.find(e => e.tick >= b.tick && e.tick <= max && e.id === b.id && e.kind === kind);
+    const end = [abort?.tick, again?.tick, done?.tick].filter(t => Number.isFinite(t) && t <= max).sort((x, y) => x - y)[0];
+    return { tick: b.tick, end, kind, id: b.id, done: !!done && done.tick === end, kit: b.kit };
+  }).filter(x => Number.isFinite(x.end));
 
   const names = {};
   const out = rounds.map((r, idx) => {
@@ -191,6 +206,7 @@ export function buildDemoData(parser, input, progress = () => {}) {
       weapon: String(pick(d, 'weapon') ?? ''), headshot: !!pick(d, 'headshot'),
       x: num(pick(d, 'user_X', 'user_x')), y: num(pick(d, 'user_Y', 'user_y')),
       ax: num(pick(d, 'attacker_X', 'attacker_x')), ay: num(pick(d, 'attacker_Y', 'attacker_y')),
+      ...killFlags(d),
     }));
     const fights = deaths.filter(d => inRound(num(d.tick))).map(d => {
       const a = sid(pick(d, 'attacker_steamid')), v = sid(pick(d, 'user_steamid', 'victim_steamid'));
@@ -252,6 +268,8 @@ export function buildDemoData(parser, input, progress = () => {}) {
       : before && (before.kind === 'carry' || before.kind === 'drop') ? before : null;
     const bomb = [...(start ? [{ ...start, tick: r.start }] : []), ...inRoundBomb]
       .map(e => ({ t: round2(tOf(e.tick)), kind: e.kind, id: e.id, x: round1(e.x), y: round1(e.y) }));
+    const tries = bombTries.filter(b => inRound(b.tick))
+      .map(b => ({ t: round2(tOf(b.tick)), end: round2(tOf(b.end)), kind: b.kind, id: b.id, done: b.done, ...(b.kind === 'defuse' ? { kit: b.kit } : {}) }));
     // each player's gear, only when it changes: [t, inventory, armour, helmet, kit, money]
     const gear = {};
     if (gearRows.length)
@@ -270,6 +288,7 @@ export function buildDemoData(parser, input, progress = () => {}) {
       n: idx + 1, winner: r.winner, reason: r.reason, duration: tOf(r.end),
       plant: plant !== undefined ? tOf(plant) : null,
       frames, kills, util, blind, econ: roundEcon, nadeDamage, shots, hits, bomb, fights,
+      ...(tries.length ? { bombTries: tries } : {}),
       ...(Object.keys(gear).length ? { gear } : {}),
     };
   });
@@ -303,7 +322,7 @@ function grenadeFlights(p, input) {
       out.push(f);
     }
     f.last = tick;
-    f.pts.push([tick, round1(num(r.x)), round1(num(r.y))]);
+    f.pts.push([tick, round1(num(r.x)), round1(num(r.y)), round1(num(r.z))]);
   }
   return out;
 }
@@ -328,6 +347,8 @@ function throwOf(n, flights, ends, tOf, throws) {
     const pts = best.pts.filter((p, i) => p[0] <= tick && (i % 4 === 0));
     pts.push([tick, x, y]);
     out.path = pts.map(p => [p[1], p[2]]);
+    const b = bouncesOf(best.pts.filter(p => p[0] <= tick));
+    if (b.length) out.bounces = b.map(([t, x, y, wall]) => [x, y, round2(tOf(t)), wall]);
   } else {
     // no flight data (browser build): the same player's last throw of this grenade before it went off
     const th = throws.findLast(w => w.type === type && w.thrower === thrower && w.tick <= tick && tick - w.tick < 64 * 12);
@@ -340,6 +361,44 @@ function throwOf(n, flights, ends, tOf, throws) {
       && Math.hypot(num(e.x) - x, num(e.y) - y) < 50);
     if (end) out.end = tOf(num(end.tick));
   }
+  return out;
+}
+
+/**
+ * Where a grenade hit something on its way: [tick, x, y, 1 = a wall / 0 = the floor or a roof]. In the air only
+ * gravity changes its velocity (320 units/s², 0.08 a tick at 64 ticks); a bigger jump between two ticks is a hit.
+ * `pts` are [tick, x, y, z], one per tick. Rolling slowly (under 1.5 units a tick) and stopping dead don't count.
+ */
+export function bouncesOf(pts) {
+  const G = 320 / TICKRATE / TICKRATE, out = [];
+  let last = -Infinity;
+  for (let i = 2; i < pts.length; i++) {
+    const [t0, x0, y0, z0] = pts[i - 2], [t1, x1, y1, z1] = pts[i - 1], [t2, x2, y2, z2] = pts[i];
+    if (t1 - t0 !== 1 || t2 - t1 !== 1 || ![z0, z1, z2].every(Number.isFinite)) continue;
+    const v1 = [x1 - x0, y1 - y0, z1 - z0], v2 = [x2 - x1, y2 - y1, z2 - z1];
+    const speed = Math.hypot(...v1);
+    if (speed < 1.5 || Math.hypot(...v2) < 0.5) continue; // a dead stop is the landing, not a bounce
+    const dh = Math.hypot(v2[0] - v1[0], v2[1] - v1[1]), dz = Math.abs(v2[2] - v1[2] + G);
+    if (Math.hypot(dh, dz) < Math.max(1.2, speed * 0.15) || t1 - last <= 3) continue;
+    out.push([t1, x1, y1, dh > dz ? 1 : 0]);
+    last = t1;
+  }
+  return out;
+}
+
+/** What made a kill special, from player_death: walls shot through, through a smoke, shooter blind / in the air / AWP unscoped, the assist. */
+function killFlags(d) {
+  const out = {};
+  const wall = num(pick(d, 'penetrated'));
+  if (wall > 0) out.wall = wall;
+  if (pick(d, 'thrusmoke')) out.smoke = true;
+  if (pick(d, 'attackerblind')) out.blind = true;
+  if (pick(d, 'noscope')) out.noscope = true;
+  if (pick(d, 'attackerinair')) out.air = true;
+  const assist = sid(pick(d, 'assister_steamid'));
+  if (assist && assist !== '0') { out.assist = assist; if (pick(d, 'assistedflash')) out.flashAssist = true; }
+  const dist = num(pick(d, 'distance'));
+  if (Number.isFinite(dist) && dist > 0) out.dist = Math.round(dist);
   return out;
 }
 

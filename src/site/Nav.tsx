@@ -15,6 +15,11 @@ import { steamSignOut } from '../ui/steamApi';
 export function NavBar({ route }: { route: Route }) {
   const loaded = useStore(s => s.review);
   const cs2 = route.page === 'cs2';
+  // with a match loaded there's no Tactical tab: its address goes to Review (Load another closes the match);
+  // without one there's no recap to show: Match recap goes to Review too
+  useEffect(() => {
+    if (cs2 && ((loaded && route.mode === 'tactical') || (!loaded && route.mode === 'report'))) navigate({ page: 'cs2', mode: 'review' });
+  }, [cs2, loaded, route]); // eslint-disable-line react-hooks/exhaustive-deps
   // who's logged in, again whenever you come back to the tab (a login in another tab, a session that ran out)
   useEffect(() => {
     const again = () => { refreshProfile(); };
@@ -37,18 +42,23 @@ export function NavBar({ route }: { route: Route }) {
       </nav>
       {cs2 && (
         <div className="modes" role="tablist" aria-label="Mode">
+          {/* before a match is loaded: plan (Tactical) or load one (Review); with a match: Review and its recap */}
+          {!loaded && (
+            <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
+              onClick={() => navigate({ page: 'cs2', mode: 'tactical' })} title="Plan rounds on the board">
+              <Icon name="grid" className="mode-ico" /> Tactical
+            </button>
+          )}
           <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
-            onClick={() => navigate({ page: 'cs2', mode: 'review' })} title="Replay and grade a played match">
+            onClick={() => navigate({ page: 'cs2', mode: 'review' })} title={loaded ? 'Replay and grade this match' : 'Load a match to replay and grade it'}>
             <Icon name="play" className="mode-ico" /> Review{loaded ? <i className="dot-live" title="A match is loaded" /> : null}
           </button>
-          <button role="tab" aria-selected={route.mode === 'report'} className={route.mode === 'report' ? 'on' : ''}
-            onClick={() => navigate({ page: 'cs2', mode: 'report' })} title="The coach's notes, every player's grades and estimated rating for the match">
-            <Icon name="star" className="mode-ico" /> Match recap
-          </button>
-          <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
-            onClick={() => navigate({ page: 'cs2', mode: 'tactical' })} title="Plan rounds on the board">
-            <Icon name="grid" className="mode-ico" /> Tactical
-          </button>
+          {loaded && (
+            <button role="tab" aria-selected={route.mode === 'report'} className={route.mode === 'report' ? 'on' : ''}
+              onClick={() => navigate({ page: 'cs2', mode: 'report' })} title="The coach's notes, every player's grades and estimated rating for the match">
+              <Icon name="star" className="mode-ico" /> Match recap
+            </button>
+          )}
         </div>
       )}
       <div className="nav-right">

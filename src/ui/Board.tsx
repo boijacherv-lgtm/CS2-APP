@@ -18,7 +18,7 @@ import { useShown } from './shown';
 import { SIDE_COLOR, T as TOK, UTIL_COLOR } from './tokens';
 import { MomentNav } from './Recap';
 import { LayersBar } from './Layers';
-import { PlaybackBar, RoundHud, scoreBefore } from './Playback';
+import { PlaybackBar, RoundHud, ScoreBug, scoreBefore } from './Playback';
 import { FOV as VISION_FOV } from '../engine/predict';
 import { ENTRY_COLOR, entryClock, entryReports } from '../engine/entries';
 import { BUILTIN_LINEUPS } from '../map/lineups';
@@ -307,11 +307,28 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   }, [live, names, view.scale]);
   // review: each team's players down the sides with their health and gear (the top bar then only has the clock)
   const rosterRound = recap && s.review ? s.review.data.rounds[s.review.round] ?? null : null;
+  // kills and deaths in the rounds before this one (this round's are added up to the moment on screen)
+  const pastKd = useMemo(() => {
+    const out = new Map<string, { k: number; d: number }>();
+    if (!s.review) return out;
+    for (const r of s.review.data.rounds.slice(0, s.review.round))
+      for (const kl of r.kills) {
+        const v = out.get(kl.victim) ?? { k: 0, d: 0 }; v.d++; out.set(kl.victim, v);
+        if (kl.attacker && kl.attacker !== kl.victim) { const a = out.get(kl.attacker) ?? { k: 0, d: 0 }; a.k++; out.set(kl.attacker, a); }
+      }
+    return out;
+  }, [s.review?.data, s.review?.round]);
   const roster = (side: 'CT' | 'T') => rosterRound && (
     <TeamRoster side={side} round={rosterRound} time={s.time}
-      players={s.board.players.filter(p => p.side === side).slice(0, 5).map(p => ({
-        id: p.id, name: s.review?.data.names[p.id] ?? p.label, alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100, avatar: avatars[p.id],
-      }))} />
+      players={s.board.players.filter(p => p.side === side).slice(0, 5).map(p => {
+        const now = rosterRound.kills.filter(kl => kl.t <= s.time);
+        const roundKills = now.filter(kl => kl.attacker === p.id && kl.victim !== p.id && rosterRound.frames.players[kl.victim]?.side !== side).length;
+        return {
+          id: p.id, name: s.review?.data.names[p.id] ?? p.label, alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100, avatar: avatars[p.id],
+          kills: (pastKd.get(p.id)?.k ?? 0) + now.filter(kl => kl.attacker === p.id && kl.victim !== p.id).length,
+          deaths: (pastKd.get(p.id)?.d ?? 0) + now.filter(kl => kl.victim === p.id).length, roundKills,
+        };
+      })} />
   );
   const livePlayer = (p: Player): Player => {
     if (drag?.id === p.id) return { ...p, pos: drag.pos ?? p.pos, facing: drag.facing ?? p.facing };
@@ -620,18 +637,25 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                   <Circle radius={TOKEN_R + 5} stroke="#fff" strokeWidth={2} dash={[4, 3]} listening={false} />
                 )}
                 {live.get(lp.id)?.blind && (
-                  <Circle radius={TOKEN_R + 6} fill="rgba(255,246,168,0.55)" stroke="#fff6a8" strokeWidth={2} listening={false} />
+                  <Circle radius={TOKEN_R + 7} fill="rgba(255,246,168,0.4)" shadowColor="#fff6a8" shadowBlur={10} shadowOpacity={0.9} listening={false} />
                 )}
+                {/* selected: one soft white ring, clear of the health ring */}
+                {s.selectedId === p.id && <Circle radius={TOKEN_R + 6.5} stroke="#fff" strokeWidth={1.6} shadowColor="#000" shadowBlur={4} shadowOpacity={0.8} listening={false} />}
+                {/* health: a dark track all the way round and the health left on it, from 12 o'clock */}
                 {(live.get(lp.id)?.hp ?? 100) < 100 && (
-                  <Arc innerRadius={TOKEN_R + 1.5} outerRadius={TOKEN_R + 4} angle={(360 * (live.get(lp.id)!.hp)) / 100} rotation={-90}
-                    fill={live.get(lp.id)!.hp > 50 ? TOK.good : live.get(lp.id)!.hp > 25 ? '#ffb020' : TOK.bad} listening={false} />
+                  <>
+                    <Circle radius={TOKEN_R + 2.6} stroke="#000" strokeWidth={3.2} opacity={0.55} listening={false} />
+                    <Arc innerRadius={TOKEN_R + 1.2} outerRadius={TOKEN_R + 4} angle={(360 * (live.get(lp.id)!.hp)) / 100} rotation={-90}
+                      fill={live.get(lp.id)!.hp > 50 ? TOK.good : live.get(lp.id)!.hp > 25 ? '#ffb020' : TOK.bad} listening={false} />
+                  </>
                 )}
                 {/* where they're looking, like the arrow on CS2's radar */}
                 <Line points={[TOKEN_R - 1, -5, TOKEN_R + 7, 0, TOKEN_R - 1, 5]} closed rotation={deg(p.facing ?? engine.facing(p))}
                   fill="#fff" stroke="#000" strokeWidth={1.2} lineJoin="round" listening={false} />
-                {focus?.includes(p.id) && <Circle radius={TOKEN_R + 4} stroke="#fff" strokeWidth={2} listening={false} />}
                 <Circle radius={TOKEN_R} hitStrokeWidth={18} fill={eraseTarget === p.id ? ERASE : COLORS[p.side]}
-                  stroke={s.selectedId === p.id ? '#fff' : '#000a'} strokeWidth={s.selectedId === p.id ? 2.5 : 1.5} />
+                  stroke="#0b0e12" strokeWidth={1.4} shadowColor="#000" shadowBlur={3} shadowOpacity={0.6} />
+                {/* a thin light rim inside the edge: reads as a token, not a flat dot */}
+                <Circle radius={TOKEN_R - 1.6} stroke="#fff" strokeWidth={0.9} opacity={0.35} listening={false} />
                 {/* in Review the nickname goes in the tag underneath; the plan's numbers stay in the circle */}
                 {!names && <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />}
                 {names && (!crowded.has(p.id) || hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)) &&
@@ -728,16 +752,17 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         </Layer>
       </Stage>
       {/* everything over the map lives in fixed slots around its edges, so nothing overlaps */}
-      <div className="board-ui">
+      <div className={`board-ui ${rosterRound ? 'broadcast' : ''}`}>
         <div className="slot tl"><LayersBar /></div>
         <div className="slot top">
-          <RoundHud
+          {rosterRound && s.review && <ScoreBug score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time} />}
+          {!rosterRound && <RoundHud
             players={rosterRound ? [] : s.board.players.map(p => ({
               id: p.id, side: p.side, label: p.label, name: s.mode === 'review' ? s.review?.data.names[p.id] ?? p.label : `${p.side} ${p.label}`,
               alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100, avatar: avatars[p.id],
             }))}
             score={recap && s.review ? scoreBefore(s.review.data, s.review.round) : null}
-            plantedAt={recap && s.review ? s.review.data.rounds[s.review.round]?.plant ?? null : null} />
+            plantedAt={recap && s.review ? s.review.data.rounds[s.review.round]?.plant ?? null : null} />}
           <div className={`hint ${s.notice ? 'notice' : aiming || carry || s.draftRoute ? 'carry' : ''} ${hintSeen && !s.notice && !aiming && !carry && !s.draftRoute ? 'faded' : ''}`}
             style={recap ? { display: 'none' } : undefined}>
             {s.notice ?? (aiming ? 'Move the mouse to aim · click to set the direction · Esc cancels'
@@ -763,9 +788,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             <KillFeed recap={recap} round={s.review.data.rounds[s.review.round]} time={s.time} names={s.review.data.names} />
           )}
         </div>
-        {rosterRound && <div className="slot left">{roster('CT')}</div>}
+        {rosterRound && <div className="slot team-ct">{roster('CT')}</div>}
+        {rosterRound && <div className="slot team-t">{roster('T')}</div>}
         <div className="slot right">
-          {rosterRound && roster('T')}
           <div className="zoom">
             <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>
             <button onClick={() => zoomAt(0.8)} title="Zoom out">−</button>
@@ -827,13 +852,22 @@ const FIT_PAD = { top: 52, bottom: 92, side: 44 };
 /** Review's team panels down each side (196 px and their margin), hidden on a board under 700 px wide. */
 /** How close (screen px, across and down) two players' name tags may be before the second one hides: about a tag's size. */
 const NAME_GAP = { x: 64, y: 16 };
-const ROSTER_PAD = 212, ROSTER_MIN_W = 700;
-/** The whole radar, as big as fits between the overlays (and Review's team panels, without shrinking it below half the width). */
+/** Review's team panels in the bottom corners: how wide and tall (px) they are on a wide board. */
+const TEAMBAR = { w: 300, h: 196 }, ROSTER_MIN_W = 700;
+/**
+ * The whole radar, as big as fits between the overlays. With Review's team panels in the bottom corners: either the
+ * map stays between them (narrower), or above them (shorter), whichever leaves it bigger.
+ */
 function fitView(w: number, h: number, rosters = false) {
-  const side = rosters && w >= ROSTER_MIN_W ? ROSTER_PAD : FIT_PAD.side;
-  const aw = Math.max(200, w * 0.5, w - side * 2), ah = Math.max(200, h - FIT_PAD.top - FIT_PAD.bottom);
-  const scale = Math.min(aw, ah) / 1024;
-  return { scale, x: (w - 1024 * scale) / 2, y: FIT_PAD.top + (ah - 1024 * scale) / 2 };
+  const fit = (side: number, bottom: number) => {
+    const aw = Math.max(200, w * 0.5, w - side * 2), ah = Math.max(200, h - FIT_PAD.top - bottom);
+    const scale = Math.min(aw, ah) / 1024;
+    return { scale, x: (w - 1024 * scale) / 2, y: FIT_PAD.top + (ah - 1024 * scale) / 2 };
+  };
+  const plain = fit(FIT_PAD.side, FIT_PAD.bottom);
+  if (!rosters || w < ROSTER_MIN_W) return plain;
+  const beside = fit(TEAMBAR.w + 12, FIT_PAD.bottom), above = fit(FIT_PAD.side, FIT_PAD.bottom + TEAMBAR.h - 40);
+  return beside.scale >= above.scale ? beside : above;
 }
 const BOMB_FUSE = 40;
 

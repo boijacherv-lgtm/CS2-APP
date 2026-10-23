@@ -11,8 +11,14 @@ export function wasmParserApi(w) {
     parseEvent: (input, name, playerProps = [], otherProps = []) => plain(w.parseEvent(input, name, playerProps, otherProps)),
     parseEvents: (input, names, playerProps = [], otherProps = []) => plain(w.parseEvents(input, names, playerProps, otherProps)),
     parseTicks: (input, props, ticks) => plain(w.parseTicks(input, props, ticks ? Int32Array.from(ticks) : undefined, false)),
-    // This build has no grenade projectile output (only player rows), so there are no flight paths: grenades still
-    // show where and when they popped, from the detonation events. Skipping it also saves a full pass.
-    parseGrenades: () => [],
+    // Grenade flights (paths, bounces) come from builds that read the projectiles (hasProjectiles, added by
+    // .github/workflows/demoparser-wasm.yml). Older builds return only player rows: skipped, which saves a full pass,
+    // and grenades still show where and when they popped from the detonation events.
+    parseGrenades: input => {
+      if (typeof w.hasProjectiles !== 'function') return [];
+      const out = [];
+      for (const r of w.parseGrenades(input)) if ((r instanceof Map ? r.get('x') : r.x) != null) out.push(plain(r));
+      return out;
+    },
   };
 }

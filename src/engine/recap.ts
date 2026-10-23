@@ -30,13 +30,21 @@ export interface DemoRound {
   duration: number;
   plant: number | null;
   frames: { t: number[]; players: Record<string, FrameTrack> };
-  kills: { t: number; attacker: string; victim: string; weapon: string; headshot: boolean; x: number; y: number; ax: number; ay: number }[];
+  kills: {
+    t: number; attacker: string; victim: string; weapon: string; headshot: boolean; x: number; y: number; ax: number; ay: number;
+    /** Newer parses: walls the bullet went through, through a smoke, the shooter flashed / in the air / AWP unscoped, metres apart. */
+    wall?: number; smoke?: boolean; blind?: boolean; air?: boolean; noscope?: boolean; dist?: number;
+    /** Newer parses: who got the assist, and whether it was a flash. */
+    assist?: string; flashAssist?: boolean;
+  }[];
   util: {
     t: number; type: UtilType; thrower: string; x: number; y: number;
     /** Release time, flight path (world x/y) and when the smoke/fire ended; older parses don't have them. */
     throwT?: number; path?: [number, number][]; end?: number;
     /** Where it was thrown from (world x/y) when there's no flight path (browser build). */
     from?: [number, number];
+    /** Newer parses with a flight: where it hit a wall (1) or the floor / a roof (0) on the way, and when. */
+    bounces?: [x: number, y: number, t: number, wall: 0 | 1][];
   }[];
   /** Damage done by HE grenades and fire. */
   nadeDamage?: { t: number; attacker: string; victim: string; dmg: number; weapon: 'he' | 'molotov' }[];
@@ -53,6 +61,8 @@ export interface DemoRound {
   gear?: Record<string, GearPoint[]>;
   /** What happens to the bomb (world x/y = the player's position); older parses don't have it. */
   bomb?: BombEvent[];
+  /** Newer parses: every plant and defuse attempt, start to end (done, or let go), and whether the defuser had a kit. */
+  bombTries?: BombTry[];
   /**
    * Every kill's last 3 s at 16 samples a second for both players (world x/y/z, yaw/pitch in degrees): spotting,
    * reaction time, crosshair placement, shooting while moving. Older parses don't have it.
@@ -72,6 +82,20 @@ export interface FightTrack { x: number[]; y: number[]; z: number[]; yaw: number
 export interface Fight { t0: number; dt: number; attacker: string; victim: string; a: FightTrack; v: FightTrack }
 
 export interface BombEvent { t: number; kind: 'carry' | 'drop' | 'plant' | 'defuse' | 'explode'; id: string; x: number; y: number }
+export interface BombTry { t: number; end: number; kind: 'plant' | 'defuse'; id: string; done: boolean; kit?: boolean }
+export const PLANT_SECONDS = 3.2, DEFUSE_SECONDS = 10, DEFUSE_KIT_SECONDS = 5;
+/**
+ * The plant or defuse going on at time t, if any. Older parses don't have the attempts: the finished ones are
+ * worked out backwards from the plant / defuse (how long it takes, with or without a kit).
+ */
+export function bombTryAt(r: DemoRound, t: number): BombTry | null {
+  const tries = r.bombTries ?? (r.bomb ?? []).filter(b => b.kind === 'plant' || b.kind === 'defuse').map(b => {
+    const kit = b.kind === 'defuse' ? !!gearAt(r, b.id, b.t - 1)?.kit : undefined;
+    const len = b.kind === 'plant' ? PLANT_SECONDS : kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS;
+    return { t: b.t - len, end: b.t, kind: b.kind as 'plant' | 'defuse', id: b.id, done: true, kit };
+  });
+  return tries.find(x => x.t <= t && t < x.end) ?? null;
+}
 export type BombState =
   | { kind: 'carry'; id: string }
   | { kind: 'drop' | 'plant' | 'defuse' | 'explode'; x: number; y: number; since: number; plantedAt: number | null };
@@ -298,6 +322,7 @@ export function buildReplay(engine: TacticalEngine, demo: DemoData, roundIdx: nu
     return {
       id: `u${i}`, type: u.type, pos: toR(u.x, u.y), throwAt, flight: u.t - throwAt,
       ...(path ? { path, from: path[0] } : {}),
+      ...(u.bounces?.length ? { bounces: u.bounces.map(([x, y, t, wall]) => ({ ...toR(x, y), t, wall: wall === 1 })) } : {}),
       ...(u.end !== undefined && u.end > u.t ? { duration: u.end - u.t } : {}),
     };
   });
@@ -420,7 +445,8 @@ export type Tag =
   | 'FLASH ASSIST' | 'NADE ASSIST' | 'BLIND' | 'LOW HP' | 'TEAM FLASH' | 'TEAM DAMAGE' | 'WASTED' | 'DENIED' | 'POST-PLANT' | 'UNUSED UTIL' | 'WHIFF' | 'UPSET'
   | 'FLANK' | 'ANCHOR' | 'TEAM KILL' | 'ECO DEATH' | 'PLANT' | 'DEFUSE' | 'NINJA'
   | 'NO TRADE' | 'LATE ROTATION' | 'OVER-ROTATION' | 'DRY PEEK'
-  | 'KNIFE OUT' | 'NO AMMO' | 'MOVING SHOT' | 'LOUD' | 'BAD PEEK' | 'LONG ODDS' | 'STALL' | 'OUTGUNNED';
+  | 'KNIFE OUT' | 'NO AMMO' | 'MOVING SHOT' | 'LOUD' | 'BAD PEEK' | 'LONG ODDS' | 'STALL' | 'OUTGUNNED'
+  | 'WALLBANG' | 'THROUGH SMOKE' | 'BLIND SHOT' | 'NO-SCOPE' | 'JUMP SHOT' | 'NADE KILL';
 const GOOD = '#22c55e', BAD = '#ef4444', UTIL = '#3b82f6', INFO = '#a39b8f';
 export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   OPENING: { color: INFO, tip: 'First kill of the round.' },
@@ -464,6 +490,12 @@ export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   'LONG ODDS': { color: GOOD, tip: 'Won a fight level-10 players usually lose from that situation.' },
   OUTGUNNED: { color: INFO, tip: 'Had a pistol or SMG against a rifle or AWP: a fight most players lose, not a mistake on its own.' },
   STALL: { color: UTIL, tip: 'Thrown early as CT to slow a push down: nobody coming through is the point.' },
+  WALLBANG: { color: INFO, tip: 'The killing bullet went through a wall (or a door, a box): the shooter knew or guessed where the victim was.' },
+  'THROUGH SMOKE': { color: INFO, tip: 'The killing bullet went through a smoke.' },
+  'BLIND SHOT': { color: INFO, tip: 'The shooter was flashed when they got the kill.' },
+  'NO-SCOPE': { color: INFO, tip: 'A sniper kill without scoping in.' },
+  'NADE KILL': { color: UTIL, tip: 'Killed with an HE grenade or fire.' },
+  'JUMP SHOT': { color: INFO, tip: 'The shooter was in the air (jumping or falling) when they got the kill.' },
 };
 
 export interface Move {
@@ -772,6 +804,11 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const ki = k.killer ? idx(k.killer) : -1;
     const killerAt = ki >= 0 ? posAt(ki, k.t) : null;
     const cause = k.cause === 'he' ? 'HE grenade' : k.cause === 'molotov' ? 'fire' : kGun?.name ?? '';
+    // how the bullet got there (newer parses): through walls, through a smoke, from a flashed / jumping shooter
+    const walls = dk?.wall ?? 0, thruSmoke = !!dk?.smoke, blindShot = !!dk?.blind;
+    const wallText = walls === 1 ? 'a wall' : `${walls} walls`;
+    const shotTags: Tag[] = [...(walls ? ['WALLBANG' as const] : []), ...(thruSmoke ? ['THROUGH SMOKE' as const] : []), ...(blindShot ? ['BLIND SHOT' as const] : []),
+      ...(dk?.noscope ? ['NO-SCOPE' as const] : []), ...(dk?.air ? ['JUMP SHOT' as const] : [])];
 
     // the victim
     const traded = k.killer && sim.kills.some(o => o.victim === k.killer && o.t > k.t && o.t - k.t <= 5 && sideOf.get(o.killer) === vSide);
@@ -804,6 +841,10 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (wasBlind) why.push('Was flashed when it happened.');
     if (hpBefore < 50 && hpBefore > 0) why.push(`Already hurt (${hpBefore} hp) before the duel.`);
     if (k.cause !== 'gun') why.push(k.cause === 'he' ? 'Killed by an HE grenade.' : 'Burned by a molotov: stood in fire.');
+    if (walls) why.push(`Shot through ${wallText} (a wallbang): they knew or guessed where you were. Don't stop on a spot they can spray through, and don't make noise next to one.`);
+    if (thruSmoke) why.push(`Shot through a smoke: they were spraying it${walls ? ' as well' : ''}. Standing behind or crossing a smoke that's being sprayed gets you killed: wait it out or go wide.`);
+    if (blindShot) why.push('They were flashed when they killed you: you had the fight won and lost it (swing while they can\'t see).');
+    if (dk?.noscope) why.push(`Lost to a no-scope${kGun ? ` (${kGun.name})` : ''}.`);
     if (firstKill) why.push('First death of the round (lost the opening duel).');
     const lost = gear.get(k.victim);
     const vAwp = !!r.econ?.[k.victim] && weaponClass(r.econ[k.victim].weapons) === 'awp';
@@ -832,6 +873,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (unused >= 2) vTags.push('UNUSED UTIL');
     if (whiff) vTags.push('WHIFF');
     if (postPlant) vTags.push('POST-PLANT');
+    vTags.push(...shotTags);
     // ?? dying to an eco while fully bought, without having thrown anything; ? the usual costly deaths
     const byMate = !!k.killer && sideOf.get(k.killer) === vSide;
     const vG = gear.get(k.victim), kG = k.killer ? gear.get(k.killer) : null;
@@ -842,12 +884,12 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     // the last one alive on their side is alone by definition: that isn't a fault
     const lastAlive = vi >= 0 && !sim.ids.some((id, j) => j !== vi && sideOf.get(id) === vSide && alive(j, k.t - 0.05));
     const alone = support === 0 && !lastAlive;
-    const fault = alone || whiff || unused >= 2;
+    const fault = alone || whiff || unused >= 2 || blindShot;
     // ? only for a death with a clear fault, not every untraded one: alone or the opening duel and it cost 8%+,
     // a missed spray, two grenades in the pocket, the AWP thrown away
     const vNote: Annotation = byMate || lostCause || (outgunned && !whiff) ? 'book'
       : ecoDeath || (!traded && loss <= -0.3 && fault) ? '??'
-      : !traded && (whiff || unused >= 2 || vAwp || ((alone || firstKill) && loss <= -0.08)) ? '?' : 'book';
+      : !traded && (whiff || unused >= 2 || vAwp || blindShot || ((alone || firstKill) && loss <= -0.08)) ? '?' : 'book';
     moves.push({
       t: k.t, player: k.victim, side: vSide, kind: 'death', gain: loss, note: vNote,
       title: `${name(k.victim)} died${where(k.at)}${k.killer && k.killer !== k.victim
@@ -881,6 +923,13 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const vGun = r.econ?.[k.victim] ? primaryGun(r.econ[k.victim].weapons) : undefined;
       if (kGun && vGun && kGun.cls === 'pistol' && vGun.cls !== 'pistol') awhy.push(`Pistol (${kGun.name}) beat a ${vGun.name}.`);
       if (kGun?.id === 'awp' && dk?.headshot === false) awhy.push('AWP one-shot to the body.');
+      if (k.cause === 'he') awhy.push('An HE grenade kill: utility that finished the job.');
+      if (k.cause === 'molotov') awhy.push('Burned them: a molotov kill.');
+      if (walls) awhy.push(`Through ${wallText}: a wallbang, shot where they had to be.`);
+      if (thruSmoke) awhy.push('Through a smoke: read where they were and shot without seeing them.');
+      if (blindShot) awhy.push('Got it while flashed.');
+      if (dk?.noscope) awhy.push(`No-scope${kGun ? ` with the ${kGun.name}` : ''}.`);
+      if (dk?.air) awhy.push('In the air: a jumping shot (inaccurate with most guns, so partly luck).');
       // last one standing on their side, against two or more
       const mates = sim.ids.filter((id, j) => j !== ai && sideOf.get(id) === aSide && alive(j, k.t - 0.05)).length;
       const foes = sim.ids.filter((id, j) => sideOf.get(id) !== aSide && alive(j, k.t - 0.05)).length;
@@ -924,6 +973,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (vi >= 0 && wasBlind) aTags.push('FLASH ASSIST');
       if (upset) aTags.push('UPSET');
       if (postPlant) aTags.push('POST-PLANT');
+      aTags.push(...shotTags);
+      if (k.cause !== 'gun') aTags.push('NADE KILL');
       // !! clutch 1v3+, solo anchor, pistol vs full gear, a huge swing; ! quick trade, multi-kill, neutral opening
       // kill, flank, 1v2 clutch, beating a better player, a big swing (but not once the round is decided: a kill
       // that moves the win chance by under 3% is plain); everything else is a plain kill
@@ -931,7 +982,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const neutral = vGear == null || aGear == null || (vGear >= 2000 && aGear >= 2000) || aGear + 1000 < vGear;
       const aNote: Annotation = teamKill ? '??'
         : (clutchWon && clutchOf! >= 3) || anchor || ecoHero || gain >= 0.3 ? '!!'
-        : clutchWon || gain >= 0.1 || (gain >= 0.03 && (quickTrade || multi >= 2 || (firstKill && neutral) || flank || upset)) ? '!'
+        : clutchWon || gain >= 0.1 || (gain >= 0.03 && (quickTrade || multi >= 2 || (firstKill && neutral) || flank || upset || walls > 0 || thruSmoke || blindShot)) ? '!'
         : 'book';
       if (teamKill) awhy.unshift('Killed a teammate.');
       moves.push({
@@ -989,7 +1040,13 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       // someone dying right through/next to the smoke while it was up: the smoke didn't cover them
       const caught = sim.kills.filter(k => k.t >= from && k.t <= to && sideOf.get(k.victim) === s && k.killer
         && Math.hypot(k.at.x - at.x, k.at.y - at.y) < R * 1.6).length;
-      gain = Math.min(0.09, 0.0035 * pairSec + 0.0018 * watchSec) - 0.03 * caught;
+      // kills shot through this smoke while it was up: the enemy spraying it, or your team using it
+      const radar = (x: number, y: number) => worldToRadar({ x, y }, engine.map.radar);
+      const through = r.kills.filter(k => k.smoke && k.t >= from && k.t <= to && sideOf.has(k.attacker) && sideOf.has(k.victim)
+        && segmentHitsCircle(radar(k.ax, k.ay), radar(k.x, k.y), at, R * 1.1));
+      const sprayedUs = through.filter(k => sideOf.get(k.attacker) !== s && sideOf.get(k.victim) === s).length;
+      const usedIt = through.filter(k => sideOf.get(k.attacker) === s && sideOf.get(k.victim) !== s).length;
+      gain = Math.min(0.09, 0.0035 * pairSec + 0.0018 * watchSec) - 0.03 * caught - 0.02 * sprayedUs + 0.02 * usedIt;
       if (pairSec) why.push(`Cut ${cut.size === 1 ? 'an enemy' : `${cut.size} enemies`} off from seeing your team (${pairSec} player-second${pairSec > 1 ? 's' : ''} of sightlines).`);
       if (blinded.size) why.push(`Blocked the view of ${blinded.size === 1 ? 'an enemy' : `${blinded.size} enemies`} looking that way (${watchSec} s).`);
       const std = standardSpot(engine.map.id, 'smoke', s, u.x, u.y);
@@ -1005,10 +1062,15 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         gain = Math.min(gain, 0);
       }
       if (caught) why.push(`${caught} teammate${caught > 1 ? 's' : ''} died at the smoke anyway.`);
+      if (sprayedUs) why.push(`${sprayedUs === 1 ? 'A teammate was' : `${sprayedUs} teammates were`} shot through it: the enemy sprayed the smoke.`);
+      if (usedIt) why.push(`Your team got ${usedIt === 1 ? 'a kill' : `${usedIt} kills`} shooting through it.`);
+      const hits = u.bounces?.length ?? 0;
+      if (missed && hits >= 2) why.push(`It hit something ${hits} times on the way (marked on its trail): the throw went off its line.`);
       if (nade.duration !== undefined && nade.duration < 12) why.push(`Cleared early (lasted ${nade.duration.toFixed(0)} s).`);
       const tags: Tag[] = missed ? ['WASTED'] : gain >= 0.03 ? ['DENIED'] : [];
-      // book: a standard smoke, or one that did its job; ! cut a lot of sightlines; ? missed, or got teammates killed
-      const note: Annotation = caught >= 2 || missed ? '?' : pairSec >= 20 && !caught ? '!' : 'book';
+      // book: a standard smoke, or one that did its job; ! cut a lot of sightlines or your team shot through it for
+      // kills; ? missed, or got teammates killed (at it, or sprayed through it)
+      const note: Annotation = caught >= 2 || missed || sprayedUs >= 2 ? '?' : (pairSec >= 20 || usedIt >= 2) && !caught && !sprayedUs ? '!' : 'book';
       return { gain, note, why, tags };
     }
 
@@ -1040,17 +1102,23 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       // an empty burn on a standard spot still did its job (nobody came through); anywhere else it was wasted
       if (!near.size && !enemyDmg && std) return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Nobody came through while it burned.'], tags };
       if (!near.size && !enemyDmg && stall) return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Thrown early to slow a push down: nobody came through while it burned.'], tags: [...tags, 'STALL'] };
-      if (!near.size && !enemyDmg) { why.push('Burned empty ground: no enemy came near it.'); return { gain: Math.min(gain, -0.01), note: '?', why, tags: [...tags, 'WASTED'] }; }
+      if (!near.size && !enemyDmg) { why.push(`Burned empty ground: no enemy came near it.${bounceNote(u)}`); return { gain: Math.min(gain, -0.01), note: '?', why, tags: [...tags, 'WASTED'] }; }
       const note: Annotation = enemyDmg >= 150 ? '!!' : enemyDmg >= 60 || softened.length || near.size >= 3 ? '!' : hurtTeam ? '?' : 'book';
       return { gain, note, why, tags };
     } else if (!enemyDmg && stall && u.type === 'he') {
       return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Thrown early to slow a push down: nobody was there to hit, which is the point.'], tags: [...tags, 'STALL'] };
     } else if (!enemyDmg) {
-      why.push('Hit nobody: wasted utility.');
+      why.push(`Hit nobody: wasted utility.${bounceNote(u)}`);
       return { gain: Math.min(gain, -0.01), note: '?', why, tags: [...tags, 'WASTED'] };
     }
     const note: Annotation = enemyDmg >= 150 || hitEnemies.length >= 3 ? '!!' : enemyDmg >= 70 || softened.length ? '!' : hurtTeam ? '?' : 'book';
     return { gain, note, why, tags };
+  };
+
+  /** " It bounced 3 times first (off 2 walls)." for a grenade that hit things on the way (newer parses). */
+  const bounceNote = (u: DemoRound['util'][number]) => {
+    const n = u.bounces?.length ?? 0, walls = u.bounces?.filter(b => b[3] === 1).length ?? 0;
+    return n ? ` It bounced ${n === 1 ? 'once' : `${n} times`} first${walls ? ` (off ${walls === 1 ? 'a wall' : `${walls} walls`})` : ''}: see its trail.` : '';
   };
 
   /** " (thrown from Top Mid)" when the grenade was thrown from another area. */
@@ -1083,7 +1151,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (enemy.length) why.push(`Blinded ${enemy.length === 1 ? 'an enemy' : `${enemy.length} enemies`} (${enemy.map(e => e.amount.toFixed(1) + 's').join(', ')}).`);
     if (assisted.length) why.push(`${assisted.length} of them died within 3 s: the flash won the duel.`);
     if (team.length) why.push(`Team-flashed ${team.length} teammate${team.length > 1 ? 's' : ''}.`);
-    if (!hits.length) why.push('Blinded nobody.');
+    if (!hits.length) why.push(`Blinded nobody.${bounceNote(u)}`);
+    else if (enemy.length && u.bounces?.some(b => b[3] === 1)) why.push('Banked off a wall before it popped.');
     const tags: Tag[] = [];
     if (assisted.length) tags.push('FLASH ASSIST');
     if (team.length) tags.push('TEAM FLASH');

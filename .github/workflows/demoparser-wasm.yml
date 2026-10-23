@@ -47,6 +47,12 @@ jobs:
         run: |
           cargo add console_error_panic_hook@0.1
           printf '\n#[wasm_bindgen(start)]\npub fn __stratboard_start() { console_error_panic_hook::set_once(); }\n' >> src/lib.rs
+      - name: Grenade flights (parseGrenades reads the thrown projectiles, as the native build does) and a marker for it
+        working-directory: demoparser/src/wasm
+        run: |
+          sed -i '/pub fn parseGrenades(/,/parse_grenades:/ s/parse_projectiles: false/parse_projectiles: true/' src/lib.rs
+          awk '/pub fn parseGrenades\(/,/parse_grenades:/' src/lib.rs | grep -q 'parse_projectiles: true'
+          printf '\n#[wasm_bindgen(js_name = hasProjectiles)]\npub fn __stratboard_has_projectiles() -> bool { true }\n' >> src/lib.rs
       - name: Build (browser + Node)
         run: |
           set -o pipefail

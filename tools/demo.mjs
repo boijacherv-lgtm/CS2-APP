@@ -16,7 +16,7 @@ export function parseDemo(path) {
   } catch (e) {
     // the npm build can lag behind CS2 updates (newer demos fail with "MalformedMessage"); the WebAssembly build
     // in tools/demoparser-node is built from a newer parser source (.github/workflows/demoparser-wasm.yml), so
-    // those demos are read with it instead (no grenade flight paths there, everything else the same)
+    // those demos are read with it instead (the same data once that build reads grenade flights; before, without them)
     if (!/MalformedMessage/.test(String(e?.message ?? e))) throw e;
     const wasm = require('./demoparser-node/demoparser2.js');
     return buildDemoData(wasmParserApi(wasm), fs.readFileSync(path));

@@ -40,6 +40,14 @@
           "Were you spectating? That was your trade."
         ]
       },
+      "lostToBlind": {
+        "when": "Killed by an enemy who was flashed",
+        "lines": [
+          "He was blind. BLIND. And you still lost.",
+          "The flash did its job. You didn't.",
+          "He couldn't see you and you still found a way to die."
+        ]
+      },
       "knifeOut": {
         "when": "Died with the knife or a grenade out (not when outgunned)",
         "lines": [
@@ -123,6 +131,22 @@
           "You went solo and died solo. Shocking."
         ]
       },
+      "wallbanged": {
+        "when": "Killed through a wall",
+        "lines": [
+          "He shot you through a wall. He knew exactly where you were.",
+          "Standing still on the one spot everybody sprays. Great.",
+          "That wall is made of paper and so is your positioning."
+        ]
+      },
+      "smokeSprayed": {
+        "when": "Killed through a smoke",
+        "lines": [
+          "They were spraying the smoke and you walked into it anyway.",
+          "Free kill through the smoke. For them.",
+          "Hiding behind the smoke they're spamming. Bold."
+        ]
+      },
       "wasted": {
         "when": "A grenade that did nothing",
         "lines": [
@@ -158,6 +182,20 @@
         "lines": [
           "Not terrible. Not good either. Why there?",
           "A level-10 player wouldn't have. Just saying."
+        ]
+      },
+      "wallbang": {
+        "when": "Got a kill through a wall (not a plain one)",
+        "lines": [
+          "Through the wall. Okay, I see you.",
+          "Wallbang. Fine, that one was smart."
+        ]
+      },
+      "smokeKill": {
+        "when": "Got a kill through a smoke (not a plain one)",
+        "lines": [
+          "Through the smoke. Lucky or smart, I'll take it.",
+          "Spraying the smoke actually worked for once."
         ]
       },
       "brilliant": {
