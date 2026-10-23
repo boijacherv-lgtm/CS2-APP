@@ -275,6 +275,14 @@ export function __stratboard_start() {
     wasm.__stratboard_start();
 }
 
+/**
+ * @returns {boolean}
+ */
+export function hasProjectiles() {
+    const ret = wasm.hasProjectiles();
+    return ret !== 0;
+}
+
 async function __wbg_load(module, imports) {
     if (typeof Response === 'function' && module instanceof Response) {
         if (typeof WebAssembly.instantiateStreaming === 'function') {

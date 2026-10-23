@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const __stratboard_start: () => void;
+export const hasProjectiles: () => number;
 export const listGameEvents: (a: number, b: number) => [number, number, number];
 export const listUpdatedFields: (a: number, b: number) => [number, number, number];
 export const parseEvent: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number];

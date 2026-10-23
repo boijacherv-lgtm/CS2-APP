@@ -279,6 +279,14 @@ module.exports.__stratboard_start = function() {
     wasm.__stratboard_start();
 };
 
+/**
+ * @returns {boolean}
+ */
+module.exports.hasProjectiles = function() {
+    const ret = wasm.hasProjectiles();
+    return ret !== 0;
+};
+
 module.exports.__wbg_String_eecc4a11987127d6 = function(arg0, arg1) {
     const ret = String(arg1);
     const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
