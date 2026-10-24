@@ -12,11 +12,13 @@ export interface Game {
   color: string;
   /** What you bring for a review in this game. */
   source: string;
+  /** A page of its own before it's live (what's coming), as a URL hash. */
+  page?: string;
 }
 
 export const GAMES: Game[] = [
   { id: 'cs2', short: 'CS2', name: 'Counter-Strike 2', status: 'live', mark: 'crosshair', color: '#F2B13C', source: 'a .dem demo', note: 'Graded replays, the engine and a coach.' },
-  { id: 'deadlock', short: 'DL', name: 'Deadlock', status: 'next', mark: 'lock', color: '#E8E0D2', source: 'a demo file', note: 'Same demo tech as CS2. First up.' },
+  { id: 'deadlock', short: 'DL', name: 'Deadlock', status: 'next', mark: 'lock', color: '#E8E0D2', source: 'a demo file', note: 'Same demo tech as CS2. First up.', page: '#/deadlock' },
   { id: 'dota2', short: 'D2', name: 'Dota 2', status: 'planned', mark: 'tower', color: '#BF2E1A', source: 'a replay or match ID', note: 'Lanes, rotations, fights.' },
   { id: 'r6', short: 'R6', name: 'Rainbow Six Siege', status: 'planned', mark: 'shield', color: '#E9563D', source: 'a match replay', note: 'Round by round, like CS.' },
   { id: 'pubg', short: 'PUBG', name: 'PUBG', status: 'planned', mark: 'parachute', color: '#F4B942', source: 'a match ID', note: 'Rotations, zones, fights.' },

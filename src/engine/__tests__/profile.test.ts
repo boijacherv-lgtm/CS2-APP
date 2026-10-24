@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FEATURE_LABEL } from '../coach';
 import { LETTERS } from '../recap';
-import { averages, cleanGoals, cleanMatch, cleanPrefs, FEATURE_IDS, goalSeries, mapStats, MAX_GOALS, MAX_HISTORY, MECH_IDS, withMatch, type ProfileMatch } from '../profile';
+import { averages, cleanGoals, cleanMatch, cleanNotifyGames, cleanPrefs, FEATURE_IDS, goalSeries, mapStats, MAX_GOALS, MAX_HISTORY, MECH_IDS, withMatch, type ProfileMatch } from '../profile';
 import { addMatchFromServer, profileRoute, publicProfileOf, type ProfileKV } from '../../../worker/src/profile';
 
 const match = (o: Partial<ProfileMatch> = {}): ProfileMatch => ({
@@ -91,5 +91,16 @@ describe('profile', () => {
     expect(await addMatchFromServer(kv, '76561190000000002', { id: 'junk' })).toBe(false);
     const p = await profileRoute(kv, '76561190000000002', 'GET', '/profile', {}) as { matches: { id: string }[] };
     expect(p.matches.map(m => m.id)).toEqual(['bot']);
+  });
+
+  it('remembers which coming games you want to hear about', async () => {
+    expect(cleanNotifyGames(['deadlock', 'deadlock', 'BAD id', 7, 'r6'])).toEqual(['deadlock', 'r6']);
+    const kv = memoryKV(), id = '76561190000000009';
+    const on = await profileRoute(kv, id, 'POST', '/profile/notify-game', { game: 'deadlock', on: true }) as { notifyGames: string[]; notifyPro: boolean };
+    expect(on.notifyGames).toEqual(['deadlock']);
+    expect(on.notifyPro).toBe(false);
+    const off = await profileRoute(kv, id, 'POST', '/profile/notify-game', { game: 'deadlock', on: false }) as { notifyGames: string[] };
+    expect(off.notifyGames).toEqual([]);
+    await expect(profileRoute(kv, id, 'POST', '/profile/notify-game', { game: '../x', on: true })).rejects.toThrow();
   });
 });

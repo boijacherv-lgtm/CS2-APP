@@ -405,3 +405,27 @@
   .game-tab.soon { display: none; }
   .section-title { font-size: 24px !important; }
 }
+
+/* Deadlock: the page before it's live (what it will grade, where it's at, tell me) */
+.game-btn.soon.has-page { cursor: pointer; }
+.game-btn.soon.has-page.on { background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--border-strong); }
+@media (max-width: 900px) { .game-btn.soon.has-page { display: inline-flex; } }
+@media (max-width: 560px) { .game-btn.soon.has-page { display: none; } }
+.dl-hero { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 40px; align-items: center; margin-bottom: 40px; }
+.dl-hero h1 { font-family: var(--font-display); font-size: clamp(34px, 5vw, 54px); line-height: 1.02; margin: 14px 0 0; letter-spacing: -.01em; }
+.dl-hero .eyebrow .games-status { margin-left: 4px; }
+.dl-hero-mark { display: grid; place-items: center; aspect-ratio: 1; border-radius: 28px; position: relative; isolation: isolate; overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--game) 16%, var(--surface-1)), var(--bg-0) 72%); border: 1px solid var(--border); }
+.dl-hero-mark::before { content: ''; position: absolute; inset: 18%; border-radius: 50%; background: color-mix(in srgb, var(--game) 22%, transparent); filter: blur(46px); z-index: -1; }
+.dl-hero .hero-cta { margin-top: 22px; }
+.dl-login { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.dl-why { max-width: 680px; margin: -4px 0 16px; line-height: 1.55; }
+.dl-road { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-width: 720px; }
+.dl-road li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border); }
+.dl-road li div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dl-road li div span { color: var(--text-2); font-size: 13px; }
+.dl-road-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border-strong); justify-self: center; }
+.dl-road li.next { border-color: color-mix(in srgb, var(--highlight) 45%, var(--border)); }
+.dl-road li.next .dl-road-dot { border-color: var(--highlight); background: color-mix(in srgb, var(--highlight) 30%, transparent); }
+.games-status.planned { color: var(--text-2); background: var(--surface-3); }
+@media (max-width: 760px) { .dl-hero { grid-template-columns: 1fr; } .dl-hero-mark { max-width: 220px; } }
