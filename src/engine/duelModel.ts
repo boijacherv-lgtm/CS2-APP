@@ -2,6 +2,8 @@ import type { DuelFact, DuelFighter } from './analyst';
 import { gunFromName } from './guns';
 import type { WinModel } from './winprob';
 import MODEL from './models/duel.json';
+import GBM_JSON from './models/duel-gbm.json';
+import { gbmLogit, type GbmModel } from './gbm';
 
 /**
  * The duel model: who wins a fight, from the moment the two players first had sight of each other (before any
@@ -54,6 +56,27 @@ export function duelFeatures(s: DuelSituation): number[] {
   ];
 }
 
+/**
+ * The boosted model's numbers: the differences above, then A's and B's own health, each gun's killing power at that
+ * range and the range itself (trees use them in combinations: "both hurt", "rifle vs pistol up close").
+ */
+export const DUEL2_FEATURES = [...DUEL_FEATURES, 'A health', 'B health', 'A gun power', 'B gun power', 'range'];
+const extra = (s: DuelSituation) => [s.a.f.hp / 100, s.b.f.hp / 100, power(s.a.f.w, s.range), power(s.b.f.w, s.range), Math.min(60, s.range) / 20];
+export function duelFeatures2(s: DuelSituation): number[] { return [...duelFeatures(s), ...extra(s)]; }
+const flip = (s: DuelSituation): DuelSituation => ({ a: s.b, b: s.a, range: s.range, sawFirst: -s.sawFirst });
+
+/** The boosted duel model (tools/learn-duel.ts → models/duel-gbm.json), when it beat the logistic one on unseen matches. */
+const GBM: GbmModel | null = (GBM_JSON as { trees?: unknown[] }).trees?.length ? (GBM_JSON as unknown as GbmModel) : null;
+export const DUEL_GBM = GBM;
+/**
+ * P(A wins) from the trees, made fair both ways: A's log-odds from A's side minus B's from B's side, halved, so
+ * P(A) + P(B) = 1 exactly. `f` (the differences) may be edited (peek / hold "what if"); `ex` is A's absolute numbers.
+ */
+function chanceTrees(f: number[], s: DuelSituation): number {
+  const ab = extra(s), ba = extra(flip(s));
+  return sigmoid((gbmLogit(GBM!, [...f, ...ab]) - gbmLogit(GBM!, [...f.map(v => -v), ...ba])) / 2);
+}
+
 /** A duel as player A (the killer, or the victim) against the other; null for fights without the contact data. */
 export function duelSituation(d: DuelFact, as: 'killer' | 'victim'): DuelSituation | null {
   if (!d.pre) return null;
@@ -77,6 +100,7 @@ const sigmoid = (z: number) => 1 / (1 + Math.exp(-z));
 
 /** P(A wins), as level-10 players win it; null until the model is trained. */
 export function duelChance(s: DuelSituation, model: WinModel | null = DUEL_MODEL): number | null {
+  if (GBM && model === DUEL_MODEL) return chanceTrees(duelFeatures(s), s);
   if (!model) return null;
   return chanceOf(duelFeatures(s), model);
 }
@@ -95,11 +119,13 @@ export function duelOdds(d: DuelFact, as: 'killer' | 'victim', model: DuelModel 
   const s = duelSituation(d, as);
   if (!s || !model) return null;
   const f = duelFeatures(s);
-  const p = chanceOf(f, model);
+  const trees = !!GBM && model === DUEL_MODEL;
+  const of = (g: number[]) => (trees ? chanceTrees(g, s) : chanceOf(g, model));
+  const p = of(f);
   const isPeek = f[I_PEEK] > 0;
   let peek: number | null = null, held: number | null = null;
   if (isPeek && model.peek && model.hold) {
-    const as_ = (peekSign: number, pr: DuelProfile) => { const g = [...f]; g[I_PEEK] = peekSign; g[I_SAW] = pr.sawFirst; g[I_AIM] = pr.aim; return chanceOf(g, model); };
+    const as_ = (peekSign: number, pr: DuelProfile) => { const g = [...f]; g[I_PEEK] = peekSign; g[I_SAW] = pr.sawFirst; g[I_AIM] = pr.aim; return of(g); };
     peek = as_(1, model.peek);
     held = as_(-1, model.hold); // you stand still with the angle pre-aimed, they swing into you
   }
@@ -113,16 +139,16 @@ export function duelProfiles(x: number[][]): { peek: DuelProfile; hold: DuelProf
   return { peek: { sawFirst: avg(pk, I_SAW), aim: avg(pk, I_AIM) }, hold: { sawFirst: avg(hd, I_SAW), aim: avg(hd, I_AIM) } };
 }
 
-/** Training samples from a set of duels: each fight from both sides (A won = 1 / 0). */
-export function duelSamples(duels: DuelFact[]): { x: number[][]; y: number[] } {
-  const x: number[][] = [], y: number[] = [];
+/** Training samples from a set of duels: each fight from both sides (A won = 1 / 0); `x2`: the boosted model's numbers. */
+export function duelSamples(duels: DuelFact[]): { x: number[][]; y: number[]; x2: number[][] } {
+  const x: number[][] = [], y: number[] = [], x2: number[][] = [];
   for (const d of duels) {
     const k = duelSituation(d, 'killer'), v = duelSituation(d, 'victim');
     if (!k || !v) continue;
-    x.push(duelFeatures(k).map(n => +n.toFixed(3))); y.push(1);
-    x.push(duelFeatures(v).map(n => +n.toFixed(3))); y.push(0);
+    x.push(duelFeatures(k).map(n => +n.toFixed(3))); x2.push(duelFeatures2(k).map(n => +n.toFixed(3))); y.push(1);
+    x.push(duelFeatures(v).map(n => +n.toFixed(3))); x2.push(duelFeatures2(v).map(n => +n.toFixed(3))); y.push(0);
   }
-  return { x, y };
+  return { x, y, x2 };
 }
 
 export const pctOdds = (p: number) => `${Math.round(p * 100)}%`;

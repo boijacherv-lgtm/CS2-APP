@@ -178,5 +178,19 @@
     }
    ]
   }
+ },
+ "duels": {
+  "at": "2026-10-24",
+  "testFights": 13839,
+  "trainFights": 62813,
+  "shipped": "trees",
+  "logistic": {
+   "logLoss": 0.6134,
+   "accuracy": 0.657
+  },
+  "trees": {
+   "logLoss": 0.6031,
+   "accuracy": 0.664
+  }
  }
 }

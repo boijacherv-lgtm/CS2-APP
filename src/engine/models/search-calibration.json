@@ -1,36 +1,36 @@
 {
  "thresholds": [
-  0.008,
-  0.02,
-  0.0326,
-  0.0475
+  0.0077,
+  0.0197,
+  0.0329,
+  0.0486
  ],
- "scale": 2.002,
- "costScale": 0.923,
+ "scale": 2.263,
+ "costScale": 0.811,
  "moments": 509932,
  "rounds": 2708,
  "check": {
-  "corr": 0.35,
-  "clearRounds": 595,
-  "beatBy": 0.294
+  "corr": 0.319,
+  "clearRounds": 646,
+  "beatBy": 0.246
  },
- "calibratedAt": "2026-10-19",
+ "calibratedAt": "2026-10-24",
  "byLoss": {
   "best": {
-   "n": 151723,
-   "resid": 0.0126
+   "n": 153040,
+   "resid": 0.0119
   },
   "small": {
-   "n": 180772,
-   "resid": 0.0013
+   "n": 181919,
+   "resid": 0.0025
   },
   "medium": {
-   "n": 167285,
+   "n": 162625,
    "resid": -0.009
   },
   "big": {
-   "n": 10152,
-   "resid": -0.0967
+   "n": 12348,
+   "resid": -0.0792
   }
  }
 }
