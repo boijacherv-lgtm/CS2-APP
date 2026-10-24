@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text, Wedge } from 'react-konva';
 import type { ControlMap } from '../engine/control';
 import { FOV, type Analysis, type TacticalEngine } from '../engine/predict';
-import { activeSmokes, distToSegment, SMOKE_RADIUS_UNITS } from '../engine/grid';
+import { activeSmokes, distToSegment, smokeOpenAt, SMOKE_RADIUS_UNITS } from '../engine/grid';
 import { radarToWorld, worldToRadar } from '../engine/coords';
 import { simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
@@ -637,7 +637,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 onDblClick={e => { e.cancelBubble = true; pickUp(u.id); }} onDblTap={e => { e.cancelBubble = true; pickUp(u.id); }}
                 onDragEnd={e => s.move(u.id, { x: e.target.x(), y: e.target.y() })}
                 onClick={e => { e.cancelBubble = true; if (aiming) commitAim(); else if (carry) { const q = pointer(); if (q) drop(q); } else if (s.tool === 'select') s.select(u.id); }}>
-                <NadeAtLanding u={u} t={s.time} k={k} unitsPerPx={UNITS_PER_PX} selected={s.selectedId === u.id} doomed={doomed} editable={s.mode !== 'review'} grade={nadeGrades.get(u.id)} />
+                <NadeAtLanding u={u} t={s.time} k={k} unitsPerPx={UNITS_PER_PX} selected={s.selectedId === u.id} doomed={doomed} editable={s.mode !== 'review'} grade={nadeGrades.get(u.id)}
+                  opened={u.type === 'smoke' ? smokeOpenAt(u, s.board.utility, s.time, UNITS_PER_PX) : undefined} />
               </Group>
             );
           })}

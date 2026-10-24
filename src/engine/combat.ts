@@ -32,7 +32,8 @@ export interface KillEvent {
   killer: string; // '' for utility kills
   victim: string;
   at: Vec2;
-  cause: 'gun' | 'he' | 'molotov';
+  /** impact: a smoke, flash or decoy that hit them directly (1 hp of damage that finished them). */
+  cause: 'gun' | 'he' | 'molotov' | 'impact';
 }
 
 /** Something utility did to a player: blinded (amount = seconds) or damaged (amount = hp). */

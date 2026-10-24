@@ -631,7 +631,6 @@ a.btn:hover { border-color: #45505e; }
 .kf-gun { color: #fff; font-size: 11.5px; display: inline-flex; align-items: center; gap: 5px; }
 .kf-mod { display: inline-flex; align-items: center; gap: 3px; color: #fff; }
 .kill-icon { flex: none; }
-.kill-icon.headshot { color: #ff8a7f; }
 .kf-mark { min-width: 20px; height: 18px; padding: 0 3px; border-radius: 4px; display: grid; place-items: center; color: #111; font-weight: 900; font-size: 10.5px; }
 
 /* grenades in the Economy table: CS2's buy-menu pictograms */
