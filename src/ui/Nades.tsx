@@ -55,7 +55,7 @@ function Countdown({ r, left, total, k, color }: { r: number; left: number; tota
   );
 }
 
-function SmokeCloud({ u, t, k, R }: { u: Utility; t: number; k: number; R: number }) {
+function SmokeCloud({ u, t, k, R, opened }: { u: Utility; t: number; k: number; R: number; opened?: { open: number; at: Vec2 | null } }) {
   const since = t - popAt(u);
   const life = lifeOf(u);
   const left = life - since;
@@ -67,16 +67,25 @@ function SmokeCloud({ u, t, k, R }: { u: Utility; t: number; k: number; R: numbe
     const d = i === 0 ? 0 : R * (0.38 + rnd() * 0.18);
     return { x: Math.cos(a) * d, y: Math.sin(a) * d, r: R * (i === 0 ? 0.72 : 0.5 + rnd() * 0.14) };
   });
+  // blown open by an HE: the puffs near the blast thin out (all of them a bit), then fill back in
+  const open = opened?.open ?? 0;
+  const hole = opened?.at ? { x: opened.at.x - u.pos.x, y: opened.at.y - u.pos.y } : { x: 0, y: 0 };
+  const thin = (p: { x: number; y: number }) => {
+    if (!open) return 1;
+    const near = Math.max(0, 1 - Math.hypot(p.x * grow - hole.x, p.y * grow - hole.y) / (R * 1.1));
+    return Math.max(0.04, 1 - open * (0.55 + 0.45 * near));
+  };
   return (
     <Group listening={false}>
       <Group scaleX={grow} scaleY={grow} opacity={alpha}>
         {puffs.map((p, i) => (
-          <Circle key={i} x={p.x} y={p.y} radius={p.r}
+          <Circle key={i} x={p.x} y={p.y} radius={p.r} opacity={thin(p)}
             fillRadialGradientStartPoint={{ x: 0, y: 0 }} fillRadialGradientEndPoint={{ x: 0, y: 0 }}
             fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={p.r}
             fillRadialGradientColorStops={[0, 'rgba(232,236,240,0.95)', 0.55, 'rgba(196,203,210,0.85)', 1, 'rgba(160,168,178,0)']} />
         ))}
       </Group>
+      {open > 0.98 && <Circle x={hole.x} y={hole.y} radius={R * 0.95} stroke="#dfe4ea" strokeWidth={1.2 * k} dash={[3 * k, 3 * k]} opacity={0.6} />}
       {alpha > 0.3 && <Countdown r={R} left={left} total={life} k={k} color="#dfe4ea" />}
     </Group>
   );
@@ -151,8 +160,10 @@ export function nadePhase(u: Utility, t: number): NadePhase {
  * The grenade at its landing spot (draw inside a Group positioned at u.pos).
  * `editable` keeps a faint icon visible before/after so it can be selected and dragged.
  */
-export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable, grade }: {
+export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable, grade, opened }: {
   u: Utility; t: number; k: number; unitsPerPx: number; selected: boolean; doomed: boolean; editable: boolean;
+  /** A smoke blown open by an HE right now: how far (0–1) and where the blast was (radar px). */
+  opened?: { open: number; at: Vec2 | null };
   /** Review grade, shown as a chess-style mark on the grenade once it has popped. */
   grade?: Annotation;
 }) {
@@ -163,7 +174,7 @@ export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable,
   if (!editable && phase === 'planned') return null;
   return (
     <>
-      {phase === 'active' && u.type === 'smoke' && <SmokeCloud u={u} t={t} k={k} R={R} />}
+      {phase === 'active' && u.type === 'smoke' && <SmokeCloud u={u} t={t} k={k} R={R} opened={opened} />}
       {phase === 'active' && u.type === 'molotov' && <Fire u={u} t={t} k={k} R={R} />}
       {phase === 'active' && u.type === 'flash' && <FlashBurst u={u} t={t} k={k} />}
       {phase === 'active' && u.type === 'he' && <HeBlast u={u} t={t} k={k} R={R} />}

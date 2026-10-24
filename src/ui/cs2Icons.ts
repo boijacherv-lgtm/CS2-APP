@@ -58,6 +58,14 @@ export const CS2_ICONS = {
   'equipment/ump45': 2.609,
   'equipment/usp_silencer': 2.164,
   'equipment/xm1014': 3.059,
+  // the killfeed's kill modifiers (panorama/images/hud/deathnotice)
+  'deathnotice/blind_kill': 1.0,
+  'deathnotice/icon_headshot': 1.0,
+  'deathnotice/inairkill': 1.0,
+  'deathnotice/noscope': 1.0,
+  'deathnotice/penetrate': 1.0,
+  'deathnotice/smoke_kill': 1.0,
+  'deathnotice/smokegrenade_impact': 1.0,
 } as const;
 
 export type Cs2Icon = keyof typeof CS2_ICONS;

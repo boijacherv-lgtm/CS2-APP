@@ -250,10 +250,35 @@ export const UTIL_FLIGHT = 1.5;
 /** How long a smoke or fire lasts once it pops (a demo knows the real value: cleared or extinguished early). */
 export const lifeOf = (u: Pick<Utility, 'type' | 'duration'>) => u.duration ?? (u.type === 'smoke' ? SMOKE_DURATION : u.type === 'molotov' ? MOLLY_DURATION : 0);
 
-/** Smokes whose bloom is active at round time t. */
+/**
+ * CS2's smokes are a volume an HE blast pushes away: a hole that stays open a moment, then fills back in. Seconds
+ * (approximate, from watching the game): fully open for `open`, filling back over `refill`.
+ */
+export const SMOKE_CLEAR = { open: 1.2, refill: 1.8 };
+
+/** The HE grenades that went off inside this smoke while it was up: when, and where (radar px). */
+export function smokeBlasts(smoke: Utility, util: Utility[], unitsPerPx: number): { t: number; pos: Vec2 }[] {
+  if (smoke.type !== 'smoke') return [];
+  const from = popAt(smoke), to = from + lifeOf(smoke), r = SMOKE_RADIUS_UNITS / unitsPerPx;
+  return util.filter(h => h.type === 'he' && popAt(h) >= from && popAt(h) <= to && Math.hypot(h.pos.x - smoke.pos.x, h.pos.y - smoke.pos.y) <= r * 1.1)
+    .map(h => ({ t: popAt(h), pos: h.pos }));
+}
+
+/** How far a smoke is blown open at round time t (0 = whole, 1 = wide open), and by which blast. */
+export function smokeOpenAt(smoke: Utility, util: Utility[], t: number, unitsPerPx: number): { open: number; at: Vec2 | null } {
+  let best = { open: 0, at: null as Vec2 | null };
+  for (const b of smokeBlasts(smoke, util, unitsPerPx)) {
+    const s = t - b.t;
+    const open = s < 0 ? 0 : s <= SMOKE_CLEAR.open ? 1 : Math.max(0, 1 - (s - SMOKE_CLEAR.open) / SMOKE_CLEAR.refill);
+    if (open > best.open) best = { open, at: b.pos };
+  }
+  return best;
+}
+
+/** Smokes whose bloom is active at round time t (and not blown open by an HE right now: you can see through then). */
 export function activeSmokes(util: Utility[], t: number, unitsPerPx: number): SmokeDisc[] {
   return util
-    .filter(u => u.type === 'smoke' && t >= popAt(u) && t <= popAt(u) + lifeOf(u))
+    .filter(u => u.type === 'smoke' && t >= popAt(u) && t <= popAt(u) + lifeOf(u) && smokeOpenAt(u, util, t, unitsPerPx).open < 0.5)
     .map(u => ({ pos: u.pos, r: SMOKE_RADIUS_UNITS / unitsPerPx }));
 }
 

@@ -6,7 +6,7 @@ import { calloutAt, NOTE_INFO, moveKey, readMs, TAG_INFO, type DemoRound, type M
 import { useStore, whoAmI } from '../store';
 import { rageLine } from '../engine/rage';
 import { GameIcon, Icon } from './Icon';
-import { KillIcon, killMods } from './KillIcons';
+import { IMPACT_ICON, isImpactWeapon, KillIcon, killMods } from './KillIcons';
 import { CS2_ICONS, type Cs2Icon } from './cs2Icons';
 import { useShown } from './shown';
 
@@ -220,7 +220,9 @@ export function KillFeed({ recap, round, time, names }: { recap: Review; round: 
         const kill = k.attacker && k.attacker !== k.victim && sideOf(k.attacker) ? moveOf('kill', k.attacker, k.t) : undefined;
         const death = moveOf('death', k.victim, k.t);
         const open = kill ?? death;
-        const gun = weaponLabel(k.weapon), pic = weaponIcon(k.weapon);
+        // a smoke, flash or decoy that hit them directly: CS2's impact pictogram
+        const impact = isImpactWeapon(k.weapon);
+        const gun = impact ? `${weaponLabel(k.weapon)} (direct hit)` : weaponLabel(k.weapon), pic = impact ? IMPACT_ICON : weaponIcon(k.weapon);
         const on = !!open && picked?.key === moveKey(open) && Math.abs(picked.t - time) < 0.01;
         const mods = killMods(k);
         const assist = k.assist && k.assist !== k.attacker && names[k.assist] ? k.assist : null;

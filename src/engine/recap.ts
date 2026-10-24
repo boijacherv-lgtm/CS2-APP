@@ -2,7 +2,7 @@ import { FLASH_POP, HE_POP, SIM_DT, type KillEvent, type Simulation } from './co
 import { computeControl } from './control';
 import { worldToRadar } from './coords';
 import { gunFromName, primaryGun } from './guns';
-import { lifeOf, segmentHitsCircle, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
+import { lifeOf, popAt, segmentHitsCircle, smokeBlasts, smokeOpenAt, SMOKE_CLEAR, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
 import type { TacticalEngine } from './predict';
 import UTIL_SPOTS from '../map/generated/util-spots.json';
 import { placeOf as calloutOfSpot } from './situations';
@@ -305,7 +305,8 @@ export function buildReplay(engine: TacticalEngine, demo: DemoData, roundIdx: nu
     if (v < 0) continue;
     sim.deathT[v] = Math.min(sim.deathT[v], k.t);
     const w = k.weapon.toLowerCase();
-    const cause: KillEvent['cause'] = w.includes('hegrenade') ? 'he' : w.includes('inferno') || w.includes('molotov') ? 'molotov' : 'gun';
+    const cause: KillEvent['cause'] = w.includes('hegrenade') ? 'he' : w.includes('inferno') || w.includes('molotov') ? 'molotov'
+      : /smokegrenade|flashbang|decoy/.test(w) ? 'impact' : 'gun';
     sim.kills.push({ t: k.t, killer: ids.includes(k.attacker) && k.attacker !== k.victim ? k.attacker : '', victim: k.victim, at: toR(k.x, k.y), cause });
   }
   sim.kills.sort((a, b) => a.t - b.t);
@@ -440,13 +441,16 @@ export const NOTE_INFO: Record<Annotation, { mark: string; label: string; color:
 };
 
 /** Context tags: the one-word "why" next to a grade (like a match feed). */
+/** "smokegrenade" → "smoke": the grenade that hit someone directly. */
+const impactName = (w?: string) => /flash/.test(w ?? '') ? 'flashbang' : /decoy/.test(w ?? '') ? 'decoy' : 'smoke';
+
 export type Tag =
   | 'OPENING' | 'TRADE' | 'TRADED' | 'ISOLATED' | 'CROSSFIRE' | 'CLUTCH' | 'MULTI-KILL' | 'ECO FRAG' | 'AWP DOWN' | 'AWP LOST'
   | 'FLASH ASSIST' | 'NADE ASSIST' | 'BLIND' | 'LOW HP' | 'TEAM FLASH' | 'TEAM DAMAGE' | 'WASTED' | 'DENIED' | 'POST-PLANT' | 'UNUSED UTIL' | 'WHIFF' | 'UPSET'
   | 'FLANK' | 'ANCHOR' | 'TEAM KILL' | 'ECO DEATH' | 'PLANT' | 'DEFUSE' | 'NINJA'
   | 'NO TRADE' | 'LATE ROTATION' | 'OVER-ROTATION' | 'DRY PEEK'
   | 'KNIFE OUT' | 'NO AMMO' | 'MOVING SHOT' | 'LOUD' | 'BAD PEEK' | 'LONG ODDS' | 'STALL' | 'OUTGUNNED'
-  | 'WALLBANG' | 'THROUGH SMOKE' | 'BLIND SHOT' | 'NO-SCOPE' | 'JUMP SHOT' | 'NADE KILL';
+  | 'WALLBANG' | 'THROUGH SMOKE' | 'BLIND SHOT' | 'NO-SCOPE' | 'JUMP SHOT' | 'NADE KILL' | 'SMOKE CLEAR';
 const GOOD = '#22c55e', BAD = '#ef4444', UTIL = '#3b82f6', INFO = '#a39b8f';
 export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   OPENING: { color: INFO, tip: 'First kill of the round.' },
@@ -494,7 +498,8 @@ export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   'THROUGH SMOKE': { color: INFO, tip: 'The killing bullet went through a smoke.' },
   'BLIND SHOT': { color: INFO, tip: 'The shooter was flashed when they got the kill.' },
   'NO-SCOPE': { color: INFO, tip: 'A sniper kill without scoping in.' },
-  'NADE KILL': { color: UTIL, tip: 'Killed with an HE grenade or fire.' },
+  'SMOKE CLEAR': { color: UTIL, tip: 'An HE grenade that blew the enemy smoke open for a few seconds.' },
+  'NADE KILL': { color: UTIL, tip: 'Killed with an HE grenade, fire, or a grenade that hit them directly.' },
   'JUMP SHOT': { color: INFO, tip: 'The shooter was in the air (jumping or falling) when they got the kill.' },
 };
 
@@ -795,7 +800,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const dk = demoKill(k);
     const kGun = dk ? gunFromName(dk.weapon) : undefined;
     const withGun = kGun ? ` with ${kGun.name}${dk?.headshot ? ' (headshot)' : ''}`
-      : k.cause === 'he' ? ' with an HE grenade' : k.cause === 'molotov' ? ' with fire' : dk?.headshot ? ' (headshot)' : '';
+      : k.cause === 'he' ? ' with an HE grenade' : k.cause === 'molotov' ? ' with fire' : k.cause === 'impact' ? ` with a ${impactName(dk?.weapon)} to the face` : dk?.headshot ? ' (headshot)' : '';
     const before = stateAt(k.t - 0.05), after = stateAt(k.t + 0.05);
     const ctDelta = after - before;
     const vi = idx(k.victim);
@@ -803,7 +808,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const firstKill = n === 0;
     const ki = k.killer ? idx(k.killer) : -1;
     const killerAt = ki >= 0 ? posAt(ki, k.t) : null;
-    const cause = k.cause === 'he' ? 'HE grenade' : k.cause === 'molotov' ? 'fire' : kGun?.name ?? '';
+    const cause = k.cause === 'he' ? 'HE grenade' : k.cause === 'molotov' ? 'fire' : k.cause === 'impact' ? `${impactName(dk?.weapon)} (direct hit)` : kGun?.name ?? '';
     // how the bullet got there (newer parses): through walls, through a smoke, from a flashed / jumping shooter
     const walls = dk?.wall ?? 0, thruSmoke = !!dk?.smoke, blindShot = !!dk?.blind;
     const wallText = walls === 1 ? 'a wall' : `${walls} walls`;
@@ -840,7 +845,9 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     if (seers >= 2) why.push(`Exposed to ${seers} enemies at once (crossfire).`);
     if (wasBlind) why.push('Was flashed when it happened.');
     if (hpBefore < 50 && hpBefore > 0) why.push(`Already hurt (${hpBefore} hp) before the duel.`);
-    if (k.cause !== 'gun') why.push(k.cause === 'he' ? 'Killed by an HE grenade.' : 'Burned by a molotov: stood in fire.');
+    if (k.cause !== 'gun') why.push(k.cause === 'he' ? 'Killed by an HE grenade.' : k.cause === 'impact'
+      ? `Finished off by a ${impactName(dk?.weapon)} that hit you directly: you were on almost no health and still exposed.`
+      : 'Burned by a molotov: stood in fire.');
     if (walls) why.push(`Shot through ${wallText} (a wallbang): they knew or guessed where you were. Don't stop on a spot they can spray through, and don't make noise next to one.`);
     if (thruSmoke) why.push(`Shot through a smoke: they were spraying it${walls ? ' as well' : ''}. Standing behind or crossing a smoke that's being sprayed gets you killed: wait it out or go wide.`);
     if (blindShot) why.push('They were flashed when they killed you: you had the fight won and lost it (swing while they can\'t see).');
@@ -925,6 +932,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (kGun?.id === 'awp' && dk?.headshot === false) awhy.push('AWP one-shot to the body.');
       if (k.cause === 'he') awhy.push('An HE grenade kill: utility that finished the job.');
       if (k.cause === 'molotov') awhy.push('Burned them: a molotov kill.');
+      if (k.cause === 'impact') awhy.push(`Killed them with a ${impactName(dk?.weapon)} to the face: a direct hit on a player with almost no health left.`);
       if (walls) awhy.push(`Through ${wallText}: a wallbang, shot where they had to be.`);
       if (thruSmoke) awhy.push('Through a smoke: read where they were and shot without seeing them.');
       if (blindShot) awhy.push('Got it while flashed.');
@@ -1024,6 +1032,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       // points on the near rim of the smoke: if an enemy sees them, the smoke is in their view
       const rim = (pe: Vec2) => { const d = Math.hypot(pe.x - at.x, pe.y - at.y) || 1; return { x: at.x + ((pe.x - at.x) / d) * R * 1.05, y: at.y + ((pe.y - at.y) / d) * R * 1.05 }; };
       for (let t = from + 1; t <= Math.min(to, r.duration); t += 1) {
+        if (smokeOpenAt(nade, board.utility, t, scale).open >= 0.5) continue; // blown open by an HE: blocking nothing
         for (const e of enemiesOf(s)) {
           if (!alive(e, t)) continue;
           const pe = posAt(e, t);
@@ -1062,6 +1071,9 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         gain = Math.min(gain, 0);
       }
       if (caught) why.push(`${caught} teammate${caught > 1 ? 's' : ''} died at the smoke anyway.`);
+      const blownBy = smokeBlasts(nade, board.utility, scale).map(b => board.utility.findIndex(h => h.type === 'he' && popAt(h) === b.t))
+        .filter(i => i >= 0 && sideOf.get(r.util[i]?.thrower) !== s);
+      if (blownBy.length) why.push(`Blown open by an enemy HE${blownBy.length > 1 ? ` ${blownBy.length} times` : ''}: see-through for about ${Math.round(SMOKE_CLEAR.open + SMOKE_CLEAR.refill / 2)} s each time.`);
       if (sprayedUs) why.push(`${sprayedUs === 1 ? 'A teammate was' : `${sprayedUs} teammates were`} shot through it: the enemy sprayed the smoke.`);
       if (usedIt) why.push(`Your team got ${usedIt === 1 ? 'a kill' : `${usedIt} kills`} shooting through it.`);
       const hits = u.bounces?.length ?? 0;
@@ -1074,6 +1086,15 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       return { gain, note, why, tags };
     }
 
+    // an HE that went off inside a smoke blows it open for a moment (CS2's smoke volume): the enemy's is a reveal
+    const blown = u.type !== 'he' ? [] : board.utility.map((sm, i) => ({ sm, i }))
+      .filter(({ sm }) => sm.type === 'smoke' && smokeBlasts(sm, board.utility, scale).some(b => b.t === popAt(nade)));
+    const revealed = blown.filter(({ i }) => r.util[i] && sideOf.get(r.util[i].thrower) !== s);
+    const ownBlown = blown.filter(({ i }) => r.util[i] && sideOf.get(r.util[i].thrower) === s);
+    const openFor = SMOKE_CLEAR.open + SMOKE_CLEAR.refill / 2;
+    const throughGap = revealed.length ? sim.kills.filter(k => k.killer && sideOf.get(k.killer) === s && sideOf.get(k.victim) !== s && k.t >= from && k.t <= from + openFor + 1
+      && revealed.some(({ sm }) => Math.hypot(k.at.x - sm.pos.x, k.at.y - sm.pos.y) * scale < SMOKE_RADIUS_UNITS * 3)).length : 0;
+
     // HE / molotov: damage and who it reached
     const softened = hitEnemies.filter(v => sim.kills.some(k => k.victim === v && k.t >= from && k.t - from <= (u.type === 'he' ? 5 : 8)));
     if (enemyDmg) why.push(`${enemyDmg} damage to ${hitEnemies.length === 1 ? 'an enemy' : `${hitEnemies.length} enemies`}.`);
@@ -1084,6 +1105,13 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const tags: Tag[] = [];
     if (softened.length) tags.push('NADE ASSIST');
     if (teamDmg >= 20) tags.push('TEAM DAMAGE');
+    if (revealed.length) {
+      why.push(`Blew open the enemy smoke${where(revealed[0].sm.pos)}: see-through for about ${Math.round(openFor)} s.`);
+      if (throughGap) why.push(`${throughGap === 1 ? 'A kill' : `${throughGap} kills`} for your team right after, through the gap.`);
+      gain += 0.012 + 0.025 * throughGap;
+      tags.push('SMOKE CLEAR');
+    }
+    if (ownBlown.length) { why.push('Blew open your own team\'s smoke.'); gain -= 0.01; }
 
     if (u.type === 'molotov') {
       // area denial: enemies that were close to the fire while it burned (it held them off or pushed them out)
@@ -1105,6 +1133,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (!near.size && !enemyDmg) { why.push(`Burned empty ground: no enemy came near it.${bounceNote(u)}`); return { gain: Math.min(gain, -0.01), note: '?', why, tags: [...tags, 'WASTED'] }; }
       const note: Annotation = enemyDmg >= 150 ? '!!' : enemyDmg >= 60 || softened.length || near.size >= 3 ? '!' : hurtTeam ? '?' : 'book';
       return { gain, note, why, tags };
+    } else if (!enemyDmg && revealed.length) {
+      return { gain, note: throughGap ? '!' : 'book', why, tags };
     } else if (!enemyDmg && stall && u.type === 'he') {
       return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Thrown early to slow a push down: nobody was there to hit, which is the point.'], tags: [...tags, 'STALL'] };
     } else if (!enemyDmg) {
