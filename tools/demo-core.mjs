@@ -4,6 +4,13 @@
 // demo (`input`: a file path for the native parser, bytes for the browser build) as its first argument.
 // tools/demo.mjs passes the native parser (desktop app, server); src/ui/demoWorker.ts the WebAssembly build (website).
 
+/**
+ * Bump when this reads demos differently (new fields), so saved reads are redone: by the learn tools
+ * (<folder>/.stratboard-parsed), the site (demos read from your replays folder, kept in the browser) and the server.
+ * 6: gear over the round (inventory, armour, kit, money once a second); 7: grenade flight paths, bounces, kill flags
+ */
+export const PARSE_V = 7;
+
 const TICKRATE = 64;
 const SAMPLE_EVERY = 16; // ticks → 0.25 s
 const side = n => (n === 3 || n === '3' ? 'CT' : n === 2 || n === '2' ? 'T' : null);

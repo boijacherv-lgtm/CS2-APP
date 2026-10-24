@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import { DATA, ROOT } from './config.mjs';
 import { parseDemo } from '../../tools/demo.mjs';
+import { PARSE_V } from '../../tools/demo-core.mjs';
 
 const require = createRequire(import.meta.url);
 const unbzip2 = require('unbzip2-stream');
@@ -20,10 +21,25 @@ fs.mkdirSync(GRADED, { recursive: true });
 
 export class Gone extends Error {}
 
+/** Where the parsed match is kept: by the reader's version (PARSE_V), so a newer reader parses it again. */
+const parsedFile = outcomeId => path.join(PARSED, `${outcomeId}.v${PARSE_V}.json.gz`);
+
 /** The parsed match, gzipped (from disk, or downloaded and parsed now). */
 export async function parsedDemo(outcomeId, info, log) {
-  const file = path.join(PARSED, `${outcomeId}.json.gz`);
+  const file = parsedFile(outcomeId);
   if (fs.existsSync(file)) return { gz: fs.readFileSync(file), fresh: false };
+  // read by an older reader: parse it again while Valve still has the demo, else keep the old copy
+  const old = fs.readdirSync(PARSED).filter(f => f.startsWith(`${outcomeId}.`) && f.endsWith('.json.gz')).sort().at(-1);
+  if (old) {
+    try { return await parse(outcomeId, info, file, log); } catch (e) {
+      log(`  kept the older read (${e.message})`);
+      return { gz: fs.readFileSync(path.join(PARSED, old)), fresh: false };
+    }
+  }
+  return parse(outcomeId, info, file, log);
+}
+
+async function parse(outcomeId, info, file, log) {
   if (!info.url) throw new Gone('Valve has no demo for this match (they keep them about a month).');
   const res = await fetch(info.url);
   if (res.status === 404) throw new Gone('The demo has expired on Valve\'s servers.');
@@ -71,7 +87,7 @@ export const canGrade = () => fs.existsSync(VITE_NODE);
 export async function gradedMatch(outcomeId, gz, playedAt, log) {
   const file = path.join(GRADED, `${outcomeId}.json`);
   if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
-  const input = path.join(PARSED, `${outcomeId}.json.gz`);
+  const input = parsedFile(outcomeId);
   if (!fs.existsSync(input)) fs.writeFileSync(input, gz);
   // a separate process, so the bot stays connected to Steam while it grades
   const out = await new Promise(resolve => {

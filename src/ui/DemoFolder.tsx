@@ -4,6 +4,7 @@ import { MAPS } from '../map/catalog';
 import { useStore } from '../store';
 import { delItem, getItem, gunzipJson, gzipJson, setItem } from './localStore';
 import { DEMO_PASSES, readDemoInBrowser } from './readDemo';
+import { PARSE_V } from '../../tools/demo-core.mjs';
 import { steamFetch } from './steamApi';
 
 /**
@@ -15,9 +16,15 @@ import { steamFetch } from './steamApi';
 const AUTO_READ = 5; // newest demos read automatically; older ones on click
 const RESCAN_MS = 8000;
 const SHOW = 20;
-// bump when the demo data gains something (v2: the bomb, v3: grenade throws), so saved games are read again
+// saved games are read again when the reader changes (PARSE_V) or the site's own summary does (V)
 const V = 5; // 5: micro detail (stance, weapon, ammo; shot speed)
-const DEMO = (name: string) => `demo${V}:${name}`, SUM = (name: string) => `sum${V}:${name}`;
+const KEY = (v: number, p: number) => `${v}${p ? `.${p}` : ''}`; // p 0: saved before PARSE_V was part of the key
+const DEMO = (name: string) => `demo${KEY(V, PARSE_V)}:${name}`, SUM = (name: string) => `sum${KEY(V, PARSE_V)}:${name}`;
+/** Older copies of a saved game, deleted once it's read again. */
+const oldKeys = (name: string) => [
+  ...Array.from({ length: V }, (_, i) => i + 1).map(v => `${v > 1 ? v : ''}`),
+  ...Array.from({ length: PARSE_V }, (_, p) => KEY(V, p)).filter(k => k !== `${V}`),
+].flatMap(k => [`demo${k}:${name}`, `sum${k}:${name}`]);
 
 interface DemoFile { name: string; size: number; modified: number; handle: FileSystemFileHandle }
 interface Summary {
@@ -162,7 +169,7 @@ export function DemoFolder() {
       await setItem(DEMO(f.name), await gzipJson(data));
       const s = summarize(data, steamId);
       await setItem(SUM(f.name), s);
-      for (let v = 1; v < V; v++) { delItem(`demo${v > 1 ? v : ''}:${f.name}`); delItem(`sum${v > 1 ? v : ''}:${f.name}`); } // older copies
+      for (const k of oldKeys(f.name)) delItem(k);
       setSums(prev => ({ ...prev, [f.name]: s }));
     } catch (e) {
       const why = e instanceof Error ? e.message : String(e);
