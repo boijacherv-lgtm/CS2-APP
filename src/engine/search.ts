@@ -73,6 +73,8 @@ const PEEK_REACH = 4; // seconds: how far a peek can be
 export const OPENING = 20;
 const PLANT_REACH = 6; // seconds: a site this close counts as "go plant"
 const SEEN = 4; // an enemy spotted this recently counts as known (at the last spot seen)
+const PLANT_HEARD = 1200; // units: an enemy this near a plant comes for it
+const PLANT_SEEN = 12; // …and for a plant (seconds on the spot), one spotted this recently
 const HEARD = 600; // units (~15 m): an enemy this close is heard
 const SHOTS_HEARD = 2000; // units (~50 m): gunfire this close tells where they are
 const TRADE_DIST = 900; // units: a teammate this close can trade
@@ -221,10 +223,10 @@ export function roundSearcher(engine: TacticalEngine, r: DemoRound) {
    */
   const shotsBy = new Map<string, number[]>();
   for (const sh of r.shots ?? []) shotsBy.set(sh.id, [...(shotsBy.get(sh.id) ?? []), sh.t]);
-  const known = (id: string, t: number) => {
+  const known = (id: string, t: number, seen = SEEN) => {
     const me = pos(id, t);
     return ids.filter(e => side(e) && side(e) !== side(id) && alive(e, t)).flatMap(e => {
-      for (let u = t; u >= t - SEEN; u -= 0.5) if (alive(e, u) && spotted(e, u)) return [{ id: e, at: pos(e, u), seenAgo: t - u }];
+      for (let u = t; u >= t - seen; u -= 0.5) if (alive(e, u) && spotted(e, u)) return [{ id: e, at: pos(e, u), seenAgo: t - u }];
       const now = pos(e, t);
       if (dist(me, now) < HEARD) return [{ id: e, at: now, seenAgo: 0 }];
       const shot = (shotsBy.get(e) ?? []).filter(x => x <= t && t - x <= 3).at(-1);
@@ -247,6 +249,7 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
   if (!foes.length) return null;
   const me = S.pos(id, t);
   const enemies = S.known(id, t);
+  const plantWatch = S.known(id, t, PLANT_SEEN);
   const smokes = S.smokesAt(t);
   const map = engine.map.id;
   const phase = phaseOf(t, r.plant);
@@ -354,9 +357,11 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
     // fights: known enemies that can see where the option leaves them, or see them on the way there (a denied /
     // smoked-off enemy can't); the ones on the way first
     const sees = (e: { at: Vec2 }, q: Vec2) => S.dist(q, e.at) < 3000 && engine.grid.lineOfSight(q, e.at, sm);
-    const live = enemies.filter(e => e.id !== p.deny);
+    // a plant takes seconds on the spot: an enemy seen near the site a while ago is still there to stop it
+    const live = (p.plant ? [...enemies, ...plantWatch.filter(w => !enemies.some(e => e.id === w.id))] : enemies).filter(e => e.id !== p.deny);
     const onWay = live.filter(e => !sees(e, p.to) && (p.path ?? []).some((q, i) => i % 2 === 0 && sees(e, q)));
-    const atEnd = live.filter(e => sees(e, p.to)).sort((a, b) => S.dist(p.to, a.at) - S.dist(p.to, b.at));
+    // the plant is loud: an enemy this close swings on the sound even without a view of the spot
+    const atEnd = live.filter(e => sees(e, p.to) || (p.plant && S.dist(p.to, e.at) < PLANT_HEARD)).sort((a, b) => S.dist(p.to, a.at) - S.dist(p.to, b.at));
     const contacts = [...onWay, ...atEnd].slice(0, 3);
     const peeking = p.travel > 0 && contacts.some(e => !engine.grid.lineOfSight(me, e.at, smokes));
     const mateNear = S.ids.some(o => o !== id && S.side(o) === s && S.alive(o, t) && S.dist(S.pos(o, t), p.to) < TRADE_DIST);
@@ -378,7 +383,7 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
       const pressure = enemies.filter(e => S.dist(p.to, e.at) < 1500).length;
       const risk = place ? proRisk(map, s, place, pressure, !mateNear) : null;
       death = risk && risk.n >= 8 ? (risk.died / risk.n) * 0.35 : 0;
-      win = (1 - death) * S.winFor(s, t, base) + death * S.winFor(s, t, { ...base, mine: -1, trade: mateNear ? 1 : 0 });
+      win = (1 - death) * S.winFor(s, t, base) + death * S.winFor(s, t, { ...base, plant: false, mine: -1, trade: mateNear ? 1 : 0 });
     } else {
       // fight them one after another; each fight from the duel model
       const qs = contacts.map(e => {
@@ -392,15 +397,17 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
       let alivePr = 1, fight = 0;
       for (let k = 0; k < qs.length; k++) {
         const dieHere = alivePr * (1 - qs[k]);
-        fight += dieHere * S.winFor(s, t, { ...base, theirs: -k, mine: -1, trade: mateNear ? 1 : 0 });
+        // dying on the way or mid-plant: no bomb down
+        fight += dieHere * S.winFor(s, t, { ...base, plant: false, theirs: -k, mine: -1, trade: mateNear ? 1 : 0 });
         death += dieHere;
         killsE += alivePr * qs[k];
         alivePr *= qs[k];
       }
       fight += alivePr * S.winFor(s, t, { ...base, theirs: -qs.length });
-      // step 2, the enemy's reply: they can also back off instead of taking a fight that's bad for them
+      // step 2, the enemy's reply: they can also back off instead of taking a fight that's bad for them (not from a
+      // plant or a defuse: letting it happen loses them the round)
       const theyBackOff = S.winFor(s, t, { ...base, myAreas: (base.myAreas ?? 0) + 1 });
-      if (fight > theyBackOff) { win = theyBackOff; death = 0; killsE = 0; } else win = fight;
+      if (!p.plant && !p.defuse && fight > theyBackOff) { win = theyBackOff; death = 0; killsE = 0; } else win = fight;
     }
     const way = p.path?.length ? [...p.path.filter((_, i, xs) => i % Math.max(1, Math.ceil(xs.length / 10)) === 0), p.to].map(q => ({ x: Math.round(q.x), y: Math.round(q.y) })) : undefined;
     return { kind: p.kind, label: p.label, to: p.to, nade: p.nade, ...(way ? { path: way } : {}), win: Math.min(1, Math.max(0, win + posGain)), death: +death.toFixed(3), kills: +killsE.toFixed(3) };

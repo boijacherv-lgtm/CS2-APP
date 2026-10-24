@@ -3,34 +3,34 @@
   0.0077,
   0.0197,
   0.0329,
-  0.0486
+  0.0485
  ],
- "scale": 2.263,
- "costScale": 0.811,
+ "scale": 2.418,
+ "costScale": 0.762,
  "moments": 509932,
  "rounds": 2708,
  "check": {
-  "corr": 0.319,
-  "clearRounds": 646,
-  "beatBy": 0.246
+  "corr": 0.311,
+  "clearRounds": 612,
+  "beatBy": 0.251
  },
  "calibratedAt": "2026-10-24",
  "byLoss": {
   "best": {
-   "n": 153040,
-   "resid": 0.0119
+   "n": 152618,
+   "resid": 0.0115
   },
   "small": {
-   "n": 181919,
+   "n": 182250,
    "resid": 0.0025
   },
   "medium": {
-   "n": 162625,
-   "resid": -0.009
+   "n": 163140,
+   "resid": -0.0094
   },
   "big": {
-   "n": 12348,
-   "resid": -0.0792
+   "n": 11924,
+   "resid": -0.0699
   }
  }
 }

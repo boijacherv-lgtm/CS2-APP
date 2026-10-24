@@ -241,6 +241,41 @@ export interface Replay {
   names: Record<string, string>;
   round: DemoRound;
   ranks: Record<string, PlayerRank>;
+  /** Each player's usual job on their side this match: where they are early in the round (learned from the other rounds). */
+  usual?: Record<string, UsualSpot>;
+}
+
+/** Where a player usually goes first on a side: the spot (out of spawn) they're at ROLE_T s into most of their rounds there. */
+export interface UsualSpot { place: string; rounds: number; of: number }
+const ROLE_T = 10;
+/** A spot is their job when they're there in at least this share of at least ROLE_MIN of their rounds on that side. */
+const ROLE_SHARE = 0.5, ROLE_MIN = 4;
+
+export function usualSpots(engine: TacticalEngine, demo: DemoData, roundIdx: number): Record<string, UsualSpot> {
+  const out: Record<string, UsualSpot> = {};
+  const here = demo.rounds[roundIdx];
+  for (const [id, me] of Object.entries(here.frames.players)) {
+    const count = new Map<string, number>();
+    let of = 0;
+    demo.rounds.forEach((r, j) => {
+      const p = r.frames.players[id];
+      if (j === roundIdx || !p || p.side !== me.side) return;
+      const k = r.frames.t.findIndex(t => t >= ROLE_T), k0 = r.frames.t.findIndex(t => t >= 1);
+      if (k < 0 || k0 < 0 || !p.alive[k]) return;
+      const at = (i: number) => calloutOfSpot(engine, worldToRadar({ x: p.x[i], y: p.y[i] }, engine.map.radar));
+      const place = at(k);
+      // still around spawn isn't a job, nor a spot the team goes through together
+      if (!place || place === at(k0)) return;
+      const with_ = Object.entries(r.frames.players).filter(([o, q]) => o !== id && q.side === p.side && q.alive[k]
+        && calloutOfSpot(engine, worldToRadar({ x: q.x[k], y: q.y[k] }, engine.map.radar)) === place).length;
+      if (with_ >= 2) return;
+      of++;
+      count.set(place, (count.get(place) ?? 0) + 1);
+    });
+    const top = [...count].sort((a, b) => b[1] - a[1])[0];
+    if (top && of >= ROLE_MIN && top[1] / of >= ROLE_SHARE) out[id] = { place: top[0], rounds: top[1], of };
+  }
+  return out;
 }
 
 const POP: Record<UtilType, number> = { smoke: UTIL_FLIGHT, molotov: UTIL_FLIGHT, flash: FLASH_POP, he: HE_POP };
@@ -342,7 +377,7 @@ export function buildReplay(engine: TacticalEngine, demo: DemoData, roundIdx: nu
     const gun = r.econ?.[id] ? primaryGun(r.econ[id].weapons) : undefined;
     return { id, side: s, pos: { x: sim.x[i][0], y: sim.y[i][0] }, weapon: gun?.cls ?? 'rifle', gun: gun?.id, label: shortName(id) };
   });
-  return { board: { players, utility, context }, sim, names: demo.names, round: r, ranks: demo.ranks ?? {} };
+  return { board: { players, utility, context }, sim, names: demo.names, round: r, ranks: demo.ranks ?? {}, usual: usualSpots(engine, demo, roundIdx) };
 }
 
 /**
@@ -773,6 +808,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   for (let t = 0; t <= r.duration + 0.01; t += 0.5) curve.push({ t, ct: stateAt(t) });
 
   const moves: Move[] = [];
+  /** Deaths excused as the player's usual job (re-checked once the duel is known: a dry peek isn't the job). */
+  const onRoleDeaths = new Set<Move>();
   const forSide = (s: Side, ctDelta: number) => (s === 'CT' ? ctDelta : -ctDelta);
   const enemiesSeeing = (i: number, t: number, exclude?: number) => {
     const me = posAt(i, t), mySide = sideOf.get(sim.ids[i]);
@@ -885,7 +922,10 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const myAlive = vi >= 0 ? sim.ids.filter((id, j) => sideOf.get(id) === vSide && alive(j, k.t - 0.05)).length : 2;
     const theirAlive = sim.ids.filter((id, j) => sideOf.get(id) !== vSide && alive(j, k.t - 0.05)).length;
     const lostCause = vBefore < LOST_CAUSE || (myAlive <= 1 && theirAlive >= 3);
-    if (lostCause) why.push(`The round was already about lost (${pct(vBefore)} for ${vSide}): little to blame here.`);
+    // a lost round doesn't excuse dying on almost no health: one hit kills, so the job is to hide and save
+    const careless = lostCause && !(!!k.killer && sideOf.get(k.killer) === vSide) && !traded && hpBefore > 0 && hpBefore <= 20;
+    if (careless) why.push(`On ${hpBefore} hp with the round lost, any hit kills: stay out of sight and save, don't take another fight.`);
+    else if (lostCause) why.push(`The round was already about lost (${pct(vBefore)} for ${vSide}): little to blame here.`);
     const vTags: Tag[] = [];
     if (outgunned) vTags.push('OUTGUNNED');
     if (firstKill) vTags.push('OPENING');
@@ -911,15 +951,22 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const fault = alone || whiff || unused >= 2 || blindShot;
     // ? only for a death with a clear fault, not every untraded one: alone or the opening duel and it cost 8%+,
     // a missed spray, two grenades in the pocket, the AWP thrown away
-    const vNote: Annotation = byMate || lostCause || (outgunned && !whiff) ? 'book'
+    // their usual job this half (an entry taking the same spot first every round): an opening or untraded death there,
+    // early, is the role's risk more than a mistake
+    const role = rep.usual?.[k.victim];
+    const onRole = !!role && k.t < 30 && placeOf(k.at) === role.place && !whiff && unused < 2 && !blindShot && !ecoDeath;
+    if (onRole) why.push(`Taking ${role!.place} first is ${name(k.victim)}'s usual job on ${vSide} this match (${role!.rounds} of ${role!.of} rounds): dying there early is part of that role.`);
+    const vNote: Annotation = careless ? '?' : byMate || lostCause || (outgunned && !whiff) ? 'book'
       : ecoDeath || (!traded && loss <= -0.3 && fault) ? '??'
-      : !traded && (whiff || unused >= 2 || vAwp || blindShot || ((alone || firstKill) && loss <= -0.08)) ? '?' : 'book';
-    moves.push({
+      : !traded && (whiff || unused >= 2 || vAwp || blindShot || ((alone || firstKill) && loss <= -0.08)) ? (onRole ? '?!' : '?') : 'book';
+    const deathMove: Move = {
       t: k.t, player: k.victim, side: vSide, kind: 'death', gain: loss, note: vNote,
       title: `${name(k.victim)} died${where(k.at)}${k.killer && k.killer !== k.victim
         ? `: ${name(k.killer)}${killerAt && placeOf(killerAt) !== placeOf(k.at) ? ` from ${placeOf(killerAt)}` : ''}${cause ? `, ${cause}${dk?.headshot ? ' (headshot)' : ''}` : ''}`
         : cause ? ` (${cause})` : ''}`, why, tags: vTags,
-    });
+    };
+    moves.push(deathMove);
+    if (onRole) onRoleDeaths.add(deathMove);
 
     // the killer
     if (k.killer) {
@@ -1144,6 +1191,12 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (near.size) tags.push('DENIED');
       const std = standardSpot(engine.map.id, 'molotov', s, u.x, u.y);
       if (std) why.unshift(`A standard molotov: level-10 players burn this spot (${std.throws} in ${std.demos} matches).`);
+      // a T molly clears a spot so the team can take it: one that finds nobody there cleared nothing (save it for the
+      // post-plant, or burn the spot only when a teammate saw someone there)
+      if (!near.size && !enemyDmg && std && s === 'T') {
+        why.push('Nobody was there: it cleared an empty spot. Burn it when someone was seen there, or keep it for the post-plant.');
+        return { gain: Math.min(gain, -0.01), note: '?!', why, tags: [...tags, 'WASTED'] };
+      }
       // an empty burn on a standard spot still did its job (nobody came through); anywhere else it was wasted
       if (!near.size && !enemyDmg && std) return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Nobody came through while it burned.'], tags };
       if (!near.size && !enemyDmg && stall) return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Thrown early to slow a push down: nobody came through while it burned.'], tags: [...tags, 'STALL'] };
@@ -1327,6 +1380,12 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
           // a bad peek alone and already hurt is a mistake, not just an inaccuracy
           atLeast(death, death.tags.includes('ISOLATED') && death.tags.includes('LOW HP') ? '?' : '?!');
         }
+        // a fight they were the clear favourite in, lost without a missed spray or the wrong thing in hand: more bad
+        // luck (or a great shot) than a bad decision, so at most an inaccuracy
+        if (lost.p >= 0.7 && (death.note === '?' || death.note === '??') && !death.tags.some(t => (['WHIFF', 'KNIFE OUT', 'NO AMMO', 'ECO DEATH'] as Tag[]).includes(t))) {
+          death.note = '?!';
+          death.why.push(`You were the favourite in this fight (${pctOdds(lost.p)}): a duel you usually win, so more bad luck than a bad call.`);
+        }
       }
       if (kill && won) {
         kill.why.push(`Duel odds: ${pctOdds(won.p)} going into it${won.peek !== null && won.held !== null ? ` (a level-10 peek here: ${pctOdds(won.peek)}, holding still: ${pctOdds(won.held)})` : ''}.`);
@@ -1338,7 +1397,14 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (d.style !== 'held' || d.flashed) continue;
       const death = moves.find(m => m.kind === 'death' && m.player === d.victim && Math.abs(m.t - d.t) < 0.06);
       const flashedFor = r.blind.some(b => b.victim === d.killer && b.t <= d.t && d.t - b.t <= 2.5);
-      if (death && !flashedFor) { death.tags.push('DRY PEEK'); death.why.push('Swung into a player holding the angle, with no flash on them.'); }
+      if (death && !flashedFor) {
+        death.tags.push('DRY PEEK'); death.why.push('Swung into a player holding the angle, with no flash on them.');
+        // the job is to take the spot, not to swing a held angle dry: the role doesn't excuse that
+        if (onRoleDeaths.has(death)) {
+          death.why = death.why.filter(w => !w.includes('usual job'));
+          atLeast(death, '?');
+        }
+      }
     }
   } catch { /* the analyst is extra */ }
 
