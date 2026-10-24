@@ -61,7 +61,9 @@ The slow part of training is reading each demo. It can run on this PC; the resul
    npm run pack:training -- E:\faceit-demos --only E:\stratboard\faceit-links.txt
    ```
 
-   It saves `training-pack-<date>.json.gz` in the `CS2-APP` folder. Send that file (Telegram, Drive, email…).
-   `--out D:\packs\my-pack.json.gz` saves it elsewhere; `--workers 2` uses fewer cores (less memory).
+   It saves `training-pack-<date>.sbpack` in the `CS2-APP` folder (about 0.8 MB a demo: each demo's read is in it).
+   Send that file (Drive, Telegram…). `--out D:\packs\my-pack.sbpack` saves it elsewhere; `--workers 2` uses fewer
+   cores (less memory). Run `git pull` first: a pack made by older code is missing what the newer coach learns from.
 
-On the Mac, the pack is added with `npm run import:training -- <pack> --train`.
+On the Mac, the pack is added with `npm run import:training -- <pack>`, then trained on (see the import tool's notes).
+A zipped `.stratboard-parsed` folder works too: `npm run import:training -- <unzipped folder>`.

@@ -10,7 +10,9 @@
 //   npm run calibrate:search -- <folder> [--max 150]
 import fs from 'node:fs';
 import path from 'node:path';
-import { keyOf, listDemos, loadDemo, PARSE_V } from './learn-lib';
+import zlib from 'node:zlib';
+import { newestParsed, PARSE_V } from './learn-lib';
+import type { DemoData } from '../src/engine/recap';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { searchRound } from '../src/engine/search';
 
@@ -21,13 +23,12 @@ if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run calibrate
 const MAX = Number(opt('max', '150'));
 const OUT = path.resolve(import.meta.dirname, '../src/engine/models/search-calibration.json');
 
-// only demos already read once (their saved read loads in a fraction of a second); spread over the maps
-const parsed = path.join(folder, '.stratboard-parsed');
-const have = new Set(fs.existsSync(parsed) ? fs.readdirSync(parsed) : []);
-const files = listDemos(folder).filter(f => { try { return have.has(`v${PARSE_V}-${keyOf(folder, f).replace(/[^\w.-]+/g, '_')}.json.gz`); } catch { return false; } });
+// only demos already read once (their saved read loads in a fraction of a second; imported ones too: their demo
+// files aren't here); spread over the maps
+const files = [...newestParsed(folder)].filter(([, p]) => p.v === PARSE_V).sort((a, b) => (a[0] < b[0] ? -1 : 1));
 const step = Math.max(1, Math.ceil(files.length / MAX));
-const only = opt('only', '');
-const pick = files.filter((_, i) => i % step === 0).filter(f => !only || f.startsWith(only));
+const only = opt('only', '').replace(/[^\w.-]+/g, '_');
+const pick = files.filter((_, i) => i % step === 0).filter(([id]) => !only || id.startsWith(only)).map(([, p]) => p.file);
 console.log(`${files.length} demos read before; using ${pick.length}.`);
 
 const losses: number[] = [];
@@ -37,7 +38,7 @@ const byClass: Record<string, { n: number; resid: number; loss: number }> = {};
 const t0 = Date.now();
 for (const [i, f] of pick.entries()) {
   let d;
-  try { d = loadDemo(folder, f); } catch { continue; }
+  try { d = JSON.parse(zlib.gunzipSync(fs.readFileSync(f)).toString('utf8')) as DemoData; } catch { continue; }
   if (!MAPS.some(m => m.id === d.map)) continue;
   const engine = getEngine(d.map, 0);
   for (const r of d.rounds) {
