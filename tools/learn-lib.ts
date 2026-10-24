@@ -53,13 +53,31 @@ export { isTest } from '../src/engine/split';
 /** A demo's identity: its name (without the "(1)" of a second download) and size, so duplicates count once. */
 export const keyOf = (folder: string, f: string) => `${f.replace(/ \(\d+\)(?=\.dem)/, '')}|${fs.statSync(path.join(folder, f)).size}`;
 
+/** Where every demo's read is saved, in a training folder. */
+export const PARSED = '.stratboard-parsed';
+/** The saved read of the demo with this key, by the current reader. */
+export const parsedName = (key: string, v = PARSE_V) => `v${v}-${key.replace(/[^\w.-]+/g, '_')}.json.gz`;
+/** The newest saved read of each demo in a folder (id: the file name without the version), demo files there or not. */
+export const newestParsed = (folder: string) => newestReads(path.join(folder, PARSED));
+/** The same for a folder that holds the reads themselves. */
+export function newestReads(dir: string): Map<string, { v: number; file: string }> {
+  const out = new Map<string, { v: number; file: string }>();
+  for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+    const m = f.match(/^v(\d+)-(.+)\.json\.gz$/);
+    if (!m) continue;
+    const was = out.get(m[2]);
+    if (!was || Number(m[1]) > was.v) out.set(m[2], { v: Number(m[1]), file: path.join(dir, f) });
+  }
+  return out;
+}
+
 /**
  * A demo, read: from <folder>/.stratboard-parsed (gzipped JSON, ~0.3 s) when it was read before with this PARSE_V,
  * else with the parser (~10 s), and saved there. Reads .dem, .dem.gz and .dem.zst.
  */
 export function loadDemo(folder: string, f: string): DemoData {
-  const dir = path.join(folder, '.stratboard-parsed');
-  const saved = path.join(dir, `v${PARSE_V}-${keyOf(folder, f).replace(/[^\w.-]+/g, '_')}.json.gz`);
+  const dir = path.join(folder, PARSED);
+  const saved = path.join(dir, parsedName(keyOf(folder, f)));
   if (fs.existsSync(saved)) {
     const d: DemoData = JSON.parse(zlib.gunzipSync(fs.readFileSync(saved)).toString('utf8'));
     // a read made before blind events were rebuilt for demos without them (tournament demos): read it again
@@ -307,4 +325,52 @@ export function liveKeys(folder: string): Set<string> {
   const here = new Set(files.map(matchIdOf).filter(Boolean));
   for (const [k, e] of Object.entries(importedKeys(folder))) if (!e.matchId || !here.has(e.matchId)) out.add(k);
   return out;
+}
+
+// ---- training packs (pack:training → import:training) ------------------------------------------------------------
+// A pack: "SBPACK2\n", a header (u32 length + gzipped JSON), then one record per demo (u32 length + gzipped JSON of
+// its key, match and learners' results, then u32 length + its saved read, already gzipped; length 0 = none).
+// Format 1 (one gzipped JSON with only the learners' results, no reads) is still read.
+const MAGIC = Buffer.from('SBPACK2\n');
+export interface PackHeader { format: number; made: string; parseV: number | null; versions: Record<Learner, number | null> }
+export interface PackDemo { key: string; matchId: string | null; map: string | null; entries: Partial<Record<Learner, unknown>> }
+const u32 = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+export function packRecord(d: PackDemo, read: Buffer | null): Buffer {
+  const meta = zlib.gzipSync(JSON.stringify(d));
+  return Buffer.concat([u32(meta.length), meta, u32(read?.length ?? 0), ...(read ? [read] : [])]);
+}
+export function writePack(file: string, header: PackHeader, records: Buffer[]) {
+  const h = zlib.gzipSync(JSON.stringify(header));
+  const fd = fs.openSync(file, 'w');
+  try { for (const b of [MAGIC, u32(h.length), h, ...records]) fs.writeSync(fd, b); } finally { fs.closeSync(fd); }
+}
+/** A pack's header and its demos (each with its saved read, gzipped, when the pack has it). */
+export function readPack(file: string): { header: PackHeader; demos: Generator<PackDemo & { read: Buffer | null }> } {
+  const buf = fs.readFileSync(file);
+  if (!buf.subarray(0, MAGIC.length).equals(MAGIC)) {
+    // format 1
+    type V1 = { format: number; made: string; demos: Record<string, { matchId: string | null; map: string | null }>; versions: PackHeader['versions']; entries: Record<Learner, Record<string, unknown>> };
+    const p: V1 = JSON.parse(zlib.gunzipSync(buf).toString('utf8'));
+    if (p.format !== 1) throw new Error(`Unknown pack format ${p.format}.`);
+    return {
+      header: { format: 1, made: p.made, parseV: null, versions: p.versions },
+      demos: (function* () {
+        for (const [key, d] of Object.entries(p.demos))
+          yield { key, ...d, entries: Object.fromEntries((Object.keys(p.entries) as Learner[]).filter(l => p.entries[l]?.[key] !== undefined).map(l => [l, p.entries[l][key]])), read: null };
+      })(),
+    };
+  }
+  let at = MAGIC.length;
+  const next = () => { const n = buf.readUInt32LE(at); at += 4; const b = buf.subarray(at, at + n); at += n; return b; };
+  const header: PackHeader = JSON.parse(zlib.gunzipSync(next()).toString('utf8'));
+  return {
+    header,
+    demos: (function* () {
+      while (at < buf.length) {
+        const meta: PackDemo = JSON.parse(zlib.gunzipSync(next()).toString('utf8'));
+        const read = next();
+        yield { ...meta, read: read.length ? Buffer.from(read) : null };
+      }
+    })(),
+  };
 }
