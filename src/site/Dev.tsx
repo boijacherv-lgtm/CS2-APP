@@ -24,7 +24,7 @@ import { T } from '../ui/tokens';
 interface AdminStats {
   at: number;
   keys: { users: number; profiles: number; sessions: number; demos: number };
-  profiles: { count: number; read: number; matches: number; public: number; notifyPro: number; withGoals: number; lastMatchAt: number;
+  profiles: { count: number; read: number; matches: number; public: number; notifyPro: number; notifyGames?: Record<string, number>; withGoals: number; lastMatchAt: number;
     goals: Record<string, number>; maps: Record<string, number>; results: Record<string, number>; top: { steamId: string; matches: number; lastAt: number }[];
     /** Newer Workers only (the dev page copes without them). */
     weeks?: Record<string, number>; levels?: Record<string, number>; engine?: number | null };
@@ -97,7 +97,8 @@ export function Dev() {
           <>
             <div className="kpi-strip">
               {[['Accounts with a profile', stats.keys.profiles], ['Match lists (codes pasted)', `${stats.lists.withCodes} / ${stats.keys.users}`], ['Logged-in sessions', stats.keys.sessions],
-                ['Matches on profiles', stats.profiles.matches], ['Demos stored by the bot', stats.keys.demos], ['Want Pro (notify me)', stats.profiles.notifyPro]].map(([k, v]) => (
+                ['Matches on profiles', stats.profiles.matches], ['Demos stored by the bot', stats.keys.demos], ['Want Pro (notify me)', stats.profiles.notifyPro],
+                ['Want Deadlock (notify me)', stats.profiles.notifyGames?.deadlock ?? 0]].map(([k, v]) => (
                 <div key={k} className="kpi-tile"><span>{k}</span><b>{typeof v === 'number' ? fmtInt(v) : v}</b></div>
               ))}
             </div>

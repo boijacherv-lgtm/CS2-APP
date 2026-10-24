@@ -51,6 +51,8 @@ export interface ProfileData {
   prefs: ProfilePrefs;
   /** Asked to hear when Pro launches. */
   notifyPro: boolean;
+  /** Games they asked to hear about when they go live ("deadlock"). */
+  notifyGames: string[];
 }
 
 /** Pro is free for everyone while there are no payments: the limits below apply once it launches. */
@@ -60,7 +62,13 @@ export const FREE_HISTORY = 5, MAX_HISTORY = 100;
 export const MAX_GOALS = 3;
 export const hasPro = () => PRO_EARLY_ACCESS;
 
-export const EMPTY_PROFILE: ProfileData = { matches: [], goals: [], prefs: { public: false, compare: 'lvl10' }, notifyPro: false };
+export const EMPTY_PROFILE: ProfileData = { matches: [], goals: [], prefs: { public: false, compare: 'lvl10' }, notifyPro: false, notifyGames: [] };
+
+/** A list of game ids ("deadlock"), cleaned: short lowercase ids, no repeats, at most 10. */
+export function cleanNotifyGames(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.filter((g): g is string => typeof g === 'string' && /^[a-z0-9]{2,12}$/.test(g)))].slice(0, 10);
+}
 
 const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'];
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { STEAM_AVAILABLE } from '../env';
-import { cleanGoals, cleanPrefs, EMPTY_PROFILE, withMatch, type GoalId, type ProfileData, type ProfileMatch, type ProfilePrefs } from '../engine/profile';
+import { cleanGoals, cleanNotifyGames, cleanPrefs, EMPTY_PROFILE, withMatch, type GoalId, type ProfileData, type ProfileMatch, type ProfilePrefs } from '../engine/profile';
 import { steamFetch } from './steamApi';
 
 /**
@@ -25,7 +25,7 @@ const LOCAL = 'stratboard.profile';
 function loadLocal(): ProfileData {
   try {
     const v = JSON.parse(localStorage.getItem(LOCAL) ?? 'null') as Partial<ProfileData> | null;
-    return v ? { ...EMPTY_PROFILE, ...v, prefs: cleanPrefs(v.prefs), goals: cleanGoals(v.goals) } : { ...EMPTY_PROFILE };
+    return v ? { ...EMPTY_PROFILE, ...v, prefs: cleanPrefs(v.prefs), goals: cleanGoals(v.goals), notifyGames: cleanNotifyGames(v.notifyGames) } : { ...EMPTY_PROFILE };
   } catch { return { ...EMPTY_PROFILE }; }
 }
 function saveLocal(d: ProfileData) { try { localStorage.setItem(LOCAL, JSON.stringify(d)); } catch { /* private mode: this visit only */ } }
@@ -83,6 +83,19 @@ export const setPrefs = (p: Partial<ProfilePrefs>) =>
   update(d => ({ ...d, prefs: cleanPrefs(p, d.prefs) }), () => api('/profile/prefs', p));
 export const setNotifyPro = (on: boolean) =>
   update(d => ({ ...d, notifyPro: on }), () => api('/profile/notify', { on }));
+/**
+ * Tell me when this game ("deadlock") goes live: on your account when logged in, else in this browser. An account
+ * server without the route yet (an older Worker) keeps it in this browser instead of failing.
+ */
+export async function setNotifyGame(game: string, on: boolean) {
+  const change = (d: ProfileData): ProfileData => ({ ...d, notifyGames: on ? cleanNotifyGames([...d.notifyGames, game]) : d.notifyGames.filter(g => g !== game) });
+  const s = useProfile.getState();
+  if (s.remote) {
+    try { useProfile.setState({ data: await api<ProfileData>('/profile/notify-game', { game, on }), error: null }); return; } catch { /* fall through */ }
+  }
+  saveLocal(change(loadLocal()));
+  useProfile.setState({ data: change(s.data) });
+}
 
 /** Removes your synced profile and match list from the account (Steam), or this browser's copy. */
 export async function forgetProfile() {

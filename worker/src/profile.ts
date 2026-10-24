@@ -7,11 +7,12 @@
  *   POST /profile/goals     what you're working on (up to 3)
  *   POST /profile/prefs     public profile, default comparison
  *   POST /profile/notify    tell me when Pro launches
+ *   POST /profile/notify-game  tell me when a game goes live ({ game: "deadlock", on })
  *   GET  /public/:steamId   a friend's name, avatar and last matches, only if their profile is public
  *   GET  /resolve?q=        a Steam profile link, vanity name or SteamID → SteamID (logged-in only)
  *   POST /internal/profile/:steamId   the demo bot adds a match it graded (server token only)
  */
-import { cleanGoals, cleanMatch, cleanPrefs, EMPTY_PROFILE, FREE_HISTORY, withMatch, type ProfileData } from '../../src/engine/profile';
+import { cleanGoals, cleanMatch, cleanNotifyGames, cleanPrefs, EMPTY_PROFILE, FREE_HISTORY, withMatch, type ProfileData } from '../../src/engine/profile';
 
 export interface ProfileKV {
   get(key: string, type: 'json'): Promise<unknown>;
@@ -23,7 +24,7 @@ const KEY = (steamId: string) => `stats:${steamId}`;
 
 export async function loadProfile(kv: ProfileKV, steamId: string): Promise<ProfileData> {
   const v = (await kv.get(KEY(steamId), 'json')) as Partial<ProfileData> | null;
-  return { ...EMPTY_PROFILE, ...(v ?? {}), prefs: cleanPrefs(v?.prefs) };
+  return { ...EMPTY_PROFILE, ...(v ?? {}), prefs: cleanPrefs(v?.prefs), notifyGames: cleanNotifyGames(v?.notifyGames) };
 }
 const save = (kv: ProfileKV, steamId: string, p: ProfileData) => kv.put(KEY(steamId), JSON.stringify(p));
 export const forgetProfile = (kv: ProfileKV, steamId: string) => kv.delete(KEY(steamId));
@@ -40,6 +41,11 @@ export async function profileRoute(kv: ProfileKV, steamId: string, method: strin
   } else if (path === '/profile/goals') p.goals = cleanGoals(input.goals);
   else if (path === '/profile/prefs') p.prefs = cleanPrefs(input, p.prefs);
   else if (path === '/profile/notify') p.notifyPro = input.on === true;
+  else if (path === '/profile/notify-game') {
+    const game = cleanNotifyGames([input.game])[0];
+    if (!game) throw new Error('Which game?');
+    p.notifyGames = input.on === true ? cleanNotifyGames([...p.notifyGames, game]) : p.notifyGames.filter(g => g !== game);
+  }
   else return null;
   await save(kv, steamId, p);
   return p;

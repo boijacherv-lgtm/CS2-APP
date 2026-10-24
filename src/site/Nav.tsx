@@ -34,6 +34,11 @@ export function NavBar({ route }: { route: Route }) {
           <a key={g.id} href={routeHref({ page: 'cs2', mode: cs2 ? route.mode : 'review' })} className={`game-btn live ${cs2 ? 'on' : ''}`} title={`${g.name}: live`}>
             <GameMark game={g} size={24} /><span>{g.short}</span>
           </a>
+        ) : g.page ? (
+          // a coming game with its own page (what it will do, notify me)
+          <a key={g.id} href={g.page} className={`game-btn soon has-page ${route.page === g.id ? 'on' : ''}`} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}. See what's coming`}>
+            <GameMark game={g} size={24} muted={route.page !== g.id} />
+          </a>
         ) : (
           <span key={g.id} className="game-btn soon" role="img" aria-label={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`}>
             <GameMark game={g} size={24} muted />

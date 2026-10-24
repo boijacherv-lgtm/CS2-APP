@@ -57,6 +57,7 @@ export function Home() {
             <article key={g.id} className={`game-card soon ${g.status}`} style={{ '--game': g.color } as React.CSSProperties}>
               <div className="game-card-head"><GameMark game={g} size={44} muted={g.status !== 'next'} /><div><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></div></div>
               <p>{g.note}</p>
+              {g.page && <div className="game-card-cta"><a className="cta" href={g.page}>What's coming <Icon name="arrowRight" size={14} /></a></div>}
             </article>
           ))}
         </div>

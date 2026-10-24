@@ -41,6 +41,8 @@ export async function adminStats(kv: AdminKV) {
 
   // profiles: matches reviewed, public, notify-me, goals, maps, results, last activity
   const profiles = { count: statKeys.length, read: 0, matches: 0, public: 0, notifyPro: 0, withGoals: 0, lastMatchAt: 0,
+    /** Who asked to hear when each coming game goes live. */
+    notifyGames: {} as Record<string, number>,
     goals: {} as Record<string, number>, maps: {} as Record<string, number>, results: { win: 0, loss: 0, tie: 0 },
     /** Matches played per week (Monday, YYYY-MM-DD), the last 12 weeks. */
     weeks: {} as Record<string, number>,
@@ -58,6 +60,7 @@ export async function adminStats(kv: AdminKV) {
     profiles.matches += ms.length;
     if (p.prefs?.public) profiles.public++;
     if (p.notifyPro) profiles.notifyPro++;
+    for (const g of p.notifyGames ?? []) profiles.notifyGames[g] = (profiles.notifyGames[g] ?? 0) + 1;
     if (p.goals?.length) profiles.withGoals++;
     for (const g of p.goals ?? []) profiles.goals[g.id] = (profiles.goals[g.id] ?? 0) + 1;
     for (const m of ms) {
