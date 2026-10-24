@@ -21,6 +21,7 @@ import { readDemoFile } from './readDemo';
 import { GameIcon, Icon } from './Icon';
 import type { Cs2Icon } from './cs2Icons';
 import { shownNow, useShown } from './shown';
+import { scoreBefore, sideSwitches } from './Playback';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
@@ -60,23 +61,6 @@ function useDemoLoader() {
     }
   };
   return { load, status, busy, progress, elapsed };
-}
-
-/** Sidebar controls for the loaded match. */
-export function DemoLoader() {
-  const s = useStore();
-  if (!s.review) return null;
-  const d = s.review.data;
-  return (
-    <section>
-      <h3>Match</h3>
-      <p className="muted">{MAPS.find(m => m.id === d.map)?.name ?? d.map} · {d.rounds.length} rounds · {Object.keys(d.names).length} players</p>
-      <div className="row">
-        <button onClick={() => exportJson(d)} title="Save the parsed rounds so they load instantly next time">Save .json</button>
-        <button onClick={s.exitReview} title="Close this match: load another, or go back to Tactical">Close match</button>
-      </div>
-    </section>
-  );
 }
 
 /** Review mode with no match loaded: a big place to drop a demo. */
@@ -141,6 +125,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   const r = replay.round;
   const all = s.reviewSpoilers;
   const [filter, setFilter] = useState<'all' | 'key' | string>('key');
+  const [open, setOpen] = useState<string | null>(null);
   const { shown } = useShown();
   const names = replay.names;
   const sideOf = (id: string) => replay.board.players.find(p => p.id === id)?.side ?? 'CT';
@@ -148,66 +133,69 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   const seen = movesUntil(recap, s.time, all);
   const finished = all || s.time >= r.duration - 0.3;
   const moves = seen.filter(m => filter === 'all' ? true : filter === 'key' ? shown(m) : filter === 'util' ? !!m.util : m.player === filter);
-  const latest = [...seen].reverse().find(shown);
   const jump = (t: number) => { s.setPlaying(false); s.setTime(Math.max(0, t - 1.5)); };
   const players = scoreboard(recap, seen);
   const tp = recap.turningPoint && (all || recap.turningPoint.t <= s.time) ? recap.turningPoint : null;
-  const [tab, setTab] = useState<'moves' | 'positions' | 'economy' | 'players'>('moves');
+  const [tab, setTab] = useState<'moves' | 'players' | 'economy' | 'engine'>('moves');
+  const pick = (id: string) => { setFilter(filter === id ? 'key' : id); if (filter !== id) setTab('moves'); };
+  const halves = useMemo(() => roundHalves(rv.data), [rv.data]);
+  const score = scoreBefore(rv.data, rv.round);
 
   return (
     <aside className="panel review-panel">
-      <section>
-        <h3>{engine.map.name} · round {r.n} of {rv.data.rounds.length}</h3>
-        <div className="rounds">
-          {rv.data.rounds.map((x, i) => (
-            <button key={i} className={`rnd ${i === rv.round ? 'on' : ''} ${all ? (x.winner === 'CT' ? 'ctw' : x.winner === 'T' ? 'tw' : '') : ''}`}
-              onClick={() => s.setReviewRound(i)} title={all ? `${x.winner ?? '?'} won${x.reason ? ` (${x.reason})` : ''}` : `Round ${x.n}`}>{x.n}</button>
+      <header className="rp-head">
+        <div className="rp-match">
+          <b className="rp-map">{engine.map.name}</b>
+          <span className="rp-score num" title="Score before this round (this round's sides)"><i className="ct">{score[0]}</i><em>:</em><i className="t">{score[1]}</i></span>
+          <MatchMenu data={rv.data} />
+        </div>
+        <div className="rp-rounds">
+          {halves.map((h, hi) => (
+            <div key={hi} className="rp-half-wrap">
+              {hi > 0 && (h.switched
+                ? <div className="rp-switch"><Icon name="swap" size={12} /> Sides switched</div>
+                : <div className="rp-switch plain">{h.label === 'OT1' ? 'Overtime' : 'Next overtime'}</div>)}
+              <div className="rp-half">
+                <span className="rp-half-label">{h.label}</span>
+                <div className="rp-chips" style={{ gridTemplateColumns: `repeat(${Math.max(h.rounds.length, h.label.startsWith('OT') ? 3 : 12)}, minmax(0, 1fr))` }}>
+                  {h.rounds.map(i => {
+                    const x = rv.data.rounds[i];
+                    return (
+                      <button key={i} className={`rnd ${i === rv.round ? 'on' : ''} ${all ? (x.winner === 'CT' ? 'ctw' : x.winner === 'T' ? 'tw' : '') : ''}`}
+                        onClick={() => s.setReviewRound(i)} title={all ? `Round ${x.n}: ${x.winner ?? '?'} won${x.reason ? ` (${x.reason})` : ''}` : `Round ${x.n}`}>{x.n}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
-        <p className="muted">
-          {finished
-            ? <>{r.winner ? <b className={r.winner.toLowerCase()}>{r.winner} won</b> : 'Result unknown'}{r.reason ? ` · ${r.reason}` : ''}</>
-            : <>Round in progress · press <b>Play</b> (Space) to watch it unfold</>}
-          {r.plant !== null && (all || s.time >= r.plant) ? ` · bomb planted ${fmt(r.plant)}` : ''}
-        </p>
-      </section>
+        {finished && (
+          <div className="rp-result">
+            {r.winner ? <span className={`rp-pill ${r.winner.toLowerCase()}`}>{r.winner} won</span> : <span className="rp-pill">Result unknown</span>}
+            {r.reason && <span className="muted">{reasonText(r.reason)}</span>}
+          </div>
+        )}
+      </header>
 
       <div className="tabs" role="tablist">
-        {([['moves', 'Moves'], ['positions', 'Positions'], ['economy', 'Economy'], ['players', 'Players']] as const).map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}>{label}</button>
+        {([['moves', 'Moves', 'list'], ['players', 'Players', 'friends'], ['economy', 'Economy', 'coins'], ['engine', 'Engine', 'route']] as const).map(([id, label, icon]) => (
+          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}><Icon name={icon} size={14} /> {label}</button>
         ))}
       </div>
 
       {tab === 'economy' && <Economy replay={replay} totalRounds={rv.data.rounds.length} />}
-      {tab === 'positions' && <Positions engine={engine} replay={replay} until={all ? Infinity : s.time} focus={filter !== 'all' && filter !== 'key' && filter !== 'util' ? filter : s.me}
+      {tab === 'engine' && <Positions engine={engine} replay={replay} until={all ? Infinity : s.time} focus={filter !== 'all' && filter !== 'key' && filter !== 'util' ? filter : s.me}
         onJump={jump} search={recap.search} />}
 
-      {tab === 'moves' && <>
-      <section>
-        {latest && !all && (
-          <div className="turning" onClick={() => jump(latest.t)}>
-            <span className="muted">Last move</span>
-            <MoveRow m={latest} />
-          </div>
-        )}
-        {tp && finished && (
-          <div className="turning" onClick={() => jump(tp.t)}>
-            <span className="muted">Turning point · {fmt(tp.t)}</span>
-            <MoveRow m={tp} compact />
-          </div>
-        )}
-      </section>
-      </>}
-
       {tab === 'players' && <section>
-        <h3>Players {finished ? '' : '(so far)'}</h3>
         <table className="kills">
           <thead><tr><th /><th title="Round grade, S+ (dominated the round) … F (a game-losing mistake). Hover a grade for why">Grade</th><th title="Total change in their team's win chance">Impact</th>
             {COUNTED.map(g => <th key={g} title={`${NOTE_INFO[g].label} moves`} style={{ color: NOTE_INFO[g].color }}>{NOTE_INFO[g].mark}</th>)}
           </tr></thead>
           <tbody>
             {Object.entries(players).sort(([a], [b]) => sideOf(a).localeCompare(sideOf(b)) || players[b].impact - players[a].impact).map(([id, p]) => (
-              <tr key={id} className={filter === id ? 'sel' : ''} onClick={() => { setFilter(filter === id ? 'key' : id); if (filter !== id) setTab('moves'); }}>
+              <tr key={id} className={filter === id ? 'sel' : ''} onClick={() => pick(id)} title="Show only their moves">
                 <td>
                   <b className={sideOf(id).toLowerCase()}>{names[id] ?? id}</b>
                   {finished && recap.roles[id] && <span className="role" title={recap.roles[id].note}>{recap.roles[id].role}</span>}
@@ -219,35 +207,125 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
             ))}
           </tbody>
         </table>
-        <p className="muted">Click a player to see only their moves (Moves tab).{finished ? ' Hover a role to see why.' : ' Roles show when the round ends.'}</p>
       </section>}
 
-      {/* A quiet history: new moves are added at the top, nothing scrolls or flashes. */}
+      {/* A quiet history: new moves are added at the top, nothing scrolls or flashes. One open at a time. */}
       {tab === 'moves' && <section>
-        <h3>Moves{moves.length ? ` · ${moves.length}` : ''}</h3>
-        <div className="row km">
-          <select value={filter.length > 4 ? 'key' : filter} onChange={e => setFilter(e.target.value)}>
-            <option value="key">Key moves</option><option value="util">Grenades</option><option value="all">Everything</option>
-          </select>
+        <div className="chips" role="group" aria-label="Which moves">
+          {([['key', 'Key'], ['util', 'Grenades'], ['all', 'Everything']] as const).map(([id, label]) => (
+            <button key={id} className={`chip ${filter === id ? 'on' : ''}`} onClick={() => setFilter(id)}>{label}</button>
+          ))}
+          {filter.length > 4 && (
+            <button className={`chip on ${sideOf(filter).toLowerCase()}`} onClick={() => setFilter('key')} title="Show everyone again">
+              {names[filter] ?? 'Player'} <Icon name="close" size={11} />
+            </button>
+          )}
+          <span className="chips-count muted num">{moves.length}</span>
         </div>
+        {tp && finished && filter === 'key' && (
+          <div className="rp-turning">
+            <span className="rp-label">Turning point</span>
+            <MoveItem m={tp} open={open === `tp-${moveId(tp)}`} onToggle={() => setOpen(o => (o === `tp-${moveId(tp)}` ? null : `tp-${moveId(tp)}`))} onWatch={jump} />
+          </div>
+        )}
         <div className="move-list">
           {[...moves].reverse().map(m => (
-            <div key={`${m.t}-${m.player}-${m.kind}`} className="move past" onClick={() => jump(m.t)}>
-              <MoveRow m={m} />
-            </div>
+            <MoveItem key={moveId(m)} m={m} open={open === moveId(m)} onToggle={() => setOpen(o => (o === moveId(m) ? null : moveId(m)))} onWatch={jump} />
           ))}
-          {!moves.length && <p className="muted">{all ? 'No moves for this filter.' : 'Nothing has happened yet. Press Play.'}</p>}
+          {!moves.length && <p className="muted rp-empty">{all ? 'No moves for this filter.' : 'Nothing yet.'}</p>}
         </div>
-        {moves.length > 0 && <p className="muted">Newest first. Click a move to jump to it.</p>}
       </section>}
 
       {control && (
-        <p className="muted foot">
-          Win chance blends players alive, health, bomb timer, time left and map control at each moment.
-          Moves are graded by how much they changed their team's chance (traded deaths count less). It's an estimate, not a pro's opinion.
-        </p>
+        <details className="rp-how">
+          <summary><Icon name="info" size={13} /> How grading works</summary>
+          <p>Win chance comes from players alive, health, gear, the bomb, time left and map control.</p>
+          <p>Each move is graded by how much it changed its team's chance. Traded deaths count less. An estimate, not a pro's opinion.</p>
+        </details>
       )}
     </aside>
+  );
+}
+
+const moveId = (m: Move) => `${m.t}-${m.player}-${m.kind}`;
+
+/**
+ * The rounds in rows: split where the teams swapped sides, and where each overtime starts (overtime can start on the
+ * same sides). Regulation is twice the first half; each overtime is 6 rounds. `switched`: the row starts on new sides.
+ */
+export function roundHalves(data: DemoData): { rounds: number[]; label: string; switched: boolean }[] {
+  const swaps = sideSwitches(data), n = data.rounds.length;
+  const reg = swaps.length ? swaps[0] * 2 : n;
+  const cuts = new Set(swaps);
+  for (let k = reg; k < n; k += 6) cuts.add(k);
+  const starts = [0, ...[...cuts].filter(c => c > 0 && c < n).sort((a, b) => a - b)];
+  return starts.map((from, i) => {
+    const to = starts[i + 1] ?? n;
+    const label = from < reg ? (from === 0 ? '1st' : '2nd') : `OT${Math.floor((from - reg) / 6) + 1}`;
+    return { rounds: Array.from({ length: to - from }, (_, k) => from + k), label, switched: swaps.includes(from) };
+  });
+}
+
+/** The demo's round-end reason ("t_killed", "bomb_defused", "target_saved"…) in plain words. */
+function reasonText(reason: string) {
+  const r = reason.toLowerCase().replace(/[^a-z]/g, '');
+  if (r.includes('defus')) return 'bomb defused';
+  if (r.includes('exploded') || r.includes('targetbombed')) return 'bomb exploded';
+  if (r.includes('saved') || r.includes('time')) return 'time ran out';
+  if (r.startsWith('ctkilled') || r === 'ctskilled') return 'CTs eliminated';
+  if (r.startsWith('tkilled') || r.includes('terroristskilled')) return 'Ts eliminated';
+  if (r.includes('surrender')) return 'surrender';
+  return reason.replace(/_/g, ' ');
+}
+
+/** The match's controls (they lived in the left strip before): save the parsed match, close it. */
+function MatchMenu({ data }: { data: DemoData }) {
+  const exit = useStore(s => s.exitReview);
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    window.addEventListener('mousedown', away);
+    return () => window.removeEventListener('mousedown', away);
+  }, [open]);
+  return (
+    <div className="rp-menu" ref={box}>
+      <button className="ghost rp-menu-btn" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-label="Match options" title="Match: save, close"><Icon name="more" size={18} /></button>
+      {open && (
+        <div className="rp-menu-list" role="menu">
+          <button role="menuitem" onClick={() => { exportJson(data); setOpen(false); }} title="Save the read match so it opens instantly next time"><Icon name="save" size={14} /> Save as .json</button>
+          <button role="menuitem" onClick={exit} title="Close this match: load another, or go back to Tactical"><Icon name="close" size={14} /> Close match</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One move, folded: time, grade, short title, win-chance change, tags. Open: the full title and the reasons, one per line. */
+function MoveItem({ m, open, onToggle, onWatch }: { m: Move; open: boolean; onToggle: () => void; onWatch: (t: number) => void }) {
+  const g = moveLook(m);
+  return (
+    <div className={`mv ${open ? 'open' : ''}`}>
+      <button className="mv-row" onClick={onToggle} aria-expanded={open} title={open ? 'Fold' : 'Why?'}>
+        <span className="mv-t muted num">{fmt(m.t)}</span>
+        <NoteMark m={m} />
+        <span className={`mv-title ${m.side.toLowerCase()}`}>{brief(m.title)}</span>
+        <span className="mv-gain num" style={{ color: m.gain > 0.02 ? '#7fbf4d' : m.gain < -0.02 ? '#e5483a' : 'var(--muted)' }}>{signed(m.gain)}</span>
+        <Icon name="chevronDown" size={11} className="mv-caret" />
+      </button>
+      {m.tags.length > 0 && <Tags tags={m.tags} />}
+      {open && (
+        <div className="mv-body">
+          {brief(m.title) !== m.title && <p className="mv-full">{m.title}</p>}
+          <ul className="mv-why">
+            <li className="mv-grade" style={{ color: g.color }}>{g.label}</li>
+            {m.why.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+          <button className="mini mv-watch" onClick={() => onWatch(m.t)}><Icon name="play" size={11} /> Watch</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -385,7 +463,6 @@ function Economy({ replay, totalRounds }: { replay: Replay; totalRounds: number 
           })}
         </tbody>
       </table>
-      <p className="muted">Equipment is part of the win chance: a full buy against an eco starts near 90/10, and kills on eco players count for less.</p>
     </section>
   );
 }
@@ -396,22 +473,6 @@ function loadout(weapons: string[]) {
   if (!primary) return 'Knife';
   const pistol = weapons.map(gunFromName).find(g => g && g.cls === 'pistol' && g.id !== primary.id);
   return primary.cls === 'pistol' ? primary.name : `${primary.name}${pistol ? ` + ${pistol.short}` : ''}`;
-}
-
-function MoveRow({ m, compact }: { m: Move; compact?: boolean }) {
-  const g = moveLook(m);
-  return (
-    <>
-      <div className="move-head">
-        <span className="muted">{fmt(m.t)}</span>
-        <NoteMark m={m} />
-        <b className={m.side.toLowerCase()}>{m.title}</b>
-        <span className="pct" style={{ color: m.gain > 0.02 ? '#7fbf4d' : m.gain < -0.02 ? '#e5483a' : 'var(--muted)' }}>{signed(m.gain)}</span>
-      </div>
-      {m.tags.length > 0 && <Tags tags={m.tags} />}
-      {!compact && <div className="why">{`${g.label}. `}{m.why.join(' ')}</div>}
-    </>
-  );
 }
 
 export function Tags({ tags }: { tags: Tag[] }) {
@@ -482,6 +543,7 @@ function EngineSection({ search, id, until, duration, onJump }: { search: RoundS
 function Positions({ engine, replay, until, focus, onJump, search }: { engine: TacticalEngine; replay: Replay; until: number; focus: string | null; onJump: (t: number) => void; search?: RoundSearch }) {
   const ids = replay.board.players.map(p => p.id);
   const [who, setWho] = useState<string | null>(null);
+  const [openRow, setOpenRow] = useState<number | null>(null);
   const id = who && ids.includes(who) ? who : focus && ids.includes(focus) ? focus : ids[0];
   const dec = useMemo(() => roundDecisions(engine, replay.round), [engine, replay.round]);
   const known = !!proPositions(engine.map.id);
@@ -500,19 +562,19 @@ function Positions({ engine, replay, until, focus, onJump, search }: { engine: T
       </div>
       {search && <EngineSection search={search} id={id} until={until} duration={replay.round.duration} onJump={onJump} />}
       {(() => { const t = roundAnalysis(engine.map.id, id, dec, until); return t ? <p className="pos-summary">{t}</p> : null; })()}
-      {!known && <p className="muted">No level-10 positions for {engine.map.name} yet: run <code>npm run learn:positions</code> on demos of this map.</p>}
+      {!known && <p className="muted">No level-10 data for {engine.map.name} yet.</p>}
       {rows.length === 0 && <p className="muted">No decisions yet this round.</p>}
       <ol className="pos-list">
         {rows.map((r, i) => (
-          <li key={i} className="pos-row" onClick={() => onJump(r.t + 1.5)} title="Watch it">
-            <div className="pos-top">
+          <li key={i} className={`pos-row ${openRow === i ? 'open' : ''}`}>
+            <button className="pos-top" onClick={() => setOpenRow(o => (o === i ? null : i))} aria-expanded={openRow === i} title={openRow === i ? 'Fold' : 'What the engine and level-10 players say'}>
               <span className="muted num">{fmt(r.t)}</span>
               <b>{r.kind === 'hold' ? `${r.h.contact ? 'Fought at' : 'Held'} ${r.h.place}` : `${r.m.from} → ${r.m.to}`}</b>
               {r.kind === 'hold' && !r.h.contact && <span className="muted num">{Math.round(r.h.to - r.h.from)} s</span>}
               {/* how common the choice is among level-10 players; the engine's grades (Best … Blunder) are only the search's, above */}
               <span className="usual" style={{ color: USUAL_COLOR[r.v.kind], borderColor: USUAL_COLOR[r.v.kind] }} title={r.v.basis}>{USUAL_LABEL[r.v.kind]}</span>
-            </div>
-            {r.e && (
+            </button>
+            {openRow === i && r.e && (
               <div className="pos-engine">
                 <span>{engineLine(r.e, r.kind, r.kind === 'hold' ? r.h.place : r.m.to)}</span>
                 <span className="pos-cands">
@@ -525,11 +587,11 @@ function Positions({ engine, replay, until, focus, onJump, search }: { engine: T
                 {r.e.next.length > 0 && <span className="muted">Next, level-10 players go: {r.e.next.map(c => `${c.place} ${Math.round(c.share * 100)}%`).join(', ')}</span>}
               </div>
             )}
-            <p>{r.v.text}</p>
+            {openRow === i && <p>{r.v.text}</p>}
+            {openRow === i && <button className="mini mv-watch" onClick={() => onJump(r.t + 1.5)}><Icon name="play" size={11} /> Watch</button>}
           </li>
         ))}
       </ol>
-      <p className="muted">Compared with {known ? `${proPositions(engine.map.id)!.demos} FACEIT level-10 matches on this map` : 'level-10 players'}, in the same part of the round and with the same numbers alive. Click a row to watch it.</p>
     </section>
   );
 }

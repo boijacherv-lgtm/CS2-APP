@@ -15,6 +15,8 @@ const clock = (sec: number) => {
 };
 
 const BOMB_SECONDS = 40;
+/** How long the "Sides switched" banner stays at the start of the round (round seconds). */
+const SWITCH_BANNER = 5;
 
 /**
  * Score before round `idx`, as [this round's CT team, this round's T team]. Teams swap sides at half
@@ -32,6 +34,21 @@ export function scoreBefore(data: DemoData, idx: number): [number, number] {
     if (r.frames.players[ref].side === r.winner) ct++; else t++;
   }
   return [ct, t];
+}
+
+/**
+ * Rounds that start with the teams on the other side from the round before (half time, overtime halves): their
+ * indexes. Read from the players' sides, so it works for MR12, MR15 and overtime alike.
+ */
+export function sideSwitches(data: DemoData): number[] {
+  const out: number[] = [];
+  for (let i = 1; i < data.rounds.length; i++) {
+    const prev = data.rounds[i - 1].frames.players, now = data.rounds[i].frames.players;
+    const ids = Object.keys(now).filter(id => prev[id]);
+    const swapped = ids.filter(id => prev[id].side !== now[id].side).length;
+    if (ids.length && swapped > ids.length / 2) out.push(i);
+  }
+  return out;
 }
 
 export interface HudPlayer { id: string; side: 'CT' | 'T'; label: string; name: string; alive: boolean; hp: number; avatar?: string }
@@ -74,7 +91,11 @@ export function RoundHud({ players, score, plantedAt }: { players: HudPlayer[]; 
  * round number under it, and a strip that becomes the bomb's: planting (filling), the 40 s fuse (draining, red),
  * a defuse (filling blue, green when it beats the fuse, red when it can't), then defused / exploded.
  */
-export function ScoreBug({ score, round, roundNo, time }: { score: [number, number]; round: DemoRound; roundNo: number; time: number }) {
+export function ScoreBug({ score, round, roundNo, time, switched }: {
+  score: [number, number]; round: DemoRound; roundNo: number; time: number;
+  /** The first round after the teams swapped sides: who's on CT now (a player's name), shown for the first seconds. */
+  switched?: string | null;
+}) {
   const bomb = bombAt(round, time);
   const plantedAt = bomb && bomb.kind !== 'carry' ? bomb.plantedAt : null;
   const act = bombTryAt(round, time);
@@ -102,6 +123,9 @@ export function ScoreBug({ score, round, roundNo, time }: { score: [number, numb
         <span className="sb-team t">T</span>
       </div>
       <div className="sb-round">Round {roundNo}</div>
+      {switched && time < SWITCH_BANNER && (
+        <div className="sb-switch" role="status"><Icon name="swap" size={13} /> Sides switched · {switched}'s team is CT now</div>
+      )}
       {strip && (
         <div className={`sb-strip ${strip.cls}`}>
           <i style={{ width: `${Math.round(strip.share * 1000) / 10}%` }} />

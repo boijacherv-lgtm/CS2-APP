@@ -18,7 +18,7 @@ import { useShown } from './shown';
 import { SIDE_COLOR, T as TOK, UTIL_COLOR } from './tokens';
 import { MomentNav } from './Recap';
 import { LayersBar } from './Layers';
-import { PlaybackBar, RoundHud, ScoreBug, scoreBefore } from './Playback';
+import { PlaybackBar, RoundHud, ScoreBug, scoreBefore, sideSwitches } from './Playback';
 import { FOV as VISION_FOV } from '../engine/predict';
 import { ENTRY_COLOR, entryClock, entryReports } from '../engine/entries';
 import { BUILTIN_LINEUPS } from '../map/lineups';
@@ -362,6 +362,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   }, [live, names, view.scale]);
   // review: each team's players down the sides with their health and gear (the top bar then only has the clock)
   const rosterRound = recap && s.review ? s.review.data.rounds[s.review.round] ?? null : null;
+  const switches = useMemo(() => (s.review ? sideSwitches(s.review.data) : []), [s.review?.data]);
   // kills and deaths in the rounds before this one (this round's are added up to the moment on screen)
   const pastKd = useMemo(() => {
     const out = new Map<string, { k: number; d: number }>();
@@ -818,7 +819,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
       <div className={`board-ui ${rosterRound ? 'broadcast' : ''}`}>
         <div className="slot tl"><LayersBar /></div>
         <div className="slot top">
-          {rosterRound && s.review && <ScoreBug score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time} />}
+          {rosterRound && s.review && <ScoreBug score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time}
+            switched={switches.includes(s.review.round) ? s.review.data.names[Object.keys(rosterRound.frames.players).find(id => rosterRound.frames.players[id].side === 'CT') ?? ''] ?? 'the other' : null} />}
           {!rosterRound && <RoundHud
             players={rosterRound ? [] : s.board.players.map(p => ({
               id: p.id, side: p.side, label: p.label, name: s.mode === 'review' ? s.review?.data.names[p.id] ?? p.label : `${p.side} ${p.label}`,
