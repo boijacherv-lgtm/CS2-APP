@@ -3,7 +3,7 @@ import {
   ChartBar, ChatCircleText, Check, Circle, Crosshair, CrosshairSimple, Cursor, DiceFive, Eraser, GridFour, HourglassMedium, List,
   Path, Pause, Play, SidebarSimple, SkipBack, SkipForward, Skull, Stack, Star, Sword, Timer, UploadSimple, Warning, X,
   ArrowRight, Bell, Copy, DownloadSimple, GearSix, Lightning, LockSimple, MapTrifold, ShareNetwork, ShieldCheck, SignOut, Target,
-  TrendDown, TrendUp, Trophy, UserCircle, UsersThree,
+  TrendDown, TrendUp, Trophy, UserCircle, UsersThree, ArrowsLeftRight, DotsThree, Info, ListBullets, Coins, FloppyDisk,
   type Icon as PhIcon, type IconWeight,
 } from '@phosphor-icons/react';
 import { CS2_ICONS, type Cs2Icon } from './cs2Icons';
@@ -38,6 +38,8 @@ const ICONS = {
   bolt: { C: Lightning, weight: 'fill' }, lock: { C: LockSimple }, map: { C: MapTrifold }, share: { C: ShareNetwork }, shield: { C: ShieldCheck },
   signOut: { C: SignOut }, goal: { C: Target }, trendUp: { C: TrendUp }, trendDown: { C: TrendDown }, trophy: { C: Trophy }, user: { C: UserCircle },
   friends: { C: UsersThree },
+  // Review's panel
+  swap: { C: ArrowsLeftRight }, more: { C: DotsThree }, info: { C: Info }, list: { C: ListBullets }, coins: { C: Coins }, save: { C: FloppyDisk },
   // equipment: CS2's own pictograms
   bomb: { src: 'equipment/c4' }, burst: { src: 'equipment/hegrenade' }, flame: { src: 'equipment/inferno' },
   scissors: { src: 'equipment/defuser' }, helmet: { src: 'equipment/armor_helmet' }, vest: { src: 'equipment/armor' },

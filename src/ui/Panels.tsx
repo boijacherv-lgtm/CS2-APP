@@ -13,7 +13,6 @@ import { hasLayer, isAutoLayer, MAPS, presetsFor, roughNote, tPlaysFor } from '.
 import { useStore, type Tool } from '../store';
 import { Fold } from './Fold';
 import { BUILTIN_LINEUPS, flightTime, type Lineup, type Technique } from '../map/lineups';
-import { DemoLoader } from './Recap';
 import { useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './Icon';
 import { threatColor } from './Board';
@@ -107,7 +106,6 @@ function SetupPanel({ engine }: { engine: TacticalEngine }) {
           {roughNote(s.mapId) && <><br /><b>Rough:</b> {roughNote(s.mapId)}</>}
         </p>
       </section>
-      {s.mode === 'review' && <DemoLoader />}
       {s.mode !== 'review' && <>
       <label className="check" title="Route tool: click a player, then one click on the map sends them there by the shortest path">
         <input type="checkbox" checked={s.autoRoute} onChange={e => s.setAutoRoute(e.target.checked)} /> Auto-route (Shift+click = waypoint)
