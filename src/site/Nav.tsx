@@ -6,6 +6,7 @@ import { GAMES, STATUS_LABEL } from './games';
 import { GameMark } from './gameMarks';
 import { hasPro } from '../engine/profile';
 import { useStore } from '../store';
+import { MAPS } from '../map/catalog';
 import { Icon } from '../ui/Icon';
 import { refreshProfile, useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
@@ -14,6 +15,7 @@ import { steamSignOut } from '../ui/steamApi';
 /** The bar on every page: the brand, the game, CS2's three modes, Pricing and your account. */
 export function NavBar({ route }: { route: Route }) {
   const loaded = useStore(s => s.review);
+  const exitReview = useStore(s => s.exitReview);
   const cs2 = route.page === 'cs2';
   // with a match loaded there's no Tactical tab: its address goes to Review (Load another closes the match);
   // without one there's no recap to show: Match recap goes to Review too
@@ -64,6 +66,15 @@ export function NavBar({ route }: { route: Route }) {
               <Icon name="star" className="mode-ico" /> Match recap
             </button>
           )}
+        </div>
+      )}
+      {/* the open match, like a browser tab: what it is, and × to close it (back to picking a match) */}
+      {cs2 && loaded && (
+        <div className="match-tab" title={`Open match: ${MAPS.find(m => m.id === loaded.data.map)?.name ?? loaded.data.map}, ${loaded.data.rounds.length} rounds`}>
+          <Icon name="map" size={14} />
+          <b>{MAPS.find(m => m.id === loaded.data.map)?.name ?? loaded.data.map}</b>
+          <span className="match-tab-n">{loaded.data.rounds.length} rds</span>
+          <button className="match-tab-x" onClick={exitReview} aria-label="Close match" title="Close this match and pick another one"><Icon name="close" size={13} /></button>
         </div>
       )}
       <div className="nav-right">

@@ -429,3 +429,13 @@
 .dl-road li.next .dl-road-dot { border-color: var(--highlight); background: color-mix(in srgb, var(--highlight) 30%, transparent); }
 .games-status.planned { color: var(--text-2); background: var(--surface-3); }
 @media (max-width: 760px) { .dl-hero { grid-template-columns: 1fr; } .dl-hero-mark { max-width: 220px; } }
+
+/* the open match in the top bar, like a browser tab: name, rounds, × to close */
+.match-tab { display: inline-flex; align-items: center; gap: 7px; margin-left: 8px; padding: 0 4px 0 11px; height: 34px; border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--border-strong); font-size: 12.5px; color: var(--text-2); white-space: nowrap; }
+.match-tab b { color: var(--text-1); font-weight: 700; }
+.match-tab-n { color: var(--text-3); font-size: 11.5px; }
+.match-tab-x { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--text-3); }
+.match-tab-x:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 25%, transparent); color: #fff; border-color: transparent; }
+@media (max-width: 1100px) { .match-tab-n { display: none; } }
+@media (max-width: 760px) { .match-tab b, .match-tab > .icon { display: none; } .match-tab { padding: 0 4px; } }

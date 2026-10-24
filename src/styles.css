@@ -928,7 +928,7 @@ a.btn:hover { border-color: #45505e; }
 .mv-row:hover:not(:disabled), .pos-top:hover:not(:disabled) { background: transparent; border-color: transparent; }
 .rp-switch.plain { color: var(--text-3); }
 .rp-switch.plain::after { background: var(--border); }
-.rp-actions { margin-left: auto; display: flex; gap: 5px; }
-.rp-act { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; padding: 4px 9px; font-size: 12px; font-weight: 600; border-radius: 7px; color: var(--text-2); }
-.rp-act.close { color: var(--text-1); border-color: var(--border-strong); }
-.rp-act.close:hover:not(:disabled) { border-color: var(--bad); color: #fff; background: color-mix(in srgb, var(--bad) 22%, var(--surface-2)); }
+.rp-foot { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
+.rp-save { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 2px 0; font-size: 12px; font-weight: 600; color: var(--text-3); }
+.rp-save:hover:not(:disabled) { background: transparent; border-color: transparent; color: var(--text-1); }
+.review-panel .rp-how { margin-top: 8px; }
