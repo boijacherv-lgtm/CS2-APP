@@ -439,3 +439,18 @@
 .match-tab-x:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 25%, transparent); color: #fff; border-color: transparent; }
 @media (max-width: 1100px) { .match-tab-n { display: none; } }
 @media (max-width: 760px) { .match-tab b, .match-tab > .icon { display: none; } .match-tab { padding: 0 4px; } }
+
+/* phones: the top bar fits in the width (icons only for Profile, "Log in" for the Steam button) */
+@media (max-width: 560px) {
+  .navbar .with-steam { display: none; }
+  .navbar .steam-login { white-space: nowrap; padding: 6px 10px; }
+  .nav-right { gap: 2px; }
+  .nav-right .nav-link { padding: 6px 7px; }
+  /* CS2's modes: icons, with the name only on the one you're on */
+  .modes button:not(.on) .mode-label { display: none; }
+  .modes button { padding: 5px 8px; }
+  /* on CS2's pages the modes need the room: the CS2 button is its logo, Pricing waits on the other pages */
+  .modes ~ .nav-right a[href="#/pricing"] { display: none; }
+  .navbar:has(.modes) .game-btn.live > span:last-child { display: none; }
+  .navbar:has(.modes) .game-btn.live { padding-right: 3px; }
+}

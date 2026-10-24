@@ -53,17 +53,17 @@ export function NavBar({ route }: { route: Route }) {
           {!loaded && (
             <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
               onClick={() => navigate({ page: 'cs2', mode: 'tactical' })} title="Plan rounds on the board">
-              <Icon name="grid" className="mode-ico" /> Tactical
+              <Icon name="grid" className="mode-ico" /> <span className="mode-label">Tactical</span>
             </button>
           )}
           <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
             onClick={() => navigate({ page: 'cs2', mode: 'review' })} title={loaded ? 'Replay and grade this match' : 'Load a match to replay and grade it'}>
-            <Icon name="play" className="mode-ico" /> Review{loaded ? <i className="dot-live" title="A match is loaded" /> : null}
+            <Icon name="play" className="mode-ico" /> <span className="mode-label">Review</span>{loaded ? <i className="dot-live" title="A match is loaded" /> : null}
           </button>
           {loaded && (
             <button role="tab" aria-selected={route.mode === 'report'} className={route.mode === 'report' ? 'on' : ''}
               onClick={() => navigate({ page: 'cs2', mode: 'report' })} title="The coach's notes, every player's grades and estimated rating for the match">
-              <Icon name="star" className="mode-ico" /> Match recap
+              <Icon name="star" className="mode-ico" /> <span className="mode-label">Match recap</span>
             </button>
           )}
         </div>
@@ -94,7 +94,7 @@ function AccountMenu({ route }: { route: Route }) {
   if (me === undefined && STEAM_AVAILABLE) return <span className="account-wait" />;
   if (!me) return (
     <div className="account">
-      <a className={`nav-link ${route.page === 'profile' ? 'on' : ''}`} href="#/profile"><Icon name="user" size={16} /> Profile</a>
+      <a className={`nav-link ${route.page === 'profile' ? 'on' : ''}`} href="#/profile" aria-label="Profile"><Icon name="user" size={16} /> <span>Profile</span></a>
       {STEAM_AVAILABLE && <SteamLoginButton compact />}
     </div>
   );

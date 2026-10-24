@@ -25,7 +25,7 @@ export function SteamLoginButton({ compact }: { compact?: boolean }) {
   return (
     <a className={`steam-login ${compact ? 'compact' : ''}`} href={steamLoginHref(back)}
       title="Opens Steam's own login page; you can scan its QR code with the Steam app. The app only receives your SteamID.">
-      <SteamLogo /> Log in with Steam
+      <SteamLogo /><span>Log in<span className="with-steam"> with Steam</span></span>
     </a>
   );
 }
