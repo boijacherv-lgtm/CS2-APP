@@ -6,4 +6,5 @@ export interface DemoParser {
   parseTicks(input: unknown, props: string[], ticks?: number[]): unknown;
   parseGrenades(input: unknown): unknown;
 }
+export const PARSE_V: number;
 export function buildDemoData(parser: DemoParser, input: unknown, progress?: (pass: number) => void): DemoData;
