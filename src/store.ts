@@ -20,11 +20,18 @@ const OFF: Record<Overlay, boolean> = {
 export const VIEW_PRESETS: Record<ViewName, Record<Overlay, boolean>> = {
   /** Players, routes and grenades only. */
   clean: { ...OFF },
-  /** Map control, entry lines, callouts, guns and kill chances; no vision cones, no entry cards. */
-  standard: { ...OFF, control: true, threat: true, callouts: true, los: true, playerInfo: true },
+  /** Map control, callout names, vision cones, entry lines, guns and kill chances (Tactical); no entry cards. */
+  standard: { ...OFF, control: true, threat: true, callouts: true, los: true, vision: true, playerInfo: true },
   /** Everything the board can draw. */
   full: { ...OFF, control: true, vision: true, threat: true, entryCards: true, callouts: true, calloutsAll: true, los: true, playerInfo: true },
 };
+
+/** Layers saved as the old Standard (before it had vision cones) become today's Standard, not "Custom". */
+function upgradeStandard(o: Record<Overlay, boolean>): Record<Overlay, boolean> {
+  const was: Partial<Record<Overlay, boolean>> = { control: true, threat: true, callouts: true, los: true, playerInfo: true };
+  const old = NOISE_LAYERS.every(l => !!o[l] === !!was[l]);
+  return old ? { ...o, ...Object.fromEntries(NOISE_LAYERS.map(l => [l, VIEW_PRESETS.standard[l]])) } : o;
+}
 
 /** Which preset the current layers match, or null when the user has mixed their own. */
 export function activeView(o: Record<Overlay, boolean>): ViewName | null {
@@ -207,7 +214,7 @@ export const useStore = create<Store>((set, get) => {
     future: [],
     tool: 'select',
     selectedId: null,
-    overlays: loadJson<Record<Overlay, boolean>>(LS_OVERLAYS, VIEW_PRESETS.standard),
+    overlays: upgradeStandard(loadJson<Record<Overlay, boolean>>(LS_OVERLAYS, VIEW_PRESETS.standard)),
     folded: loadJson<Record<string, boolean>>(LS_FOLDED, {}),
     time: 10,
     draftRoute: null,
