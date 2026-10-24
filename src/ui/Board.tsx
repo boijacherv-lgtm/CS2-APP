@@ -657,7 +657,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               <Text x={l.to.x + 5 * k} y={l.to.y - 5 * k} text={l.name} fontSize={8 * k} fill="#fff" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled />
             </Group>
           ))}
-          {s.board.utility.filter(u => u.from || u.path).map(u => <NadeFlight key={`fly-${u.id}`} u={u} t={s.time} k={k} />)}
+          {s.board.utility.filter(u => u.from || u.path).map(u => <NadeFlight key={`fly-${u.id}`} u={u} t={s.time} k={k} onFloor={p => engine.grid.isWalkable(p)} />)}
           {s.tool === 'lineup' && s.draftLineup?.from && (
             <Group listening={false}>
               <Circle x={s.draftLineup.from.x} y={s.draftLineup.from.y} radius={4 * k} fill={TOK.highlight} stroke="#000" strokeWidth={1 * k} />

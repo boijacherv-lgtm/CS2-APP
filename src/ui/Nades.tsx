@@ -195,8 +195,8 @@ export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable,
 }
 
 /** Thrown grenades flying along their arc from the thrower to the landing spot. */
-export function NadeFlight({ u, t, k }: { u: Utility; t: number; k: number }) {
-  if (u.path) return <RealFlight u={u} path={u.path} t={t} k={k} />;
+export function NadeFlight({ u, t, k, onFloor }: { u: Utility; t: number; k: number; onFloor?: (p: Vec2) => boolean }) {
+  if (u.path) return <RealFlight u={u} path={u.path} t={t} k={k} onFloor={onFloor} />;
   if (!u.from) return null;
   const pop = popAt(u);
   const land = Math.min(pop, u.throwAt + Math.max(0.6, (pop - u.throwAt) * 0.75)); // smokes roll a little after landing
@@ -220,7 +220,7 @@ export function NadeFlight({ u, t, k }: { u: Utility; t: number; k: number }) {
  * A grenade from a demo: the trail grows behind it as it flies the real path (bounces included),
  * then stays faintly for a moment after it pops so you can see where it came from.
  */
-function RealFlight({ u, path, t, k }: { u: Utility; path: Vec2[]; t: number; k: number }) {
+function RealFlight({ u, path, t, k, onFloor }: { u: Utility; path: Vec2[]; t: number; k: number; onFloor?: (p: Vec2) => boolean }) {
   const pop = popAt(u);
   if (t < u.throwAt || t > pop + 1.5) return null;
   const f = Math.min(1, (t - u.throwAt) / (pop - u.throwAt || 1));
@@ -235,8 +235,16 @@ function RealFlight({ u, path, t, k }: { u: Utility; path: Vec2[]; t: number; k:
   const air = Math.sin(Math.PI * Math.min(1, f / (u.type === 'smoke' ? 0.75 : 1)));
   return (
     <Group listening={false} opacity={fade}>
-      <Line points={pts} stroke="#000" strokeWidth={3 * k} opacity={0.35} lineCap="round" lineJoin="round" />
-      <Line points={pts} stroke={NADE_COLOR[u.type]} strokeWidth={1.5 * k} lineCap="round" lineJoin="round" />
+      {/* where the trail crosses a wall on the map the grenade went over it (thrown over a building): dashed and
+          lighter there, so it doesn't read as going through */}
+      {trailRuns(pts, onFloor).map((run, j) => run.over
+        ? <Line key={j} points={run.pts} stroke={NADE_COLOR[u.type]} strokeWidth={1.3 * k} dash={[3 * k, 3 * k]} opacity={0.6} lineCap="round" lineJoin="round" />
+        : (
+          <Group key={j}>
+            <Line points={run.pts} stroke="#000" strokeWidth={3 * k} opacity={0.35} lineCap="round" lineJoin="round" />
+            <Line points={run.pts} stroke={NADE_COLOR[u.type]} strokeWidth={1.5 * k} lineCap="round" lineJoin="round" />
+          </Group>
+        ))}
       <Circle x={path[0].x} y={path[0].y} radius={2.5 * k} fill={NADE_COLOR[u.type]} stroke="#000" strokeWidth={0.8 * k} />
       {t < pop && (
         <>
@@ -246,6 +254,23 @@ function RealFlight({ u, path, t, k }: { u: Utility; path: Vec2[]; t: number; k:
       )}
     </Group>
   );
+}
+
+/**
+ * A trail (flat x, y list) cut into runs over the floor and over walls, each run sharing its end point with the next.
+ * Without a floor test the whole trail is one run.
+ */
+function trailRuns(pts: number[], onFloor?: (p: Vec2) => boolean): { over: boolean; pts: number[] }[] {
+  if (!onFloor || pts.length < 4) return [{ over: false, pts }];
+  const runs: { over: boolean; pts: number[] }[] = [];
+  for (let i = 0; i + 3 < pts.length; i += 2) {
+    const mid = { x: (pts[i] + pts[i + 2]) / 2, y: (pts[i + 1] + pts[i + 3]) / 2 };
+    const over = !onFloor(mid);
+    const last = runs[runs.length - 1];
+    if (last && last.over === over) last.pts.push(pts[i + 2], pts[i + 3]);
+    else runs.push({ over, pts: [pts[i], pts[i + 1], pts[i + 2], pts[i + 3]] });
+  }
+  return runs;
 }
 
 function GradeMark({ grade, x, y, k }: { grade: Annotation; x: number; y: number; k: number }) {
