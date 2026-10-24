@@ -62,7 +62,7 @@ export function TeamRoster({ side, players, round, time }: { side: 'CT' | 'T'; p
         const gun = (w: string | undefined, big: boolean) => {
           if (!w) return null;
           const src = iconOf(w);
-          return src ? <GameIcon src={src} size={big ? 17 : 12} title={`${w}${held(w) ? ' (in hand)' : ''}`} className={`tb-gun ${big ? 'main' : ''} ${held(w) ? 'held' : ''}`} />
+          return src ? <GameIcon src={src} size={big ? 19 : 13} title={`${w}${held(w) ? ' (in hand)' : ''}`} className={`tb-gun ${big ? 'main' : ''} ${held(w) ? 'held' : ''}`} />
             : <span className="tb-gun-txt">{w}</span>;
         };
         const hp = Math.max(0, Math.min(100, Math.round(p.hp)));
@@ -86,7 +86,7 @@ export function TeamRoster({ side, players, round, time }: { side: 'CT' | 'T'; p
                     {gun(main, true)}
                     {gun(other, false)}
                     {KNIFE.test(inHand) && <GameIcon src="equipment/knife" size={12} title="Knife (in hand)" className="tb-gun held" />}
-                    <span className="tb-nades">{nades.map((w, j) => { const src = iconOf(w); return src ? <GameIcon key={j} src={src} size={12} title={`${w}${held(w) ? ' (in hand)' : ''}`} className={held(w) ? 'tb-nade held' : 'tb-nade'} /> : null; })}</span>
+                    <span className="tb-nades">{nades.map((w, j) => { const src = iconOf(w); return src ? <GameIcon key={j} src={src} size={13} title={`${w}${held(w) ? ' (in hand)' : ''}`} className={held(w) ? 'tb-nade held' : 'tb-nade'} /> : null; })}</span>
                     <span className="tb-spacer" />
                     {g.armor > 0 && <Icon name={g.helmet ? 'helmet' : 'vest'} size={12} title={`${g.helmet ? 'Armour and helmet' : 'Armour'} (${g.armor})`} className="tb-armor" />}
                     {bomb && <Icon name="bomb" size={12} title="Carrying the bomb" className="tb-bomb" />}

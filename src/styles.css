@@ -763,26 +763,26 @@ a.btn:hover { border-color: #45505e; }
 .slot.team-ct { grid-area: team-ct; align-items: flex-end; justify-content: flex-start; }
 .slot.team-t { grid-area: team-t; align-items: flex-end; justify-content: flex-end; }
 
-.teambar { width: 300px; max-width: 100%; display: flex; flex-direction: column; gap: 2px; font-family: var(--font-ui); }
+.teambar { width: 330px; max-width: 100%; display: flex; flex-direction: column; gap: 4px; font-family: var(--font-ui); }
 .teambar.ct { --side: var(--ct); --side-dim: var(--ct-dim); } .teambar.t { --side: var(--t); --side-dim: var(--t-dim); }
-.tb-head { display: flex; align-items: center; gap: 8px; padding: 4px 9px; border-radius: 7px 7px 2px 2px;
+.tb-head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 7px 7px 2px 2px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--side) 32%, #0a0c10), #0a0c10ee); border-top: 2px solid var(--side); }
 .teambar.t .tb-head { flex-direction: row-reverse; background: linear-gradient(270deg, color-mix(in srgb, var(--side) 32%, #0a0c10), #0a0c10ee); }
-.tb-head b { font-family: var(--font-display); font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--side); }
+.tb-head b { font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--side); }
 .tb-alive { display: inline-flex; gap: 2px; }
 .tb-alive i { width: 5px; height: 10px; border-radius: 1px; background: #ffffff1f; }
 .tb-alive i.on { background: var(--side); }
-.tb-bank { margin-left: auto; font-size: 11px; color: var(--good-soft); font-weight: 700; }
+.tb-bank { margin-left: auto; font-size: 12px; color: var(--good-soft); font-weight: 700; }
 .teambar.t .tb-bank { margin-left: 0; margin-right: auto; }
 
-.tb-row { display: flex; align-items: stretch; gap: 0; height: 34px; border-radius: 2px; overflow: hidden; background: #0a0c10e6;
+.tb-row { display: flex; align-items: stretch; gap: 0; height: 40px; border-radius: 2px; overflow: hidden; background: #0a0c10e6;
   transition: opacity var(--motion-smooth) var(--ease-out); }
 .teambar.t .tb-row { flex-direction: row-reverse; }
 .teambar .tb-row:last-child { border-radius: 2px 2px 7px 7px; }
-.tb-pic { flex: none; width: 34px; height: 34px; display: grid; place-items: center; background: var(--side-dim); font-size: 10px; font-weight: 800; color: var(--text-1); }
+.tb-pic { flex: none; width: 40px; height: 40px; display: grid; place-items: center; background: var(--side-dim); font-size: 10px; font-weight: 800; color: var(--text-1); }
 .tb-pic img { width: 100%; height: 100%; object-fit: cover; }
 /* the row fills with the team colour as far as the health goes (from the avatar outwards) */
-.tb-main { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 0 8px;
+.tb-main { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 10px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--side) 34%, transparent) var(--hp), transparent var(--hp));
   transition: background var(--motion-smooth) var(--ease-out); }
 .teambar.t .tb-main { background: linear-gradient(270deg, color-mix(in srgb, var(--side) 34%, transparent) var(--hp), transparent var(--hp)); }
@@ -793,13 +793,13 @@ a.btn:hover { border-color: #45505e; }
 .tb-row.low .tb-main::after { background: var(--bad); }
 .tb-line { display: flex; align-items: center; gap: 6px; min-width: 0; line-height: 1; }
 .teambar.t .tb-line { flex-direction: row-reverse; }
-.tb-hp { min-width: 22px; font-family: var(--font-display); font-size: 16px; font-weight: 700; color: #fff; text-align: center; }
+.tb-hp { min-width: 24px; font-family: var(--font-display); font-size: 17.5px; font-weight: 700; color: #fff; text-align: center; }
 .tb-row.low .tb-hp { color: var(--bad-soft); }
 .tb-dead { color: var(--bad); min-width: 22px; }
-.tb-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .teambar.t .tb-name { text-align: right; }
 .tb-rk { display: inline-flex; gap: 1px; color: var(--side); }
-.tb-kd { font-size: 10.5px; font-weight: 700; color: var(--text-2); }
+.tb-kd { font-size: 11.5px; font-weight: 700; color: var(--text-2); }
 .tb-kd em { font-style: normal; color: var(--text-3); margin: 0 1px; }
 .tb-line.gear { gap: 5px; color: var(--text-2); min-height: 14px; }
 .tb-spacer { flex: 1; }
@@ -810,14 +810,14 @@ a.btn:hover { border-color: #45505e; }
 .tb-nades { display: inline-flex; align-items: center; gap: 2px; }
 .tb-nade.held { color: #fff; filter: drop-shadow(0 0 3px #fff8); }
 .tb-armor { color: var(--text-1); } .tb-bomb { color: var(--bad); } .tb-kit { color: var(--ct); }
-.tb-money { font-size: 10.5px; font-weight: 700; color: var(--good-soft); }
+.tb-money { font-size: 11.5px; font-weight: 700; color: var(--good-soft); }
 .tb-row.dead { opacity: .55; }
 .tb-row.dead .tb-pic { filter: grayscale(1); }
 .tb-row.dead .tb-name { color: var(--text-2); }
 .tb-head b { white-space: nowrap; } .tb-short { display: none; }
 .tb-line.gear { overflow: hidden; }
 .tb-money { flex: none; }
-@container (max-width: 1100px) { .teambar { width: 250px; } .tb-kd { display: none; } .tb-long { display: none; } .tb-short { display: inline; } }
+@container (max-width: 1100px) { .teambar { width: 280px; } .tb-kd { display: none; } .tb-long { display: none; } .tb-short { display: inline; } .tb-line.gear .tb-gun:not(.main) { display: none; } }
 @container (max-width: 860px) { .teambar { width: 210px; } .tb-line.gear .tb-nades, .tb-line.gear .tb-gun:not(.main) { display: none; } }
 @container (max-width: 700px) { .teambar { display: none; } }
 
