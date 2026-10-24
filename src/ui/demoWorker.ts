@@ -6,6 +6,7 @@
  */
 import { buildDemoData } from '../../tools/demo-core.mjs';
 import { wasmParserApi } from '../../tools/demo-wasm.mjs';
+import { BUILD } from '../env';
 
 export type DemoWorkerIn = { file: File };
 export type DemoWorkerOut = { progress: number } | { data: unknown } | { error: string };
@@ -15,8 +16,11 @@ let loaded: Promise<WasmModule> | null = null;
 function loadParser(): Promise<WasmModule> {
   loaded ??= (async () => {
     const base = `${self.location.origin}/demoparser/`;
-    const mod = (await import(/* @vite-ignore */ `${base}demoparser2.js`)) as WasmModule;
-    await mod.default(`${base}demoparser2_bg.wasm`);
+    // the build's commit on the URL: a browser that cached an older parser (e.g. one without grenade flights) gets
+    // the new one after every deploy
+    const v = `?v=${BUILD.commit}`;
+    const mod = (await import(/* @vite-ignore */ `${base}demoparser2.js${v}`)) as WasmModule;
+    await mod.default(`${base}demoparser2_bg.wasm${v}`);
     return mod;
   })();
   return loaded;
