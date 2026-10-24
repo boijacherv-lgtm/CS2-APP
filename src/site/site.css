@@ -456,3 +456,22 @@
 }
 .navbar .steam-login { white-space: nowrap; }
 @media (max-width: 1180px) { .navbar:has(.match-tab) .with-steam { display: none; } }
+
+/* Dev page: a health line, the key numbers, categories */
+.dev-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.dev-head h1 { margin: 0; }
+.dev-checks { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.dev-check { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 99px; font-size: 12px; font-weight: 600; color: var(--text-2);
+  background: var(--surface-1); border: 1px solid var(--border); cursor: help; }
+.dev-check b { color: var(--text-1); font-weight: 700; }
+.dev-check i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.dev-check.ok i { background: var(--good); } .dev-check.warn i { background: var(--warn); } .dev-check.bad i { background: var(--bad); }
+.dev-check.warn { border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); } .dev-check.bad { border-color: color-mix(in srgb, var(--bad) 50%, var(--border)); }
+.dev-kpis { margin-bottom: 14px; }
+.dev-kpis .kpi-tile em { display: block; font-style: normal; font-size: 11px; margin-top: 2px; }
+.dev-tabs { margin: 0 0 14px; padding: 6px 0; top: 0; background: transparent; border-bottom: 1px solid var(--border); backdrop-filter: none; position: static; }
+.dev-models { margin-top: 12px; }
+.dev-models td:first-child { font-weight: 700; width: 120px; } .dev-models td:last-child { color: var(--text-3); text-align: right; }
+.dev-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 900px) { .dev-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .dev-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
