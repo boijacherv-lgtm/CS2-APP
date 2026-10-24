@@ -102,6 +102,8 @@ export interface Utility {
   lineup?: string;
   /** Real flight path from a demo (release → landing), drawn instead of a generic arc. */
   path?: Vec2[];
+  /** The real flight's height (world z) at each path point, when the demo has it. */
+  heights?: number[];
   /** Where it hit a wall or the floor on the way (demo; t = seconds into the round). */
   bounces?: (Vec2 & { t: number; wall: boolean })[];
   /** How long the smoke/fire lasted (demo); defaults per type. */

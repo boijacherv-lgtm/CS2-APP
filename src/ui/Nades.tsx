@@ -231,13 +231,22 @@ function RealFlight({ u, path, t, k, onFloor }: { u: Utility; path: Vec2[]; t: n
   const at = { x: p.x + (q.x - p.x) * a, y: p.y + (q.y - p.y) * a };
   const pts = path.slice(0, i + 1).flatMap(v => [v.x, v.y]).concat(at.x, at.y);
   const fade = t > pop ? 1 - (t - pop) / 1.5 : 1;
+  // high in the air on this stretch: above the line from where it was thrown to where it landed by more than a
+  // player's height (so it went over whatever is under it: a wall, a box, a building)
+  const hs = u.heights?.length === path.length ? u.heights : null;
+  const high = (seg: number) => {
+    if (!hs) return false;
+    const j = Math.min(seg, hs.length - 2), z = (hs[j] + hs[j + 1]) / 2;
+    const base = hs[0] + ((hs[hs.length - 1] - hs[0]) * (j + 0.5)) / (hs.length - 1);
+    return z - base > IN_AIR;
+  };
   // up in the air and back down (smokes land and roll for the last part): bigger icon, shadow further away
   const air = Math.sin(Math.PI * Math.min(1, f / (u.type === 'smoke' ? 0.75 : 1)));
   return (
     <Group listening={false} opacity={fade}>
       {/* where the trail crosses a wall on the map the grenade went over it (thrown over a building): dashed and
           lighter there, so it doesn't read as going through */}
-      {trailRuns(pts, onFloor).map((run, j) => run.over
+      {trailRuns(pts, (seg, mid) => (onFloor ? !onFloor(mid) : false) || high(seg)).map((run, j) => run.over
         ? <Line key={j} points={run.pts} stroke={NADE_COLOR[u.type]} strokeWidth={1.3 * k} dash={[3 * k, 3 * k]} opacity={0.6} lineCap="round" lineJoin="round" />
         : (
           <Group key={j}>
@@ -256,19 +265,21 @@ function RealFlight({ u, path, t, k, onFloor }: { u: Utility; path: Vec2[]; t: n
   );
 }
 
+/** Units above the throw-to-landing line that count as "in the air, over something" (a player is ~72 tall). */
+const IN_AIR = 72;
+
 /**
- * A trail (flat x, y list) cut into runs over the floor and over walls, each run sharing its end point with the next.
- * Without a floor test the whole trail is one run.
+ * A trail (flat x, y list) cut into runs on the ground and in the air / over walls (`over(segment, its midpoint)`),
+ * each run sharing its end point with the next.
  */
-function trailRuns(pts: number[], onFloor?: (p: Vec2) => boolean): { over: boolean; pts: number[] }[] {
-  if (!onFloor || pts.length < 4) return [{ over: false, pts }];
+function trailRuns(pts: number[], over: (seg: number, mid: Vec2) => boolean): { over: boolean; pts: number[] }[] {
+  if (pts.length < 4) return [{ over: false, pts }];
   const runs: { over: boolean; pts: number[] }[] = [];
   for (let i = 0; i + 3 < pts.length; i += 2) {
-    const mid = { x: (pts[i] + pts[i + 2]) / 2, y: (pts[i + 1] + pts[i + 3]) / 2 };
-    const over = !onFloor(mid);
+    const o = over(i / 2, { x: (pts[i] + pts[i + 2]) / 2, y: (pts[i + 1] + pts[i + 3]) / 2 });
     const last = runs[runs.length - 1];
-    if (last && last.over === over) last.pts.push(pts[i + 2], pts[i + 3]);
-    else runs.push({ over, pts: [pts[i], pts[i + 1], pts[i + 2], pts[i + 3]] });
+    if (last && last.over === o) last.pts.push(pts[i + 2], pts[i + 3]);
+    else runs.push({ over: o, pts: [pts[i], pts[i + 1], pts[i + 2], pts[i + 3]] });
   }
   return runs;
 }
