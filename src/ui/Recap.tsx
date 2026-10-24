@@ -278,26 +278,17 @@ function reasonText(reason: string) {
   return reason.replace(/_/g, ' ');
 }
 
-/** The match's controls (they lived in the left strip before): save the parsed match, close it. */
+/** The match's controls, in plain sight: save the read match, close it (back to choosing a match). */
 function MatchMenu({ data }: { data: DemoData }) {
   const exit = useStore(s => s.exitReview);
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
-    window.addEventListener('mousedown', away);
-    return () => window.removeEventListener('mousedown', away);
-  }, [open]);
   return (
-    <div className="rp-menu" ref={box}>
-      <button className="ghost rp-menu-btn" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-label="Match options" title="Match: save, close"><Icon name="more" size={18} /></button>
-      {open && (
-        <div className="rp-menu-list" role="menu">
-          <button role="menuitem" onClick={() => { exportJson(data); setOpen(false); }} title="Save the read match so it opens instantly next time"><Icon name="save" size={14} /> Save as .json</button>
-          <button role="menuitem" onClick={exit} title="Close this match: load another, or go back to Tactical"><Icon name="close" size={14} /> Close match</button>
-        </div>
-      )}
+    <div className="rp-actions">
+      <button className="rp-act" onClick={() => exportJson(data)} title="Save this match as a file: it opens instantly next time">
+        <Icon name="save" size={14} /> Save
+      </button>
+      <button className="rp-act close" onClick={exit} title="Close this match and pick another one">
+        <Icon name="close" size={14} /> Close match
+      </button>
     </div>
   );
 }

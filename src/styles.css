@@ -866,7 +866,7 @@ a.btn:hover { border-color: #45505e; }
 
 /* Review's right panel: match bar, rounds by half (with the side switch), result, chip filters, folding move cards */
 .rp-head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
-.rp-match { display: flex; align-items: center; gap: 10px; padding-right: 26px; }
+.rp-match { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding-right: 26px; }
 .rp-map { font-family: var(--font-display); font-size: 18px; letter-spacing: .02em; }
 .rp-score { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-display); font-size: 18px; font-weight: 700; }
 .rp-score i { font-style: normal; } .rp-score i.ct { color: var(--ct); } .rp-score i.t { color: var(--t); } .rp-score em { font-style: normal; color: var(--text-3); }
@@ -928,3 +928,7 @@ a.btn:hover { border-color: #45505e; }
 .mv-row:hover:not(:disabled), .pos-top:hover:not(:disabled) { background: transparent; border-color: transparent; }
 .rp-switch.plain { color: var(--text-3); }
 .rp-switch.plain::after { background: var(--border); }
+.rp-actions { margin-left: auto; display: flex; gap: 5px; }
+.rp-act { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; padding: 4px 9px; font-size: 12px; font-weight: 600; border-radius: 7px; color: var(--text-2); }
+.rp-act.close { color: var(--text-1); border-color: var(--border-strong); }
+.rp-act.close:hover:not(:disabled) { border-color: var(--bad); color: #fff; background: color-mix(in srgb, var(--bad) 22%, var(--surface-2)); }
