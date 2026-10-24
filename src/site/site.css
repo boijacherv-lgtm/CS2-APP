@@ -454,3 +454,5 @@
   .navbar:has(.modes) .game-btn.live > span:last-child { display: none; }
   .navbar:has(.modes) .game-btn.live { padding-right: 3px; }
 }
+.navbar .steam-login { white-space: nowrap; }
+@media (max-width: 1180px) { .navbar:has(.match-tab) .with-steam { display: none; } }

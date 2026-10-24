@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { coach, modelFor, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
+import { coach, modelFor, type CoachNote, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
 import { analystReport, type Finding, type Topic } from '../engine/analystBench';
 import { analystBench, proAnalystAvailable } from '../engine/analystModel';
 import { matchAnalysis, type AnalysisItem } from '../engine/analysis';
@@ -36,6 +36,16 @@ export function MatchReportPage() {
   // your default comparison (Settings), when the pro models are there
   const [level, setLevel] = useState<Level>(() => (useProfile.getState().data.prefs.compare === 'pro' && (!!PRO_MODEL || proAnalystAvailable) ? 'pro' : 'lvl10'));
   const [fullBoard, setFullBoard] = useState(false);
+  const [tab, setTab] = useState<RecapTab>(() => { try { const t = localStorage.getItem(LS_TAB) as RecapTab | null; return t && RECAP_TABS.some(x => x.id === t) ? t : 'overview'; } catch { return 'overview'; } });
+  const pickTab = (t: RecapTab) => { setTab(t); try { localStorage.setItem(LS_TAB, t); } catch { /* private mode */ } document.querySelector('.report')?.scrollTo({ top: 0 }); };
+  // the overview's short version: the coach's summary, the three things to fix first, two to keep
+  const overviewFor = useMemo(() => {
+    const p = view?.players.find(x => x.id === ([picked, me].find(id => id && view.players.some(q => q.id === id)) ?? view.players[0]?.id));
+    if (!p) return { summary: '', fix: [] as CoachNote[], keep: [] as CoachNote[] };
+    const c = coach(p, modelOf(level));
+    return { summary: c.summary, fix: c.improve.slice(0, 3), keep: c.strengths.slice(0, 2) };
+  }, [view, picked, me, level]);
+  const overview = overviewFor;
   if (!report || !view) return <div className="app single"><ReviewStart /></div>;
 
   // the pro level, once it's trained (HLTV demos): the coach and the analyst compare with it instead
@@ -48,61 +58,103 @@ export function MatchReportPage() {
     navigate({ page: 'cs2', mode: 'review' });
   };
 
+  const watch = (rounds: number[]) => rounds.slice(0, 6).map(i => (
+    <button key={i} onClick={() => openRound(i)} onMouseEnter={() => setHotRound(i)} onMouseLeave={() => setHotRound(null)} title="Open this round in Review">R{i + 1}</button>
+  ));
   return (
     <div className="report">
       <MatchHeader data={data} view={view} me={me} done={report.done} error={report.error} />
 
-      {hasPro && (
-        <div className="level-row">
-          <span className="muted">Compare with</span>
-          <div className="seg-mini level-toggle" role="group" aria-label="Compare with">
-            <button className={level === 'lvl10' ? 'on' : ''} onClick={() => setLevel('lvl10')} title="FACEIT level-10 players">Level 10</button>
+      {/* the categories: one at a time, so the page is short; the bar stays at the top */}
+      <nav className="recap-tabs" aria-label="Recap">
+        <div className="recap-tabs-list" role="tablist">
+          {RECAP_TABS.map(t => (
+            <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => pickTab(t.id)}>
+              <Icon name={t.icon} size={14} /> {t.label}
+            </button>
+          ))}
+        </div>
+        {hasPro && (
+          <div className="seg-mini level-toggle" role="group" aria-label="Compare with" title="Who the coach and analyst compare you with">
+            <button className={level === 'lvl10' ? 'on' : ''} onClick={() => setLevel('lvl10')} title="FACEIT level-10 players">Lvl 10</button>
             <button className={level === 'pro' ? 'on' : ''} onClick={() => setLevel('pro')} title="Pro players (HLTV demos)">Pro</button>
           </div>
-        </div>
-      )}
-      {focus && (
-        <div className="recap-top">
+        )}
+      </nav>
+
+      {tab === 'overview' && focus && (
+        <>
           <Performance p={focus} players={view.players} me={me} onPlayer={setPicked} />
-          <CoachCard p={focus} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
-        </div>
+          <section className="recap-card overview">
+            <p className="ov-summary">{overview.summary}</p>
+            {overview.fix.length > 0 && (
+              <>
+                <h3>Fix first</h3>
+                <ol className="ov-list">
+                  {overview.fix.map(n => (
+                    <li key={n.title}>
+                      <b>{n.title}</b>
+                      {n.rounds.length > 0 && <span className="coach-rounds">{watch(n.rounds)}</span>}
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+            {overview.keep.length > 0 && (
+              <>
+                <h3>Keep doing</h3>
+                <ul className="ov-list keep">{overview.keep.map(n => <li key={n.title}><b>{n.title}</b></li>)}</ul>
+              </>
+            )}
+            <div className="ov-go">
+              {RECAP_TABS.filter(t => t.id !== 'overview').map(t => (
+                <button key={t.id} className="ov-go-btn" onClick={() => pickTab(t.id)}><Icon name={t.icon} size={14} /> {t.label} <Icon name="arrowRight" size={12} /></button>
+              ))}
+            </div>
+            <details className="rp-how">
+              <summary><Icon name="info" size={13} /> How the rating and grades work</summary>
+              <p><b>Game rating</b>: the Premier rating at which this player's duels (each kill a win, each death a loss, against each opponent's real rating) come out as expected, plus {IMPACT_PER_POINT} points per point of round impact. A {Math.round(RATING_SCALE * 0.3)}-point gap makes the higher-rated player a 2:1 favourite in a duel.</p>
+              <p><b>Round grades</b> (S+ … F): how much they changed their team's win chance, with bonuses for clutches and multi-kills and penalties for team damage, team flashes and unused grenades. <b>Lobby</b> compares with the other nine; <b>Level</b> places the game between a typical level-10 game (B) and a pro game (S).</p>
+            </details>
+          </section>
+        </>
       )}
-      {me && view.players.some(p => p.id === me) && <HabitsCard />}
-      {focus && <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
-      {focus && <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
-      {focus && <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />}
-
-      <section className="recap-card">
-        <div className="coach-head">
-          <h2 className="display">Scoreboard</h2>
-          <button className="ghost sb-more" onClick={() => setFullBoard(!fullBoard)} aria-expanded={fullBoard}>{fullBoard ? 'Fewer columns' : 'More columns'}</button>
-        </div>
-        {([0, 1] as const).map(t => (
-          <Scoreboard key={t} team={t} players={view.players.filter(p => p.team === t)} score={view.score[t]} focus={focusId} onPick={setPicked} full={fullBoard} />
-        ))}
-      </section>
-
-      <RoundGrid data={data} players={view.players} focus={focusId} hot={hotRound} onPick={setPicked} onRound={openRound} />
-
-      <section className="report-how muted">
-        <h2 className="display">How the estimate works</h2>
-        <p>
-          <b>Game rating</b> is a performance rating, like in chess: the Premier rating at which this player's duels (every kill a win,
-          every death a loss, against each opponent's real rating) would be exactly the expected result. Then it adds {IMPACT_PER_POINT} points
-          per point of average round impact, so round-winning plays count and empty kills count less.
-          A {Math.round(RATING_SCALE * 0.3)}-point gap makes the higher-rated player a 2:1 favourite in a single duel.
-        </p>
-        <p>
-          <b>Round grades</b> (S+ … F) come from how much the player changed their team's win chance, plus bonuses for clutches and
-          multi-kills and penalties for team damage, team flashes and dying with unused grenades. <b>Lobby</b> grades the match against
-          the other nine players; <b>Level</b> places it between a typical FACEIT level-10 game (B) and a typical pro game (S). The{' '}
-          <b>coach</b> compares each number with FACEIT level-10 players of the same role (or pros, with Pro); the bars show how far,
-          better (right) or worse (left).
-        </p>
-      </section>
+      {tab === 'coach' && focus && (
+        <>
+          <CoachCard p={focus} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
+          {me && view.players.some(p => p.id === me) && <HabitsCard />}
+        </>
+      )}
+      {tab === 'analyst' && focus && <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
+      {tab === 'positions' && focus && <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
+      {tab === 'engine' && focus && <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />}
+      {tab === 'scoreboard' && (
+        <section className="recap-card">
+          <div className="coach-head">
+            <h2 className="display">Scoreboard</h2>
+            <button className="ghost sb-more" onClick={() => setFullBoard(!fullBoard)} aria-expanded={fullBoard}>{fullBoard ? 'Fewer columns' : 'More columns'}</button>
+          </div>
+          {([0, 1] as const).map(t => (
+            <Scoreboard key={t} team={t} players={view.players.filter(p => p.team === t)} score={view.score[t]} focus={focusId} onPick={setPicked} full={fullBoard} />
+          ))}
+        </section>
+      )}
+      {tab === 'rounds' && <RoundGrid data={data} players={view.players} focus={focusId} hot={hotRound} onPick={setPicked} onRound={openRound} />}
     </div>
   );
 }
+
+type RecapTab = 'overview' | 'coach' | 'analyst' | 'positions' | 'engine' | 'scoreboard' | 'rounds';
+const RECAP_TABS: { id: RecapTab; label: string; icon: IconName }[] = [
+  { id: 'overview', label: 'Overview', icon: 'star' },
+  { id: 'coach', label: 'Coach', icon: 'chat' },
+  { id: 'analyst', label: 'Analyst', icon: 'stats' },
+  { id: 'positions', label: 'Positions', icon: 'map' },
+  { id: 'engine', label: 'Engine', icon: 'route' },
+  { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
+  { id: 'rounds', label: 'Rounds', icon: 'grid' },
+];
+const LS_TAB = 'stratboard.recapTab';
 
 /** Map art, the final score (yours first when you played) and the result. */
 function MatchHeader({ data, view, me, done, error }: { data: DemoData; view: MatchReport; me: string | null; done: boolean; error?: string }) {
@@ -238,7 +290,7 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
           Compared with {model.name ?? 'trained'} players{byRole ? ` (${role.toLowerCase()}s)` : ''}
         </p>
       )}
-      <p className="coach-summary">{c.summary}{!done && <span className="muted"> (updates while rounds are graded)</span>}</p>
+      <p className="coach-summary">{c.summary}</p>
       {rage && <p className="coach-rage">{rageSummary(c.improve[0]?.feature ?? null, !!c.improve[0]?.title.startsWith('Your '))}</p>}
       <div className="dev-axis muted"><span><Icon name="prev" size={10} /> worse than normal</span><span>better than normal <Icon name="next" size={10} /></span></div>
       <div className="dev-list">
@@ -304,9 +356,10 @@ function AnalystCard({ data, rounds, player, level, done, onRound, onHotRound }:
   const work = rep.findings.filter(f => !f.good).slice(0, 6), good = rep.findings.filter(f => f.good).slice(0, 3);
   const card = (f: Finding) => (
     <div key={f.title} className={`pos-item ${f.good ? 'good' : 'work'}`}>
-      <span className="muted an-topic">{f.topic}</span>
-      <b>{f.title}</b>
-      <p>{f.detail}</p>
+      <details>
+        <summary><span className="muted an-topic">{f.topic}</span><b>{f.title}</b></summary>
+        <p>{f.detail}</p>
+      </details>
       {f.rounds.length > 0 && (
         <div className="coach-rounds">
           <span className="muted">Watch:</span>
@@ -319,7 +372,7 @@ function AnalystCard({ data, rounds, player, level, done, onRound, onHotRound }:
     <section className="recap-card analyst">
       <div className="coach-head">
         <h2 className="display">Analyst report</h2>
-        <span className="muted">vs {level === 'pro' && proAnalystAvailable ? 'pro players' : 'FACEIT level 10'} · {bench.rounds} rounds in {bench.demos} matches{!done ? ' · updating while rounds are graded' : ''}</span>
+        <span className="muted">vs {level === 'pro' && proAnalystAvailable ? 'pro players' : 'FACEIT level 10'} · {bench.rounds} rounds in {bench.demos} matches</span>
       </div>
       {work.length > 0 && <><h3>Work on</h3><div className="pos-items">{work.map(card)}</div></>}
       {good.length > 0 && <><h3>Keep</h3><div className="pos-items">{good.map(card)}</div></>}
@@ -360,8 +413,10 @@ function PositioningCard({ data, rounds, player, done, onRound, onHotRound }: {
   if (!a) return null;
   const item = (x: AnalysisItem, kind: 'work' | 'good') => (
     <div key={x.title} className={`pos-item ${kind}`}>
-      <b>{x.title}</b>
-      <p>{x.detail}</p>
+      <details>
+        <summary><b>{x.title}</b></summary>
+        <p>{x.detail}</p>
+      </details>
       {x.rounds.length > 0 && (
         <div className="coach-rounds">
           <span className="muted">Watch:</span>
@@ -376,7 +431,7 @@ function PositioningCard({ data, rounds, player, done, onRound, onHotRound }: {
         <h2 className="display">Positioning</h2>
         <span className="muted">vs FACEIT level 10 in the same situations · {a.demos} matches on this map{a.likePros !== null ? ` · ${Math.round(a.likePros * 100)}% level-10 decisions` : ''}</span>
       </div>
-      <p className="coach-summary">{a.summary}{!done && <span className="muted"> (updates while rounds are graded)</span>}</p>
+      <p className="coach-summary">{a.summary}</p>
       {a.worst.length > 0 && (
         <><h3>Spots where level-10 players win more from elsewhere</h3>
           <div className="pos-worst">
