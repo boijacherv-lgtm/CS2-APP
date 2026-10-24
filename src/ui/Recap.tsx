@@ -147,7 +147,6 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
         <div className="rp-match">
           <b className="rp-map">{engine.map.name}</b>
           <span className="rp-score num" title="Score before this round (this round's sides)"><i className="ct">{score[0]}</i><em>:</em><i className="t">{score[1]}</i></span>
-          <MatchMenu data={rv.data} />
         </div>
         <div className="rp-rounds">
           {halves.map((h, hi) => (
@@ -236,6 +235,11 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
         </div>
       </section>}
 
+      <div className="rp-foot">
+        <button className="rp-save" onClick={() => exportJson(rv.data)} title="It opens instantly next time: drop the file on Review">
+          <Icon name="save" size={13} /> Save this match as a file
+        </button>
+      </div>
       {control && (
         <details className="rp-how">
           <summary><Icon name="info" size={13} /> How grading works</summary>
@@ -276,21 +280,6 @@ function reasonText(reason: string) {
   if (r.startsWith('tkilled') || r.includes('terroristskilled')) return 'Ts eliminated';
   if (r.includes('surrender')) return 'surrender';
   return reason.replace(/_/g, ' ');
-}
-
-/** The match's controls, in plain sight: save the read match, close it (back to choosing a match). */
-function MatchMenu({ data }: { data: DemoData }) {
-  const exit = useStore(s => s.exitReview);
-  return (
-    <div className="rp-actions">
-      <button className="rp-act" onClick={() => exportJson(data)} title="Save this match as a file: it opens instantly next time">
-        <Icon name="save" size={14} /> Save
-      </button>
-      <button className="rp-act close" onClick={exit} title="Close this match and pick another one">
-        <Icon name="close" size={14} /> Close match
-      </button>
-    </div>
-  );
 }
 
 /** One move, folded: time, grade, short title, win-chance change, tags. Open: the full title and the reasons, one per line. */
