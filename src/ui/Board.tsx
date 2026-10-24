@@ -904,7 +904,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             </div>
           )}
         </div>
-        <div className="slot bl">
+        {/* the coach's card: docked on the left of the map, under the layers, over the CT panel */}
+        <div className="slot left card-slot">
           {recap && sim && s.popups && s.review && (
             <MoveFeed recap={recap} sim={sim} round={s.review.data.rounds[s.review.round]} time={s.time} view={view} boardRef={wrap}
               names={s.review.data.names} onFocus={setFocus} />

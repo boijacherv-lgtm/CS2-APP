@@ -139,6 +139,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
 
   if (!card) return null;
   const g = moveLook(card);
+  const facts = cardFacts(card);
   return (
     <>
       {who && (
@@ -150,46 +151,96 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
           <circle className="feed-ring-pulse" cx={px} cy={py} r={ringR} fill="none" stroke={g.color} strokeWidth={1.5} />
         </svg>
       )}
-      <div className={`feed-card ${reading && !held ? 'reading' : ''} ${open ? 'open' : ''}`} key={cardKey} ref={anchorEl} style={{ borderColor: g.color }}
-        onClick={skip} title={reading && !held ? 'Click for the next move' : undefined}>
+      <div className={`feed-card ${reading && !held ? 'reading' : ''} ${open ? 'open' : ''}`} key={cardKey} ref={anchorEl}
+        style={{ '--grade': g.color } as React.CSSProperties} onClick={skip} title={reading && !held ? 'Click for the next move' : undefined}>
+        {/* 1. the grade, who, when */}
         <div className="feed-card-head">
-          <button className="feed-mark-btn" onClick={toggle} aria-expanded={open} disabled={!card.why.length}
-            title={card.why.length ? (open ? 'Hide the reasons' : 'Why? Show the reasons (pauses the replay)') : undefined}>
-            <NoteMark m={card} className="feed-mark" size={14} />
-            {card.why.length > 0 && <Icon name="chevronDown" size={10} className="feed-mark-caret" />}
-          </button>
-          <div className="feed-who"><b style={{ color: g.color }}>{g.label}</b><span className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</span></div>
-          <span className={`feed-gain ${Math.round(card.gain * 100) > 0 ? 'up' : Math.round(card.gain * 100) < 0 ? 'down' : 'flat'}`} title="Change in their team's win chance">
-            {signedPct(card.gain)}
-          </span>
+          <NoteMark m={card} className="feed-mark" size={14} />
+          <div className="feed-who">
+            <b>{g.label}</b>
+            <span><i className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</i><em className="num">{fmtT(card.t)}</em></span>
+          </div>
           {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close"><Icon name="close" /></button>}
         </div>
-        <div className="feed-title">{brief(card.title)}</div>
+        {/* 2. what happened */}
+        <div className="feed-title">{brief(card.title).replace(/;?\s*best was .*$/i, '').replace(new RegExp(`^${escapeRe(names[card.player] ?? '')}: `), '')}</div>
+        {/* 3. what it did to the round: the win chance before and after */}
+        <WinMeter m={card} swing={facts.swing} />
+        {/* 4. the better play, when the engine had one */}
+        {facts.better && <div className="feed-better"><Icon name="arrowRight" size={13} /><span>Better: <b>{facts.better}</b></span></div>}
         {rage && rageLine(card) && <div className="feed-rage">{rageLine(card)}</div>}
+        {/* 5. why: the two that matter most, the rest on demand */}
+        {facts.reasons.length > 0 && (
+          <ul className="feed-why">
+            {(open ? facts.reasons : facts.reasons.slice(0, 2)).map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        )}
+        {facts.reasons.length > 2 && (
+          <button className="feed-more" onClick={toggle} aria-expanded={open}>{open ? 'Less' : `+${facts.reasons.length - 2} more`}</button>
+        )}
         {card.tags.length > 0 && (
           <div className="feed-tags">
             {card.tags.map(t => <span key={t} className="tag" title={TAG_INFO[t].tip} style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }}>{t}</span>)}
           </div>
         )}
-        {open && <ul className="feed-why">{card.why.map((w, i) => <li key={i}>{brief(w)}</li>)}</ul>}
-        {open && <div onClick={e => e.stopPropagation()}><VerdictBar m={card} /></div>}
+        {/* 7. what you can do with it */}
         <div className="feed-card-foot" onClick={e => e.stopPropagation()}>
+          {reading && !held && <button className="feed-stop" onClick={stop} title="Stop the replay on this move to read it"><Icon name="pause" size={12} /> Stop to read</button>}
+          {held && <button className="primary" onClick={resume} title="Carry on (Space)"><Icon name="play" size={12} /> Continue</button>}
+          {!reading && !held && <button className="feed-act" onClick={() => watchAgain(card.t)} title="Watch the 3 s leading up to it"><Icon name="rewind" size={12} /> Watch again</button>}
           {!playing && !picked && !held && group.length > 1 && (
             <span className="feed-pager">
               <button onClick={() => setPage((page + group.length - 1) % group.length)} aria-label="Previous move at this moment">‹</button>
-              {Math.min(page, group.length - 1) + 1} of {group.length} at this moment
+              {Math.min(page, group.length - 1) + 1}/{group.length}
               <button onClick={() => setPage((page + 1) % group.length)} aria-label="Next move at this moment">›</button>
             </span>
           )}
-          {reading && !held && <button className="feed-stop" onClick={stop} title="Stop the replay on this move to read it"><Icon name="pause" size={12} /> Stop to read</button>}
-          {reading && !held && <span className="muted">slow motion · click the card to skip</span>}
-          {held && <button className="primary" onClick={resume} title="Carry on (Space)"><Icon name="play" size={12} /> Continue</button>}
         </div>
+        {!playing && <div onClick={e => e.stopPropagation()}><VerdictBar m={card} /></div>}
         {reading && !held && readFor > 0 && <i key={`r${cardKey}`} className="feed-read" style={{ animationDuration: `${readFor}ms`, background: g.color }} />}
       </div>
     </>
   );
 }
+
+/** The card's parts from a move's reasons: the win-chance swing (for the meter), the engine's better play, the rest. */
+export function cardFacts(m: Move): { swing: { side: 'CT' | 'T'; before: number; after: number } | null; better: string | null; reasons: string[] } {
+  let swing: { side: 'CT' | 'T'; before: number; after: number } | null = null, better: string | null = null;
+  const reasons: string[] = [];
+  const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+  const fromTitle = m.title.match(/best was (.+?)\.?$/i);
+  if (fromTitle) better = cap(fromTitle[1].trim());
+  for (const w of m.why) {
+    const sw = w.match(/^(CT|T) win chance (\d+)% → (\d+)%\.?$/);
+    if (sw) { swing = { side: sw[1] as 'CT' | 'T', before: +sw[2], after: +sw[3] }; continue; }
+    const opt = w.match(/^Options: (.+?) \(best\)/);
+    if (opt) { better ??= cap(opt[1]); continue; }
+    // the engine's verdict is the card's grade already: keep what it adds (accuracy, cost)
+    reasons.push(brief(w).replace(/^Engine: [A-Za-z]+, a/, 'A'));
+  }
+  return { swing, better, reasons };
+}
+
+/** The round before → after this move, as one bar: the team's win chance, a ghost where it was, the change. */
+function WinMeter({ m, swing }: { m: Move; swing: { side: 'CT' | 'T'; before: number; after: number } | null }) {
+  const d = Math.round(m.gain * 100);
+  const pill = <span className={`feed-gain ${d > 0 ? 'up' : d < 0 ? 'down' : 'flat'}`} title="Change in their team's win chance">{signedPct(m.gain)}</span>;
+  if (!swing) return <div className="feed-meter only">{pill}<span className="muted">win chance</span></div>;
+  return (
+    <div className="feed-meter" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
+      <div className="feed-meter-top"><span className={swing.side.toLowerCase()}>{swing.side} win chance</span><b className="num">{swing.before}% → {swing.after}%</b>{pill}</div>
+      <div className={`feed-meter-bar ${swing.side.toLowerCase()}`}>
+        <i className="fill" style={{ width: `${swing.after}%` }} />
+        <i className="was" style={{ left: `${swing.before}%` }} />
+      </div>
+    </div>
+  );
+}
+
+const escapeRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const fmtT = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+/** Back 3 s before the move and play it again. */
+function watchAgain(t: number) { const st = useStore.getState(); st.setTime(Math.max(0, t - 3)); st.setPlaying(true); }
 
 /** Opens a move's card: pauses on the current time and shows that move. */
 function openMove(key: string) {
