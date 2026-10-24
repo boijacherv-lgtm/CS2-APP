@@ -157,7 +157,7 @@ export function App() {
       {!review && <Rail engine={engine} />}
       <Board key={`${mapId}:${level}`} timelineEnd={end} analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch?.stats ?? null} recap={recap} />
       <div className="drawer" aria-hidden={!drawerOpen}>
-        <button className="ghost drawer-close" onClick={() => useStore.getState().setDrawerOpen(false)} title="Hide the panel" aria-label="Hide the panel"><Icon name="close" /></button>
+        <button className="ghost drawer-close" onClick={() => useStore.getState().setDrawerOpen(false)} title="Hide this panel (more room for the map; the Panel button brings it back)" aria-label="Hide the panel"><Icon name="panelClose" /></button>
         {recap && replay
           ? <RecapPanel recap={recap} replay={replay} engine={engine} control={control} />
           : <AnalysisPanel analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch} impact={impact} stale={deferred !== board} />}
