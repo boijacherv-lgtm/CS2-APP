@@ -235,15 +235,18 @@ td.warn, b.warn { color: #ffb020; }
 .eval-toggle { flex: none; background: var(--bg-1); border: 1px solid var(--border); border-radius: 7px; padding: 2px; }
 .eval-toggle button { padding: 3px 9px; }
 .feed-read { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; transform-origin: left; animation: read-bar linear forwards; }
-.feed-card { position: relative; width: min(360px, 100%); max-height: 46vh; overflow-y: auto; background: var(--overlay); border: 1.5px solid; border-radius: 10px; padding: 10px 12px;
-  font-size: 13px; line-height: 1.4; box-shadow: 0 10px 30px #0009; animation: feed-in .25s var(--ease-out); }
-.feed-card-head { display: flex; align-items: center; gap: 9px; }
-.feed-card-head .feed-mark { min-width: 30px; height: 28px; font-size: 14px; border-radius: 6px; }
+.feed-card { position: relative; width: min(318px, 100%); max-height: 100%; overflow-y: auto; background: var(--overlay); border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--grade); border-radius: 10px; padding: 10px 12px 10px 12px; font-size: 13px; line-height: 1.4; box-shadow: 0 10px 30px #0009;
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--grade) 14%, transparent), transparent 64px); animation: feed-in .25s var(--ease-out); }
+.feed-card-head { display: flex; align-items: center; gap: 10px; }
+.feed-card-head .feed-mark { min-width: 34px; height: 32px; font-size: 15px; border-radius: 7px; box-shadow: 0 2px 8px #0008; }
 .feed-who { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; flex: 1; }
-.feed-who b { font-family: var(--font-display); font-size: 16px; letter-spacing: .02em; }
-.feed-who span { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.feed-x { padding: 2px 6px; color: var(--text-3); }
-.feed-title { margin: 8px 0 4px; font-weight: 700; font-size: 14px; }
+.feed-who b { font-family: var(--font-display); font-size: 18px; letter-spacing: .02em; color: var(--grade); }
+.feed-who span { display: flex; gap: 8px; align-items: baseline; font-size: 12px; font-weight: 600; min-width: 0; }
+.feed-who i { font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-who em { font-style: normal; color: var(--text-3); font-weight: 500; }
+.feed-x { padding: 2px 6px; color: var(--text-3); align-self: flex-start; }
+.feed-title { margin: 9px 0 8px; font-weight: 700; font-size: 15px; line-height: 1.35; color: var(--text-1); }
 .feed-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
 .feed-card ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-2); }
 .feed-card li + li { margin-top: 3px; }
@@ -753,7 +756,8 @@ a.btn:hover { border-color: #45505e; }
 
 /* Review, broadcast layout: score bug top centre, killfeed top right, team panels in the bottom corners, the move card
    between them (like a tournament stream's lower third) */
-.board-ui.broadcast { grid-template-areas: "tl top tr" ". . right" "team-ct bl team-t" "eval eval eval" "dock dock dock"; }
+.board-ui.broadcast { grid-template-areas: "tl top tr" "left . right" "team-ct bl team-t" "eval eval eval" "dock dock dock"; }
+.slot.card-slot { align-items: flex-start; min-height: 0; overflow: hidden; }
 .board-ui.broadcast .slot.bl { justify-content: center; align-items: flex-end; }
 .board-ui.broadcast .slot.br { display: none; }
 .slot.team-ct { grid-area: team-ct; align-items: flex-end; justify-content: flex-start; }
@@ -939,3 +943,26 @@ a.btn:hover { border-color: #45505e; }
 .verdict.done { color: var(--good-soft); font-weight: 600; }
 .verdict-undo { border: 0; background: transparent; padding: 2px 6px; font-size: 11.5px; color: var(--text-3); text-decoration: underline; }
 .verdict-undo:hover:not(:disabled) { background: transparent; border-color: transparent; color: var(--text-1); }
+
+/* the coach card: win-chance meter, better play, reasons, actions */
+.feed-meter { margin: 0 0 8px; }
+.feed-meter.only { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+.feed-meter-top { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 5px; }
+.feed-meter-top > span { font-weight: 700; } .feed-meter-top > span.ct { color: var(--ct); } .feed-meter-top > span.t { color: var(--t); }
+.feed-meter-top b { margin-left: auto; font-size: 12.5px; }
+.feed-meter-bar { position: relative; height: 7px; border-radius: 4px; background: #ffffff14; overflow: visible; }
+.feed-meter-bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; transition: width var(--motion-smooth) var(--ease-out); }
+.feed-meter-bar.ct .fill { background: var(--ct); } .feed-meter-bar.t .fill { background: var(--t); }
+.feed-meter-bar .was { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: #fff; opacity: .75; }
+.feed-better { display: flex; align-items: center; gap: 7px; margin: 0 0 8px; padding: 6px 9px; border-radius: 7px; font-size: 12.5px;
+  background: color-mix(in srgb, var(--good) 12%, transparent); color: var(--good-soft); }
+.feed-better b { color: #fff; }
+.feed-card ul.feed-why { margin: 0; padding: 0 0 0 16px; border-top: 0; font-size: 12.5px; line-height: 1.45; color: var(--text-2); animation: none; }
+.feed-card ul.feed-why li + li { margin-top: 3px; }
+.feed-more { margin: 4px 0 0 16px; padding: 0; border: 0; background: transparent; font-size: 12px; font-weight: 600; color: var(--text-3); }
+.feed-more:hover:not(:disabled) { background: transparent; border-color: transparent; color: var(--text-1); }
+.feed-tags { margin: 8px 0 0; }
+.feed-card-foot { flex-wrap: wrap; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+.feed-act { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; font-size: 11.5px; font-weight: 600; }
+.feed-card .verdict { margin-top: 6px; }
+.feed-card .feed-pager { margin-left: auto; }
