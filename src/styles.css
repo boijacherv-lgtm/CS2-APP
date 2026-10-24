@@ -333,7 +333,7 @@ td.loadout { white-space: nowrap; }
 .game-tab i { font-style: normal; font-size: 9px; font-weight: 600; margin-left: 4px; text-transform: uppercase; }
 /* one toggle style everywhere (nav, segmented controls, tabs): a dark track, the chosen one a lifted pill */
 .modes { margin-left: auto; display: flex; background: var(--bg-1); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
-.modes button { border: 0; background: transparent; padding: 5px 14px; border-radius: 7px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; gap: 6px; text-align: center;
+.modes button { white-space: nowrap; border: 0; background: transparent; padding: 5px 14px; border-radius: 7px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; gap: 6px; text-align: center;
   transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
 .modes button:hover:not(:disabled) { background: var(--surface-2); color: var(--text-1); }
 .modes button.on { background: var(--surface-3); color: var(--text-1); box-shadow: 0 1px 0 #0006, inset 0 0 0 1px var(--border-strong); }
@@ -966,3 +966,27 @@ a.btn:hover { border-color: #45505e; }
 .feed-act { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; font-size: 11.5px; font-weight: 600; }
 .feed-card .verdict { margin-top: 6px; }
 .feed-card .feed-pager { margin-left: auto; }
+
+/* Match recap: category buttons (one category at a time), the overview */
+.recap-tabs { position: sticky; top: -18px; z-index: 5; display: flex; align-items: center; gap: 10px; margin: 0 -24px 14px; padding: 8px 24px;
+  background: color-mix(in srgb, var(--bg-0) 92%, transparent); border-bottom: 1px solid var(--border); backdrop-filter: blur(6px); }
+.recap-tabs-list { display: flex; gap: 4px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; }
+.recap-tabs-list button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 7px 13px; border-radius: 9px; font-weight: 600; font-size: 13px;
+  color: var(--text-2); background: transparent; border: 1px solid transparent; }
+.recap-tabs-list button:hover:not(:disabled) { color: var(--text-1); background: var(--surface-2); border-color: var(--border); }
+.recap-tabs-list button.on { color: var(--text-1); background: var(--surface-3); border-color: var(--border-strong); }
+.recap-tabs .level-toggle { flex: none; }
+.overview .ov-summary { margin: 0 0 6px; font-size: 15px; line-height: 1.5; color: var(--text-1); }
+.overview h3 { margin: 14px 0 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.ov-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.ov-list li b { font-size: 14px; }
+.ov-list li::marker { color: var(--bad-soft); font-weight: 800; }
+.ov-list.keep li::marker { color: var(--good-soft); }
+.ov-list .coach-rounds { margin-top: 4px; }
+.ov-go { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.ov-go-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9px; font-weight: 600; font-size: 12.5px; }
+.overview .rp-how { margin-top: 14px; }
+.pos-item details summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.pos-item details summary::-webkit-details-marker { display: none; }
+.pos-item details summary b::after { content: ' ›'; color: var(--text-3); }
+.pos-item details[open] summary b::after { content: ' ⌄'; }
