@@ -139,6 +139,13 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   const [tab, setTab] = useState<'moves' | 'players' | 'economy' | 'engine'>('moves');
   const pick = (id: string) => { setFilter(filter === id ? 'key' : id); if (filter !== id) setTab('moves'); };
   const halves = useMemo(() => roundHalves(rv.data), [rv.data]);
+  const chip = (i: number) => {
+    const x = rv.data.rounds[i];
+    return (
+      <button key={i} className={`rnd ${i === rv.round ? 'on' : ''} ${all ? (x.winner === 'CT' ? 'ctw' : x.winner === 'T' ? 'tw' : '') : ''}`}
+        onClick={() => s.setReviewRound(i)} title={all ? `Round ${x.n}: ${x.winner ?? '?'} won${x.reason ? ` (${x.reason})` : ''}` : `Round ${x.n}`}>{x.n}</button>
+    );
+  };
   const score = scoreBefore(rv.data, rv.round);
 
   return (
@@ -149,25 +156,30 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
           <span className="rp-score num" title="Score before this round (this round's sides)"><i className="ct">{score[0]}</i><em>:</em><i className="t">{score[1]}</i></span>
         </div>
         <div className="rp-rounds">
-          {halves.map((h, hi) => (
+          {halves.filter(h => !h.label.startsWith('OT')).map((h, hi) => (
             <div key={hi} className="rp-half-wrap">
-              {hi > 0 && (h.switched
-                ? <div className="rp-switch"><Icon name="swap" size={12} /> Sides switched</div>
-                : <div className="rp-switch plain">{h.label === 'OT1' ? 'Overtime' : 'Next overtime'}</div>)}
+              {hi > 0 && h.switched && <div className="rp-switch"><Icon name="swap" size={12} /> Sides switched</div>}
               <div className="rp-half">
                 <span className="rp-half-label">{h.label}</span>
-                <div className="rp-chips" style={{ gridTemplateColumns: `repeat(${Math.max(h.rounds.length, h.label.startsWith('OT') ? 3 : 12)}, minmax(0, 1fr))` }}>
-                  {h.rounds.map(i => {
-                    const x = rv.data.rounds[i];
-                    return (
-                      <button key={i} className={`rnd ${i === rv.round ? 'on' : ''} ${all ? (x.winner === 'CT' ? 'ctw' : x.winner === 'T' ? 'tw' : '') : ''}`}
-                        onClick={() => s.setReviewRound(i)} title={all ? `Round ${x.n}: ${x.winner ?? '?'} won${x.reason ? ` (${x.reason})` : ''}` : `Round ${x.n}`}>{x.n}</button>
-                    );
-                  })}
-                </div>
+                <div className="rp-chips">{h.rounds.map(chip)}</div>
               </div>
             </div>
           ))}
+          {/* each overtime on one line, same chip size: its first half, a swap mark, its second half */}
+          {[...new Set(halves.filter(h => h.label.startsWith('OT')).map(h => h.label))].map(label => {
+            const parts = halves.filter(h => h.label === label);
+            return (
+              <div key={label} className="rp-half ot">
+                <span className="rp-half-label">{label}</span>
+                <div className="rp-chips">
+                  {parts.map((h, pi) => [
+                    pi > 0 && <span key={`sw${pi}`} className="rp-ot-swap" title={h.switched ? 'Sides switched' : 'Second half'}><Icon name="swap" size={12} /></span>,
+                    ...h.rounds.map(chip),
+                  ])}
+                </div>
+              </div>
+            );
+          })}
         </div>
         {finished && (
           <div className="rp-result">
