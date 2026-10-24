@@ -134,7 +134,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   const who = card ? simStateAt(sim, card.player, time) : null;
   const px = who ? view.x + who.pos.x * view.scale : 0, py = who ? view.y + who.pos.y * view.scale : 0;
   // the token's size on screen (as Board draws it), so the ring hugs it at any zoom
-  const ringR = Math.max(7.5, Math.min(11, 1024 * view.scale * 0.016)) + 8;
+  const ringR = Math.max(7.5, Math.min(11, 1024 * view.scale * 0.016)) * (14.6 / 11) + 6;
 
   if (!card) return null;
   const g = moveLook(card);
@@ -143,10 +143,9 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
       {who && (
         <svg className="feed-link" aria-hidden>
           {arrows && anchor && <line x1={anchor.x} y1={anchor.y} x2={px} y2={py} stroke={g.color} strokeWidth={1.5} strokeDasharray="4 3" />}
-          {/* one ring in the grade's colour just outside the token's health ring, on a soft dark shadow so it reads on
-              any part of any radar, and a pulse in the same colour */}
-          <circle cx={px} cy={py} r={ringR} fill="none" stroke="#000" strokeOpacity={0.45} strokeWidth={4.5} />
-          <circle key={cardKey} className="feed-ring" cx={px} cy={py} r={ringR} fill="none" stroke={g.color} strokeWidth={2.2} />
+          {/* one glowing ring in the grade's colour just outside the token's health bezel, and a pulse in the same colour */}
+          <circle key={cardKey} className="feed-ring" cx={px} cy={py} r={ringR} fill="none" stroke={g.color} strokeWidth={2}
+            style={{ filter: `drop-shadow(0 0 4px ${g.color}) drop-shadow(0 0 1px #000)` }} />
           <circle className="feed-ring-pulse" cx={px} cy={py} r={ringR} fill="none" stroke={g.color} strokeWidth={1.5} />
         </svg>
       )}
