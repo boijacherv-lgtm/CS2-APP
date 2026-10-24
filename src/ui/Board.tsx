@@ -28,6 +28,7 @@ import { Icon } from './Icon';
 import { useAvatars } from './avatars';
 import { TeamRoster } from './Roster';
 import { proSpots } from '../map/positions';
+import { standSpots } from '../map/stands';
 import { phaseOf } from '../engine/situations';
 import { SEARCH_COLOR } from '../engine/search';
 import { useStore, whoAmI } from '../store';
@@ -330,18 +331,31 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     }
     camTarget.current = target;
   }, [live, rosters, s.autoCam, size.w, size.h]);
-  // glide the view to the camera's framing
+  // glide the view to the camera's framing: a critically damped spring on the framed point and the zoom (log scale,
+  // so zooming in and out feel the same), in real time, so it eases in and out at any frame rate
+  const sizeRef = useRef(size), viewRef = useRef(view);
+  sizeRef.current = size;
+  viewRef.current = view;
   useEffect(() => {
     if (!rosters) return;
-    let raf = 0;
-    const step = () => {
-      const t = camTarget.current;
-      if (t) setView(v => {
-        const near = Math.abs(t.scale - v.scale) < 0.002 && Math.abs(t.x - v.x) < 0.5 && Math.abs(t.y - v.y) < 0.5;
-        if (near) return v.scale === t.scale && v.x === t.x && v.y === t.y ? v : t;
-        const e = CAM.ease;
-        return { scale: v.scale + (t.scale - v.scale) * e, x: v.x + (t.x - v.x) * e, y: v.y + (t.y - v.y) * e };
-      });
+    let raf = 0, last = performance.now();
+    let cam: { cx: number; cy: number; ls: number; vx: number; vy: number; vs: number } | null = null;
+    const step = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const t = camTarget.current, v = viewRef.current;
+      if (t) {
+        const full = fitView(sizeRef.current.w, sizeRef.current.h, true);
+        const ax = full.x + 512 * full.scale, ay = full.y + 512 * full.scale; // the middle of the framed area
+        const at = (w: typeof v) => ({ cx: (ax - w.x) / w.scale, cy: (ay - w.y) / w.scale, ls: Math.log(w.scale) });
+        const goal = at(t);
+        if (!cam) cam = { ...at(v), vx: 0, vy: 0, vs: 0 };
+        const x = damp(cam.cx, goal.cx, cam.vx, dt), y = damp(cam.cy, goal.cy, cam.vy, dt), z = damp(cam.ls, goal.ls, cam.vs, dt);
+        cam = { cx: x[0], cy: y[0], ls: z[0], vx: x[1], vy: y[1], vs: z[1] };
+        const settled = Math.abs(cam.cx - goal.cx) < 0.05 && Math.abs(cam.cy - goal.cy) < 0.05 && Math.abs(cam.ls - goal.ls) < 0.0005;
+        if (settled) { cam = { ...goal, vx: 0, vy: 0, vs: 0 }; if (v.scale !== t.scale || v.x !== t.x || v.y !== t.y) setView(t); }
+        else { const scale = Math.exp(cam.ls); setView({ scale, x: ax - cam.cx * scale, y: ay - cam.cy * scale }); }
+      }
       raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
@@ -442,11 +456,13 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     return { cones, spotted };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine, s.overlays.vision, s.board.players, visionKey, sim, JSON.stringify(smokesNow), drag]);
-  const timingImg = useMemo(() => (s.overlays.timing ? timingCanvas(engine, s.time) : null), [engine, s.overlays.timing, s.time]);
+  // the planning tools (spawn timing, walkable floor, line-ups) are Tactical's: not drawn in Review
+  const tools = s.mode !== 'review';
+  const timingImg = useMemo(() => (tools && s.overlays.timing ? timingCanvas(engine, s.time) : null), [engine, tools, s.overlays.timing, s.time]);
   const entries = useMemo(() => entryReports(engine, analysis, s.board), [engine, analysis, s.board]);
   const controlImg = useMemo(() => (control ? controlCanvas(engine, control) : null), [engine, control]);
   const spotImg = useMemo(() => (spots ? spotCanvas(engine, spots) : null), [engine, spots]);
-  const walkImg = useMemo(() => (s.overlays.walkable ? walkableCanvas(engine) : null), [engine, s.overlays.walkable]);
+  const walkImg = useMemo(() => (tools && s.overlays.walkable ? walkableCanvas(engine) : null), [engine, tools, s.overlays.walkable]);
   const radarImg = useRadarImage(MAP.radarImage);
 
   return (
@@ -486,7 +502,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         <Layer listening={s.tool !== 'select'}>
           <Rect x={-2000} y={-2000} width={5000} height={5000} fill={COLORS.bg} name="floor" />
           {radarImg && <KImage image={radarImg} width={1024} height={1024} name="floor" />}
-          {controlImg && <KImage image={controlImg} width={1024} height={1024} opacity={0.75} listening={false} />}
+          {controlImg && <KImage image={controlImg} width={1024} height={1024} opacity={0.42} listening={false} />}
           {spotImg && <KImage image={spotImg} width={1024} height={1024} listening={false} />}
           {walkImg && <KImage image={walkImg} width={1024} height={1024} imageSmoothingEnabled={false} opacity={0.6} listening={false} />}
           {timingImg && <KImage image={timingImg} width={1024} height={1024} imageSmoothingEnabled={false} opacity={0.75} listening={false} />}
@@ -529,21 +545,38 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             );
           })()}
           {s.overlays.proSpots && (() => {
+            // exactly where level-10 players hold at this point of the round (learned from their demos), each spot
+            // sized by its share of the held time; maps without that data fall back to one circle per callout
             const phase = phaseOf(s.time, s.mode === 'review' && s.review ? s.review.data.rounds[s.review.round]?.plant ?? null : null);
-            return (['CT', 'T'] as const).flatMap(side => proSpots(MAP.id, side, phase).slice(0, 8).map(sp => {
-              const c = MAP.callouts.find(x => x.name === sp.place);
-              if (!c) return null;
-              const r = (9 + 34 * Math.sqrt(sp.share)) * k;
-              const x = c.pos.x + (side === 'CT' ? -1 : 1) * r * 0.8;
-              return (
-                <Group key={`pro-${side}-${sp.place}`} x={x} y={c.pos.y}>
-                  <Circle radius={r} fill={COLORS[side]} opacity={0.35} />
-                  <Circle radius={r} stroke={COLORS[side]} strokeWidth={1.5 * k} dash={[3 * k, 2 * k]} />
-                  <Text text={`${Math.round(sp.share * 100)}%`} x={-20 * k} y={-r - 12 * k} width={40 * k} align="center" fontSize={11 * k} fontStyle="bold"
-                    fill="#fff" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled />
-                </Group>
-              );
-            }));
+            return (['CT', 'T'] as const).flatMap(side => {
+              const stands = standSpots(MAP.id, s.level, side, phase);
+              if (stands.length) return stands.map((sp, i) => {
+                const r = (4 + 52 * Math.sqrt(sp.share)) * k;
+                return (
+                  <Group key={`stand-${side}-${i}`} x={sp.x} y={sp.y} listening={false}>
+                    <Circle radius={r} fill={COLORS[side]} opacity={0.22} />
+                    <Circle radius={r} stroke={COLORS[side]} strokeWidth={1.2 * k} opacity={0.85} />
+                    <Circle radius={2.2 * k} fill={COLORS[side]} stroke="#000" strokeWidth={0.6 * k} />
+                    {sp.share >= 0.03 && <Text text={`${Math.round(sp.share * 100)}%`} x={-20 * k} y={-r - 11 * k} width={40 * k} align="center" fontSize={9.5 * k} fontStyle="bold"
+                      fill="#fff" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled />}
+                  </Group>
+                );
+              });
+              return proSpots(MAP.id, side, phase).slice(0, 8).map(sp => {
+                const c = MAP.callouts.find(x => x.name === sp.place);
+                if (!c) return null;
+                const r = (9 + 34 * Math.sqrt(sp.share)) * k;
+                const x = c.pos.x + (side === 'CT' ? -1 : 1) * r * 0.8;
+                return (
+                  <Group key={`pro-${side}-${sp.place}`} x={x} y={c.pos.y} listening={false}>
+                    <Circle radius={r} fill={COLORS[side]} opacity={0.35} />
+                    <Circle radius={r} stroke={COLORS[side]} strokeWidth={1.5 * k} dash={[3 * k, 2 * k]} />
+                    <Text text={`${Math.round(sp.share * 100)}%`} x={-20 * k} y={-r - 12 * k} width={40 * k} align="center" fontSize={11 * k} fontStyle="bold"
+                      fill="#fff" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled />
+                  </Group>
+                );
+              });
+            });
           })()}
           {/* main callouts with the Callouts layer; detailed ones too once you zoom in (or with "All callout names") */}
           {(s.overlays.callouts || s.overlays.calloutsAll) && MAP.callouts
@@ -617,7 +650,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               </Group>
             );
           })()}
-          {s.overlays.lineups && [...BUILTIN_LINEUPS, ...s.customLineups].filter(l => l.map === MAP.id && l.level === s.level).map(l => (
+          {tools && s.overlays.lineups && [...BUILTIN_LINEUPS, ...s.customLineups].filter(l => l.map === MAP.id && l.level === s.level).map(l => (
             <Group key={`lu-${l.id}`} listening={false} opacity={0.75}>
               <ThrowArc from={l.from} to={l.to} k={k} color={UTIL_COLOR[l.type]} dashed />
               <Circle x={l.from.x} y={l.from.y} radius={3 * k} fill={TOK.highlight} stroke="#000" strokeWidth={0.8 * k} />
@@ -724,9 +757,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 {!names && <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />}
                 {names && (!crowded.has(p.id) || hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)) &&
                   <NameTag name={names[p.id] ?? p.label} side={p.side} fs={nameFs} y={TOKEN_R + 5.5} strong={hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)} />}
-                {s.overlays.playerInfo && (zoomedIn || hoverPlayer === p.id || s.selectedId === p.id) && <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? TOK.highlight : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
+                {s.overlays.playerInfo && s.mode !== 'review' && (zoomedIn || hoverPlayer === p.id || s.selectedId === p.id) && <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? TOK.highlight : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
                   width={40} x={-20} y={names ? TOKEN_R + 5 + nameFs * 1.5 : 13} align="center" fontStyle="bold" listening={false} />}
-                {s.overlays.playerInfo && batch?.players[p.id] && (
+                {s.overlays.playerInfo && s.mode !== 'review' && batch?.players[p.id] && (
                   <Text text={`${Math.round(batch.players[p.id].pKill * 100)}% K`} fontSize={8} fontStyle="bold" width={40} x={-20} y={names ? TOKEN_R + 13 + nameFs * 1.5 : 21} align="center"
                     fill={killColor(batch.players[p.id].pKill)} stroke="#000" strokeWidth={2.2} fillAfterStrokeEnabled />
                 )}
@@ -925,9 +958,18 @@ const ZOOM_DETAIL = 1.6;
 const FIT_PAD = { top: 52, bottom: 92, side: 44 };
 /**
  * Review's camera: zooms in once everyone alive fits in under `zoomBelow` of the map (radar px span, plus `pad` on
- * each side, never tighter than `minSpan`), at most `maxZoom`× the whole-map view; `ease` = share of the way per frame.
+ * each side, never tighter than `minSpan`), at most `maxZoom`× the whole-map view; `smooth` = the glide's time (s).
  */
-const CAM = { pad: 90, minSpan: 300, zoomBelow: 0.8, maxZoom: 2.4, ease: 0.08 };
+const CAM = { pad: 90, minSpan: 300, zoomBelow: 0.8, maxZoom: 2.4, smooth: 0.7 };
+/**
+ * One step of a critically damped spring toward `to` (Unity's SmoothDamp): `CAM.smooth` s to get most of the way,
+ * easing in and out, never overshooting. Returns [value, velocity].
+ */
+function damp(from: number, to: number, vel: number, dt: number): [number, number] {
+  const w = 2 / CAM.smooth, x = w * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  const change = from - to, temp = (vel + w * change) * dt;
+  return [to + (change + temp) * e, (vel - w * temp) * e];
+}
 /** Review's team panels down each side (196 px and their margin), hidden on a board under 700 px wide. */
 /** How close (screen px, across and down) two players' name tags may be before the second one hides: about a tag's size. */
 const NAME_GAP = { x: 64, y: 16 };
@@ -1118,12 +1160,12 @@ function controlCanvas(engine: TacticalEngine, control: ControlMap) {
   ctx.drawImage(floorMask(engine), 0, 0, SIZE, SIZE);
   // 3. front line
   ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = 'rgba(255, 214, 64, 0.9)';
+  ctx.fillStyle = 'rgba(255, 214, 64, 0.6)';
   const cell = SIZE / g.w;
   for (let i = 0; i < g.w * g.h; i++) {
     if (!control.front[i]) continue;
     ctx.beginPath();
-    ctx.arc(((i % g.w) + 0.5) * cell, (((i / g.w) | 0) + 0.5) * cell, cell * 0.55, 0, Math.PI * 2);
+    ctx.arc(((i % g.w) + 0.5) * cell, (((i / g.w) | 0) + 0.5) * cell, cell * 0.42, 0, Math.PI * 2);
     ctx.fill();
   }
   return c;

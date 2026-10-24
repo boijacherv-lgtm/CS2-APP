@@ -4,7 +4,7 @@ import { activeView, useStore, type Overlay, type ViewName } from '../store';
 
 export const VIEWS: { id: ViewName; label: string; key: string; hint: string }[] = [
   { id: 'clean', label: 'Clean', key: '1', hint: 'Only players, routes and grenades' },
-  { id: 'standard', label: 'Standard', key: '2', hint: 'Map control, entry lines, callouts, guns' },
+  { id: 'standard', label: 'Standard', key: '2', hint: 'Callout names, vision cones and map control' },
   { id: 'full', label: 'Full', key: '3', hint: 'Everything: vision cones, entry cards and more' },
 ];
 
@@ -16,7 +16,7 @@ const GROUPS: { title: string; items: { id: Overlay; label: string; review?: boo
       { id: 'control', label: 'Map control (CT coverage)' },
       { id: 'vision', label: 'Vision cones, who sees whom' },
       { id: 'los', label: 'Sightline of selected player' },
-      { id: 'proSpots', label: 'Pro positions (where FACEIT level 10 stand now)' },
+      { id: 'proSpots', label: 'Pro positions (where level-10 players hold now)' },
     ],
   },
   {
@@ -26,16 +26,17 @@ const GROUPS: { title: string; items: { id: Overlay; label: string; review?: boo
       { id: 'calloutsAll', label: 'All callout names (detailed spots)' },
       { id: 'threat', label: 'Entry lines (who holds what)', review: false },
       { id: 'entryCards', label: 'Entry cards with details', review: false },
-      { id: 'playerInfo', label: 'Gun and kill chance on players' },
+      { id: 'playerInfo', label: 'Gun and kill chance on players', review: false },
     ],
   },
   {
+    // planning tools: not in Review
     title: 'Tools',
     items: [
       { id: 'killmap', label: 'Best spots (selected CT)', review: false },
-      { id: 'timing', label: 'Spawn timing race' },
-      { id: 'lineups', label: 'Line-ups on map' },
-      { id: 'walkable', label: 'Walkable floor (debug)' },
+      { id: 'timing', label: 'Spawn timing race', review: false },
+      { id: 'lineups', label: 'Line-ups on map', review: false },
+      { id: 'walkable', label: 'Walkable floor (debug)', review: false },
     ],
   },
 ];
