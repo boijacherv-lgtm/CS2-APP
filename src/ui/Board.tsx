@@ -975,7 +975,7 @@ function damp(from: number, to: number, vel: number, dt: number): [number, numbe
 /** How close (screen px, across and down) two players' name tags may be before the second one hides: about a tag's size. */
 const NAME_GAP = { x: 64, y: 16 };
 /** Review's team panels in the bottom corners: how wide and tall (px) they are on a wide board. */
-const TEAMBAR = { w: 300, h: 196 }, ROSTER_MIN_W = 700;
+const TEAMBAR = { w: 330, h: 248 }, ROSTER_MIN_W = 700;
 /**
  * The whole radar, as big as fits between the overlays. With Review's team panels in the bottom corners: either the
  * map stays between them (narrower), or above them (shorter), whichever leaves it bigger.
