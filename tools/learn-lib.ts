@@ -8,13 +8,13 @@ import zlib from 'node:zlib';
 import { parseDemo } from './demo.mjs';
 import { spawn, spawnSync, type SpawnOptions } from 'node:child_process';
 import { getEngine, MAPS } from '../src/map/catalog';
-import { buildReplay, equipValue, evalState, reviewRound, type DemoData, type Role } from '../src/engine/recap';
+import { bombTryAt, buildReplay, equipValue, evalState, reviewRound, type DemoData, type Role } from '../src/engine/recap';
 import { buildMatchReport, summarizeRound, type RoundSummary } from '../src/engine/match';
 import { coachFeatures, type Sample } from '../src/engine/coach';
 import { worldToRadar } from '../src/engine/coords';
 import { roundDecisions, type Hold, type Move } from '../src/engine/situations';
 import { analyzeRound, type AnalystRound } from '../src/engine/analyst';
-import { controlCounts, roundWinChance, tradePending, winFeatures } from '../src/engine/winprob';
+import { controlCounts, roundWinChance, tradePending, winFeatures, winFeatures2 } from '../src/engine/winprob';
 import type { BoardState } from '../src/engine/types';
 import { roundMoments } from '../src/engine/playModel';
 
@@ -48,6 +48,8 @@ export function listDemos(folder: string): string[] {
   const seen = new Set<string>();
   return out.sort().filter(f => { const id = matchId(f); if (!id) return true; if (seen.has(id)) return false; seen.add(id); return true; });
 }
+export { isTest } from '../src/engine/split';
+
 /** A demo's identity: its name (without the "(1)" of a second download) and size, so duplicates count once. */
 export const keyOf = (folder: string, f: string) => `${f.replace(/ \(\d+\)(?=\.dem)/, '')}|${fs.statSync(path.join(folder, f)).size}`;
 
@@ -150,9 +152,12 @@ export function playSamples(engine: ReturnType<typeof getEngine>, d: DemoData): 
   return out;
 }
 
-/** Win-chance training samples: the round's state every 2 s (features) and whether CT won it; `base` = the old formula. */
+/**
+ * Win-chance training samples: the round's state every 2 s (features) and whether CT won it; `base` = the old
+ * formula. `x2`: the boosted model's numbers (winFeatures2: also counts, clock, bomb time left, plant / defuse under way).
+ */
 export function winSamples(engine: ReturnType<typeof getEngine>, d: DemoData) {
-  const x: number[][] = [], y: number[] = [], base: number[] = [];
+  const x: number[][] = [], y: number[] = [], base: number[] = [], x2: number[][] = [];
   for (const r of d.rounds) {
     if (!r.winner) continue;
     const ids = Object.keys(r.frames.players);
@@ -174,11 +179,13 @@ export function winSamples(engine: ReturnType<typeof getEngine>, d: DemoData) {
       const state = { ct: ct.length, t: tt.length, ctHp: hp(ct), tHp: hp(tt), ctEquip: eq(ct), tEquip: eq(tt), planted: r.plant !== null && t >= r.plant ? r.plant : null, time: t,
         ctAreas: areas.ct[s], tAreas: areas.t[s], tradeCT: tp.ct, tradeT: tp.t };
       x.push(winFeatures(state).map(v => +v.toFixed(3)));
+      const act = bombTryAt(r, t);
+      x2.push(winFeatures2({ ...state, bombAct: act?.kind ?? null, kit: !!act?.kit }).map(v => +v.toFixed(3)));
       y.push(r.winner === 'CT' ? 1 : 0);
       base.push(+evalState({ ...state, ctMap: 0, tMap: 0, ctAreas: undefined }).toFixed(4));
     }
   }
-  return { x, y, base };
+  return { x, y, base, x2 };
 }
 
 // ---- the learners' caches ---------------------------------------------------------------------------------

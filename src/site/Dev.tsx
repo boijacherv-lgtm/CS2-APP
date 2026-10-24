@@ -9,6 +9,7 @@ import level from '../engine/models/level.json';
 import play from '../engine/models/play.json';
 import search from '../engine/models/search-calibration.json';
 import winprob from '../engine/models/winprob.json';
+import coachEval from '../engine/models/eval.json';
 import utilSpots from '../map/generated/util-spots.json';
 import { useStore, whoAmI } from '../store';
 import { Icon } from '../ui/Icon';
@@ -73,6 +74,8 @@ export function Dev() {
   return (
     <div className="page dev">
       <header className="page-head"><h1>Dev</h1><p className="lead">Everything about the site, for you only.</p></header>
+
+      <CoachQuality />
 
       <section className="site-card">
         <div className="card-head"><h2><Icon name="gear" size={16} /> Site</h2></div>
@@ -215,5 +218,32 @@ export function Dev() {
         </tbody></table>
       </section>
     </div>
+  );
+}
+
+type Scored = { logLoss: number; brier: number; calibration: { said: number; won: number | null; n: number }[] };
+type CoachEval = {
+  winChance?: { at: string; testMatches: number; testMoments: number; trainMatches: number; shipped: string; formula: Scored; logistic: Scored; trees: Scored };
+  verdicts?: { at: string; right: number; total: number };
+};
+
+/** The coach's report card on data it never learned from (tools/learn-win.ts and eval-coach.ts → models/eval.json). */
+function CoachQuality() {
+  const e = coachEval as CoachEval;
+  const w = e.winChance, v = e.verdicts;
+  if (!w && !v) return null;
+  const used = w ? (w.shipped === 'trees' ? w.trees : w.logistic) : null;
+  return (
+    <section className="site-card">
+      <div className="card-head"><h2><Icon name="star" size={16} /> Coach quality</h2><span className="muted small">on matches it never learned from</span></div>
+      <table className="site-table dev-kv"><tbody>
+        {w && <tr><td>Win chance</td><td>
+          log loss: formula {w.formula.logLoss} · logistic {w.logistic.logLoss} · trees {w.trees.logLoss} (lower is better) · <b>using {w.shipped}</b>
+          <span className="muted small"> · {fmtInt(w.testMatches)} test matches, {fmtInt(w.testMoments)} moments; trained on {fmtInt(w.trainMatches)} · {w.at}</span>
+        </td></tr>}
+        {used && <tr><td>Calibration</td><td className="num">{used.calibration.filter(c => c.n > 50).map(c => `said ${Math.round(c.said * 100)}% → won ${Math.round((c.won ?? 0) * 100)}%`).join(' · ')}</td></tr>}
+        {v && <tr><td>Your verdicts</td><td>agrees on {v.right} of {v.total} ({Math.round((100 * v.right) / Math.max(1, v.total))}%) · {v.at}</td></tr>}
+      </tbody></table>
+    </section>
   );
 }

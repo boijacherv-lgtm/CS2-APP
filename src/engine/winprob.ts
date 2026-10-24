@@ -2,6 +2,8 @@ import type { TacticalEngine } from './predict';
 import { placeOf } from './situations';
 import type { Side, Vec2 } from './types';
 import MODEL from './models/winprob.json';
+import GBM_JSON from './models/winprob-gbm.json';
+import { gbmLogit, type GbmModel } from './gbm';
 
 /**
  * The learned win chance: a logistic model fitted on good players' rounds (tools/learn-analyst.ts →
@@ -17,6 +19,25 @@ export interface WinState {
   planted: number | null; time: number;
   ctAreas: number; tAreas: number;
   tradeCT: number; tradeT: number;
+  /** Planting or defusing right now (and the defuser's kit), when known: the boosted model reads it. */
+  bombAct?: 'plant' | 'defuse' | null; kit?: boolean;
+}
+
+/**
+ * The boosted model's numbers: the logistic ones, plus each side's count, the round clock, the bomb's time left,
+ * and a plant or defuse under way. Trees take combinations of these, so raw values are fine here.
+ */
+export const WIN2_FEATURES = [...WIN_FEATURES_BASE(), 'CT alive', 'T alive', 'round time', 'bomb time left', 'planting now', 'defusing now', 'defusing with a kit'];
+function WIN_FEATURES_BASE() { return ['men', 'men (relative)', 'health', 'equipment', 'planted', 'time since plant', 'T time running out', 'map control', 'trades pending']; }
+export function winFeatures2(s: WinState): number[] {
+  return [
+    ...winFeatures(s),
+    s.ct, s.t, s.time,
+    s.planted !== null ? Math.max(0, 40 - (s.time - s.planted)) : -1,
+    s.bombAct === 'plant' ? 1 : 0,
+    s.bombAct === 'defuse' ? 1 : 0,
+    s.bombAct === 'defuse' && s.kit ? 1 : 0,
+  ];
 }
 export const WIN_FEATURES = ['men', 'men (relative)', 'health', 'equipment', 'planted', 'time since plant', 'T time running out', 'map control', 'trades pending'];
 
@@ -40,8 +61,13 @@ const M = MODEL as unknown as WinModel | { coef?: undefined };
 export const WIN_MODEL: WinModel | null = M.coef && M.coef.length === WIN_FEATURES.length ? (M as WinModel) : null;
 
 const sigmoid = (z: number) => 1 / (1 + Math.exp(-z));
-/** The learned log-odds for CT (null until the model is trained). */
+/** The boosted trees (tools/learn-win.ts → models/winprob-gbm.json), when they were trained and beat the logistic model on unseen matches. */
+const GBM: GbmModel | null = (GBM_JSON as { trees?: unknown[] }).trees?.length ? (GBM_JSON as unknown as GbmModel) : null;
+export const WIN_GBM = GBM;
+
+/** The learned log-odds for CT (null until a model is trained): the boosted trees when there are some, else the logistic model. */
 export function learnedLogit(s: WinState): number | null {
+  if (GBM) return gbmLogit(GBM, winFeatures2(s));
   if (!WIN_MODEL) return null;
   const f = winFeatures(s);
   return WIN_MODEL.bias + f.reduce((a, v, i) => a + v * WIN_MODEL!.coef[i], 0);

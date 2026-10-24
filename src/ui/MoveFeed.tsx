@@ -7,6 +7,7 @@ import { useStore, whoAmI } from '../store';
 import { rageLine } from '../engine/rage';
 import { GameIcon, Icon } from './Icon';
 import { IMPACT_ICON, isImpactWeapon, KillIcon, killMods } from './KillIcons';
+import { VerdictBar } from './Verdict';
 import { CS2_ICONS, type Cs2Icon } from './cs2Icons';
 import { useShown } from './shown';
 
@@ -171,6 +172,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
           </div>
         )}
         {open && <ul className="feed-why">{card.why.map((w, i) => <li key={i}>{brief(w)}</li>)}</ul>}
+        {open && <div onClick={e => e.stopPropagation()}><VerdictBar m={card} /></div>}
         <div className="feed-card-foot" onClick={e => e.stopPropagation()}>
           {!playing && !picked && !held && group.length > 1 && (
             <span className="feed-pager">

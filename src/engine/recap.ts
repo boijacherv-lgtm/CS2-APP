@@ -343,6 +343,17 @@ export function buildReplay(engine: TacticalEngine, demo: DemoData, roundIdx: nu
   return { board: { players, utility, context }, sim, names: demo.names, round: r, ranks: demo.ranks ?? {} };
 }
 
+/**
+ * A match's fingerprint: the map, the round count and a hash of the players and of each round's length. The same match
+ * read anywhere (site, desktop, the learning tools) gets the same one, so verdicts saved in Review find it again.
+ */
+export function matchFingerprint(d: DemoData): string {
+  const text = `${d.map}|${Object.keys(d.names).sort().join(',')}|${d.rounds.map(r => r.duration.toFixed(1)).join(',')}`;
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return `${d.map}-${d.rounds.length}-${h.toString(36)}`;
+}
+
 // ---- evaluation ---------------------------------------------------------------------------------
 
 const ROUND_TIME = 115;
@@ -357,6 +368,8 @@ export function evalState(state: {
   ctRating?: number | null; tRating?: number | null;
   /** For the learned model: areas each side holds (winprob.controlCounts) and trades about to happen (tradePending). */
   ctAreas?: number; tAreas?: number; tradeCT?: number; tradeT?: number;
+  /** A plant or defuse under way (the boosted model reads it). */
+  bombAct?: 'plant' | 'defuse' | null; kit?: boolean;
 }): number {
   const { ct, t } = state;
   if (t === 0 && state.planted === null) return 1;
@@ -370,6 +383,7 @@ export function evalState(state: {
   const learned = state.ctAreas !== undefined ? learnedLogit({
     ct, t, ctHp: state.ctHp, tHp: state.tHp, ctEquip: state.ctEquip ?? null, tEquip: state.tEquip ?? null, planted: state.planted, time: state.time,
     ctAreas: state.ctAreas, tAreas: state.tAreas ?? 0, tradeCT: state.tradeCT ?? 0, tradeT: state.tradeT ?? 0,
+    bombAct: state.bombAct ?? null, kit: state.kit ?? false,
   }) : null;
   if (learned !== null) {
     let zl = learned;
@@ -747,7 +761,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       ...(areas ? (() => {
         const s = Math.min(areas.ct.length - 1, Math.max(0, Math.floor(t)));
         const tp = tradePending(sim.kills, sim.ids, id => sideOf.get(id), whereAt, t, scale);
-        return { ctAreas: areas.ct[s], tAreas: areas.t[s], tradeCT: tp.ct, tradeT: tp.t };
+        const act = bombTryAt(r, t);
+        return { ctAreas: areas.ct[s], tAreas: areas.t[s], tradeCT: tp.ct, tradeT: tp.t, bombAct: act?.kind ?? null, kit: !!act?.kit };
       })() : {}),
     });
   };

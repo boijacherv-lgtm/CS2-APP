@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { STEAM_AVAILABLE } from '../env';
-import { cleanGoals, cleanNotifyGames, cleanPrefs, EMPTY_PROFILE, withMatch, type GoalId, type ProfileData, type ProfileMatch, type ProfilePrefs } from '../engine/profile';
+import { cleanGoals, cleanNotifyGames, cleanPrefs, cleanVerdicts, withVerdict, type MoveVerdict, EMPTY_PROFILE, withMatch, type GoalId, type ProfileData, type ProfileMatch, type ProfilePrefs } from '../engine/profile';
 import { steamFetch } from './steamApi';
 
 /**
@@ -25,7 +25,7 @@ const LOCAL = 'stratboard.profile';
 function loadLocal(): ProfileData {
   try {
     const v = JSON.parse(localStorage.getItem(LOCAL) ?? 'null') as Partial<ProfileData> | null;
-    return v ? { ...EMPTY_PROFILE, ...v, prefs: cleanPrefs(v.prefs), goals: cleanGoals(v.goals), notifyGames: cleanNotifyGames(v.notifyGames) } : { ...EMPTY_PROFILE };
+    return v ? { ...EMPTY_PROFILE, ...v, prefs: cleanPrefs(v.prefs), goals: cleanGoals(v.goals), notifyGames: cleanNotifyGames(v.notifyGames), verdicts: cleanVerdicts(v.verdicts) } : { ...EMPTY_PROFILE };
   } catch { return { ...EMPTY_PROFILE }; }
 }
 function saveLocal(d: ProfileData) { try { localStorage.setItem(LOCAL, JSON.stringify(d)); } catch { /* private mode: this visit only */ } }
@@ -83,6 +83,20 @@ export const setPrefs = (p: Partial<ProfilePrefs>) =>
   update(d => ({ ...d, prefs: cleanPrefs(p, d.prefs) }), () => api('/profile/prefs', p));
 export const setNotifyPro = (on: boolean) =>
   update(d => ({ ...d, notifyPro: on }), () => api('/profile/notify', { on }));
+/**
+ * "Coach was wrong" on a move (or take it back with { remove: verdictKey }): on your account when logged in, else in
+ * this browser; an account server without the route yet (an older Worker) keeps it in this browser instead of failing.
+ */
+export async function setVerdict(v: MoveVerdict | { remove: string }) {
+  const change = (d: ProfileData): ProfileData => ({ ...d, verdicts: withVerdict(d.verdicts, v) });
+  const s = useProfile.getState();
+  if (s.remote) {
+    try { useProfile.setState({ data: await api<ProfileData>('/profile/verdict', 'remove' in v ? { remove: v.remove } : { verdict: v }), error: null }); return; } catch { /* fall through */ }
+  }
+  saveLocal(change(loadLocal()));
+  useProfile.setState({ data: change(s.data) });
+}
+
 /**
  * Tell me when this game ("deadlock") goes live: on your account when logged in, else in this browser. An account
  * server without the route yet (an older Worker) keeps it in this browser instead of failing.
