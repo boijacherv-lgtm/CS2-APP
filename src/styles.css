@@ -152,6 +152,7 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: v
 
 .zoom { display: flex; flex-direction: column; gap: 4px; }
 .zoom button { min-width: 36px; min-height: 32px; text-align: center; background: var(--overlay); }
+.zoom button.on { border-color: var(--highlight); color: var(--highlight); }
 
 .play { margin-bottom: 6px; }
 .play button:first-child { flex: 2; }

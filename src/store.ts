@@ -67,6 +67,8 @@ interface Store {
   popups: boolean;
   /** Review: the search engine's lines on the map (best option and what was done) for the player in focus. Remembered. */
   engineLines: boolean;
+  /** Review: the camera follows the fight (zooms in when everyone alive is on one part of the map). Off = the whole map, still. Remembered. */
+  autoCam: boolean;
   /** The right-hand panel (analysis / review) is open. Remembered; starts closed on narrow screens. */
   drawerOpen: boolean;
   /** Until when (performance.now ms) the replay runs in slow motion for reading; 0 = not. */
@@ -156,6 +158,7 @@ interface Store {
   setReadSlow(on: boolean): void;
   setPopups(on: boolean): void;
   setEngineLines(on: boolean): void;
+  setAutoCam(on: boolean): void;
   setDrawerOpen(on: boolean): void;
   loadPreset(name: string): void;
   /** Replace the T side with a scripted T play (CTs stay). */
@@ -214,6 +217,7 @@ export const useStore = create<Store>((set, get) => {
     popups: loadJson<{ on: boolean }>(LS_POPUPS, { on: true }).on,
     // the arrows (engine lines, and the card's line to its player): a debugging view, off unless turned on
     engineLines: loadJson<{ on: boolean }>('stratboard.arrows', { on: false }).on,
+    autoCam: loadJson<{ on: boolean }>('stratboard.autoCam', { on: true }).on,
     drawerOpen: loadJson<{ on: boolean }>(LS_DRAWER, { on: typeof window === 'undefined' || window.innerWidth >= 1280 }).on,
     slowUntil: 0,
     slowSpeed: 0.3,
@@ -391,6 +395,7 @@ export const useStore = create<Store>((set, get) => {
     setSpeed: speed => set({ speed }),
     setDrawerOpen: drawerOpen => { saveJson(LS_DRAWER, { on: drawerOpen }); set({ drawerOpen }); },
     setEngineLines: engineLines => { saveJson('stratboard.arrows', { on: engineLines }); set({ engineLines }); },
+    setAutoCam: autoCam => { saveJson('stratboard.autoCam', { on: autoCam }); set({ autoCam }); },
     setPopups: popups => {
       saveJson(LS_POPUPS, { on: popups });
       set({ popups, ...(popups ? {} : { slowUntil: 0, readHold: false }) });

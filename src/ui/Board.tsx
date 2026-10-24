@@ -35,6 +35,10 @@ import { useStore, whoAmI } from '../store';
 Konva.dragDistance = 4;
 
 const COLORS = { ...SIDE_COLOR, bg: TOK.bg0 };
+/** A #rrggbb colour mixed toward white / black by `t` (0–1). */
+const mixTo = (hex: string, to: number, t: number) => '#' + [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - t) + to * t).toString(16).padStart(2, '0')).join('');
+const mixWhite = (hex: string, t: number) => mixTo(hex, 255, t);
+const mixBlack = (hex: string, t: number) => mixTo(hex, 0, t);
 const TOKEN_R = 11;
 /** On-screen size of the nickname under a player in Review. */
 const NAME_PX = 10;
@@ -250,6 +254,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const onWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     const ev = e.evt;
     ev.preventDefault();
+    if (rostersRef.current) return; // Review: the camera frames the map, it doesn't scroll
     const ptr = stageRef.current!.getPointerPosition() ?? undefined;
     const mouseWheel = ev.deltaMode === 1 || (ev.deltaX === 0 && Math.abs(ev.deltaY) >= 100 && Number.isInteger(ev.deltaY));
     if (ev.ctrlKey || ev.metaKey || mouseWheel) {
@@ -267,6 +272,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     const start = (e: Event) => { e.preventDefault(); last = 1; };
     const change = (e: Event) => {
       e.preventDefault();
+      if (rostersRef.current) return;
       const g = e as Event & { scale: number; clientX: number; clientY: number };
       const r = el.getBoundingClientRect();
       zoomAt(g.scale / last, { x: g.clientX - r.left, y: g.clientY - r.top });
@@ -292,6 +298,55 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     })),
     [s.board.players, baked, s.time, sim],
   );
+  // Review: the map stays put (no dragging or scrolling it around); a camera frames the fight instead: the whole map
+  // while the players are spread out, closer in once everyone alive is on one part of it. It only moves when someone
+  // leaves the framed area or the players bunch up a lot more, and it glides there.
+  const camTarget = useRef<typeof view | null>(null);
+  useEffect(() => {
+    if (!rosters) { camTarget.current = null; return; }
+    const full = fitView(size.w, size.h, true);
+    const area = { x0: full.x, y0: full.y, x1: full.x + 1024 * full.scale, y1: full.y + 1024 * full.scale };
+    const pts = [...live.values()].filter(l => l.alive).map(l => l.pos);
+    let target = full;
+    if (s.autoCam && pts.length) {
+      const xs = pts.map(q => q.x), ys = pts.map(q => q.y);
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+      const span = Math.max(x1 - x0, y1 - y0, CAM.minSpan) + CAM.pad * 2; // radar px
+      if (span < 1024 * CAM.zoomBelow) {
+        const scale = Math.min((full.scale * 1024) / span, full.scale * CAM.maxZoom);
+        const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, ax = (area.x0 + area.x1) / 2, ay = (area.y0 + area.y1) / 2;
+        target = { scale, x: ax - cx * scale, y: ay - cy * scale };
+      }
+    }
+    // keep the framing while everyone alive is still well inside it and the zoom would change by under 15%
+    const cur = camTarget.current;
+    if (cur) {
+      const inset = (area.x1 - area.x0) * 0.08;
+      const inside = pts.every(q => {
+        const sx = cur.x + q.x * cur.scale, sy = cur.y + q.y * cur.scale;
+        return sx > area.x0 + inset && sx < area.x1 - inset && sy > area.y0 + inset && sy < area.y1 - inset;
+      });
+      if (inside && Math.abs(target.scale / cur.scale - 1) < 0.15) return;
+    }
+    camTarget.current = target;
+  }, [live, rosters, s.autoCam, size.w, size.h]);
+  // glide the view to the camera's framing
+  useEffect(() => {
+    if (!rosters) return;
+    let raf = 0;
+    const step = () => {
+      const t = camTarget.current;
+      if (t) setView(v => {
+        const near = Math.abs(t.scale - v.scale) < 0.002 && Math.abs(t.x - v.x) < 0.5 && Math.abs(t.y - v.y) < 0.5;
+        if (near) return v.scale === t.scale && v.x === t.x && v.y === t.y ? v : t;
+        const e = CAM.ease;
+        return { scale: v.scale + (t.scale - v.scale) * e, x: v.x + (t.x - v.x) * e, y: v.y + (t.y - v.y) * e };
+      });
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [rosters]);
   // Review: name tags that would sit on top of another player's (spawns, a stack in a fight): only the first one
   // shows; the others come back on hover or selection. The living go first, so a dead player's tag never covers them.
   const crowded = useMemo(() => {
@@ -403,7 +458,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         scaleY={view.scale}
         x={view.x}
         y={view.y}
-        draggable={s.tool === 'select'}
+        draggable={s.tool === 'select' && !rosters}
         onDragEnd={e => {
           if (e.target !== stageRef.current) return;
           e.target.getStage()!.container().style.cursor = '';
@@ -639,27 +694,34 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 {live.get(lp.id)?.blind && (
                   <Circle radius={TOKEN_R + 7} fill="rgba(255,246,168,0.4)" shadowColor="#fff6a8" shadowBlur={10} shadowOpacity={0.9} listening={false} />
                 )}
-                {/* selected: one soft white ring, clear of the health ring */}
-                {s.selectedId === p.id && <Circle radius={TOKEN_R + 6.5} stroke="#fff" strokeWidth={1.6} shadowColor="#000" shadowBlur={4} shadowOpacity={0.8} listening={false} />}
-                {/* health: a dark track all the way round and the health left on it, from 12 o'clock */}
-                {(live.get(lp.id)?.hp ?? 100) < 100 && (
-                  <>
-                    <Circle radius={TOKEN_R + 2.6} stroke="#000" strokeWidth={3.2} opacity={0.55} listening={false} />
-                    <Arc innerRadius={TOKEN_R + 1.2} outerRadius={TOKEN_R + 4} angle={(360 * (live.get(lp.id)!.hp)) / 100} rotation={-90}
-                      fill={live.get(lp.id)!.hp > 50 ? TOK.good : live.get(lp.id)!.hp > 25 ? '#ffb020' : TOK.bad} listening={false} />
-                  </>
-                )}
-                {/* where they're looking, like the arrow on CS2's radar */}
-                <Line points={[TOKEN_R - 1, -5, TOKEN_R + 7, 0, TOKEN_R - 1, 5]} closed rotation={deg(p.facing ?? engine.facing(p))}
-                  fill="#fff" stroke="#000" strokeWidth={1.2} lineJoin="round" listening={false} />
-                <Circle radius={TOKEN_R} hitStrokeWidth={18} fill={eraseTarget === p.id ? ERASE : COLORS[p.side]}
-                  stroke="#0b0e12" strokeWidth={1.4} shadowColor="#000" shadowBlur={3} shadowOpacity={0.6} />
-                {/* a thin light rim inside the edge: reads as a token, not a flat dot */}
-                <Circle radius={TOKEN_R - 1.6} stroke="#fff" strokeWidth={0.9} opacity={0.35} listening={false} />
+                {/* selected: a thin glowing white ring outside the token */}
+                {s.selectedId === p.id && <Circle radius={TOKEN_R + 7} stroke="#fff" strokeWidth={1.4} shadowColor="#fff" shadowBlur={8} shadowOpacity={0.7} listening={false} />}
+                {(() => {
+                  const hp = Math.max(0, Math.min(100, live.get(lp.id)?.hp ?? 100));
+                  const base = eraseTarget === p.id ? ERASE : COLORS[p.side];
+                  return (
+                    <>
+                      {/* a dark bezel with the health ring on it: the team colour all the way round at full health,
+                          shrinking from 12 o'clock as they take damage, red when low */}
+                      <Circle radius={TOKEN_R + 3.6} hitStrokeWidth={18} fill="#0b0e12" opacity={0.92} shadowColor="#000" shadowBlur={6} shadowOpacity={0.7} />
+                      <Arc innerRadius={TOKEN_R + 0.9} outerRadius={TOKEN_R + 3} angle={360} fill={base} opacity={0.18} listening={false} />
+                      {hp > 0 && <Arc innerRadius={TOKEN_R + 0.9} outerRadius={TOKEN_R + 3} angle={3.6 * hp} rotation={-90}
+                        fill={hp <= 30 ? TOK.bad : mixWhite(base, 0.25)} listening={false} />}
+                      {/* the body: lighter in the middle, like a lit token */}
+                      <Circle radius={TOKEN_R - 0.2} listening={false}
+                        fillRadialGradientStartPoint={{ x: -3, y: -3 }} fillRadialGradientStartRadius={0}
+                        fillRadialGradientEndPoint={{ x: 0, y: 0 }} fillRadialGradientEndRadius={TOKEN_R}
+                        fillRadialGradientColorStops={[0, mixWhite(base, 0.45), 0.65, base, 1, mixBlack(base, 0.25)]} />
+                      {/* where they're looking, like the arrow on CS2's radar, outside the ring */}
+                      <Line points={[TOKEN_R + 3.4, -4.2, TOKEN_R + 9, 0, TOKEN_R + 3.4, 4.2]} closed rotation={deg(p.facing ?? engine.facing(p))}
+                        fill="#fff" stroke="#0b0e12" strokeWidth={1} lineJoin="round" listening={false} />
+                    </>
+                  );
+                })()}
                 {/* in Review the nickname goes in the tag underneath; the plan's numbers stay in the circle */}
                 {!names && <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />}
                 {names && (!crowded.has(p.id) || hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)) &&
-                  <NameTag name={names[p.id] ?? p.label} side={p.side} fs={nameFs} y={TOKEN_R + 3} strong={hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)} />}
+                  <NameTag name={names[p.id] ?? p.label} side={p.side} fs={nameFs} y={TOKEN_R + 5.5} strong={hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)} />}
                 {s.overlays.playerInfo && (zoomedIn || hoverPlayer === p.id || s.selectedId === p.id) && <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? TOK.highlight : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
                   width={40} x={-20} y={names ? TOKEN_R + 5 + nameFs * 1.5 : 13} align="center" fontStyle="bold" listening={false} />}
                 {s.overlays.playerInfo && batch?.players[p.id] && (
@@ -791,11 +853,20 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         {rosterRound && <div className="slot team-ct">{roster('CT')}</div>}
         {rosterRound && <div className="slot team-t">{roster('T')}</div>}
         <div className="slot right">
-          <div className="zoom">
-            <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>
-            <button onClick={() => zoomAt(0.8)} title="Zoom out">−</button>
-            <button onClick={fit} title="Fit map">Fit</button>
-          </div>
+          {rosterRound ? (
+            <div className="zoom">
+              <button className={s.autoCam ? 'on' : ''} onClick={() => s.setAutoCam(!s.autoCam)} aria-pressed={s.autoCam}
+                title={s.autoCam ? 'Auto zoom is on: the map zooms in when everyone is on one part of it. Click for the whole map.' : 'Auto zoom is off: the whole map. Click to follow the fight.'}>
+                Auto
+              </button>
+            </div>
+          ) : (
+            <div className="zoom">
+              <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>
+              <button onClick={() => zoomAt(0.8)} title="Zoom out">−</button>
+              <button onClick={fit} title="Fit map">Fit</button>
+            </div>
+          )}
         </div>
         <div className="slot bl">
           {recap && sim && s.popups && s.review && (
@@ -849,6 +920,11 @@ const ZOOM_DETAIL = 1.6;
 
 /** Room the overlays take around the map (px): the HUD on top, zoom at the side, the eval bar and the dock below. */
 const FIT_PAD = { top: 52, bottom: 92, side: 44 };
+/**
+ * Review's camera: zooms in once everyone alive fits in under `zoomBelow` of the map (radar px span, plus `pad` on
+ * each side, never tighter than `minSpan`), at most `maxZoom`× the whole-map view; `ease` = share of the way per frame.
+ */
+const CAM = { pad: 90, minSpan: 300, zoomBelow: 0.8, maxZoom: 2.4, ease: 0.08 };
 /** Review's team panels down each side (196 px and their margin), hidden on a board under 700 px wide. */
 /** How close (screen px, across and down) two players' name tags may be before the second one hides: about a tag's size. */
 const NAME_GAP = { x: 64, y: 16 };
