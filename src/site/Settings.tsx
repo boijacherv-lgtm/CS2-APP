@@ -4,6 +4,7 @@ import { PRO_MODEL } from '../engine/coachModels';
 import { useStore } from '../store';
 import { Icon } from '../ui/Icon';
 import { forgetProfile, refreshProfile, setPrefs, useProfile } from '../ui/profileApi';
+import { VERDICT_LABEL, type MoveVerdict } from '../engine/profile';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { steamSignOut } from '../ui/steamApi';
 
@@ -72,6 +73,15 @@ export function Settings() {
             <button className={data.prefs.compare === 'pro' ? 'on' : ''} disabled={!PRO_MODEL} onClick={() => setPrefs({ compare: 'pro' })}>Pro</button>
           </div>
         </div>
+        <div className="setting">
+          <div className="setting-text">
+            <b>Where the coach was wrong</b>
+            <span className="muted">{data.verdicts.length
+              ? `${data.verdicts.length} move${data.verdicts.length > 1 ? 's' : ''} you marked in Review. The coach is checked against them when it learns.`
+              : 'Mark moves in Review ("Coach wrong?" on a move card). The coach is checked against them when it learns.'}</span>
+          </div>
+          <button className="cta" disabled={!data.verdicts.length} onClick={() => downloadVerdicts(data.verdicts)} title="A file for the coach's learning tools (my-demos folder)">Download</button>
+        </div>
       </section>
 
       <section className="site-card">
@@ -98,4 +108,13 @@ function Toggle({ label, text, on, disabled, onChange }: { label: string; text: 
       <input type="checkbox" role="switch" className="switch" checked={on} disabled={disabled} onChange={e => onChange(e.target.checked)} />
     </label>
   );
+}
+
+/** Your verdicts as a file the learning tools read (tools/verdicts-lib.ts: put it in the my-demos folder). */
+function downloadVerdicts(list: MoveVerdict[]) {
+  const moments = list.map(v => ({ match: v.match, round: v.round, t: v.t, player: v.player, kind: 'move', moveKind: v.kind, verdict: v.verdict, why: v.note ? `${VERDICT_LABEL[v.reason]}: ${v.note}` : VERDICT_LABEL[v.reason] }));
+  const url = URL.createObjectURL(new Blob([JSON.stringify({ moments }, null, 1)], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `verdicts-app-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+  URL.revokeObjectURL(url);
 }

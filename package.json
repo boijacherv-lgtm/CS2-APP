@@ -12,6 +12,8 @@
     "learn:spots": "vite-node tools/learn-spots.ts",
     "learn:positions": "vite-node tools/learn-positions.ts",
     "learn:stands": "vite-node tools/learn-stands.ts",
+    "learn:win": "vite-node tools/learn-win.ts",
+    "eval:coach": "vite-node tools/eval-coach.ts",
     "learn:analyst": "vite-node tools/learn-analyst.ts",
     "calibrate:engine": "vite-node tools/calibrate-engine.ts",
     "learn:all": "vite-node tools/learn-all.ts",

@@ -53,7 +53,49 @@ export interface ProfileData {
   notifyPro: boolean;
   /** Games they asked to hear about when they go live ("deadlock"). */
   notifyGames: string[];
+  /** Where they told the coach it was wrong (Review's move cards): checked against, and learned from. */
+  verdicts: MoveVerdict[];
 }
+
+/**
+ * "Coach was wrong" on one move: the coach called it a mistake and it wasn't ('ok', with why), or it let a mistake
+ * pass ('fault'). `match`: the match's fingerprint (matchFingerprint in recap.ts), so it's found again later.
+ */
+export interface MoveVerdict {
+  match: string; map: string; round: number; t: number; player: string;
+  kind: string; title: string; coach: string;
+  verdict: 'ok' | 'fault'; reason: VerdictReason; note?: string; at: number;
+}
+export const VERDICT_REASONS = ['unlucky', 'role', 'call', 'info', 'other', 'mistake'] as const;
+export type VerdictReason = typeof VERDICT_REASONS[number];
+export const VERDICT_LABEL: Record<VerdictReason, string> = {
+  unlucky: 'Unlucky', role: 'My role', call: "Teammate's call", info: 'Bad info', other: 'Other', mistake: 'A mistake',
+};
+export const MAX_VERDICTS = 300;
+/** Which move a verdict is about (one verdict per move). */
+export const verdictKey = (v: Pick<MoveVerdict, 'match' | 'round' | 't' | 'player' | 'kind'>) => `${v.match}|${v.round}|${v.t.toFixed(2)}|${v.player}|${v.kind}`;
+
+/** A verdict from the outside world, checked field by field (null when it isn't one). */
+export function cleanVerdict(raw: unknown): MoveVerdict | null {
+  const v = raw as Partial<MoveVerdict> | null;
+  if (!v || typeof v !== 'object') return null;
+  const str = (s: unknown, max: number) => (typeof s === 'string' ? s.slice(0, max) : '');
+  const num = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) ? n : NaN);
+  if (!str(v.match, 80) || !str(v.player, 24) || !str(v.kind, 16) || !Number.isFinite(num(v.round)) || !Number.isFinite(num(v.t))) return null;
+  if (v.verdict !== 'ok' && v.verdict !== 'fault') return null;
+  if (!VERDICT_REASONS.includes(v.reason as VerdictReason)) return null;
+  return {
+    match: str(v.match, 80), map: str(v.map, 24), round: Math.round(num(v.round)), t: Math.round(num(v.t) * 100) / 100, player: str(v.player, 24),
+    kind: str(v.kind, 16), title: str(v.title, 160), coach: str(v.coach, 4), verdict: v.verdict, reason: v.reason as VerdictReason,
+    ...(str(v.note, 200) ? { note: str(v.note, 200) } : {}), at: Number.isFinite(num(v.at)) ? num(v.at) : Date.now(),
+  };
+}
+/** The list with this verdict in (replacing one on the same move), or with that move's verdict taken out (`remove`). */
+export function withVerdict(list: MoveVerdict[], v: MoveVerdict | { remove: string }): MoveVerdict[] {
+  if ('remove' in v) return list.filter(x => verdictKey(x) !== v.remove);
+  return [v, ...list.filter(x => verdictKey(x) !== verdictKey(v))].slice(0, MAX_VERDICTS);
+}
+export const cleanVerdicts = (raw: unknown): MoveVerdict[] => (Array.isArray(raw) ? raw.map(cleanVerdict).filter((v): v is MoveVerdict => !!v).slice(0, MAX_VERDICTS) : []);
 
 /** Pro is free for everyone while there are no payments: the limits below apply once it launches. */
 export const PRO_EARLY_ACCESS = true;
@@ -62,7 +104,7 @@ export const FREE_HISTORY = 5, MAX_HISTORY = 100;
 export const MAX_GOALS = 3;
 export const hasPro = () => PRO_EARLY_ACCESS;
 
-export const EMPTY_PROFILE: ProfileData = { matches: [], goals: [], prefs: { public: false, compare: 'lvl10' }, notifyPro: false, notifyGames: [] };
+export const EMPTY_PROFILE: ProfileData = { matches: [], goals: [], prefs: { public: false, compare: 'lvl10' }, notifyPro: false, notifyGames: [], verdicts: [] };
 
 /** A list of game ids ("deadlock"), cleaned: short lowercase ids, no repeats, at most 10. */
 export function cleanNotifyGames(raw: unknown): string[] {

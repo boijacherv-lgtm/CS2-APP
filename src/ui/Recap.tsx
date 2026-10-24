@@ -22,6 +22,7 @@ import { GameIcon, Icon } from './Icon';
 import type { Cs2Icon } from './cs2Icons';
 import { shownNow, useShown } from './shown';
 import { scoreBefore, sideSwitches } from './Playback';
+import { VerdictBar } from './Verdict';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
@@ -315,6 +316,7 @@ function MoveItem({ m, open, onToggle, onWatch }: { m: Move; open: boolean; onTo
             {m.why.map((w, i) => <li key={i}>{w}</li>)}
           </ul>
           <button className="mini mv-watch" onClick={() => onWatch(m.t)}><Icon name="play" size={11} /> Watch</button>
+          <VerdictBar m={m} />
         </div>
       )}
     </div>
