@@ -345,8 +345,9 @@ function throwOf(n, flights, ends, tOf, throws) {
     out.throwT = tOf(best.start);
     // every 4 ticks (~16 Hz) is smooth enough on a radar
     const pts = best.pts.filter((p, i) => p[0] <= tick && (i % 4 === 0));
-    pts.push([tick, x, y]);
-    out.path = pts.map(p => [p[1], p[2]]);
+    pts.push([tick, x, y, round1(num(pick(n, 'z', 'Z')))]);
+    // x, y and the height (world z): the board draws the high part of a throw (over a wall or a box) as "in the air"
+    out.path = pts.map(p => (Number.isFinite(p[3]) ? [p[1], p[2], p[3]] : [p[1], p[2]]));
     const b = bouncesOf(best.pts.filter(p => p[0] <= tick));
     if (b.length) out.bounces = b.map(([t, x, y, wall]) => [x, y, round2(tOf(t)), wall]);
   } else {

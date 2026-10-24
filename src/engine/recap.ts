@@ -40,7 +40,7 @@ export interface DemoRound {
   util: {
     t: number; type: UtilType; thrower: string; x: number; y: number;
     /** Release time, flight path (world x/y) and when the smoke/fire ended; older parses don't have them. */
-    throwT?: number; path?: [number, number][]; end?: number;
+    throwT?: number; path?: ([number, number] | [number, number, number])[]; end?: number;
     /** Where it was thrown from (world x/y) when there's no flight path (browser build). */
     from?: [number, number];
     /** Newer parses with a flight: where it hit a wall (1) or the floor / a roof (0) on the way, and when. */
@@ -323,6 +323,8 @@ export function buildReplay(engine: TacticalEngine, demo: DemoData, roundIdx: nu
     return {
       id: `u${i}`, type: u.type, pos: toR(u.x, u.y), throwAt, flight: u.t - throwAt,
       ...(path ? { path, from: path[0] } : {}),
+      // the flight's height at each point (newer reads), for drawing the high part of the throw as "in the air"
+      ...(u.path && u.path.length > 1 && u.path.every(p => p.length === 3) ? { heights: u.path.map(p => p[2]!) } : {}),
       ...(u.bounces?.length ? { bounces: u.bounces.map(([x, y, t, wall]) => ({ ...toR(x, y), t, wall: wall === 1 })) } : {}),
       ...(u.end !== undefined && u.end > u.t ? { duration: u.end - u.t } : {}),
     };
