@@ -2,6 +2,7 @@ import type { RoundSummary } from '../engine/match';
 import type { MatchWorkerIn, MatchWorkerOut } from '../engine/match.worker';
 import type { DemoData } from '../engine/recap';
 import type { BoardState } from '../engine/types';
+import { currentCorrections } from './corrections';
 
 export interface Grading {
   /** Ends with every round's summary (null where a round couldn't be graded), and why it stopped early if it did. */
@@ -27,6 +28,6 @@ export function gradeMatch(data: DemoData, context: BoardState['context'], onRou
     w.onerror = e => { e.preventDefault(); error = e.message || 'the grader crashed (the match may be too big for this browser)'; finish(); };
     w.onmessageerror = () => { error = 'a graded round could not be read back'; finish(); };
   });
-  w.postMessage({ data, context } satisfies MatchWorkerIn);
+  w.postMessage({ data, context, corrections: currentCorrections() } satisfies MatchWorkerIn);
   return { done, stop: () => w.terminate() };
 }

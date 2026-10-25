@@ -469,7 +469,7 @@
 .dev-check.warn { border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); } .dev-check.bad { border-color: color-mix(in srgb, var(--bad) 50%, var(--border)); }
 .dev-kpis { margin-bottom: 14px; }
 .dispute-filter { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
-.dispute-filter .small-btn { margin-left: auto; }
+.dispute-filter-end { margin-left: auto; display: flex; gap: 6px; }
 .dispute-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .dispute { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); display: grid; gap: 6px; }
 .dispute-top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
@@ -479,7 +479,11 @@
 .dispute-note.bad { color: #fff; background: var(--bad); } .dispute-note.warn { color: #241a02; background: var(--warn); } .dispute-note.good { color: #0b2414; background: var(--good); }
 .dispute-says { font-size: 13px; font-weight: 600; } .dispute-says.ok { color: var(--good); } .dispute-says.fault { color: var(--bad-soft, var(--bad)); }
 .dispute-why ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--text-2); display: grid; gap: 3px; }
-.dispute-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.dispute-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.dispute-ruling { display: inline-flex; gap: 4px; }
+.dispute-quote { margin: 0; padding: 6px 10px; border-left: 3px solid var(--border-strong); background: var(--surface-2); border-radius: 0 8px 8px 0; font-size: 13px; color: var(--text-1); }
+.dispute-mynote { display: flex; gap: 6px; }
+.dispute-mynote input { flex: 1; min-width: 0; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-1); font: inherit; font-size: 13px; }
 .dev-kpis .kpi-tile em { display: block; font-style: normal; font-size: 11px; margin-top: 2px; }
 .dev-tabs { margin: 0 0 14px; padding: 6px 0; top: 0; background: transparent; border-bottom: 1px solid var(--border); backdrop-filter: none; position: static; }
 .dev-models { margin-top: 12px; }

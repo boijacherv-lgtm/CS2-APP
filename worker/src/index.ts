@@ -16,7 +16,7 @@
  * as malicious on the owner's account. Public and official APIs only.
  */
 import { adminStats, isOwner, saveHeartbeat } from './admin';
-import { clipData, clipList, MAX_CLIP_BYTES, removeClip, saveClip, updateClip } from './clips';
+import { clipData, clipList, corrections, MAX_CLIP_BYTES, removeClip, saveClip, updateClip } from './clips';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
@@ -65,6 +65,9 @@ export default {
       if (req.method === 'POST' && path === '/openid/verify') return json(await verifyLogin(env, await body(req)));
       if (path.startsWith('/internal/')) return await internal(req, env, path, json);
 
+      // the coach's corrections from checked disputes: public (they're counts per kind of move), cached a few minutes
+      if (req.method === 'GET' && path === '/corrections')
+        return new Response(JSON.stringify(await corrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });
       if (req.method === 'GET' && path === '/profiles') return json({ profiles: await profiles(env, new URL(req.url).searchParams.get('ids') ?? '') });
       // a friend's profile, when they made it public (name, avatar and their last matches' numbers)
       const pub = path.match(/^\/public\/(7656\d{13})$/);
