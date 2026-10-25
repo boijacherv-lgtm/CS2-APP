@@ -8,6 +8,7 @@
  *   GET  /admin/clip/<id>      the owner: one moment's round (gzipped JSON)
  *   POST /admin/clip/<id>      the owner: { done }, { ruling: 'player' | 'coach' | null, rulingReason, rulingNote } or { delete: true }
  *   GET  /corrections          anyone: what the rulings change in the coach's marks (src/engine/corrections.ts)
+ *   GET  /internal/disputes    the coach's tools (SERVER_TOKEN): every ruled moment; /internal/clip/<id> its round
  *
  * KV: clips (the list), clip:<id> (the round, gzipped) and rulings (who was right, per move pattern: kept when a
  * moment is deleted, so the coach doesn't forget what it learned).
@@ -109,3 +110,6 @@ export async function updateClip(kv: ClipKV, id: string, input: Record<string, u
 export async function corrections(kv: ClipKV) {
   return { table: tableOf(((await kv.get('rulings', 'json')) as RulingRow[] | null) ?? []) };
 }
+
+/** Every moment the owner has ruled on (the coach's tools fetch each one's round with /internal/clip/<id>). */
+export const ruledClips = async (kv: ClipKV) => ({ clips: (await list(kv)).filter(c => c.ruling) });

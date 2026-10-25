@@ -8,10 +8,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { scoreVerdicts } from './verdicts-lib';
+import { pullDisputes } from './disputes-lib';
 
 const dir = (process.argv.slice(2).filter(a => a !== '--')[0] ?? path.join(os.homedir(), 'Desktop/APPS/my-demos')).replace(/^~/, os.homedir());
 const file = path.resolve(import.meta.dirname, '../src/engine/models/eval.json');
 const prev = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+// your newest calls on the site first (Dev → Disputes), when this computer is linked (npm run link:coach)
+console.log(await pullDisputes(dir));
 const v = scoreVerdicts(dir);
 const out = { ...prev, verdicts: { at: new Date().toISOString().slice(0, 10), right: v.right, total: v.total } };
 fs.writeFileSync(file, JSON.stringify(out, null, 1) + '\n');
