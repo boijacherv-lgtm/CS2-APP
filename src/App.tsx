@@ -5,6 +5,8 @@ import { computeSpots } from './engine/spots';
 import { timelineEnd } from './engine/timeline';
 import { computeControl } from './engine/control';
 import { buildReplay, reviewRound } from './engine/recap';
+import { applyCorrections } from './engine/corrections';
+import { useCorrections } from './ui/corrections';
 import { getEngine } from './map/catalog';
 import { useStore, type Tool } from './store';
 import { Board } from './ui/Board';
@@ -35,7 +37,13 @@ export function App() {
   useEffect(() => {
     if (replay && useStore.getState().mode === 'review') useStore.setState({ board: replay.board, boardFromReplay: true });
   }, [replay]);
-  const recap = useMemo(() => (replay ? reviewRound(engine, replay) : null), [engine, replay]);
+  // the coach's marks, with the corrections from checked disputes (engine/corrections.ts)
+  const corrections = useCorrections();
+  const recap = useMemo(() => {
+    if (!replay) return null;
+    const r = reviewRound(engine, replay);
+    return corrections ? { ...r, moves: applyCorrections(r.moves, corrections) } : r;
+  }, [engine, replay, corrections]);
   // Analysis runs on a deferred copy so dragging stays smooth.
   const deferred = useDeferredValue(board);
   const analysis = useMemo(() => engine.analyze(deferred), [engine, deferred]);
