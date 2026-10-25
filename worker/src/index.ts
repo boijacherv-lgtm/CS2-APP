@@ -16,6 +16,7 @@
  * as malicious on the owner's account. Public and official APIs only.
  */
 import { adminStats, isOwner, saveHeartbeat } from './admin';
+import { clipData, clipList, MAX_CLIP_BYTES, removeClip, saveClip, updateClip } from './clips';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
@@ -82,6 +83,22 @@ export default {
       if (req.method === 'GET' && path === '/admin/stats') {
         if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);
         return json(await adminStats(env.SB));
+      }
+      // disputed moments ("Coach wrong?"): the player sends the round, the owner watches it on the dev page
+      if (req.method === 'POST' && path === '/clip') {
+        const text = await req.text();
+        if (text.length > MAX_CLIP_BYTES) return json({ error: 'That round is too big to send.' }, 413);
+        return json(await saveClip(env.SB, steamId, text));
+      }
+      if (req.method === 'POST' && path === '/clip/remove') return json(await removeClip(env.SB, steamId, (await body(req)).key));
+      const clip = path.match(/^\/admin\/clip\/([0-9a-f]{24})$/);
+      if (path === '/admin/clips' || clip) {
+        if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);
+        if (path === '/admin/clips') return json(await clipList(env.SB));
+        if (req.method === 'POST') return json(await updateClip(env.SB, clip![1], await body(req)));
+        const gz = await clipData(env.SB, clip![1]);
+        if (!gz) return json({ error: 'That moment is gone.' }, 404);
+        return new Response(gz, { encodeBody: 'manual', headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, max-age=86400', ...cors } });
       }
       if (req.method === 'GET' && path === '/resolve') {
         const id = await resolveSteamId(new URL(req.url).searchParams.get('q') ?? '', env.STEAM_API_KEY);

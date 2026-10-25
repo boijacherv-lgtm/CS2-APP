@@ -17,6 +17,7 @@ import { steamFetch } from '../ui/steamApi';
 import { fmtDate, fmtInt, mapName } from './format';
 import { AreaChart, BarList, Donut, Gauge } from './charts';
 import { T } from '../ui/tokens';
+import { DevDisputes } from './DevDisputes';
 
 /** What the Worker counts for the owner (worker/src/admin.ts). */
 interface AdminStats {
@@ -172,6 +173,8 @@ export function Dev() {
         </>
       )}
 
+      {tab === 'disputes' && (owner ? <DevDisputes myId={me?.steamId ?? null} /> : <p className="muted">Log in with Steam as the owner to see disputed moments.</p>)}
+
       {tab === 'data' && (
         <>
           <section className="site-card">
@@ -214,9 +217,9 @@ export function Dev() {
   );
 }
 
-type DevTab = 'users' | 'coach' | 'data' | 'browser';
+type DevTab = 'users' | 'coach' | 'disputes' | 'data' | 'browser';
 const DEV_TABS: { id: DevTab; label: string; icon: IconName }[] = [
-  { id: 'users', label: 'Users', icon: 'friends' }, { id: 'coach', label: 'Coach', icon: 'star' },
+  { id: 'users', label: 'Users', icon: 'friends' }, { id: 'coach', label: 'Coach', icon: 'star' }, { id: 'disputes', label: 'Disputes', icon: 'chat' },
   { id: 'data', label: 'Data & bot', icon: 'stats' }, { id: 'browser', label: 'Browser', icon: 'lock' },
 ];
 
