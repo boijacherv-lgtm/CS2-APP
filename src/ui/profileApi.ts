@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { STEAM_AVAILABLE } from '../env';
 import { cleanGoals, cleanNotifyGames, cleanPrefs, cleanVerdicts, withVerdict, type MoveVerdict, EMPTY_PROFILE, withMatch, type GoalId, type ProfileData, type ProfileMatch, type ProfilePrefs } from '../engine/profile';
 import { steamFetch } from './steamApi';
+import type { DemoData } from '../engine/recap';
 
 /**
  * Your profile in the browser. Logged in with Steam (website: the Worker; locally: the dev server, when it has the
@@ -95,6 +96,20 @@ export async function setVerdict(v: MoveVerdict | { remove: string }) {
   }
   saveLocal(change(loadLocal()));
   useProfile.setState({ data: change(s.data) });
+}
+
+/**
+ * A disputed moment for the owner to check by hand (the dev page): the round it's in and the coach's card, sent when
+ * logged in. Fails quietly: the verdict itself is already saved.
+ */
+export function sendClip(v: MoveVerdict, card: { note: string; title: string; why: string[]; tags: string[] }, data: DemoData) {
+  if (!useProfile.getState().remote) return;
+  const round = data.rounds[v.round - 1];
+  if (!round) return;
+  void steamFetch('/clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ verdict: v, card, demo: { ...data, rounds: [round] } }) }).catch(() => {});
+}
+export function removeClip(key: string) {
+  if (useProfile.getState().remote) void api('/clip/remove', { key }).catch(() => {});
 }
 
 /**
