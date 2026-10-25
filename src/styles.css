@@ -990,3 +990,19 @@ a.btn:hover { border-color: #45505e; }
 .pos-item details summary::-webkit-details-marker { display: none; }
 .pos-item details summary b::after { content: ' ›'; color: var(--text-3); }
 .pos-item details[open] summary b::after { content: ' ⌄'; }
+
+/* first-visit tours (ui/Tour.tsx): the page dims, one control is lit, a note sits next to it */
+.tour { position: fixed; inset: 0; z-index: 1000; }
+.tour-hole { position: fixed; border-radius: 10px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(4, 6, 10, .66);
+  outline: 2px solid var(--text-1); outline-offset: 0; transition: left var(--motion-smooth) var(--ease-out), top var(--motion-smooth) var(--ease-out),
+  width var(--motion-smooth) var(--ease-out), height var(--motion-smooth) var(--ease-out); }
+.tour-pop { position: fixed; padding: 14px 16px 12px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-strong);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .5); color: var(--text-1); animation: tour-in var(--motion-smooth) var(--ease-out); }
+.tour-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.tour-head b { font-size: 15px; }
+.tour-head span { font-size: 12px; }
+.tour-pop p { margin: 0 0 12px; font-size: 13.5px; line-height: 1.45; color: var(--text-2); }
+.tour-actions { display: flex; align-items: center; gap: 6px; }
+.tour-actions > span { flex: 1; }
+@keyframes tour-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tour-hole, .tour-pop { transition: none; animation: none; } }

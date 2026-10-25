@@ -7,6 +7,7 @@ import { forgetProfile, refreshProfile, setPrefs, useProfile } from '../ui/profi
 import { VERDICT_LABEL, type MoveVerdict } from '../engine/profile';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { steamSignOut } from '../ui/steamApi';
+import { resetTours } from '../ui/Tour';
 
 /** Your account, privacy, the coach's and Review's defaults, and your data. */
 export function Settings() {
@@ -14,6 +15,7 @@ export function Settings() {
   const s = useStore();
   const [confirm, setConfirm] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  const [tipsReset, setTipsReset] = useState(false);
   const signOut = async () => { await steamSignOut(); useStore.setState({ me: null }); await refreshProfile(); };
   const forget = async () => {
     try { await forgetProfile(); setDone(remote ? 'Your profile and match list were deleted from your account.' : 'This browser\'s profile was deleted.'); }
@@ -95,6 +97,10 @@ export function Settings() {
             <button className={s.evalScope === 'all' ? 'on' : ''} onClick={() => s.setEvalScope('all')}>All</button>
             <button className={s.evalScope === 'mine' ? 'on' : ''} onClick={() => s.setEvalScope('mine')}>Mine</button>
           </div>
+        </div>
+        <div className="setting">
+          <div className="setting-text"><b>Tips</b><span className="muted">The short tours of the CS2 page, Review and Match recap: shown once, again from here.</span></div>
+          <button className="ghost small-btn" onClick={() => { resetTours(); setTipsReset(true); }} disabled={tipsReset}>{tipsReset ? 'They\'ll show again' : 'Show the tips again'}</button>
         </div>
       </section>
     </div>
