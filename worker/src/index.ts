@@ -16,7 +16,7 @@
  * as malicious on the owner's account. Public and official APIs only.
  */
 import { adminStats, isOwner, saveHeartbeat } from './admin';
-import { clipData, clipList, corrections, MAX_CLIP_BYTES, removeClip, saveClip, updateClip } from './clips';
+import { clipData, clipList, corrections, MAX_CLIP_BYTES, removeClip, ruledClips, saveClip, updateClip } from './clips';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
@@ -304,6 +304,14 @@ function sameToken(a: string, b: string) {
 async function internal(req: Request, env: Env, path: string, json: (b: unknown, s?: number) => Response): Promise<Response> {
   const got = req.headers.get('Authorization')?.replace(/^Bearer /, '') ?? '';
   if (!env.SERVER_TOKEN || !sameToken(got, env.SERVER_TOKEN)) return json({ error: 'Not allowed.' }, 403);
+
+  // the moments the owner has ruled on, for the coach's tools on the owner's computer (tools/pull-disputes.ts)
+  if (req.method === 'GET' && path === '/internal/disputes') return json(await ruledClips(env.SB));
+  const ic = path.match(/^\/internal\/clip\/([0-9a-f]{24})$/);
+  if (req.method === 'GET' && ic) {
+    const gz = await clipData(env.SB, ic[1]);
+    return gz ? new Response(gz, { encodeBody: 'manual', headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' } }) : json({ error: 'That moment is gone.' }, 404);
+  }
 
   // users who have set up their codes
   if (req.method === 'GET' && path === '/internal/users') {
