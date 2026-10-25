@@ -163,15 +163,19 @@ async function verifyLogin(env: Env, input: Record<string, unknown>) {
   return { token, steamId };
 }
 
-/** Public Steam name + avatar (public profile XML, cached for an hour). */
+/** Public Steam name + avatar: the Web API, else the public profile XML. */
 async function publicProfile(env: Env, steamId: string): Promise<{ name: string | null; avatar: string | null }> {
+  // the Web API first (GetPlayerSummaries, cached a day); Steam's XML profile page often doesn't answer Cloudflare
+  const viaApi = (await profiles(env, steamId))[steamId];
+  if (viaApi?.name) return viaApi;
   const cached = await env.SB.get(`profile:${steamId}`, 'json') as { name: string | null; avatar: string | null } | null;
-  if (cached) return cached;
+  if (cached?.name) return cached;
   try {
     const xml = await (await fetch(`https://steamcommunity.com/profiles/${steamId}/?xml=1`)).text();
     const tag = (t: string) => xml.match(new RegExp(`<${t}><!\\[CDATA\\[(.*?)\\]\\]></${t}>`))?.[1] ?? xml.match(new RegExp(`<${t}>(.*?)</${t}>`))?.[1] ?? null;
     const value = { name: tag('steamID'), avatar: tag('avatarMedium') };
-    await env.SB.put(`profile:${steamId}`, JSON.stringify(value), { expirationTtl: 3600 });
+    // an answer without a name (blocked, busy) isn't kept: the next call tries again
+    if (value.name) await env.SB.put(`profile:${steamId}`, JSON.stringify(value), { expirationTtl: 3600 });
     return value;
   } catch { return { name: null, avatar: null }; }
 }
