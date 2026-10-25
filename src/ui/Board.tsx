@@ -1,6 +1,6 @@
 import Konva from 'konva';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text, Wedge } from 'react-konva';
+import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import type { ControlMap } from '../engine/control';
 import { FOV, type Analysis, type TacticalEngine } from '../engine/predict';
 import { activeSmokes, distToSegment, smokeOpenAt, SMOKE_RADIUS_UNITS } from '../engine/grid';
@@ -36,10 +36,8 @@ import { useStore, whoAmI } from '../store';
 Konva.dragDistance = 4;
 
 const COLORS = { ...SIDE_COLOR, bg: TOK.bg0 };
-/** A #rrggbb colour mixed toward white / black by `t` (0–1). */
-const mixTo = (hex: string, to: number, t: number) => '#' + [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - t) + to * t).toString(16).padStart(2, '0')).join('');
-const mixWhite = (hex: string, t: number) => mixTo(hex, 255, t);
-const mixBlack = (hex: string, t: number) => mixTo(hex, 0, t);
+/** A #rrggbb colour mixed toward white by `t` (0–1). */
+const mixWhite = (hex: string, t: number) => '#' + [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - t) + 255 * t).toString(16).padStart(2, '0')).join('');
 const TOKEN_R = 11;
 /** On-screen size of the nickname under a player in Review. */
 const NAME_PX = 10;
@@ -68,7 +66,6 @@ function NameTag({ name, side, fs, y, strong, dead }: { name: string; side: 'CT'
 }
 const PICK_SCREEN_PX = 14;
 const ERASE = TOK.bad;
-const FOV_DEG = (FOV * 180) / Math.PI;
 const deg = (r: number) => (r * 180) / Math.PI;
 
 export function Board({ analysis, engine, control, sim, spots, batch, recap, timelineEnd }: {
@@ -721,8 +718,6 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 else if (s.tool !== 'erase') s.select(p.id);
               }}>
               <Group scaleX={k} scaleY={k}>
-                <Wedge radius={26} angle={FOV_DEG} rotation={deg(p.facing ?? engine.facing(p)) - FOV_DEG / 2} listening={false}
-                  fill={COLORS[p.side]} opacity={p.facing === undefined ? 0.16 : 0.26} />
                 {(hoverPlayer === p.id || s.draftRoute?.playerId === p.id) && s.tool === 'path' && (
                   <Circle radius={TOKEN_R + 5} stroke="#fff" strokeWidth={2} dash={[4, 3]} listening={false} />
                 )}
@@ -736,20 +731,16 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                   const base = eraseTarget === p.id ? ERASE : COLORS[p.side];
                   return (
                     <>
-                      {/* a dark bezel with the health ring on it: the team colour all the way round at full health,
-                          shrinking from 12 o'clock as they take damage, red when low */}
-                      <Circle radius={TOKEN_R + 3.6} hitStrokeWidth={18} fill="#0b0e12" opacity={0.92} shadowColor="#000" shadowBlur={6} shadowOpacity={0.7} />
-                      <Arc innerRadius={TOKEN_R + 0.9} outerRadius={TOKEN_R + 3} angle={360} fill={base} opacity={0.18} listening={false} />
-                      {hp > 0 && <Arc innerRadius={TOKEN_R + 0.9} outerRadius={TOKEN_R + 3} angle={3.6 * hp} rotation={-90}
-                        fill={hp <= 30 ? TOK.bad : mixWhite(base, 0.25)} listening={false} />}
-                      {/* the body: lighter in the middle, like a lit token */}
-                      <Circle radius={TOKEN_R - 0.2} listening={false}
-                        fillRadialGradientStartPoint={{ x: -3, y: -3 }} fillRadialGradientStartRadius={0}
-                        fillRadialGradientEndPoint={{ x: 0, y: 0 }} fillRadialGradientEndRadius={TOKEN_R}
-                        fillRadialGradientColorStops={[0, mixWhite(base, 0.45), 0.65, base, 1, mixBlack(base, 0.25)]} />
-                      {/* where they're looking, like the arrow on CS2's radar, outside the ring */}
-                      <Line points={[TOKEN_R + 3.4, -4.2, TOKEN_R + 9, 0, TOKEN_R + 3.4, 4.2]} closed rotation={deg(p.facing ?? engine.facing(p))}
-                        fill="#fff" stroke="#0b0e12" strokeWidth={1} lineJoin="round" listening={false} />
+                      {/* flat: a dark track with the health ring on it (the team colour all the way round at full
+                          health, shrinking from 12 o'clock as they take damage, red when low), a solid body */}
+                      <Circle radius={TOKEN_R + 3.6} hitStrokeWidth={18} fill="#0b0e12" />
+                      <Arc innerRadius={TOKEN_R + 1} outerRadius={TOKEN_R + 3} angle={360} fill={base} opacity={0.22} listening={false} />
+                      {hp > 0 && <Arc innerRadius={TOKEN_R + 1} outerRadius={TOKEN_R + 3} angle={3.6 * hp} rotation={-90}
+                        fill={hp <= 30 ? TOK.bad : mixWhite(base, 0.3)} listening={false} />}
+                      <Circle radius={TOKEN_R - 1} fill={base} listening={false} />
+                      {/* where they're looking: a small notch on the ring */}
+                      <Line points={[TOKEN_R + 3.2, -3, TOKEN_R + 7, 0, TOKEN_R + 3.2, 3]} closed rotation={deg(p.facing ?? engine.facing(p))}
+                        fill="#e9edf2" listening={false} />
                     </>
                   );
                 })()}
