@@ -144,10 +144,10 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
   return (
     <div className="playbar">
       <button className={`play-main ${s.playing ? 'on' : ''}`} title="Play / pause (Space)" onClick={() => {
-        if (!s.playing && s.time >= end - 0.05) s.setTime(0);
+        if (!s.playing && s.time >= end - 0.05) s.setTime(s.judging?.from ?? 0);
         s.setPlaying(!s.playing);
       }}><Icon name={s.playing ? 'pause' : 'play'} /><span> {s.playing ? 'Pause' : 'Play'}</span></button>
-      <button onClick={() => { s.setPlaying(false); s.setTime(0); }} title="Back to round start" aria-label="Back to round start"><Icon name="toStart" /></button>
+      <button onClick={() => { s.setPlaying(false); s.setTime(s.judging?.from ?? 0); }} title={s.judging ? 'Back to the clip\'s start' : 'Back to round start'} aria-label={s.judging ? 'Back to the clip\'s start' : 'Back to round start'}><Icon name="toStart" /></button>
       <select value={s.speed} onChange={e => s.setSpeed(+e.target.value)} title="Playback speed">
         <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
       </select>
