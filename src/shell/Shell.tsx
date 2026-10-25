@@ -12,6 +12,7 @@ import { Settings } from '../site/Settings';
 import { Deadlock } from '../site/Deadlock';
 import { Dev } from '../site/Dev';
 import '../site/site.css';
+import { Tours } from '../ui/Tour';
 import { useStore, whoAmI } from '../store';
 import { buildMatchReport } from '../engine/match';
 import { profileMatchOf } from '../engine/habits';
@@ -42,6 +43,7 @@ export function Shell() {
         {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : <Cs2App />)
           : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'deadlock' ? <Deadlock /> : <Home />}
       </main>
+      <Tours />
     </div>
   );
 }
