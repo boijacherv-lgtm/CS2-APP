@@ -1,6 +1,7 @@
 import Konva from 'konva';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import { JudgePanel } from './JudgePanel';
 import type { ControlMap } from '../engine/control';
 import { FOV, type Analysis, type TacticalEngine } from '../engine/predict';
 import { activeSmokes, distToSegment, smokeOpenAt, SMOKE_RADIUS_UNITS } from '../engine/grid';
@@ -877,8 +878,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             <KillFeed recap={recap} round={s.review.data.rounds[s.review.round]} time={s.time} names={s.review.data.names} />
           )}
         </div>
-        {rosterRound && <div className="slot team-ct">{roster('CT')}</div>}
-        {rosterRound && <div className="slot team-t">{roster('T')}</div>}
+        {/* judging a disputed moment: the panel takes the left column (the tokens still show health) */}
+        {rosterRound && !s.judging && <div className="slot team-ct">{roster('CT')}</div>}
+        {rosterRound && !s.judging && <div className="slot team-t">{roster('T')}</div>}
         <div className="slot right">
           {rosterRound ? (
             <div className="zoom">
@@ -897,7 +899,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         </div>
         {/* the coach's card: docked on the left of the map, under the layers, over the CT panel */}
         <div className="slot left card-slot">
-          {recap && sim && s.popups && s.review && (
+          {s.judging ? <JudgePanel /> : recap && sim && s.popups && s.review && (
             <MoveFeed recap={recap} sim={sim} round={s.review.data.rounds[s.review.round]} time={s.time} view={view} boardRef={wrap}
               names={s.review.data.names} onFocus={setFocus} />
           )}

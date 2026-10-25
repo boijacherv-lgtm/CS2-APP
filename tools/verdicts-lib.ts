@@ -23,7 +23,7 @@ export function scoreVerdicts(dir: string): { right: number; total: number; line
   // each with its own round, so no read of the match is needed
   const own = new Map<string, DemoData>();
   for (const f of files.filter(f => /^disputes.*\.json$/.test(f))) {
-    type D = { verdict: { round: number; t: number; kind: string; player: string; verdict: 'ok' | 'fault'; note?: string }; ruling?: { side: 'player' | 'coach'; note?: string }; demo: DemoData };
+    type D = { verdict: { round: number; t: number; kind: string; player: string; verdict: 'ok' | 'fault'; note?: string }; ruling?: { side: 'player' | 'coach'; reason?: string; note?: string }; demo: DemoData };
     const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as { moments: D[] };
     j.moments.forEach((d, i) => {
       if (!d.ruling || !d.demo?.rounds?.length) return;
@@ -31,7 +31,7 @@ export function scoreVerdicts(dir: string): { right: number; total: number; line
       own.set(code, d.demo);
       const truth = d.ruling.side === 'player' ? d.verdict.verdict : d.verdict.verdict === 'ok' ? 'fault' : 'ok';
       moments.push({ match: code, round: 1, t: d.verdict.t, kind: 'move', moveKind: d.verdict.kind, player: d.verdict.player, verdict: truth,
-        why: `checked: ${d.ruling.side === 'player' ? 'player' : 'coach'} right${d.ruling.note ? `, ${d.ruling.note}` : d.verdict.note ? ` (${d.verdict.note})` : ''}` });
+        why: `checked: ${d.ruling.side === 'player' ? 'player' : 'coach'} right${d.ruling.reason ? ` (${d.ruling.reason})` : ''}${d.ruling.note ? `, ${d.ruling.note}` : d.verdict.note ? ` (${d.verdict.note})` : ''}` });
     });
   }
   // the reads in the folder, found by the code in their file name or by the match's fingerprint

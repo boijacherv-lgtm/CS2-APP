@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { UTIL_FLIGHT } from './engine/grid';
 import type { RoundSummary } from './engine/match';
 import type { DemoData, EvalScope } from './engine/recap';
+import type { Clip } from './ui/disputesApi';
 import { presetsFor, tPlaysFor } from './map/catalog';
 import { loadCustomLineups, saveCustomLineups, type Lineup } from './map/lineups';
 import type { BoardState, Player, RoundContext, Route, Side, UtilType, Utility, Vec2, Weapon } from './engine/types';
@@ -122,6 +123,8 @@ interface Store {
   boardFromReplay: boolean;
   /** Review shows the whole round at once instead of revealing it as time passes. */
   reviewSpoilers: boolean;
+  /** The owner judging a disputed moment: Review plays just this window of the round (ui/disputesApi.ts). */
+  judging: { clip: Clip; from: number; to: number } | null;
   /** Short message shown over the board (e.g. why an action did nothing). */
   notice: string | null;
 
@@ -250,6 +253,7 @@ export const useStore = create<Store>((set, get) => {
     parked: null,
     boardFromReplay: false,
     reviewSpoilers: false,
+    judging: null,
     notice: null,
 
     setTool: tool => {
@@ -388,12 +392,13 @@ export const useStore = create<Store>((set, get) => {
         parked: s.mode === 'review' || s.boardFromReplay ? s.parked : { board: s.board, mapId: s.mapId, level: s.level },
         review: { data, round: 0 },
         report: null,
+        judging: null,
         mapId: data.map, level: 0, selectedId: null, draftRoute: null, playing: false, time: 0, past: [], future: [],
         tool: 'select',
       })),
-    setReviewRound: n => set(s => (s.review ? { review: { ...s.review, round: n }, time: 0, playing: false, selectedId: null } : s)),
+    setReviewRound: n => set(s => (s.review ? { review: { ...s.review, round: n }, time: 0, playing: false, selectedId: null, judging: null } : s)),
     setReviewSpoilers: reviewSpoilers => set({ reviewSpoilers }),
-    exitReview: () => set({ review: null, report: null, time: 0, playing: false, selectedId: null }),
+    exitReview: () => set({ review: null, report: null, time: 0, playing: false, selectedId: null, judging: null }),
     routeTo: (playerId, p) =>
       commit(b => ({
         ...b,

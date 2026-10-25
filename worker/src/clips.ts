@@ -6,14 +6,14 @@
  *   POST /clip/remove          { key } the player took their verdict back
  *   GET  /admin/clips          the owner: every disputed moment, newest first
  *   GET  /admin/clip/<id>      the owner: one moment's round (gzipped JSON)
- *   POST /admin/clip/<id>      the owner: { done }, { ruling: 'player' | 'coach' | null, rulingNote } or { delete: true }
+ *   POST /admin/clip/<id>      the owner: { done }, { ruling: 'player' | 'coach' | null, rulingReason, rulingNote } or { delete: true }
  *   GET  /corrections          anyone: what the rulings change in the coach's marks (src/engine/corrections.ts)
  *
  * KV: clips (the list), clip:<id> (the round, gzipped) and rulings (who was right, per move pattern: kept when a
  * moment is deleted, so the coach doesn't forget what it learned).
  */
 import { cleanVerdict, verdictKey, type MoveVerdict } from '../../src/engine/profile';
-import { patternOf, tableOf } from '../../src/engine/corrections';
+import { isJudgeReason, patternOf, tableOf, type JudgeReason } from '../../src/engine/corrections';
 
 /** Moments kept (the oldest go first), and per player. */
 const MAX_CLIPS = 300, MAX_PER_PLAYER = 60;
@@ -22,9 +22,9 @@ export const MAX_CLIP_BYTES = 3_000_000;
 
 export interface ClipCard { note: string; title: string; why: string[]; tags: string[] }
 /** The owner's call on a moment: the player was right (the coach was wrong) or the coach was. */
-export interface Ruling { side: 'player' | 'coach'; note?: string; at: number }
+export interface Ruling { side: 'player' | 'coach'; reason?: JudgeReason; note?: string; at: number }
 export interface ClipEntry { id: string; from: string; at: number; verdict: MoveVerdict; card: ClipCard; done?: boolean; ruling?: Ruling; size: number }
-type RulingRow = { id: string; pattern: string; side: Ruling['side']; at: number };
+type RulingRow = { id: string; pattern: string; side: Ruling['side']; reason?: JudgeReason; at: number };
 /** Rulings kept (the oldest go first). */
 const MAX_RULINGS = 5000;
 
@@ -94,11 +94,11 @@ export async function updateClip(kv: ClipKV, id: string, input: Record<string, u
   if ('done' in input) c.done = input.done === true;
   if ('ruling' in input) {
     const side = input.ruling === 'player' || input.ruling === 'coach' ? input.ruling : null;
-    const note = str(input.rulingNote, 400);
-    if (side) { c.ruling = { side, ...(note ? { note } : {}), at: Date.now() }; c.done = true; } else delete c.ruling;
+    const note = str(input.rulingNote, 400), reason = isJudgeReason(input.rulingReason) ? input.rulingReason : undefined;
+    if (side) { c.ruling = { side, ...(reason ? { reason } : {}), ...(note ? { note } : {}), at: Date.now() }; c.done = true; } else delete c.ruling;
     // the coach learns from it: one row per moment, replaced when the call changes
     const rows = (((await kv.get('rulings', 'json')) as RulingRow[] | null) ?? []).filter(r => r.id !== id);
-    if (side) rows.unshift({ id, pattern: patternOf(c.verdict.kind, c.card.note, c.card.tags), side, at: Date.now() });
+    if (side) rows.unshift({ id, pattern: patternOf(c.verdict.kind, c.card.note, c.card.tags), side, ...(reason ? { reason } : {}), at: Date.now() });
     await kv.put('rulings', JSON.stringify(rows.slice(0, MAX_RULINGS)));
   }
   await kv.put('clips', JSON.stringify(all));

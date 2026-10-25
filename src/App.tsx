@@ -106,7 +106,9 @@ export function App() {
 
   // Playback: advance round time along the routes.
   const playing = useStore(s => s.playing);
-  const end = useMemo(() => (replay ? replay.round.duration : timelineEnd(engine, board.players)), [engine, board.players, replay]);
+  // judging a disputed moment: just its 20 s clip
+  const judging = useStore(s => s.judging);
+  const end = useMemo(() => (replay ? Math.min(replay.round.duration, judging?.to ?? Infinity) : timelineEnd(engine, board.players)), [engine, board.players, replay, judging]);
   useEffect(() => {
     if (!playing) return;
     let last = performance.now(), raf = 0;
@@ -130,7 +132,7 @@ export function App() {
       if (e.key === ' ') {
         e.preventDefault();
         const st = useStore.getState();
-        if (!st.playing && st.time >= end - 0.05) st.setTime(0);
+        if (!st.playing && st.time >= end - 0.05) st.setTime(st.judging?.from ?? 0);
         st.setPlaying(!st.playing);
         return;
       }

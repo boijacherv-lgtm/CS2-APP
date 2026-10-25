@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyCorrections, correctionFor, patternOf, tableOf } from '../corrections';
 import type { Move } from '../recap';
 
-type Row = { pattern: string; side: 'player' | 'coach' };
+type Row = { pattern: string; side: 'player' | 'coach'; reason?: 'role' | 'luck' };
 const rows = (pattern: string, side: Row['side'], n: number): Row[] => Array.from({ length: n }, () => ({ pattern, side }));
 
 const move = (note: Move['note'], tags: Move['tags'], kind: Move['kind'] = 'death'): Move =>
@@ -29,5 +29,12 @@ describe('corrections from checked disputes', () => {
     expect(soft.why.at(-1)).toMatch(/4 of 4/);
     expect(hard.note).toBe('?!');
     expect(same.note).toBe('?');
+  });
+
+  it('names the reason given most often on the card', () => {
+    const p = patternOf('death', '?', ['ISOLATED']);
+    const t = tableOf([...rows(p, 'player', 1), { pattern: p, side: 'player', reason: 'role' }, { pattern: p, side: 'player', reason: 'role' }, { pattern: p, side: 'player', reason: 'luck' }]);
+    expect(t[p].why).toEqual({ role: 2, luck: 1 });
+    expect(correctionFor(t, move('?', ['ISOLATED']))?.why).toMatch(/mostly: their role there/);
   });
 });

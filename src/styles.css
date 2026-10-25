@@ -1008,3 +1008,19 @@ a.btn:hover { border-color: #45505e; }
 .tour-actions > span { flex: 1; }
 @keyframes tour-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tour-hole, .tour-pop { transition: none; animation: none; } }
+
+/* judging disputed moments on the board (ui/JudgePanel.tsx), in the coach card's place */
+.judge { pointer-events: auto; width: min(330px, calc(100vw - 32px)); max-height: 100%; overflow-y: auto; display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px;
+  background: var(--surface-1); border: 1px solid var(--border-strong); box-shadow: 0 12px 34px rgba(0, 0, 0, .45); font-size: 13px; color: var(--text-1); }
+.judge-head { display: flex; align-items: baseline; gap: 8px; }
+.judge-head b { font-size: 14px; }
+.judge-x { margin-left: auto; border: 0; background: transparent; color: var(--text-3); padding: 2px 4px; }
+.judge-x:hover { color: var(--text-1); }
+.judge-card { display: flex; gap: 8px; align-items: baseline; }
+.judge-clip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.judge-clip .small-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.judge-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.judge-why { display: grid; gap: 5px; }
+.judge-reasons { display: flex; flex-wrap: wrap; gap: 4px; }
+.judge-reasons .chip { padding: 3px 8px; font-size: 11.5px; }
+.judge kbd { margin-left: 4px; padding: 0 4px; border-radius: 4px; font: 600 10px var(--font-ui); background: rgba(127, 127, 127, .22); color: inherit; }
