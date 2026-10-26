@@ -106,3 +106,51 @@
 .dl-sb-hero { display: inline-flex; align-items: center; gap: 8px; }
 .dl-sb-hero img { border-radius: 6px; }
 .dl-scoreboard tr.me td { background: rgba(255, 255, 255, .05); }
+
+/* Tactical (deadlock/DlTactical.tsx) */
+.dl-tac { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; padding: 8px 12px; }
+.dl-tac-tabs { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dl-tac-body { min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; grid-template-areas: "side map" "bar bar" "notes notes"; gap: 10px; }
+.dl-tac-side { grid-area: side; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
+.dl-tac-map { grid-area: map; position: relative; min-height: 0; display: grid; }
+.dl-tac-bar { grid-area: bar; }
+.dl-note-list { grid-area: notes; margin: 0; padding: 0; list-style: none; display: flex; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+.dl-note-list li { display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 8px; background: var(--surface-1); border: 1px solid var(--border); }
+.dl-tac-notes { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); display: grid; gap: 4px; pointer-events: none; }
+.dl-tac-notes span { padding: 5px 10px; border-radius: 8px; background: rgba(11, 14, 18, .9); border: 1px solid var(--highlight); font-size: 13px; }
+.dl-note-form { display: flex; gap: 6px; flex: 1 1 260px; }
+.dl-note-form input { flex: 1; min-width: 0; padding: 5px 9px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-1); font: inherit; font-size: 13px; }
+.dl-roster { display: grid; gap: 10px; }
+.dl-roster-team { display: grid; gap: 4px; }
+.dl-roster-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 3px 4px; border-radius: 8px; border: 1px solid transparent; }
+.dl-roster-row.on { border-color: var(--text-1); }
+.dl-roster-row img { border-radius: 6px; }
+.dl-hero-select { min-width: 0; padding: 4px 6px; border-radius: 7px; background: var(--surface-2); color: var(--text-1); border: 1px solid var(--border); font: inherit; font-size: 13px; }
+.dl-layers { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12.5px; color: var(--text-2); }
+.dl-layer { display: inline-flex; align-items: center; gap: 4px; }
+.dl-frames { display: flex; flex-wrap: wrap; gap: 4px; }
+.dl-frame-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.dl-sel { display: grid; gap: 4px; }
+.dl-range { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.dl-range input { flex: 1; }
+.dl-zoom-reset { position: absolute; right: 8px; top: 8px; }
+.dl-map { position: relative; }
+.dl-builds { min-height: 0; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+.dl-build-out { grid-column: 1 / -1; }
+.dl-build-row { display: grid; gap: 6px; padding: 8px 0; border-top: 1px solid var(--border); }
+.dl-build-head { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.dl-build-head img { border-radius: 6px; }
+.dl-build-items { display: flex; flex-wrap: wrap; gap: 4px; }
+.dl-item { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px 3px 4px; border-radius: 7px; font-size: 12px; background: var(--surface-2); color: var(--text-1); border: 1px solid var(--border); }
+.dl-item.weapon { border-color: #c98a3a; } .dl-item.vitality { border-color: #58a65c; } .dl-item.spirit { border-color: #9a6fd8; }
+.dl-item-pick { display: grid; gap: 6px; }
+.dl-item-pick input { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-1); font: inherit; }
+.dl-item-list { display: flex; flex-wrap: wrap; gap: 4px; max-height: 180px; overflow-y: auto; }
+.dl-windows, .dl-spikes { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 13px; }
+.dl-spikes li { display: flex; align-items: center; gap: 8px; }
+@media (max-width: 900px) {
+  .dl-tac { height: auto; }
+  .dl-tac-body { grid-template-columns: 1fr; grid-template-areas: "map" "bar" "side" "notes"; }
+  .dl-tac-map { height: min(92vw, 70vh); }
+  .dl-builds { grid-template-columns: 1fr; }
+}

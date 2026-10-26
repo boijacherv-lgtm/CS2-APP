@@ -15,6 +15,7 @@ import '../site/site.css';
 import { Tours } from '../ui/Tour';
 import { DlReview } from '../deadlock/DlReview';
 import { DlReport } from '../deadlock/DlReport';
+import { DlTactical } from '../deadlock/DlTactical';
 import { useStore, whoAmI } from '../store';
 import { buildMatchReport } from '../engine/match';
 import { profileMatchOf } from '../engine/habits';
@@ -43,7 +44,7 @@ export function Shell() {
       <NavBar route={route} />
       <main className="shell-main">
         {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : <Cs2App />)
-          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : <Deadlock />) : <Home />}
+          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
       </main>
       <Tours />
     </div>

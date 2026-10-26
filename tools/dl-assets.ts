@@ -1,5 +1,6 @@
-// Deadlock's static data from deadlock-api.com, trimmed to what the site uses: heroes (name, colour, icons) and the
-// map (size, objectives, lanes, camps, urn, shops, teleporters…). Run again when the game changes.
+// Deadlock's static data from deadlock-api.com, trimmed to what the site uses: heroes (name, colour, icons), shop items
+// (name, cost, tier, slot, icon) and the map (size, objectives, lanes, camps, urn, shops, teleporters…). Run again when
+// the game changes.
 //
 //   npm run dl:assets
 import fs from 'node:fs';
@@ -38,7 +39,14 @@ const outMap = {
   shops: pick('shops', p => ({ team: p.team, kind: p.kind })),
   teleporters: pick('teleporters'), bridgeBuffs: pick('bridge_buffs'), rifts: pick('unstable_rifts'), bells: pick('bells'),
 };
+type Item = { id: number; name: string; cost: number; item_tier: number; item_slot_type: string; shopable: boolean; disabled?: boolean | null; image_webp?: string; image?: string };
+const items = (await get('/v1/assets/items/by-type/upgrade')) as Item[];
+const outItems = items.filter(i => i.shopable && !i.disabled).map(i => ({
+  id: i.id, name: i.name, cost: i.cost, tier: i.item_tier, slot: i.item_slot_type, icon: i.image_webp ?? i.image ?? null,
+})).sort((a, b) => a.tier - b.tier || a.slot.localeCompare(b.slot) || a.name.localeCompare(b.name));
+
 fs.mkdirSync(OUT, { recursive: true });
+fs.writeFileSync(path.join(OUT, 'items.json'), JSON.stringify(outItems));
 fs.writeFileSync(path.join(OUT, 'heroes.json'), JSON.stringify(outHeroes));
 fs.writeFileSync(path.join(OUT, 'map.json'), JSON.stringify(outMap));
-console.log(`${outHeroes.length} heroes, ${objectives.length} objectives, ${outMap.lanes.length} lanes, ${outMap.camps.length} camps → ${path.relative(process.cwd(), OUT)}`);
+console.log(`${outHeroes.length} heroes, ${outItems.length} items, ${objectives.length} objectives, ${outMap.lanes.length} lanes, ${outMap.camps.length} camps → ${path.relative(process.cwd(), OUT)}`);

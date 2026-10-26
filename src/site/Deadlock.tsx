@@ -23,11 +23,11 @@ export function Deadlock() {
         <div className="dl-hero-text">
           <span className="eyebrow"><GameMark game={GAME} size={14} /> {GAME.name} <span className={`games-status ${GAME.status}`}>{STATUS_LABEL[GAME.status]}</span></span>
           <h1>The same coach, for Deadlock.</h1>
-          <p className="lead">Replay any match on the real map, second by second: every hero, kill and objective. The coach that grades every lane, rotation and fight is next on {APP_NAME}.</p>
+          <p className="lead">Replay any match on the real map with the coach grading every death, kill and lane, then plan your next one in Tactical. Beta on {APP_NAME}.</p>
           <div className="hero-cta">
             <a className="cta primary" href="#/deadlock/review">Review a match <Icon name="arrowRight" size={14} /></a>
             <button className="cta" onClick={toggle} disabled={busy} aria-pressed={on}>
-              <Icon name={on ? 'check' : 'bell'} size={14} /> {on ? 'You\'ll be told when the coach is in' : 'Tell me when the coach is in'}
+              <Icon name={on ? 'check' : 'bell'} size={14} /> {on ? 'You\'ll be told about new Deadlock features' : 'Tell me about new Deadlock features'}
             </button>
           </div>
           {on && (me && remote
@@ -101,9 +101,9 @@ const GRADES: { icon: IconName; title: string; text: string }[] = [
 
 const ROAD: { title: string; text: string; state: 'done' | 'next' | 'planned' }[] = [
   { title: 'Map and replay', text: 'Any match by its ID on the real map: heroes, kills, objectives, souls.', state: 'done' },
-  { title: 'The coach and Match recap', text: 'Deaths, laning, fights, objectives and items graded, with the better play.', state: 'next' },
-  { title: 'Tactical', text: 'A macro planner, a teamfight planner and builds with power spikes.', state: 'planned' },
-  { title: 'Your .dem files', text: 'Open a demo you saved, like CS2.', state: 'planned' },
+  { title: 'The coach and Match recap', text: 'Deaths, kills and laning graded, the lessons that come back, fights, objectives, scoreboard.', state: 'done' },
+  { title: 'Tactical', text: 'A macro planner, a teamfight planner and builds with power spikes.', state: 'done' },
+  { title: 'Your .dem files', text: 'Open a demo you saved, like CS2.', state: 'next' },
 ];
 
 const FAQ = [

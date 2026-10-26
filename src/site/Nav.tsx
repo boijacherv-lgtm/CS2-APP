@@ -124,13 +124,17 @@ function AccountMenu({ route }: { route: Route }) {
   );
 }
 
-/** Deadlock's modes (Review, and Match recap once a match is open) and its open match, like CS2's. */
+/** Deadlock's modes (Tactical, Review, and Match recap once a match is open) and its open match, like CS2's. */
 function DlNav({ route }: { route: Extract<Route, { page: 'deadlock' }> }) {
   const match = useDl(s => s.match), close = useDl(s => s.close);
   const mins = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   return (
     <>
       <div className="modes" role="tablist" aria-label="Mode">
+        <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
+          onClick={() => navigate({ page: 'deadlock', mode: 'tactical' })} title="Plan: lanes and rotations, a teamfight, builds and power spikes">
+          <Icon name="grid" className="mode-ico" /> <span className="mode-label">Tactical</span>
+        </button>
         <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
           onClick={() => navigate({ page: 'deadlock', mode: 'review' })} title={match ? 'Replay this match' : 'Pick a match to replay'}>
           <Icon name="play" className="mode-ico" /> <span className="mode-label">Review</span>{match ? <i className="dot-live" title="A match is loaded" /> : null}
