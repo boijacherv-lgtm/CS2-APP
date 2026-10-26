@@ -13,6 +13,7 @@ import { Deadlock } from '../site/Deadlock';
 import { Dev } from '../site/Dev';
 import '../site/site.css';
 import { Tours } from '../ui/Tour';
+import { DlReview } from '../deadlock/DlReview';
 import { useStore, whoAmI } from '../store';
 import { buildMatchReport } from '../engine/match';
 import { profileMatchOf } from '../engine/habits';
@@ -41,7 +42,7 @@ export function Shell() {
       <NavBar route={route} />
       <main className="shell-main">
         {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : <Cs2App />)
-          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'deadlock' ? <Deadlock /> : <Home />}
+          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : <Deadlock />) : <Home />}
       </main>
       <Tours />
     </div>
