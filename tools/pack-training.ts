@@ -13,7 +13,12 @@ import { CACHES, keyOf, listDemos, matchIdOf, PARSE_V, PARSED, packRecord, parse
 const args = process.argv.slice(2).filter(a => a !== '--');
 const opt = (k: string) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : undefined; };
 const folder = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--'));
-if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run pack:training -- <demo folder> [--only <faceit-links.txt>] [--out training-pack.sbpack]'); process.exit(1); }
+if (!folder || !fs.existsSync(folder)) {
+  console.error('Usage: npm run pack:training -- <demo folder> [--only <faceit-links.txt>] [--out training-pack.sbpack]');
+  // say which path wasn't found: usually a typo, or a path with spaces without quotes
+  if (folder) console.error(`\nNo folder at: ${path.resolve(folder)}\nCopy the demo folder's path (File Explorer: Shift + right-click the folder → Copy as path) and put it in quotes.`);
+  process.exit(1);
+}
 const out = path.resolve(opt('out') ?? `training-pack-${new Date().toISOString().slice(0, 10)}.sbpack`);
 const only = opt('only');
 const ids = only ? new Set((fs.readFileSync(only, 'utf8').match(/1-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) ?? []).map(x => x.toLowerCase())) : null;
