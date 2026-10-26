@@ -567,6 +567,8 @@ export interface Move {
   title: string;
   why: string[];
   tags: Tag[];
+  /** The owner took this move's mark off by hand (engine/corrections.ts). */
+  removed?: boolean;
 }
 
 export type Role = 'Entry' | 'Lurk' | 'Support' | 'AWPer' | 'Anchor' | 'Rotator' | 'Rifler';
@@ -1123,7 +1125,24 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (pairSec) why.push(`Cut ${cut.size === 1 ? 'an enemy' : `${cut.size} enemies`} off from seeing your team (${pairSec} player-second${pairSec > 1 ? 's' : ''} of sightlines).`);
       if (blinded.size) why.push(`Blocked the view of ${blinded.size === 1 ? 'an enemy' : `${blinded.size} enemies`} looking that way (${watchSec} s).`);
       const std = standardSpot(engine.map.id, 'smoke', s, u.x, u.y);
-      if (std) why.unshift(`A standard smoke: level-10 players land one here (${std.throws} in ${std.demos} matches).`);
+      // meant for a usual spot but landed into the wall: part of the smoke sits inside it, leaving a gap on the open
+      // side anyone can peek through (how much of the smoke is inside walls, against the usual smoke there)
+      const wallShare = (c: Vec2) => {
+        let n = 0, w = 0;
+        for (let a = 0; a < 24; a++) for (const f of [0.35, 0.7, 0.95]) {
+          n++;
+          if (!g.isWalkable({ x: c.x + Math.cos((a / 24) * 2 * Math.PI) * R * f, y: c.y + Math.sin((a / 24) * 2 * Math.PI) * R * f })) w++;
+        }
+        return w / n;
+      };
+      const intoWall = std ? { mine: wallShare(at), usual: wallShare(radar(std.x, std.y)) } : null;
+      // limits measured on level-10 players' own standard smokes: this fires on about 2% of them
+      const hugsWall = !!intoWall && intoWall.mine - intoWall.usual >= 0.2 && Math.hypot(u.x - std!.x, u.y - std!.y) >= 80;
+      if (hugsWall) {
+        why.unshift(`Meant for the usual spot (level-10 players land one there ${std!.throws} times in ${std!.demos} matches) but too close to the wall: `
+          + `${Math.round(intoWall!.mine * 100)}% of it was inside the wall (the usual one: ${Math.round(intoWall!.usual * 100)}%), leaving a gap on the open side anyone could peek through.`);
+        gain = Math.min(gain, 0);
+      } else if (std) why.unshift(`A standard smoke: level-10 players land one here (${std.throws} in ${std.demos} matches).`);
       // off every standard spot and it cut no sightline between the teams: a missed smoke (enemies merely seeing it
       // isn't enough); on maps with few known spots, only when nobody even looked at it
       const missed = !std && !pairSec && (knowsSpots(engine.map.id, 'smoke', s) || !blinded.size);
@@ -1146,7 +1165,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const tags: Tag[] = missed ? ['WASTED'] : gain >= 0.03 ? ['DENIED'] : [];
       // book: a standard smoke, or one that did its job; ! cut a lot of sightlines or your team shot through it for
       // kills; ? missed, or got teammates killed (at it, or sprayed through it)
-      const note: Annotation = caught >= 2 || missed || sprayedUs >= 2 ? '?' : (pairSec >= 20 || usedIt >= 2) && !caught && !sprayedUs ? '!' : 'book';
+      const note: Annotation = caught >= 2 || missed || sprayedUs >= 2 ? '?' : hugsWall ? '?!' : (pairSec >= 20 || usedIt >= 2) && !caught && !sprayedUs ? '!' : 'book';
       return { gain, note, why, tags };
     }
 
@@ -1437,7 +1456,22 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const vs = roundMoments(engine, r, 2).map(m => judgeMoment(m, PLAY_MODEL!)).filter((v): v is MomentVerdict => !!v && sideOf.has(v.player));
       const stats: RoundPlay['stats'] = {};
       for (const v of vs) { const x = (stats[v.player] ??= { n: 0, usual: 0 }); x.n++; if (v.usual) x.usual++; }
-      const key = keyMoments(vs).filter(v => !moves.some(m => m.kind === 'position' && m.player === v.player && Math.abs(m.t - v.t) < 6));
+      // pushing toward where a teammate just died is taking that space back (or going for the trade), and pushing with
+      // a teammate alongside is the team moving up: neither is a needless lone push
+      const together = (v: MomentVerdict) => {
+        const i = idx(v.player);
+        if (i < 0) return false;
+        const t2 = Math.min(r.duration, v.t + 4), me = posAt(i, t2);
+        return sim.ids.some((id, j) => j !== i && sideOf.get(id) === v.side && alive(j, t2) && Math.hypot(posAt(j, t2).x - me.x, posAt(j, t2).y - me.y) * scale < 700);
+      };
+      const retaking = (v: MomentVerdict) => v.did === 'push' && (together(v) || sim.kills.some(k => {
+        if (sideOf.get(k.victim) !== v.side || k.t > v.t || v.t - k.t > 10) return false;
+        const i = idx(v.player);
+        if (i < 0) return false;
+        const a = posAt(i, v.t), b = posAt(i, Math.min(r.duration, v.t + 4));
+        return Math.hypot(b.x - k.at.x, b.y - k.at.y) < Math.hypot(a.x - k.at.x, a.y - k.at.y) - 250 / scale;
+      }));
+      const key = keyMoments(vs).filter(v => !retaking(v) && !moves.some(m => m.kind === 'position' && m.player === v.player && Math.abs(m.t - v.t) < 6));
       for (const v of key)
         moves.push({ t: v.t, player: v.player, side: v.side, kind: 'position', gain: 0, note: v.pro[0].share >= 0.75 && v.share < 0.03 ? '?' : '?!', tags: [],
           title: `${name(v.player)} chose to ${ACTION_TEXT[v.did]}; a level-10 player would ${ACTION_TEXT[v.pro[0].a]}`,

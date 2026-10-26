@@ -16,7 +16,7 @@
  * as malicious on the owner's account. Public and official APIs only.
  */
 import { adminStats, isOwner, saveHeartbeat } from './admin';
-import { clipData, clipList, corrections, MAX_CLIP_BYTES, removeClip, ruledClips, saveClip, updateClip } from './clips';
+import { clipData, clipList, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
@@ -94,6 +94,14 @@ export default {
         return json(await saveClip(env.SB, steamId, text));
       }
       if (req.method === 'POST' && path === '/clip/remove') return json(await removeClip(env.SB, steamId, (await body(req)).key));
+      // the owner taking a moment's mark off by hand, or putting it back
+      if (req.method === 'POST' && (path === '/admin/remove-move' || path === '/admin/restore-move')) {
+        if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can do this.' }, 403);
+        if (path === '/admin/restore-move') return json(await restoreMove(env.SB, steamId, (await body(req)).key));
+        const text = await req.text();
+        if (text.length > MAX_CLIP_BYTES) return json({ error: 'That round is too big to send.' }, 413);
+        return json(await removeMove(env.SB, steamId, text));
+      }
       const clip = path.match(/^\/admin\/clip\/([0-9a-f]{24})$/);
       if (path === '/admin/clips' || clip) {
         if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);

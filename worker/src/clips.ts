@@ -7,7 +7,9 @@
  *   GET  /admin/clips          the owner: every disputed moment, newest first
  *   GET  /admin/clip/<id>      the owner: one moment's round (gzipped JSON)
  *   POST /admin/clip/<id>      the owner: { done }, { ruling: 'player' | 'coach' | null, rulingReason, rulingNote } or { delete: true }
- *   GET  /corrections          anyone: what the rulings change in the coach's marks (src/engine/corrections.ts)
+ *   POST /admin/remove-move    the owner: { verdict, card, demo } take one moment's mark off (and count it as "player's right")
+ *   POST /admin/restore-move   the owner: { key } put it back
+ *   GET  /corrections          anyone: what the rulings change in the coach's marks, and the marks removed by hand
  *   GET  /internal/disputes    the coach's tools (SERVER_TOKEN): every ruled moment; /internal/clip/<id> its round
  *
  * KV: clips (the list), clip:<id> (the round, gzipped) and rulings (who was right, per move pattern: kept when a
@@ -28,6 +30,9 @@ export interface ClipEntry { id: string; from: string; at: number; verdict: Move
 type RulingRow = { id: string; pattern: string; side: Ruling['side']; reason?: JudgeReason; at: number };
 /** Rulings kept (the oldest go first). */
 const MAX_RULINGS = 5000;
+/** Marks removed by hand (verdict keys), kept the newest first. */
+const MAX_REMOVED = 5000;
+const removedList = async (kv: ClipKV) => ((await kv.get('removed', 'json')) as { key: string; at: number }[] | null) ?? [];
 
 interface ClipKV {
   get(key: string, type: 'json'): Promise<unknown>;
@@ -106,9 +111,28 @@ export async function updateClip(kv: ClipKV, id: string, input: Record<string, u
   return { ok: true, clip: c };
 }
 
-/** What the rulings change: { pattern: { wrong, right } } (engine/corrections.ts decides when that's enough). */
+/** What the rulings change: { pattern: { wrong, right } } (engine/corrections.ts decides when that's enough), and the
+ * marks removed by hand. */
 export async function corrections(kv: ClipKV) {
-  return { table: tableOf(((await kv.get('rulings', 'json')) as RulingRow[] | null) ?? []) };
+  return { table: tableOf(((await kv.get('rulings', 'json')) as RulingRow[] | null) ?? []), removed: (await removedList(kv)).map(r => r.key) };
+}
+
+/** The owner takes a moment's mark off: saved like a dispute (with its round, to judge or test later), ruled "player's
+ * right" at once (the coach learns from it), and that one moment shows unmarked for everyone. */
+export async function removeMove(kv: ClipKV, owner: string, text: string) {
+  await saveClip(kv, owner, text);
+  const verdict = cleanVerdict((JSON.parse(text) as { verdict?: unknown }).verdict)!;
+  const key = verdictKey(verdict);
+  await updateClip(kv, await idOf(owner, key), { ruling: 'player', rulingNote: 'Removed by hand' });
+  const rows = (await removedList(kv)).filter(r => r.key !== key);
+  await kv.put('removed', JSON.stringify([{ key, at: Date.now() }, ...rows].slice(0, MAX_REMOVED)));
+  return { ok: true, key };
+}
+export async function restoreMove(kv: ClipKV, owner: string, key: unknown) {
+  if (typeof key !== 'string') return { ok: true };
+  await kv.put('removed', JSON.stringify((await removedList(kv)).filter(r => r.key !== key)));
+  try { await updateClip(kv, await idOf(owner, key.slice(0, 200)), { ruling: null }); } catch { /* the moment is gone: nothing to take back */ }
+  return { ok: true };
 }
 
 /** Every moment the owner has ruled on (the coach's tools fetch each one's round with /internal/clip/<id>). */

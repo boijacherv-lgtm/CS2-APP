@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { matchFingerprint, type Move } from '../engine/recap';
 import { VERDICT_LABEL, verdictKey, type VerdictReason } from '../engine/profile';
 import { removeClip, sendClip, setVerdict, useProfile } from './profileApi';
+import { removeMark, restoreMark } from './disputesApi';
 import { useStore } from '../store';
 import { Icon } from './Icon';
 
@@ -15,12 +16,17 @@ export function VerdictBar({ m }: { m: Move }) {
   const data = useStore(s => s.review?.data);
   const round = useStore(s => (s.review ? s.review.round + 1 : 0));
   const verdicts = useProfile(s => s.data.verdicts);
+  // the site owner can take a mark off by hand
+  const owner = useProfile(s => !!s.me?.owner && s.remote);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   if (!data) return null;
   const match = matchFingerprint(data);
   const key = verdictKey({ match, round, t: m.t, player: m.player, kind: m.kind });
   const mine = verdicts.find(v => verdictKey(v) === key);
-  const flagged = m.note === '?' || m.note === '??';
+  // any mark that criticises the move, an inaccuracy (?!) too: those are disputed as "not a mistake"
+  const flagged = m.note === '?!' || m.note === '?' || m.note === '??';
   const save = (verdict: 'ok' | 'fault', reason: VerdictReason, text = note ?? '') => {
     setNote(null);
     const v = { match, map: data.map, round, t: m.t, player: m.player, kind: m.kind, title: m.title, coach: m.note, verdict, reason, ...(text.trim() ? { note: text.trim().slice(0, 200) } : {}), at: Date.now() };
@@ -34,12 +40,28 @@ export function VerdictBar({ m }: { m: Move }) {
     <input className="verdict-note" type="text" maxLength={200} autoFocus placeholder="What did the coach miss? (optional)" value={note ?? ''}
       onChange={e => setNote(e.target.value)} onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') onEnter(); if (e.key === 'Escape') setNote(null); }} />
   );
+  const run = async (f: () => Promise<void>) => { setBusy(true); setErr(null); try { await f(); } catch (e) { setErr(e instanceof Error ? e.message : String(e)); } setBusy(false); };
+  if (m.removed) return (
+    <div className="verdict done">
+      <Icon name="check" size={12} />
+      <span>Mark removed by you</span>
+      {owner && <button className="verdict-undo" disabled={busy} onClick={() => run(() => restoreMark(key))} title="Put the coach's mark back">Restore</button>}
+      {err && <span className="warn-text">{err}</span>}
+    </div>
+  );
+  const removeBtn = owner && flagged && (
+    <button className="chip verdict-remove" disabled={busy} title="Owner: take this mark off for everyone (the coach learns it wasn't a mistake)"
+      onClick={() => run(() => removeMark({ match, map: data.map, round, t: m.t, player: m.player, kind: m.kind, title: m.title, coach: m.note, verdict: 'ok', reason: 'other', at: Date.now() },
+        { note: m.note, title: m.title, why: m.why, tags: m.tags }, data))}>{busy ? 'Removing…' : 'Remove mistake'}</button>
+  );
   if (mine && note === null) return (
     <div className="verdict done">
       <Icon name="check" size={12} />
       <span>You: {mine.verdict === 'ok' ? `not a mistake${mine.reason !== 'other' ? ` · ${VERDICT_LABEL[mine.reason].toLowerCase()}` : ''}` : 'it was a mistake'}{mine.note ? <em className="muted"> · “{mine.note}”</em> : null}</span>
       <button className="verdict-undo" onClick={() => setNote(mine.note ?? '')} title="Write what the coach missed">{mine.note ? 'Edit note' : 'Add a note'}</button>
       <button className="verdict-undo" onClick={() => { void setVerdict({ remove: key }); removeClip(key); }} title="Take it back">Undo</button>
+      {removeBtn}
+      {err && <span className="warn-text">{err}</span>}
     </div>
   );
   if (mine) return (
@@ -55,6 +77,8 @@ export function VerdictBar({ m }: { m: Move }) {
       {flagged
         ? <button className="chip" onClick={() => save('ok', 'other')} title="The coach called this a mistake and it wasn't">Not a mistake</button>
         : <button className="chip" onClick={() => save('fault', 'mistake')} title="The coach let this pass and it was a mistake">It was a mistake</button>}
+      {removeBtn}
+      {err && <span className="warn-text">{err}</span>}
     </div>
   );
 }

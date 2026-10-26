@@ -8,6 +8,7 @@
  * The learning tools (eval, calibrate) never use this: they measure the coach itself.
  */
 import type { Annotation, Move, Tag } from './recap';
+import { verdictKey } from './profile';
 
 /** Rulings on one pattern: the owner sided with the player (the coach was wrong) or with the coach, and why. */
 export interface Correction { wrong: number; right: number; why?: Partial<Record<JudgeReason, number>> }
@@ -81,4 +82,14 @@ export function tableOf(rulings: { pattern: string; side: 'player' | 'coach'; re
     } else c.right++;
   }
   return out;
+}
+
+/** Marks the owner removed by hand, one moment at a time (verdictKey of the moment: match, round, time, player, kind). */
+export const REMOVED_WHY = 'Removed by hand: checked, not a mistake.';
+/** The moves with the removed marks taken off (they stay as plain moves, so the mark can be restored). */
+export function removeMarks<M extends Move>(moves: M[], removed: readonly string[] | null | undefined, at: { match: string; round: number }): M[] {
+  if (!removed?.length) return moves;
+  const set = new Set(removed);
+  return moves.map(m => (set.has(verdictKey({ match: at.match, round: at.round, t: m.t, player: m.player, kind: m.kind }))
+    ? { ...m, note: 'book' as Annotation, gain: Math.max(0, m.gain), why: [...m.why, REMOVED_WHY], removed: true } : m));
 }

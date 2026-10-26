@@ -1,6 +1,6 @@
 {
  "version": 1,
- "trainedAt": "2026-10-18",
+ "trainedAt": "2026-10-26",
  "overall": {
   "demos": 30,
   "rounds": 592,
@@ -8,7 +8,7 @@
    "deaths": 3863,
    "tradedRate": 0.227,
    "avgTradeTime": 1.78,
-   "chanceConversion": 0.234,
+   "chanceConversion": 0.349,
    "spacing": [
     {
      "bucket": "under 8 m",
@@ -46,21 +46,21 @@
       },
       {
        "place": "Hut",
-       "chances": 26,
-       "conv": 0.23,
-       "dist": 13
-      },
-      {
-       "place": "Heaven",
-       "chances": 7,
-       "conv": 0.43,
-       "dist": 31
+       "chances": 24,
+       "conv": 0.25,
+       "dist": 12
       },
       {
        "place": "A site",
-       "chances": 17,
-       "conv": 0.18,
-       "dist": 19
+       "chances": 13,
+       "conv": 0.15,
+       "dist": 17
+      },
+      {
+       "place": "Squeaky",
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 14
       }
      ]
     },
@@ -110,21 +110,21 @@
       },
       {
        "place": "Main",
-       "chances": 49,
-       "conv": 0.2,
-       "dist": 14
-      },
-      {
-       "place": "Heaven",
-       "chances": 10,
-       "conv": 0.4,
-       "dist": 24
+       "chances": 47,
+       "conv": 0.21,
+       "dist": 13
       },
       {
        "place": "A site",
-       "chances": 18,
-       "conv": 0.28,
-       "dist": 14
+       "chances": 15,
+       "conv": 0.27,
+       "dist": 12
+      },
+      {
+       "place": "Silo",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 15
       }
      ]
     },
@@ -168,27 +168,27 @@
      "traders": [
       {
        "place": "Main",
-       "chances": 21,
-       "conv": 0.29,
-       "dist": 18
+       "chances": 16,
+       "conv": 0.38,
+       "dist": 14
       },
       {
        "place": "Heaven",
-       "chances": 22,
-       "conv": 0.27,
-       "dist": 15
+       "chances": 18,
+       "conv": 0.28,
+       "dist": 12
       },
       {
        "place": "Hut",
-       "chances": 22,
-       "conv": 0.23,
-       "dist": 17
+       "chances": 20,
+       "conv": 0.2,
+       "dist": 16
       },
       {
        "place": "A site",
-       "chances": 24,
-       "conv": 0.17,
-       "dist": 11
+       "chances": 22,
+       "conv": 0.18,
+       "dist": 10
       }
      ]
     },
@@ -217,10 +217,10 @@
        "dist": 7
       },
       {
-       "place": "B Site",
-       "chances": 9,
-       "conv": 0.22,
-       "dist": 13
+       "place": "B Long",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 20
       }
      ]
     },
@@ -232,9 +232,9 @@
      "traders": [
       {
        "place": "Start",
-       "chances": 7,
-       "conv": 0.43,
-       "dist": 16
+       "chances": 6,
+       "conv": 0.5,
+       "dist": 15
       },
       {
        "place": "Mid",
@@ -263,16 +263,16 @@
        "dist": 8
       },
       {
+       "place": "A site",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 12
+      },
+      {
        "place": "Heaven",
        "chances": 7,
        "conv": 0.14,
        "dist": 17
-      },
-      {
-       "place": "Radio",
-       "chances": 8,
-       "conv": 0.13,
-       "dist": 7
       }
      ]
     },
@@ -381,22 +381,22 @@
      "avgTime": 1.4,
      "traders": [
       {
-       "place": "Tetris",
-       "chances": 7,
-       "conv": 0.29,
-       "dist": 17
-      },
-      {
        "place": "Palace",
        "chances": 6,
        "conv": 0.17,
        "dist": 11
       },
       {
+       "place": "Tetris",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 17
+      },
+      {
        "place": "Stairs",
-       "chances": 7,
-       "conv": 0.14,
-       "dist": 19
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 18
       }
      ]
     },
@@ -413,16 +413,16 @@
        "dist": 7
       },
       {
-       "place": "Palace",
-       "chances": 7,
-       "conv": 0.29,
-       "dist": 16
-      },
-      {
        "place": "B Site",
        "chances": 9,
        "conv": 0.22,
        "dist": 9
+      },
+      {
+       "place": "Palace",
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 14
       }
      ]
     },
@@ -451,10 +451,10 @@
        "dist": 6
       },
       {
-       "place": "Middle",
-       "chances": 5,
-       "conv": 0.2,
-       "dist": 19
+       "place": "A Heaven",
+       "chances": 16,
+       "conv": 0.06,
+       "dist": 13
       }
      ]
     },
@@ -471,12 +471,6 @@
        "dist": 5
       },
       {
-       "place": "Under Palace",
-       "chances": 5,
-       "conv": 0.4,
-       "dist": 21
-      },
-      {
        "place": "Tetris",
        "chances": 9,
        "conv": 0.22,
@@ -484,9 +478,15 @@
       },
       {
        "place": "Jungle",
-       "chances": 12,
-       "conv": 0.17,
-       "dist": 17
+       "chances": 10,
+       "conv": 0.2,
+       "dist": 15
+      },
+      {
+       "place": "Connector",
+       "chances": 11,
+       "conv": 0.09,
+       "dist": 10
       }
      ]
     },
@@ -544,15 +544,9 @@
      "traders": [
       {
        "place": "Start",
-       "chances": 53,
+       "chances": 52,
        "conv": 0.08,
        "dist": 7
-      },
-      {
-       "place": "Mid Bench",
-       "chances": 5,
-       "conv": 0.2,
-       "dist": 35
       }
      ]
     },
@@ -616,9 +610,9 @@
       },
       {
        "place": "Water",
-       "chances": 8,
-       "conv": 0.13,
-       "dist": 13
+       "chances": 7,
+       "conv": 0.14,
+       "dist": 11
       }
      ]
     },
@@ -629,16 +623,10 @@
      "avgTime": 1.6,
      "traders": [
       {
-       "place": "Jungle",
-       "chances": 7,
-       "conv": 0.57,
-       "dist": 28
-      },
-      {
-       "place": "Stairs",
+       "place": "Under Palace",
        "chances": 5,
        "conv": 0.4,
-       "dist": 23
+       "dist": 22
       },
       {
        "place": "Ticket",
@@ -647,10 +635,16 @@
        "dist": 6
       },
       {
-       "place": "Under Palace",
-       "chances": 7,
-       "conv": 0.29,
-       "dist": 23
+       "place": "CT",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 8
+      },
+      {
+       "place": "Ninja",
+       "chances": 9,
+       "conv": 0.11,
+       "dist": 11
       }
      ]
     },
@@ -695,16 +689,16 @@
      "avgTime": 1.4,
      "traders": [
       {
+       "place": "A Ramp",
+       "chances": 20,
+       "conv": 0.2,
+       "dist": 11
+      },
+      {
        "place": "Under Palace",
        "chances": 5,
        "conv": 0.4,
        "dist": 11
-      },
-      {
-       "place": "A Ramp",
-       "chances": 21,
-       "conv": 0.19,
-       "dist": 12
       },
       {
        "place": "Tetris",
@@ -720,12 +714,6 @@
      "tradedRate": 0.26,
      "avgTime": 2.9,
      "traders": [
-      {
-       "place": "Stairs",
-       "chances": 6,
-       "conv": 0.33,
-       "dist": 21
-      },
       {
        "place": "Tetris",
        "chances": 8,
@@ -743,6 +731,12 @@
        "chances": 8,
        "conv": 0.25,
        "dist": 17
+      },
+      {
+       "place": "Under Palace",
+       "chances": 5,
+       "conv": 0.2,
+       "dist": 6
       }
      ]
     },
@@ -812,9 +806,9 @@
       },
       {
        "place": "A site",
-       "chances": 10,
-       "conv": 0.1,
-       "dist": 11
+       "chances": 9,
+       "conv": 0.11,
+       "dist": 10
       }
      ]
     },
@@ -825,22 +819,16 @@
      "avgTime": 2.4,
      "traders": [
       {
-       "place": "Outside",
-       "chances": 5,
-       "conv": 0.4,
-       "dist": 21
-      },
-      {
-       "place": "Red",
-       "chances": 9,
-       "conv": 0.22,
+       "place": "Main",
+       "chances": 6,
+       "conv": 0.17,
        "dist": 14
       },
       {
-       "place": "Main",
+       "place": "Red",
        "chances": 7,
        "conv": 0.14,
-       "dist": 15
+       "dist": 11
       }
      ]
     },
@@ -892,9 +880,9 @@
      "traders": [
       {
        "place": "Underpass",
-       "chances": 13,
-       "conv": 0.23,
-       "dist": 8
+       "chances": 12,
+       "conv": 0.25,
+       "dist": 7
       }
      ]
     },
@@ -934,9 +922,9 @@
      "traders": [
       {
        "place": "Red",
-       "chances": 14,
-       "conv": 0.07,
-       "dist": 14
+       "chances": 12,
+       "conv": 0.08,
+       "dist": 12
       }
      ]
     },
@@ -1008,12 +996,6 @@
      "tradedRate": 0.25,
      "avgTime": 1.6,
      "traders": [
-      {
-       "place": "B Window",
-       "chances": 7,
-       "conv": 0.29,
-       "dist": 16
-      },
       {
        "place": "Car",
        "chances": 11,
@@ -1129,9 +1111,9 @@
       },
       {
        "place": "Main",
-       "chances": 7,
-       "conv": 0.14,
-       "dist": 15
+       "chances": 6,
+       "conv": 0.17,
+       "dist": 14
       }
      ]
     },
@@ -1306,9 +1288,9 @@
      "traders": [
       {
        "place": "Upper B Tunnels",
-       "chances": 16,
-       "conv": 0.25,
-       "dist": 7
+       "chances": 14,
+       "conv": 0.14,
+       "dist": 5
       }
      ]
     },
@@ -1799,23 +1781,23 @@
    "byDist": [
     {
      "bucket": "under 8 m",
-     "chances": 613,
-     "conv": 0.3
+     "chances": 243,
+     "conv": 0.35
     },
     {
      "bucket": "8–20 m",
-     "chances": 865,
-     "conv": 0.215
+     "chances": 262,
+     "conv": 0.347
     },
     {
      "bucket": "20–38 m",
-     "chances": 463,
-     "conv": 0.205
+     "chances": 109,
+     "conv": 0.358
     },
     {
      "bucket": "over 38 m",
-     "chances": 92,
-     "conv": 0.109
+     "chances": 17,
+     "conv": 0.294
     }
    ]
   },
@@ -2030,7 +2012,7 @@
   "rotations": {
    "perRound": 3.29,
    "avgTime": 8.1,
-   "lateRate": 0.109,
+   "lateRate": 0.084,
    "overRate": 0.169,
    "diedRate": 0.152
   },
@@ -2430,7 +2412,7 @@
     "deaths": 354,
     "tradedRate": 0.237,
     "avgTradeTime": 1.58,
-    "chanceConversion": 0.336,
+    "chanceConversion": 0.373,
     "spacing": [
      {
       "bucket": "under 8 m",
@@ -2700,18 +2682,18 @@
     "byDist": [
      {
       "bucket": "under 8 m",
-      "chances": 50,
-      "conv": 0.34
+      "chances": 25,
+      "conv": 0.24
      },
      {
       "bucket": "8–20 m",
-      "chances": 53,
-      "conv": 0.321
+      "chances": 21,
+      "conv": 0.429
      },
      {
       "bucket": "20–38 m",
-      "chances": 12,
-      "conv": 0.333
+      "chances": 4,
+      "conv": 0.75
      },
      {
       "bucket": "over 38 m",
@@ -2801,7 +2783,7 @@
    "rotations": {
     "perRound": 3.04,
     "avgTime": 13.7,
-    "lateRate": 0.118,
+    "lateRate": 0.099,
     "overRate": 0.106,
     "diedRate": 0.311
    },
@@ -2967,7 +2949,7 @@
     "deaths": 1054,
     "tradedRate": 0.244,
     "avgTradeTime": 1.76,
-    "chanceConversion": 0.259,
+    "chanceConversion": 0.371,
     "spacing": [
      {
       "bucket": "under 8 m",
@@ -3004,12 +2986,6 @@
         "dist": 6
        },
        {
-        "place": "A Connector",
-        "chances": 6,
-        "conv": 0.17,
-        "dist": 29
-       },
-       {
         "place": "A Site",
         "chances": 9,
         "conv": 0.11,
@@ -3042,10 +3018,10 @@
         "dist": 7
        },
        {
-        "place": "B Site",
-        "chances": 9,
-        "conv": 0.22,
-        "dist": 13
+        "place": "B Long",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 20
        }
       ]
      },
@@ -3075,9 +3051,9 @@
        },
        {
         "place": "A Heaven",
-        "chances": 18,
-        "conv": 0.11,
-        "dist": 14
+        "chances": 17,
+        "conv": 0.12,
+        "dist": 13
        }
       ]
      },
@@ -3126,16 +3102,16 @@
         "dist": 7
        },
        {
-        "place": "Palace",
-        "chances": 7,
-        "conv": 0.29,
-        "dist": 16
-       },
-       {
         "place": "B Site",
         "chances": 9,
         "conv": 0.22,
         "dist": 9
+       },
+       {
+        "place": "Palace",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 14
        }
       ]
      },
@@ -3164,10 +3140,10 @@
         "dist": 6
        },
        {
-        "place": "Middle",
-        "chances": 5,
-        "conv": 0.2,
-        "dist": 19
+        "place": "A Heaven",
+        "chances": 16,
+        "conv": 0.06,
+        "dist": 13
        }
       ]
      },
@@ -3229,9 +3205,9 @@
        },
        {
         "place": "Water",
-        "chances": 8,
-        "conv": 0.13,
-        "dist": 13
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 11
        }
       ]
      },
@@ -3309,9 +3285,9 @@
        },
        {
         "place": "Street",
-        "chances": 9,
-        "conv": 0.11,
-        "dist": 12
+        "chances": 8,
+        "conv": 0.13,
+        "dist": 10
        }
       ]
      },
@@ -3405,9 +3381,9 @@
        },
        {
         "place": "Main",
-        "chances": 7,
-        "conv": 0.14,
-        "dist": 15
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 14
        }
       ]
      },
@@ -3531,23 +3507,23 @@
     "byDist": [
      {
       "bucket": "under 8 m",
-      "chances": 162,
-      "conv": 0.346
+      "chances": 68,
+      "conv": 0.441
      },
      {
       "bucket": "8–20 m",
-      "chances": 191,
-      "conv": 0.225
+      "chances": 63,
+      "conv": 0.349
      },
      {
       "bucket": "20–38 m",
-      "chances": 86,
-      "conv": 0.186
+      "chances": 25,
+      "conv": 0.24
      },
      {
       "bucket": "over 38 m",
-      "chances": 12,
-      "conv": 0.167
+      "chances": 3,
+      "conv": 0.333
      }
     ]
    },
@@ -3672,7 +3648,7 @@
    "rotations": {
     "perRound": 2.41,
     "avgTime": 15.8,
-    "lateRate": 0.234,
+    "lateRate": 0.202,
     "overRate": 0.133,
     "diedRate": 0.162
    },
@@ -3955,7 +3931,7 @@
     "deaths": 254,
     "tradedRate": 0.181,
     "avgTradeTime": 2.05,
-    "chanceConversion": 0.159,
+    "chanceConversion": 0.218,
     "spacing": [
      {
       "bucket": "under 8 m",
@@ -4112,22 +4088,22 @@
     "byDist": [
      {
       "bucket": "under 8 m",
-      "chances": 47,
-      "conv": 0.277
+      "chances": 15,
+      "conv": 0.333
      },
      {
       "bucket": "8–20 m",
-      "chances": 106,
-      "conv": 0.16
+      "chances": 24,
+      "conv": 0.208
      },
      {
       "bucket": "20–38 m",
-      "chances": 46,
-      "conv": 0.065
+      "chances": 15,
+      "conv": 0.133
      },
      {
       "bucket": "over 38 m",
-      "chances": 8,
+      "chances": 1,
       "conv": 0
      }
     ]
@@ -4206,7 +4182,7 @@
    "rotations": {
     "perRound": 1.49,
     "avgTime": 19.3,
-    "lateRate": 0.082,
+    "lateRate": 0.066,
     "overRate": 0.164,
     "diedRate": 0.164
    },
@@ -4342,7 +4318,7 @@
     "deaths": 385,
     "tradedRate": 0.19,
     "avgTradeTime": 1.72,
-    "chanceConversion": 0.202,
+    "chanceConversion": 0.413,
     "spacing": [
      {
       "bucket": "under 8 m",
@@ -4372,12 +4348,6 @@
       "tradedRate": 0.25,
       "avgTime": 1.6,
       "traders": [
-       {
-        "place": "B Window",
-        "chances": 7,
-        "conv": 0.29,
-        "dist": 16
-       },
        {
         "place": "Car",
         "chances": 11,
@@ -4421,9 +4391,9 @@
       "traders": [
        {
         "place": "Upper B Tunnels",
-        "chances": 16,
-        "conv": 0.25,
-        "dist": 7
+        "chances": 14,
+        "conv": 0.14,
+        "dist": 5
        }
       ]
      },
@@ -4595,23 +4565,23 @@
     "byDist": [
      {
       "bucket": "under 8 m",
-      "chances": 60,
+      "chances": 16,
       "conv": 0.25
      },
      {
       "bucket": "8–20 m",
-      "chances": 77,
-      "conv": 0.195
+      "chances": 19,
+      "conv": 0.526
      },
      {
       "bucket": "20–38 m",
-      "chances": 49,
-      "conv": 0.204
+      "chances": 9,
+      "conv": 0.444
      },
      {
       "bucket": "over 38 m",
-      "chances": 17,
-      "conv": 0.059
+      "chances": 2,
+      "conv": 0.5
      }
     ]
    },
@@ -4710,7 +4680,7 @@
    "rotations": {
     "perRound": 1.82,
     "avgTime": 16.7,
-    "lateRate": 0.144,
+    "lateRate": 0.117,
     "overRate": 0.063,
     "diedRate": 0.414
    },
@@ -4894,7 +4864,7 @@
     "deaths": 351,
     "tradedRate": 0.236,
     "avgTradeTime": 1.77,
-    "chanceConversion": 0.259,
+    "chanceConversion": 0.366,
     "spacing": [
      {
       "bucket": "under 8 m",
@@ -5149,22 +5119,22 @@
     "byDist": [
      {
       "bucket": "under 8 m",
-      "chances": 60,
-      "conv": 0.333
+      "chances": 25,
+      "conv": 0.44
      },
      {
       "bucket": "8–20 m",
-      "chances": 53,
-      "conv": 0.189
+      "chances": 12,
+      "conv": 0.167
      },
      {
       "bucket": "20–38 m",
-      "chances": 19,
-      "conv": 0.263
+      "chances": 4,
+      "conv": 0.5
      },
      {
       "bucket": "over 38 m",
-      "chances": 3,
+      "chances": 0,
       "conv": 0
      }
     ]
@@ -5260,7 +5230,7 @@
    "rotations": {
     "perRound": 2.52,
     "avgTime": 15,
-    "lateRate": 0.184,
+    "lateRate": 0.17,
     "overRate": 0.121,
     "diedRate": 0.206
    },
@@ -5444,7 +5414,7 @@
     "deaths": 867,
     "tradedRate": 0.218,
     "avgTradeTime": 1.86,
-    "chanceConversion": 0.247,
+    "chanceConversion": 0.34,
     "spacing": [
      {
       "bucket": "under 8 m",
@@ -5522,15 +5492,9 @@
       "traders": [
        {
         "place": "Start",
-        "chances": 53,
+        "chances": 52,
         "conv": 0.08,
         "dist": 7
-       },
-       {
-        "place": "Mid Bench",
-        "chances": 5,
-        "conv": 0.2,
-        "dist": 35
        }
       ]
      },
@@ -5541,16 +5505,10 @@
       "avgTime": 1.6,
       "traders": [
        {
-        "place": "Jungle",
-        "chances": 7,
-        "conv": 0.57,
-        "dist": 28
-       },
-       {
-        "place": "Stairs",
+        "place": "Under Palace",
         "chances": 5,
         "conv": 0.4,
-        "dist": 23
+        "dist": 22
        },
        {
         "place": "Ticket",
@@ -5559,10 +5517,16 @@
         "dist": 6
        },
        {
-        "place": "Under Palace",
-        "chances": 7,
-        "conv": 0.29,
-        "dist": 23
+        "place": "CT",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 8
+       },
+       {
+        "place": "Ninja",
+        "chances": 9,
+        "conv": 0.11,
+        "dist": 11
        }
       ]
      },
@@ -5574,9 +5538,9 @@
       "traders": [
        {
         "place": "Start",
-        "chances": 7,
-        "conv": 0.43,
-        "dist": 16
+        "chances": 6,
+        "conv": 0.5,
+        "dist": 15
        },
        {
         "place": "Mid",
@@ -5599,12 +5563,6 @@
         "dist": 5
        },
        {
-        "place": "Under Palace",
-        "chances": 5,
-        "conv": 0.4,
-        "dist": 21
-       },
-       {
         "place": "Tetris",
         "chances": 9,
         "conv": 0.22,
@@ -5612,9 +5570,15 @@
        },
        {
         "place": "Jungle",
-        "chances": 12,
-        "conv": 0.17,
-        "dist": 17
+        "chances": 10,
+        "conv": 0.2,
+        "dist": 15
+       },
+       {
+        "place": "Connector",
+        "chances": 11,
+        "conv": 0.09,
+        "dist": 10
        }
       ]
      },
@@ -5625,16 +5589,16 @@
       "avgTime": 1.4,
       "traders": [
        {
+        "place": "A Ramp",
+        "chances": 20,
+        "conv": 0.2,
+        "dist": 11
+       },
+       {
         "place": "Under Palace",
         "chances": 5,
         "conv": 0.4,
         "dist": 11
-       },
-       {
-        "place": "A Ramp",
-        "chances": 21,
-        "conv": 0.19,
-        "dist": 12
        },
        {
         "place": "Tetris",
@@ -5671,12 +5635,6 @@
       "avgTime": 2.9,
       "traders": [
        {
-        "place": "Stairs",
-        "chances": 6,
-        "conv": 0.33,
-        "dist": 21
-       },
-       {
         "place": "Tetris",
         "chances": 8,
         "conv": 0.25,
@@ -5693,6 +5651,12 @@
         "chances": 8,
         "conv": 0.25,
         "dist": 17
+       },
+       {
+        "place": "Under Palace",
+        "chances": 5,
+        "conv": 0.2,
+        "dist": 6
        }
       ]
      },
@@ -5738,9 +5702,9 @@
       "traders": [
        {
         "place": "Underpass",
-        "chances": 13,
-        "conv": 0.23,
-        "dist": 8
+        "chances": 12,
+        "conv": 0.25,
+        "dist": 7
        }
       ]
      },
@@ -5766,15 +5730,15 @@
       "traders": [
        {
         "place": "Tetris",
-        "chances": 7,
-        "conv": 0.29,
+        "chances": 6,
+        "conv": 0.17,
         "dist": 17
        },
        {
         "place": "Stairs",
-        "chances": 7,
-        "conv": 0.14,
-        "dist": 19
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 18
        }
       ]
      },
@@ -5949,23 +5913,23 @@
     "byDist": [
      {
       "bucket": "under 8 m",
-      "chances": 124,
-      "conv": 0.266
+      "chances": 46,
+      "conv": 0.326
      },
      {
       "bucket": "8–20 m",
-      "chances": 202,
-      "conv": 0.233
+      "chances": 68,
+      "conv": 0.309
      },
      {
       "bucket": "20–38 m",
-      "chances": 129,
-      "conv": 0.271
+      "chances": 31,
+      "conv": 0.419
      },
      {
       "bucket": "over 38 m",
-      "chances": 34,
-      "conv": 0.176
+      "chances": 5,
+      "conv": 0.4
      }
     ]
    },
@@ -6095,7 +6059,7 @@
    "rotations": {
     "perRound": 1.9,
     "avgTime": 19.4,
-    "lateRate": 0.137,
+    "lateRate": 0.121,
     "overRate": 0.059,
     "diedRate": 0.367
    },
@@ -6338,7 +6302,7 @@
     "deaths": 598,
     "tradedRate": 0.244,
     "avgTradeTime": 1.76,
-    "chanceConversion": 0.206,
+    "chanceConversion": 0.349,
     "spacing": [
      {
       "bucket": "under 8 m",
@@ -6376,21 +6340,21 @@
        },
        {
         "place": "Main",
-        "chances": 49,
-        "conv": 0.2,
-        "dist": 14
-       },
-       {
-        "place": "Heaven",
-        "chances": 10,
-        "conv": 0.4,
-        "dist": 24
+        "chances": 47,
+        "conv": 0.21,
+        "dist": 13
        },
        {
         "place": "A site",
-        "chances": 18,
-        "conv": 0.28,
-        "dist": 14
+        "chances": 15,
+        "conv": 0.27,
+        "dist": 12
+       },
+       {
+        "place": "Silo",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 15
        }
       ]
      },
@@ -6408,21 +6372,21 @@
        },
        {
         "place": "Hut",
-        "chances": 26,
-        "conv": 0.23,
-        "dist": 13
-       },
-       {
-        "place": "Heaven",
-        "chances": 7,
-        "conv": 0.43,
-        "dist": 31
+        "chances": 24,
+        "conv": 0.25,
+        "dist": 12
        },
        {
         "place": "A site",
-        "chances": 17,
-        "conv": 0.18,
-        "dist": 19
+        "chances": 13,
+        "conv": 0.15,
+        "dist": 17
+       },
+       {
+        "place": "Squeaky",
+        "chances": 7,
+        "conv": 0.14,
+        "dist": 14
        }
       ]
      },
@@ -6434,27 +6398,27 @@
       "traders": [
        {
         "place": "Main",
-        "chances": 21,
-        "conv": 0.29,
-        "dist": 18
+        "chances": 16,
+        "conv": 0.38,
+        "dist": 14
        },
        {
         "place": "Heaven",
-        "chances": 22,
-        "conv": 0.27,
-        "dist": 15
+        "chances": 18,
+        "conv": 0.28,
+        "dist": 12
        },
        {
         "place": "Hut",
-        "chances": 22,
-        "conv": 0.23,
-        "dist": 17
+        "chances": 20,
+        "conv": 0.2,
+        "dist": 16
        },
        {
         "place": "A site",
-        "chances": 24,
-        "conv": 0.17,
-        "dist": 11
+        "chances": 22,
+        "conv": 0.18,
+        "dist": 10
        }
       ]
      },
@@ -6477,16 +6441,16 @@
         "dist": 16
        },
        {
+        "place": "A site",
+        "chances": 6,
+        "conv": 0.17,
+        "dist": 12
+       },
+       {
         "place": "Radio",
         "chances": 8,
         "conv": 0.13,
         "dist": 7
-       },
-       {
-        "place": "A site",
-        "chances": 9,
-        "conv": 0.11,
-        "dist": 20
        }
       ]
      },
@@ -6504,9 +6468,9 @@
        },
        {
         "place": "A site",
-        "chances": 10,
-        "conv": 0.1,
-        "dist": 11
+        "chances": 9,
+        "conv": 0.11,
+        "dist": 10
        }
       ]
      },
@@ -6517,22 +6481,16 @@
       "avgTime": 2.4,
       "traders": [
        {
-        "place": "Outside",
-        "chances": 5,
-        "conv": 0.4,
-        "dist": 21
-       },
-       {
-        "place": "Red",
-        "chances": 9,
-        "conv": 0.22,
+        "place": "Main",
+        "chances": 6,
+        "conv": 0.17,
         "dist": 14
        },
        {
-        "place": "Main",
+        "place": "Red",
         "chances": 7,
         "conv": 0.14,
-        "dist": 15
+        "dist": 11
        }
       ]
      },
@@ -6544,9 +6502,9 @@
       "traders": [
        {
         "place": "Red",
-        "chances": 14,
-        "conv": 0.07,
-        "dist": 14
+        "chances": 12,
+        "conv": 0.08,
+        "dist": 12
        }
       ]
      },
@@ -6641,22 +6599,22 @@
     "byDist": [
      {
       "bucket": "under 8 m",
-      "chances": 110,
-      "conv": 0.273
+      "chances": 48,
+      "conv": 0.292
      },
      {
       "bucket": "8–20 m",
-      "chances": 183,
-      "conv": 0.202
+      "chances": 55,
+      "conv": 0.4
      },
      {
       "bucket": "20–38 m",
-      "chances": 122,
-      "conv": 0.18
+      "chances": 21,
+      "conv": 0.429
      },
      {
       "bucket": "over 38 m",
-      "chances": 17,
+      "chances": 5,
       "conv": 0
      }
     ]
@@ -6746,7 +6704,7 @@
    "rotations": {
     "perRound": 9.32,
     "avgTime": 0,
-    "lateRate": 0.027,
+    "lateRate": 0,
     "overRate": 0.253,
     "diedRate": 0.006
    },

@@ -10,7 +10,7 @@ import type { CorrectionTable } from './corrections';
  * it's done. Whatever happens it ends with `done`; a failure that stops it says why (`error`), and the rounds already
  * graded stay.
  */
-export type MatchWorkerIn = { data: DemoData; context: BoardState['context']; corrections?: CorrectionTable | null };
+export type MatchWorkerIn = { data: DemoData; context: BoardState['context']; corrections?: { table: CorrectionTable; removed: string[] } | null };
 export type MatchWorkerOut = { i: number; summary: RoundSummary | null } | { error: string } | { done: true };
 
 const post = (m: MatchWorkerOut) => (self as unknown as Worker).postMessage(m);

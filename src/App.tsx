@@ -4,8 +4,8 @@ import { simulate } from './engine/combat';
 import { computeSpots } from './engine/spots';
 import { timelineEnd } from './engine/timeline';
 import { computeControl } from './engine/control';
-import { buildReplay, reviewRound } from './engine/recap';
-import { applyCorrections } from './engine/corrections';
+import { buildReplay, matchFingerprint, reviewRound } from './engine/recap';
+import { applyCorrections, removeMarks } from './engine/corrections';
 import { useCorrections } from './ui/corrections';
 import { getEngine } from './map/catalog';
 import { useStore, type Tool } from './store';
@@ -39,11 +39,17 @@ export function App() {
   }, [replay]);
   // the coach's marks, with the corrections from checked disputes (engine/corrections.ts)
   const corrections = useCorrections();
+  // which match and round is on the board (marks removed by hand are kept per moment)
+  const reviewData = useStore(s => s.review?.data), reviewRoundNo = useStore(s => (s.review ? s.review.round + 1 : 0));
+  const reviewMatch = useMemo(() => (reviewData ? matchFingerprint(reviewData) : null), [reviewData]);
+  const reviewAt = useMemo(() => (reviewMatch ? { match: reviewMatch, round: reviewRoundNo } : null), [reviewMatch, reviewRoundNo]);
   const recap = useMemo(() => {
     if (!replay) return null;
     const r = reviewRound(engine, replay);
-    return corrections ? { ...r, moves: applyCorrections(r.moves, corrections) } : r;
-  }, [engine, replay, corrections]);
+    if (!corrections) return r;
+    const moves = applyCorrections(r.moves, corrections.table);
+    return { ...r, moves: reviewAt ? removeMarks(moves, corrections.removed, reviewAt) : moves };
+  }, [engine, replay, corrections, reviewAt]);
   // Analysis runs on a deferred copy so dragging stays smooth.
   const deferred = useDeferredValue(board);
   const analysis = useMemo(() => engine.analyze(deferred), [engine, deferred]);

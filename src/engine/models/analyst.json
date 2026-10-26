@@ -1,6 +1,6 @@
 {
  "version": 1,
- "trainedAt": "2026-10-19",
+ "trainedAt": "2026-10-26",
  "overall": {
   "demos": 476,
   "rounds": 10847,
@@ -5877,7 +5877,7 @@
   "rotations": {
    "perRound": 2.73,
    "avgTime": 6.4,
-   "lateRate": 0.095,
+   "lateRate": 0.063,
    "overRate": 0.118,
    "diedRate": 0.261
   },
@@ -7843,7 +7843,7 @@
    "rotations": {
     "perRound": 1.77,
     "avgTime": 13.2,
-    "lateRate": 0.169,
+    "lateRate": 0.135,
     "overRate": 0.091,
     "diedRate": 0.331
    },
@@ -10079,7 +10079,7 @@
    "rotations": {
     "perRound": 1.84,
     "avgTime": 15.8,
-    "lateRate": 0.089,
+    "lateRate": 0.074,
     "overRate": 0.032,
     "diedRate": 0.565
    },
@@ -11786,7 +11786,7 @@
    "rotations": {
     "perRound": 1.58,
     "avgTime": 17.2,
-    "lateRate": 0.124,
+    "lateRate": 0.101,
     "overRate": 0.042,
     "diedRate": 0.506
    },
@@ -13759,7 +13759,7 @@
    "rotations": {
     "perRound": 2.09,
     "avgTime": 14.8,
-    "lateRate": 0.176,
+    "lateRate": 0.147,
     "overRate": 0.058,
     "diedRate": 0.374
    },
@@ -15488,7 +15488,7 @@
    "rotations": {
     "perRound": 2.5,
     "avgTime": 13.4,
-    "lateRate": 0.119,
+    "lateRate": 0.092,
     "overRate": 0.071,
     "diedRate": 0.447
    },
@@ -17579,7 +17579,7 @@
    "rotations": {
     "perRound": 1.27,
     "avgTime": 14.4,
-    "lateRate": 0.19,
+    "lateRate": 0.154,
     "overRate": 0.045,
     "diedRate": 0.312
    },
@@ -18722,7 +18722,7 @@
    "rotations": {
     "perRound": 7.63,
     "avgTime": 0,
-    "lateRate": 0.04,
+    "lateRate": 0,
     "overRate": 0.198,
     "diedRate": 0.015
    },
