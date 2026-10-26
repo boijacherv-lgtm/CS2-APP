@@ -345,7 +345,9 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
           const hitLater = (site: 'A' | 'B') => plantSite === site || (() => { for (let u = t; u <= Math.min(r.duration, t + 25); u += 1) if (atSite(site, u, tIds) >= 3) return true; return false; })();
           rotations.push({
             player: id, from: lastSite, to: s, start, arrive: t, trigger,
-            late: r.plant !== null && plantSite === s && t > r.plant + 3,
+            // late: already on the way before the plant and still got there after it; leaving because of the plant
+            // is the retake, not a late rotation
+            late: r.plant !== null && plantSite === s && start < r.plant && t > r.plant + 3,
             diedOnWay: false,
             overRotated: hitLater(lastSite) && !hitLater(s),
           });

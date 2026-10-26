@@ -1,8 +1,8 @@
 import { getEngine } from '../map/catalog';
 import { analyzeRound } from './analyst';
 import { summarizeRound, type RoundSummary } from './match';
-import { buildReplay, reviewRound, type DemoData } from './recap';
-import { applyCorrections, type CorrectionTable } from './corrections';
+import { buildReplay, matchFingerprint, reviewRound, type DemoData } from './recap';
+import { applyCorrections, removeMarks, type CorrectionTable } from './corrections';
 import { roundDecisions } from './situations';
 import type { BoardState } from './types';
 
@@ -15,14 +15,16 @@ export const DEFAULT_CONTEXT: BoardState['context'] = { userSide: 'CT', phase: '
  * that can't be graded is null. `corrections`: the site's checked disputes (the demo bot grades without them).
  */
 export function gradeRounds(data: DemoData, context: BoardState['context'] = DEFAULT_CONTEXT, onRound: (i: number, s: RoundSummary | null) => void = () => {},
-  corrections: CorrectionTable | null = null): (RoundSummary | null)[] {
+  corrections: { table: CorrectionTable; removed: string[] } | null = null): (RoundSummary | null)[] {
   const engine = getEngine(data.map, 0);
+  const match = corrections?.removed.length ? matchFingerprint(data) : '';
   return data.rounds.map((_, i) => {
     let summary: RoundSummary | null = null;
     try {
       const rep = buildReplay(engine, data, i, context);
       const review = reviewRound(engine, rep);
-      summary = summarizeRound(rep, corrections ? { ...review, moves: applyCorrections(review.moves, corrections) } : review);
+      summary = summarizeRound(rep, corrections
+        ? { ...review, moves: removeMarks(applyCorrections(review.moves, corrections.table), corrections.removed, { match, round: i + 1 }) } : review);
       try { summary.decisions = roundDecisions(engine, data.rounds[i]); } catch { /* positions are extra */ }
       try { summary.analyst = analyzeRound(engine, data.rounds[i], data.rounds.slice(0, i), data.rounds.length); } catch { /* the analyst is extra */ }
     } catch (err) { console.warn(`round ${i + 1} could not be graded`, err); }

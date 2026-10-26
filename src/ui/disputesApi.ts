@@ -3,6 +3,7 @@ import type { JudgeReason } from '../engine/corrections';
 import type { DemoData } from '../engine/recap';
 import { useStore } from '../store';
 import { steamFetch } from './steamApi';
+import { setRemoved } from './corrections';
 
 /**
  * Disputed moments for the owner (worker/src/clips.ts): the list, your call on one, and opening one as a short clip in
@@ -42,4 +43,16 @@ export async function openClip(c: Clip) {
   if (location.hash !== '#/cs2/review') location.hash = '#/cs2/review';
   const from = Math.max(0, c.verdict.t - CLIP_BEFORE), to = c.verdict.t + CLIP_AFTER;
   useStore.setState({ judging: { clip: c, from, to }, time: from, playing: true });
+}
+
+/** Takes one moment's mark off by hand (and counts it as "player's right" for the coach); shows at once. */
+export async function removeMark(v: MoveVerdict, card: Clip['card'], data: DemoData) {
+  const round = data.rounds[v.round - 1];
+  if (!round) throw new Error('That round isn\'t loaded.');
+  const out = await adminCall<{ key: string }>('/admin/remove-move', { verdict: v, card, demo: { ...data, rounds: [round] } });
+  setRemoved(out.key, true);
+}
+export async function restoreMark(key: string) {
+  await adminCall('/admin/restore-move', { key });
+  setRemoved(key, false);
 }
