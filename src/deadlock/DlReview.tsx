@@ -7,6 +7,7 @@ import { Icon } from '../ui/Icon';
 import { loadMatch, matchHistory, steamId3, steamNames, type DlHistoryRow } from './api';
 import { heroOf } from './data';
 import { DlBoard } from './DlBoard';
+import { loadBenchmarks } from './coach';
 import { useDl } from './store';
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -41,6 +42,8 @@ function DlStart() {
       const m = await loadMatch(matchId);
       useDl.getState().open(m);
       steamNames(m.players.map(p => p.account)).then(names => useDl.setState({ names })).catch(() => {});
+      // the average player on each hero, for the laning grade
+      loadBenchmarks(m.players.map(p => p.hero)).then(bench => { if (useDl.getState().match?.id === m.id) useDl.setState({ bench }); });
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     setBusy(null);
   };

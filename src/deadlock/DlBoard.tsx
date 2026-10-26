@@ -4,6 +4,9 @@ import { Icon } from '../ui/Icon';
 import { DL_MAP, DL_MAP_IMAGE, heroOf, objectiveSpot, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { kdaAt, playerAt, statAt, type DlMatch } from './match';
 import { useDl } from './store';
+import { useCoach } from './useCoach';
+import type { DlMove } from './coach';
+import { NOTE_INFO } from '../engine/recap';
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 /** A body stays where the hero died, fading out (like CS2's), gone this long after. */
@@ -71,17 +74,23 @@ export function DlBoard() {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [playing, match.duration]);
-  // keys: Space play / pause, ← → 10 s
+  const coach = useCoach();
+  const graded = useMemo(() => coach.shown.filter(m => m.note !== 'book'), [coach.shown]);
+  // keys: Space play / pause, ← → the previous / next graded moment, Shift + ← → 10 s
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).tagName === 'INPUT' || e.metaKey || e.ctrlKey) return;
       const s = useDl.getState();
       if (e.key === ' ') { e.preventDefault(); if (!s.playing && s.time >= match.duration) s.setTime(0); s.setPlaying(!s.playing); }
-      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); s.setTime(s.time + (e.key === 'ArrowRight' ? 10 : -10)); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (e.shiftKey) s.setTime(s.time + (e.key === 'ArrowRight' ? 10 : -10));
+        else stepMoment(graded, e.key === 'ArrowRight' ? 1 : -1);
+      }
     };
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
-  }, [match.duration]);
+  }, [match.duration, graded]);
 
   const teams: DlTeam[] = [0, 1];
   const kills = (team: DlTeam) => match.deaths.filter(d => d.t <= time && d.killer !== null && match.players.find(p => p.slot === d.killer)?.team === team && d.killer !== d.slot).length;
@@ -128,6 +137,7 @@ export function DlBoard() {
           </aside>
         ))}
         <DlMap match={match} time={time} selected={selected} />
+        <DlCard moves={graded} time={time} canMine={coach.canMine} />
         <ol className="dl-feed" aria-label="Kills">
           {feed.map((d, i) => {
             const killer = match.players.find(p => p.slot === d.killer), victim = match.players.find(p => p.slot === d.slot)!;
@@ -142,7 +152,7 @@ export function DlBoard() {
         </ol>
       </div>
 
-      <DlPlaybar match={match} time={time} playing={playing} speed={speed} />
+      <DlPlaybar match={match} time={time} playing={playing} speed={speed} graded={graded} />
     </div>
   );
 }
@@ -229,12 +239,13 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
   );
 }
 
-function DlPlaybar({ match, time, playing, speed }: { match: DlMatch; time: number; playing: boolean; speed: number }) {
+function DlPlaybar({ match, time, playing, speed, graded }: { match: DlMatch; time: number; playing: boolean; speed: number; graded: DlMove[] }) {
   const s = useDl.getState();
   const marks = useMemo(() => [
     ...match.deaths.map(d => ({ t: d.t, color: TEAM_COLOR[match.players.find(p => p.slot === d.slot)?.team === 0 ? 1 : 0], kind: 'kill' as const })),
     ...match.objectives.filter(o => o.destroyed).map(o => ({ t: o.destroyed!, color: TEAM_COLOR[o.team === 0 ? 1 : 0], kind: 'objective' as const })),
-  ], [match]);
+    ...graded.map(m => ({ t: m.t, color: NOTE_INFO[m.note].color, kind: 'graded' as const })),
+  ], [match, graded]);
   return (
     <div className="dl-playbar">
       <button className="play-main" onClick={() => { if (!playing && time >= match.duration) s.setTime(0); s.setPlaying(!playing); }} title="Play / pause (Space)">
@@ -243,6 +254,11 @@ function DlPlaybar({ match, time, playing, speed }: { match: DlMatch; time: numb
       <select value={speed} onChange={e => s.setSpeed(Number(e.target.value))} aria-label="Speed">
         {SPEEDS.map(x => <option key={x} value={x}>{x}×</option>)}
       </select>
+      <div className="dl-step" role="group" aria-label="Graded moments">
+        <button onClick={() => stepMoment(graded, -1)} disabled={!graded.length} title="Previous graded moment (←)" aria-label="Previous graded moment"><Icon name="prev" size={14} /></button>
+        <span className="num muted small">{graded.filter(m => m.t <= time).length}/{graded.length}</span>
+        <button onClick={() => stepMoment(graded, 1)} disabled={!graded.length} title="Next graded moment (→)" aria-label="Next graded moment"><Icon name="prev" size={14} className="flip-x" /></button>
+      </div>
       <div className="dl-phases" role="group" aria-label="Jump to">
         {PHASES.filter(p => p.t < match.duration).map(p => <button key={p.label} className="chip" onClick={() => s.setTime(p.t)}>{p.label}</button>)}
       </div>
@@ -253,6 +269,43 @@ function DlPlaybar({ match, time, playing, speed }: { match: DlMatch; time: numb
         </div>
       </div>
       <span className="num dl-time">{mins(time)} / {mins(match.duration)}</span>
+    </div>
+  );
+}
+
+/** Jumps to the previous / next graded moment (a few seconds before it, so you see it happen). */
+function stepMoment(moves: DlMove[], dir: 1 | -1) {
+  const s = useDl.getState();
+  const at = s.time + LEAD;
+  const next = dir > 0 ? moves.find(m => m.t > at + 0.5) : [...moves].reverse().find(m => m.t < at - 0.5);
+  if (next) { s.setPlaying(false); s.setTime(Math.max(0, next.t - LEAD)); }
+}
+/** A moment is shown from this long before it. */
+const LEAD = 4;
+
+/** The coach's card for the latest graded moment (shown from a few seconds before it until a while after). */
+function DlCard({ moves, time, canMine }: { moves: DlMove[]; time: number; canMine: boolean }) {
+  const scope = useDl(s => s.scope);
+  const m = [...moves].reverse().find(x => time >= x.t - LEAD && time <= x.t + 8);
+  return (
+    <div className="dl-card-slot">
+      {canMine && (
+        <div className="seg-mini dl-scope" role="group" aria-label="Whose moves">
+          <button className={scope === 'all' ? 'on' : ''} onClick={() => useDl.getState().setScope('all')}>All</button>
+          <button className={scope === 'mine' ? 'on' : ''} onClick={() => useDl.getState().setScope('mine')}>Mine</button>
+        </div>
+      )}
+      {m && (
+        <article className="dl-card" style={{ borderColor: NOTE_INFO[m.note].color }}>
+          <header>
+            <b className="dl-card-mark" style={{ background: NOTE_INFO[m.note].color }}>{NOTE_INFO[m.note].mark}</b>
+            <span>{NOTE_INFO[m.note].label}</span>
+            <span className="muted small num">{mins(m.t)}</span>
+          </header>
+          <p className="dl-card-title">{m.title}</p>
+          <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>
+        </article>
+      )}
     </div>
   );
 }
