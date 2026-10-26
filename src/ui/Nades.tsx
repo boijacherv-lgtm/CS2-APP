@@ -170,8 +170,8 @@ export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable,
   const phase = nadePhase(u, t);
   const R = u.type === 'smoke' ? SMOKE_RADIUS_UNITS / unitsPerPx : u.type === 'molotov' ? MOLLY_RADIUS_U / unitsPerPx : HE_RADIUS_U / unitsPerPx;
   const ring = doomed ? TOK.bad : selected ? '#ffffff' : undefined;
-  // replays don't spoil: a grenade shows up only once it's in the air
-  if (!editable && phase === 'planned') return null;
+  // replays don't spoil: nothing at the landing spot until the grenade gets there (its flight shows where it is)
+  if (!editable && (phase === 'planned' || phase === 'flying') && !selected && !doomed) return null;
   return (
     <>
       {phase === 'active' && u.type === 'smoke' && <SmokeCloud u={u} t={t} k={k} R={R} opened={opened} />}
@@ -194,8 +194,11 @@ export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable,
   );
 }
 
-/** Thrown grenades flying along their arc from the thrower to the landing spot. */
-export function NadeFlight({ u, t, k, onFloor }: { u: Utility; t: number; k: number; onFloor?: (p: Vec2) => boolean }) {
+/**
+ * Thrown grenades flying along their arc from the thrower to the landing spot. `spoilers` false (replays): the arc
+ * grows behind the grenade instead of pointing at where it will land.
+ */
+export function NadeFlight({ u, t, k, onFloor, spoilers = true }: { u: Utility; t: number; k: number; onFloor?: (p: Vec2) => boolean; spoilers?: boolean }) {
   if (u.path) return <RealFlight u={u} path={u.path} t={t} k={k} onFloor={onFloor} />;
   if (!u.from) return null;
   const pop = popAt(u);
@@ -206,6 +209,19 @@ export function NadeFlight({ u, t, k, onFloor }: { u: Utility; t: number; k: num
   const flying = t >= u.throwAt && t < land;
   const f = flying ? (t - u.throwAt) / (land - u.throwAt) : 0;
   const at = quad(u.from, c, u.pos, f);
+  if (!spoilers) {
+    if (t < u.throwAt) return null;
+    // only the part already flown
+    const upTo = t >= land ? 1 : f;
+    const pts = Array.from({ length: 13 }, (_, j) => quad(u.from!, c, u.pos, (j / 12) * upTo)).flatMap(v => [v.x, v.y]);
+    return (
+      <Group listening={false} opacity={t > pop ? Math.max(0, 1 - (t - pop) / 0.4) : 1}>
+        <Line points={pts} stroke={NADE_COLOR[u.type]} strokeWidth={1.4 * k} dash={[5 * k, 4 * k]} opacity={0.75} lineCap="round" />
+        <Circle x={u.from.x} y={u.from.y} radius={3 * k} fill={TOK.highlight} stroke="#000" strokeWidth={0.8 * k} />
+        {flying && <Group x={at.x} y={at.y}><NadeIcon type={u.type} size={5.5 * k} /></Group>}
+      </Group>
+    );
+  }
   return (
     <Group listening={false}>
       <Arrow points={[u.from.x, u.from.y, c.x, c.y, u.pos.x, u.pos.y]} tension={0.5} stroke={NADE_COLOR[u.type]} fill={NADE_COLOR[u.type]}
