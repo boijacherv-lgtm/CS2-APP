@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { DlMatch } from './match';
+import type { Benchmarks } from './coach';
 
 /** Deadlock Review's state (separate from CS2's store): the open match, the clock and playback. */
 interface DlState {
@@ -11,20 +12,26 @@ interface DlState {
   speed: number;
   /** The hero followed / looked at (player slot). */
   selected: number | null;
+  /** The average player on each hero in this match (for the laning grade); empty until loaded. */
+  bench: Benchmarks;
+  /** Whose moves the coach shows: everyone's, or only yours (when you're in the match). */
+  scope: 'all' | 'mine';
   open(match: DlMatch): void;
   close(): void;
   setTime(t: number): void;
   setPlaying(on: boolean): void;
   setSpeed(x: number): void;
   select(slot: number | null): void;
+  setScope(s: 'all' | 'mine'): void;
 }
 
 export const useDl = create<DlState>(set => ({
-  match: null, names: {}, time: 0, playing: false, speed: 8, selected: null,
-  open: match => set({ match, time: 0, playing: false, selected: null, names: {} }),
+  match: null, names: {}, time: 0, playing: false, speed: 8, selected: null, bench: {}, scope: 'mine',
+  open: match => set({ match, time: 0, playing: false, selected: null, names: {}, bench: {} }),
   close: () => set({ match: null, time: 0, playing: false, selected: null }),
   setTime: time => set(s => ({ time: Math.max(0, Math.min(s.match?.duration ?? 0, time)) })),
   setPlaying: playing => set({ playing }),
   setSpeed: speed => set({ speed }),
   select: selected => set({ selected }),
+  setScope: scope => set({ scope }),
 }));

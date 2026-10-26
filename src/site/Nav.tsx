@@ -124,7 +124,7 @@ function AccountMenu({ route }: { route: Route }) {
   );
 }
 
-/** Deadlock's modes (Review for now) and its open match, like CS2's. */
+/** Deadlock's modes (Review, and Match recap once a match is open) and its open match, like CS2's. */
 function DlNav({ route }: { route: Extract<Route, { page: 'deadlock' }> }) {
   const match = useDl(s => s.match), close = useDl(s => s.close);
   const mins = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -135,6 +135,12 @@ function DlNav({ route }: { route: Extract<Route, { page: 'deadlock' }> }) {
           onClick={() => navigate({ page: 'deadlock', mode: 'review' })} title={match ? 'Replay this match' : 'Pick a match to replay'}>
           <Icon name="play" className="mode-ico" /> <span className="mode-label">Review</span>{match ? <i className="dot-live" title="A match is loaded" /> : null}
         </button>
+        {match && (
+          <button role="tab" aria-selected={route.mode === 'report'} className={route.mode === 'report' ? 'on' : ''}
+            onClick={() => navigate({ page: 'deadlock', mode: 'report' })} title="The coach's lessons, fights, objectives and the scoreboard">
+            <Icon name="star" className="mode-ico" /> <span className="mode-label">Match recap</span>
+          </button>
+        )}
       </div>
       {match && (
         <div className="match-tab" title={`Open match ${match.id}, ${mins(match.duration)}`}>
