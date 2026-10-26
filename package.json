@@ -25,7 +25,8 @@
     "import:training": "vite-node tools/import-training.ts",
     "fetch:faceit": "vite-node tools/fetch-faceit.ts",
     "pull:disputes": "vite-node tools/pull-disputes.ts",
-    "link:coach": "node tools/link-coach.mjs"
+    "link:coach": "node tools/link-coach.mjs",
+    "dl:assets": "vite-node tools/dl-assets.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",

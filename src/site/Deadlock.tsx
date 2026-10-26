@@ -9,8 +9,8 @@ import { GameMark } from './gameMarks';
 const GAME = GAMES.find(g => g.id === 'deadlock')!;
 
 /**
- * Deadlock's page before it's live: what the coach will do there, how far along it is, and "tell me when it's live"
- * (saved on the profile: the account when logged in, else this browser). Honest about the state: nothing is built yet.
+ * Deadlock's page while it's in beta: Review works (by match ID), what the coach will grade next, and "tell me when
+ * it's complete" (saved on the profile: the account when logged in, else this browser).
  */
 export function Deadlock() {
   const me = useProfile(s => s.me), remote = useProfile(s => s.remote);
@@ -23,12 +23,12 @@ export function Deadlock() {
         <div className="dl-hero-text">
           <span className="eyebrow"><GameMark game={GAME} size={14} /> {GAME.name} <span className={`games-status ${GAME.status}`}>{STATUS_LABEL[GAME.status]}</span></span>
           <h1>The same coach, for Deadlock.</h1>
-          <p className="lead">Every lane, rotation and fight graded, with the better play. Next game on {APP_NAME}.</p>
+          <p className="lead">Replay any match on the real map, second by second: every hero, kill and objective. The coach that grades every lane, rotation and fight is next on {APP_NAME}.</p>
           <div className="hero-cta">
-            <button className={on ? 'cta' : 'cta primary'} onClick={toggle} disabled={busy} aria-pressed={on}>
-              <Icon name={on ? 'check' : 'bell'} size={14} /> {on ? 'You\'ll be told when it\'s live' : 'Tell me when it\'s live'}
+            <a className="cta primary" href="#/deadlock/review">Review a match <Icon name="arrowRight" size={14} /></a>
+            <button className="cta" onClick={toggle} disabled={busy} aria-pressed={on}>
+              <Icon name={on ? 'check' : 'bell'} size={14} /> {on ? 'You\'ll be told when the coach is in' : 'Tell me when the coach is in'}
             </button>
-            <a className="cta" href="#/cs2/review">Review a CS2 match meanwhile</a>
           </div>
           {on && (me && remote
             ? <p className="muted small">It'll show on your profile when Deadlock is live. No emails.</p>
@@ -53,10 +53,10 @@ export function Deadlock() {
       </section>
 
       <section className="site-section">
-        <h2 className="section-title">How it will work</h2>
+        <h2 className="section-title">How it works</h2>
         <ol className="steps">
-          <li><b>Bring a match</b><span>A Deadlock demo or match ID.</span></li>
-          <li><b>Read in your browser</b><span>Nothing uploaded, like CS2.</span></li>
+          <li><b>Pick a match</b><span>Yours after logging in with Steam, or any by its match ID.</span></li>
+          <li><b>Replay it</b><span>Every hero on the map, kills and objectives as they happened.</span></li>
           <li><b>Every play graded</b><span>Brilliant to blunder, with a win chance.</span></li>
           <li><b>Fix one thing</b><span>The coach picks it. You track it.</span></li>
         </ol>
@@ -64,13 +64,13 @@ export function Deadlock() {
 
       <section className="site-section">
         <h2 className="section-title">Where it's at</h2>
-        <p className="muted dl-why">Deadlock runs on Source 2 like CS2, so its demos can be read the same way. The heroes, the map and what a good play looks like are new work.</p>
+        <p className="muted dl-why">Match data comes from deadlock-api.com (positions every second, deaths, items, souls, objectives), so any match works without a file. Reading a .dem you saved comes later.</p>
         <ol className="dl-road">
-          {ROAD.map((r, i) => (
-            <li key={r.title} className={i === 0 ? 'next' : ''}>
+          {ROAD.map(r => (
+            <li key={r.title} className={r.state === 'next' ? 'next' : ''}>
               <span className="dl-road-dot" aria-hidden />
               <div><b>{r.title}</b><span>{r.text}</span></div>
-              <span className={`games-status ${i === 0 ? 'next' : 'planned'}`}>{i === 0 ? 'Next' : 'Planned'}</span>
+              <span className={`games-status ${r.state === 'done' ? 'live' : r.state}`}>{r.state === 'done' ? 'Live' : r.state === 'next' ? 'Next' : 'Planned'}</span>
             </li>
           ))}
         </ol>
@@ -99,15 +99,15 @@ const GRADES: { icon: IconName; title: string; text: string }[] = [
   { icon: 'bolt', title: 'Rage mode', text: 'The coach yells at your Deadlock plays too. 18+.' },
 ];
 
-const ROAD = [
-  { title: 'Read Deadlock demos', text: 'Heroes, positions, souls, damage and objectives over the match.' },
-  { title: 'Map and replay', text: 'The match on the map, like CS2\'s Review.' },
-  { title: 'Grading', text: 'Every fight, rotation and objective scored.' },
-  { title: 'The coach', text: 'Your habits across matches, one thing to fix.' },
+const ROAD: { title: string; text: string; state: 'done' | 'next' | 'planned' }[] = [
+  { title: 'Map and replay', text: 'Any match by its ID on the real map: heroes, kills, objectives, souls.', state: 'done' },
+  { title: 'The coach and Match recap', text: 'Deaths, laning, fights, objectives and items graded, with the better play.', state: 'next' },
+  { title: 'Tactical', text: 'A macro planner, a teamfight planner and builds with power spikes.', state: 'planned' },
+  { title: 'Your .dem files', text: 'Open a demo you saved, like CS2.', state: 'planned' },
 ];
 
 const FAQ = [
-  { q: 'When?', a: 'No date yet. Turn on "Tell me" and it shows on your profile when it\'s live.' },
+  { q: 'Where do matches come from?', a: 'deadlock-api.com, a free community service with Deadlock match data. A match shows up there a few minutes to an hour after it ends.' },
   { q: 'Will it be free?', a: 'Yes, same as CS2. Pro adds unlimited history and is free during early access.' },
-  { q: 'Which matches?', a: 'Your own Deadlock matches. When it\'s ready, this page says exactly how to get the file.' },
+  { q: 'Which matches?', a: 'Any public match: log in with Steam for yours, or paste a match ID (in game: Match history).' },
 ];

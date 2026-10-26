@@ -11,6 +11,7 @@ import { Icon } from '../ui/Icon';
 import { refreshProfile, useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { steamSignOut } from '../ui/steamApi';
+import { useDl } from '../deadlock/store';
 
 /** The bar on every page: the brand, the game, CS2's three modes, Pricing and your account. */
 export function NavBar({ route }: { route: Route }) {
@@ -35,6 +36,10 @@ export function NavBar({ route }: { route: Route }) {
         {GAMES.map(g => g.status === 'live' ? (
           <a key={g.id} href={routeHref({ page: 'cs2', mode: cs2 ? route.mode : 'review' })} className={`game-btn live ${cs2 ? 'on' : ''}`} title={`${g.name}: live`}>
             <GameMark game={g} size={24} /><span>{g.short}</span>
+          </a>
+        ) : g.status === 'beta' && g.review ? (
+          <a key={g.id} href={route.page === g.id ? routeHref(route) : g.review} className={`game-btn live ${route.page === g.id ? 'on' : ''}`} title={`${g.name}: beta`}>
+            <GameMark game={g} size={24} muted={route.page !== g.id} /><span>{g.short}</span>
           </a>
         ) : g.page ? (
           // a coming game with its own page (what it will do, notify me)
@@ -77,6 +82,7 @@ export function NavBar({ route }: { route: Route }) {
           <button className="match-tab-x" onClick={exitReview} aria-label="Close match" title="Close this match and pick another one"><Icon name="close" size={13} /></button>
         </div>
       )}
+      {route.page === 'deadlock' && <DlNav route={route} />}
       <div className="nav-right">
         <a className={`nav-link ${route.page === 'pricing' ? 'on' : ''}`} href="#/pricing">Pricing</a>
         <AccountMenu route={route} />
@@ -115,5 +121,29 @@ function AccountMenu({ route }: { route: Route }) {
         <button role="menuitem" className="ghost" onClick={signOut}><Icon name="signOut" size={16} /> Sign out</button>
       </div>
     </details>
+  );
+}
+
+/** Deadlock's modes (Review for now) and its open match, like CS2's. */
+function DlNav({ route }: { route: Extract<Route, { page: 'deadlock' }> }) {
+  const match = useDl(s => s.match), close = useDl(s => s.close);
+  const mins = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  return (
+    <>
+      <div className="modes" role="tablist" aria-label="Mode">
+        <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
+          onClick={() => navigate({ page: 'deadlock', mode: 'review' })} title={match ? 'Replay this match' : 'Pick a match to replay'}>
+          <Icon name="play" className="mode-ico" /> <span className="mode-label">Review</span>{match ? <i className="dot-live" title="A match is loaded" /> : null}
+        </button>
+      </div>
+      {match && (
+        <div className="match-tab" title={`Open match ${match.id}, ${mins(match.duration)}`}>
+          <Icon name="map" size={14} />
+          <b>Match {match.id}</b>
+          <span className="match-tab-n">{mins(match.duration)}</span>
+          <button className="match-tab-x" onClick={close} aria-label="Close match" title="Close this match and pick another one"><Icon name="close" size={13} /></button>
+        </div>
+      )}
+    </>
   );
 }

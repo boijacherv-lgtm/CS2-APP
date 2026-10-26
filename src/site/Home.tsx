@@ -3,7 +3,7 @@ import { FREE_HISTORY, PRO_EARLY_ACCESS } from '../engine/profile';
 import { LETTER_COLOR } from '../engine/recap';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { Icon, type IconName } from '../ui/Icon';
-import { GAMES, LIVE_GAMES, SOON_GAMES, STATUS_LABEL } from './games';
+import { BETA_GAMES, GAMES, LIVE_GAMES, SOON_GAMES, STATUS_LABEL } from './games';
 import { GameMark } from './gameMarks';
 
 const MATCHES = COACH_MODEL.source?.demos ?? COACH_MODEL.trainedOn;
@@ -24,6 +24,9 @@ export function Home() {
           <p className="lead">Drop your match. Every play gets a grade and the better option. Live for {LIVE.short}, more games coming.</p>
           <div className="hero-games" aria-label="Games">
             <span className="hero-games-live"><GameMark game={LIVE} size={30} /><b>{LIVE.name}</b><span className="games-status live">Live</span></span>
+            {BETA_GAMES.map(g => (
+              <a key={g.id} className="hero-games-live" href={g.review ?? g.page}><GameMark game={g} size={30} /><b>{g.name}</b><span className="games-status beta">Beta</span></a>
+            ))}
             <span className="hero-games-soon">
               {SOON_GAMES.map(g => <span key={g.id} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`}><GameMark game={g} size={30} muted /></span>)}
             </span>
@@ -55,9 +58,14 @@ export function Home() {
             </article>
           ) : (
             <article key={g.id} className={`game-card soon ${g.status}`} style={{ '--game': g.color } as React.CSSProperties}>
-              <div className="game-card-head"><GameMark game={g} size={44} muted={g.status !== 'next'} /><div><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></div></div>
+              <div className="game-card-head"><GameMark game={g} size={44} muted={g.status !== 'next' && g.status !== 'beta'} /><div><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></div></div>
               <p>{g.note}</p>
-              {g.page && <div className="game-card-cta"><a className="cta" href={g.page}>What's coming <Icon name="arrowRight" size={14} /></a></div>}
+              {(g.page || g.review) && (
+                <div className="game-card-cta">
+                  {g.review && <a className="cta primary" href={g.review}>Review a match</a>}
+                  {g.page && <a className="cta" href={g.page}>{g.review ? 'What it does' : 'What\'s coming'} <Icon name="arrowRight" size={14} /></a>}
+                </div>
+              )}
             </article>
           ))}
         </div>

@@ -166,9 +166,12 @@
   color: var(--text-3); background: var(--surface-2); }
 .games-status.live { color: #0b2414; background: var(--good); }
 .games-status.next { color: #111; background: var(--highlight); }
+.games-status.beta { color: #111; background: var(--highlight); }
 .games-status.waiting { color: var(--text-3); background: transparent; border: 1px solid var(--border-strong); }
 .hero-games { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 20px; }
 .hero-games-live { display: inline-flex; align-items: center; gap: 10px; padding: 5px 12px 5px 5px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-strong); }
+a.hero-games-live { color: inherit; text-decoration: none; }
+a.hero-games-live:hover b { text-decoration: underline; }
 .hero-games-live b { font-size: 14px; }
 .hero-games-soon { display: inline-flex; align-items: center; gap: 6px; }
 .hero-games-soon > span { display: inline-flex; cursor: help; }

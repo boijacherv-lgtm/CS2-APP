@@ -1,0 +1,77 @@
+/* Deadlock Review (deadlock/DlReview.tsx, DlBoard.tsx) */
+
+/* picking a match */
+.dl-start { max-width: 860px; }
+.dl-start .rs-head { margin-bottom: 20px; }
+.dl-id { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.dl-id label { font-weight: 600; color: var(--text-2); font-size: 13px; }
+.dl-id input { flex: 1; min-width: 220px; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-1); font: inherit; }
+.dl-history { margin-top: 16px; }
+.dl-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.dl-row { width: 100%; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto auto 24px; align-items: center; gap: 12px; padding: 7px 12px;
+  border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-1); text-align: left; }
+.dl-row:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface-2); }
+.dl-row img { border-radius: 8px; object-fit: cover; }
+.dl-row-hero { display: grid; min-width: 0; }
+.dl-row-hero b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-row-result { font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 6px; }
+.dl-row-result.win { color: #0b2414; background: var(--good); } .dl-row-result.loss { color: #fff; background: var(--bad); }
+.dl-row-kda { font-weight: 600; }
+.dl-row-go { color: var(--text-3); display: grid; place-items: center; font-size: 12px; }
+.dl-hero-dot { width: 32px; height: 32px; border-radius: 50%; display: inline-block; }
+@media (max-width: 640px) {
+  .dl-row { grid-template-columns: 36px minmax(0, 1fr) auto auto; }
+  .dl-row-souls, .dl-row-go { display: none; }
+}
+
+/* the board */
+.dl-board { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; padding: 8px 12px; }
+.dl-top { display: grid; justify-items: center; gap: 6px; }
+.dl-score { display: flex; align-items: center; gap: 16px; font-weight: 700; }
+.dl-team-score b { font-size: 22px; }
+.dl-clock { font-size: 20px; padding: 2px 12px; border-radius: 8px; background: var(--surface-2); color: var(--text-1); }
+.dl-souls { position: relative; display: flex; width: min(520px, 100%); height: 16px; border-radius: 99px; overflow: hidden; background: var(--surface-2); }
+.dl-souls i { display: block; height: 100%; transition: width .4s var(--ease-out); }
+.dl-souls-label { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #0b0e12; text-shadow: 0 0 3px rgba(255, 255, 255, .5); }
+.dl-main { position: relative; display: grid; grid-template-columns: 250px minmax(0, 1fr) 250px; grid-template-areas: "a map b"; gap: 10px; min-height: 0; }
+.dl-team { display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow-y: auto; }
+.dl-team.t0 { grid-area: a; } .dl-team.t1 { grid-area: b; }
+.dl-team-head { font-weight: 700; font-size: 13px; letter-spacing: .02em; padding: 0 4px 2px; }
+.dl-player { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 8px; row-gap: 3px; align-items: center;
+  padding: 6px 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-1); text-align: left; }
+.dl-player img, .dl-player .dl-hero-dot { grid-row: span 2; border-radius: 8px; object-fit: cover; }
+.dl-player.on { border-color: var(--text-1); }
+.dl-player.dead { opacity: .5; }
+.dl-player-name { display: grid; min-width: 0; line-height: 1.15; }
+.dl-player-name b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.dl-player-kda { font-weight: 700; font-size: 13px; }
+.dl-player-souls { grid-column: 3; text-align: right; }
+.dl-hp { grid-column: 2; height: 4px; border-radius: 99px; background: var(--surface-3, rgba(127, 127, 127, .2)); overflow: hidden; }
+.dl-hp i { display: block; height: 100%; }
+.dl-respawn { position: absolute; left: 8px; top: 6px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: rgba(0, 0, 0, .65); color: #fff; font-weight: 700; }
+.dl-map { grid-area: map; min-width: 0; min-height: 0; display: grid; place-items: center; }
+.dl-feed { position: absolute; top: 0; right: 262px; margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; justify-items: end; pointer-events: none; }
+.dl-feed li { display: flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 7px; background: rgba(11, 14, 18, .82); font-size: 12px; font-weight: 600; }
+.dl-playbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border); }
+.dl-playbar > * { flex: 0 0 auto; width: auto; }
+.dl-playbar .play-main { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; }
+.dl-playbar select { width: auto; padding: 5px 6px; border-radius: 7px; background: var(--surface-2); color: var(--text-1); border: 1px solid var(--border); }
+.dl-phases { display: flex; gap: 4px; }
+.dl-playbar .dl-timeline { position: relative; flex: 1 1 200px; min-width: 180px; }
+.dl-timeline input { width: 100%; }
+.dl-marks { position: absolute; left: 0; right: 0; top: -6px; height: 6px; pointer-events: none; }
+.dl-marks i { position: absolute; width: 2px; height: 6px; border-radius: 1px; transform: translateX(-1px); opacity: .8; }
+.dl-marks i.objective { width: 4px; height: 8px; top: -2px; opacity: 1; }
+.dl-time { color: var(--text-2); font-size: 13px; }
+@media (max-width: 900px) {
+  .dl-board { height: auto; }
+  .dl-main { grid-template-columns: 1fr 1fr; grid-template-areas: "map map" "a b"; }
+  .dl-map { height: min(92vw, 70vh); }
+  .dl-feed { right: 0; }
+  /* the board scrolls on a phone: playback stays at the bottom of the screen */
+  .dl-playbar { position: sticky; bottom: 8px; z-index: 5; box-shadow: 0 8px 26px rgba(0, 0, 0, .5); }
+}
+@media (max-width: 520px) {
+  .dl-main { grid-template-columns: 1fr; grid-template-areas: "map" "a" "b"; }
+  .dl-phases { display: none; }
+}
