@@ -40,6 +40,8 @@ const COLORS = { ...SIDE_COLOR, bg: TOK.bg0 };
 /** A #rrggbb colour mixed toward white by `t` (0–1). */
 const mixWhite = (hex: string, t: number) => '#' + [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - t) + 255 * t).toString(16).padStart(2, '0')).join('');
 const TOKEN_R = 11;
+/** A dead player's marker: full for CORPSE_FADE s after the death, then fading, gone at CORPSE_GONE s. */
+const CORPSE_FADE = 1.5, CORPSE_GONE = 3;
 /** On-screen size of the nickname under a player in Review. */
 const NAME_PX = 10;
 const NAME_MAX = 14;
@@ -655,7 +657,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               <Text x={l.to.x + 5 * k} y={l.to.y - 5 * k} text={l.name} fontSize={8 * k} fill="#fff" stroke="#000" strokeWidth={2} fillAfterStrokeEnabled />
             </Group>
           ))}
-          {s.board.utility.filter(u => u.from || u.path).map(u => <NadeFlight key={`fly-${u.id}`} u={u} t={s.time} k={k} onFloor={p => engine.grid.isWalkable(p)} />)}
+          {s.board.utility.filter(u => u.from || u.path).map(u => <NadeFlight key={`fly-${u.id}`} u={u} t={s.time} k={k} onFloor={p => engine.grid.isWalkable(p)} spoilers={s.mode !== 'review' || s.reviewSpoilers} />)}
           {s.tool === 'lineup' && s.draftLineup?.from && (
             <Group listening={false}>
               <Circle x={s.draftLineup.from.x} y={s.draftLineup.from.y} radius={4 * k} fill={TOK.highlight} stroke="#000" strokeWidth={1 * k} />
@@ -685,8 +687,13 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           ))}
           {s.board.players.filter(isDead).map(lp => {
             const p = livePlayer(lp);
+            // a body stays a moment, then fades out (gone 3 s after the death), so the map isn't littered with them
+            const i = sim ? sim.ids.indexOf(p.id) : -1;
+            const age = i >= 0 && Number.isFinite(sim!.deathT[i]) ? s.time - sim!.deathT[i] : 0;
+            const fade = Math.max(0, Math.min(1, (CORPSE_GONE - age) / (CORPSE_GONE - CORPSE_FADE)));
+            if (fade <= 0) return null;
             return (
-              <Group key={`dead-${p.id}`} x={p.pos.x} y={p.pos.y} scaleX={k} scaleY={k} listening={false} opacity={focus && !focus.includes(p.id) ? 0.3 : 0.8}>
+              <Group key={`dead-${p.id}`} x={p.pos.x} y={p.pos.y} scaleX={k} scaleY={k} listening={false} opacity={(focus && !focus.includes(p.id) ? 0.3 : 0.8) * fade}>
                 <Circle radius={TOKEN_R * 0.85} fill="#2a2f36" stroke={COLORS[p.side]} strokeWidth={1.5} />
                 <Line points={[-5, -5, 5, 5]} stroke={COLORS[p.side]} strokeWidth={2.2} lineCap="round" />
                 <Line points={[-5, 5, 5, -5]} stroke={COLORS[p.side]} strokeWidth={2.2} lineCap="round" />
