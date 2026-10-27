@@ -72,7 +72,8 @@ export function Dev() {
   const maps = (o: Record<string, number>) => Object.entries(o).sort((a, b) => b[1] - a[1]).map(([m, n]) => `${mapName(m)} ${n}`).join(' · ') || '–';
 
   const e = coachEval as CoachEval;
-  const w = e.winChance, v = e.verdicts;
+  const w = e.winChance, v = e.verdicts, du = e.duels, hist = e.history ?? [];
+  const sources = COACH_MODEL.source?.packs ?? {};
   const owner = !!me?.owner && remote;
   const lastWeek = stats?.profiles.weeks ? Object.entries(stats.profiles.weeks).sort((a, b) => a[0].localeCompare(b[0])).at(-1)?.[1] ?? 0 : null;
   const botOk = !!stats?.bot && Date.now() - stats.bot.at < 30 * 60000;
@@ -91,7 +92,7 @@ export function Dev() {
     ['This week', lastWeek !== null ? fmtInt(lastWeek) : '–', 'matches played'],
     ['Want Pro', stats ? fmtInt(stats.profiles.notifyPro) : '–', 'notify me'],
     ['Want Deadlock', stats ? fmtInt(stats.profiles.notifyGames?.deadlock ?? 0) : '–', 'notify me'],
-    ['Win chance', w ? (w.shipped === 'trees' ? 'trees' : 'logistic') : '–', w ? `log loss ${w.shipped === 'trees' ? w.trees.logLoss : w.logistic.logLoss}` : 'not measured'],
+    ['Trained on', w ? fmtInt(w.trainMatches + w.testMatches) : '–', 'level-10 matches'],
   ];
 
   return (
@@ -153,23 +154,47 @@ export function Dev() {
                 label: `${label}${(w.shipped === 'trees' ? 'Boosted trees' : 'Logistic') === label ? ' (in use)' : ''}`, value: `log loss ${sc.logLoss}`,
                 share: Math.max(0.05, (0.52 - sc.logLoss) / (0.52 - 0.44)), tone: (w.shipped === 'trees' ? 'Boosted trees' : 'Logistic') === label ? 'up' as const : 'flat' as const,
               }))} />
-              <p className="muted small">Longer bar = better (lower log loss). Calibration: {(w.shipped === 'trees' ? w.trees : w.logistic).calibration.filter(c => c.n > 300).map(c => `${Math.round(c.said * 100)}→${Math.round((c.won ?? 0) * 100)}%`).join(' · ')}</p>
+              <p className="muted small">Log loss: how far the win % it shows is from what happened, on average. Lower is better; 0.69 is a coin flip. Longer bar = better. Calibration: {(w.shipped === 'trees' ? w.trees : w.logistic).calibration.filter(c => c.n > 300).map(c => `${Math.round(c.said * 100)}→${Math.round((c.won ?? 0) * 100)}%`).join(' · ')}</p>
             </section>
           )}
           <section className="site-card">
             <div className="card-head"><h2>Models</h2><span className="muted small">right on data they never saw</span></div>
             <div className="gauge-row">
-              <Gauge value={duel.testAccuracy} label="Duels" sub={`${fmtInt(duel.samples)} fights`} tone={duel.testAccuracy >= 0.6 ? 'up' : 'flat'} />
+              {du ? <Gauge value={du[du.shipped].accuracy} label="Duels" sub={`${fmtInt(du.testFights)} fights · ${du.shipped}`} tone={du[du.shipped].accuracy >= 0.6 ? 'up' : 'flat'} />
+                : <Gauge value={duel.testAccuracy} label="Duels" sub={`${fmtInt(duel.samples)} fights`} tone={duel.testAccuracy >= 0.6 ? 'up' : 'flat'} />}
               <Gauge value={play.mlp.accuracy} label="Play network" sub="what level 10 does next" tone="up" />
               {v && <Gauge value={v.right / Math.max(1, v.total)} label="Your verdicts" sub={`${v.right} of ${v.total} agree`} tone={v.right / Math.max(1, v.total) >= 0.8 ? 'up' : 'flat'} />}
             </div>
             <table className="site-table dev-models"><tbody>
               <tr><td>Coach</td><td>{fmtInt(COACH_MODEL.trainedOn)} player-games, {COACH_MODEL.source?.demos ?? '?'} demos{PRO_MODEL ? ` · pro ${PRO_MODEL.source?.demos ?? '?'} demos` : ''}</td><td>{COACH_MODEL.source?.trainedAt ?? '–'}</td></tr>
-              <tr><td>Engine</td><td>{fmtInt(search.moments)} moments, {fmtInt(search.rounds)} rounds</td><td>{search.calibratedAt}</td></tr>
+              <tr><td>Engine</td><td>{fmtInt(search.moments)} moments, {fmtInt(search.rounds)} rounds · matches results {search.check?.corr ?? '–'}</td><td>{search.calibratedAt}</td></tr>
               <tr><td>Analyst</td><td>{analyst.overall.demos} demos · pro {analystPro.overall.demos}</td><td>{analyst.trainedAt}</td></tr>
               <tr><td>Level ladder</td><td>{fmtInt(level.games.lvl10)} level-10 games, {fmtInt(level.games.pro)} pro</td><td>{level.trainedAt}</td></tr>
             </tbody></table>
           </section>
+          {hist.length > 0 && (
+            <section className="site-card">
+              <div className="card-head"><h2>Progress</h2><span className="muted small">each retrain, on matches it never learned from</span></div>
+              <table className="site-table"><thead><tr><th>Date</th><th>Matches</th><th>Win chance</th><th>Duels right</th><th>Engine</th><th>Your verdicts</th></tr></thead><tbody>
+                {[...hist].reverse().map((h, i, all) => {
+                  const was = all[i + 1];
+                  const arrow = (now: number | null, before: number | null | undefined, lowerBetter = false) => now === null || before == null || now === before ? null
+                    : <span className={(now < before) === lowerBetter ? 'dev-up' : 'dev-down'}>{(now < before) === lowerBetter ? ' ▲' : ' ▼'}</span>;
+                  return (
+                    <tr key={h.at}>
+                      <td className="num">{h.at}</td>
+                      <td className="num">{h.matches !== null ? fmtInt(h.matches) : '–'}</td>
+                      <td className="num">{h.win ?? '–'}{arrow(h.win, was?.win, true)}</td>
+                      <td className="num">{h.duels !== null ? `${(h.duels * 100).toFixed(1)}%` : '–'}{arrow(h.duels, was?.duels)}</td>
+                      <td className="num">{h.engine ?? '–'}</td>
+                      <td className="num">{h.verdicts.right}/{h.verdicts.total}</td>
+                    </tr>
+                  );
+                })}
+              </tbody></table>
+              <p className="muted small">Win chance: log loss, lower is better. Engine: how well playing like the engine matches winning rounds (correlation, higher is better).</p>
+            </section>
+          )}
         </>
       )}
 
@@ -179,6 +204,7 @@ export function Dev() {
         <>
           <section className="site-card">
             <div className="card-head"><h2>Training data per map</h2><span className="muted small">red: under 40 demos, the coach is least sure</span></div>
+            {Object.keys(sources).length > 0 && <p className="muted small">From: {Object.entries(sources).sort((a, b) => b[1] - a[1]).map(([p, n]) => `${p === 'own' ? 'this computer' : p} ${fmtInt(n)}`).join(' · ')}</p>}
             {(() => {
               const demos = COACH_MODEL.source?.maps ?? {}, max = Math.max(...Object.values(demos), 1);
               const nades = utilSpots as Record<string, unknown[]>;
@@ -227,4 +253,6 @@ type Scored = { logLoss: number; brier: number; calibration: { said: number; won
 type CoachEval = {
   winChance?: { at: string; testMatches: number; testMoments: number; trainMatches: number; shipped: string; formula: Scored; logistic: Scored; trees: Scored };
   verdicts?: { at: string; right: number; total: number };
+  duels?: { at: string; testFights: number; trainFights: number; shipped: 'trees' | 'logistic'; logistic: { logLoss: number; accuracy: number }; trees: { logLoss: number; accuracy: number } };
+  history?: { at: string; matches: number | null; testMatches: number | null; win: number | null; duels: number | null; engine: number | null; verdicts: { right: number; total: number } }[];
 };

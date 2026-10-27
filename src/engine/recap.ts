@@ -1,6 +1,6 @@
 import { FLASH_POP, HE_POP, SIM_DT, type KillEvent, type Simulation } from './combat';
 import { computeControl } from './control';
-import { worldToRadar } from './coords';
+import { radarToWorld, worldToRadar } from './coords';
 import { gunFromName, primaryGun } from './guns';
 import { lifeOf, popAt, segmentHitsCircle, smokeBlasts, smokeOpenAt, SMOKE_CLEAR, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
 import type { TacticalEngine } from './predict';
@@ -8,7 +8,7 @@ import UTIL_SPOTS from '../map/generated/util-spots.json';
 import { placeOf as calloutOfSpot } from './situations';
 import { analyzeRound } from './analyst';
 import { duelOdds as duelModelOdds, pctOdds } from './duelModel';
-import { COST_SCALE, keySearchMoments, searchRound, type RoundSearch } from './search';
+import { COST_SCALE, keySearchMoments, searchRound, walkDistance, type RoundSearch } from './search';
 import { ACTION_TEXT, judgeMoment, keyMoments, momentLine, pctPlay, PLAY_MODEL, roundMoments, type Action, type MomentVerdict } from './playModel';
 import { controlCounts, learnedLogit, tradePending, WIN_MODEL } from './winprob';
 import { analystBench, proAnalystAvailable, proTradeConversion } from './analystModel';
@@ -1436,14 +1436,21 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     for (const m of keySearchMoments(search, 1, true)) {
       if (!sideOf.has(m.player)) continue;
       const best = m.options[0];
+      // a retake: a CT closing in on the planted bomb is doing the job; the engine only prefers another way in
+      const bomb = m.side === 'CT' ? bombAt(r, m.t) : null;
+      const from = m.did.path?.[0] ?? m.options.find(o => o.kind === 'hold')?.to;
+      const onMap = bomb && (bomb.kind === 'plant' || bomb.kind === 'defuse') ? { x: bomb.x, y: bomb.y } : null;
+      const world = (p: Vec2) => radarToWorld(p, engine.map.radar);
+      const retaking = !!onMap && !!from && walkDistance(engine, world(m.did.to), onMap) < walkDistance(engine, world(from), onMap) * 0.9;
       moves.push({
-        t: m.t, player: m.player, side: m.side, kind: 'position', gain: -m.cost, note: m.cls === 'Blunder' ? '??' : '?', tags: [],
+        t: m.t, player: m.player, side: m.side, kind: 'position', gain: -m.cost, note: retaking ? '?!' : m.cls === 'Blunder' ? '??' : '?', tags: [],
         title: `${name(m.player)}: ${m.did.label}; best was ${best.label.charAt(0).toLowerCase()}${best.label.slice(1)}`,
         why: [
           `Engine: ${m.cls}, accuracy ${Math.round(m.accuracy)}. It cost about ${(m.cost * 100).toFixed(1)}% of the round.`,
           `Options: ${m.options.slice(0, 4).map((o, i) => (i === 0 ? `${o.label} (best)` : `${o.label} ${signed((best.win - o.win) * COST_SCALE)}`)).join(', ')}.`,
           ...(m.did.death >= 0.25 ? [`What you did: about ${Math.round(m.did.death * 100)}% to die in the next seconds${m.did.kills ? `, ${m.did.kills.toFixed(1)} kills expected` : ''}.`] : []),
           ...(best.death < m.did.death - 0.1 ? [`${best.label}: ${Math.round(best.death * 100)}% to die${best.kills ? `, ${best.kills.toFixed(1)} kills expected` : ''}.`] : []),
+          ...(retaking ? ['A retake: you were moving in on the bomb, so this is only about which way in.'] : []),
         ],
       });
     }

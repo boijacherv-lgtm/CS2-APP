@@ -35,7 +35,7 @@ export interface CoachModel {
   /** What it was trained on, shown on the coach card (e.g. "FACEIT level 10"). */
   name?: string;
   /** Demos used and when. */
-  source?: { demos: number; trainedAt: string; maps: Record<string, number> };
+  source?: { demos: number; trainedAt: string; maps: Record<string, number>; packs?: Record<string, number> };
   /** The same numbers per role, for roles with enough games (see MIN_ROLE_GAMES). */
   roles?: Partial<Record<Role, { games: number; features: FeatureSet }>>;
 }

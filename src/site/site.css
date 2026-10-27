@@ -491,6 +491,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .dev-tabs { margin: 0 0 14px; padding: 6px 0; top: 0; background: transparent; border-bottom: 1px solid var(--border); backdrop-filter: none; position: static; }
 .dev-models { margin-top: 12px; }
 .dev-models td:first-child { font-weight: 700; width: 120px; } .dev-models td:last-child { color: var(--text-3); text-align: right; }
+.dev-up { color: var(--good); font-size: 11px; } .dev-down { color: var(--bad); font-size: 11px; }
 .dev-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
 @media (max-width: 900px) { .dev-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .dev-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
