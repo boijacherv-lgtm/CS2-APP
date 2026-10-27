@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { coachFromDemo, listDemos, liveKeys, loadDemo, readCache, writeCacheEntry } from './learn-lib';
+import { coachFromDemo, importedKeys, listDemos, liveKeys, loadDemo, readCache, writeCacheEntry } from './learn-lib';
 import { getEngine, MAPS } from '../src/map/catalog';
 import { buildReplay, reviewRound, type DemoData, type Role } from '../src/engine/recap';
 import { buildMatchReport, summarizeRound, type RoundSummary } from '../src/engine/match';
@@ -68,9 +68,13 @@ const samples = used.flatMap(([, c]) => c.samples);
 if (!samples.length) { console.error('\nNo usable games: nothing to train on.'); process.exit(1); }
 const maps: Record<string, number> = {};
 for (const [, c] of used) maps[c.map!] = (maps[c.map!] ?? 0) + 1;
+// where the demos came from: this folder ("own") or another computer's training pack (by the pack's folder name)
+const imported = importedKeys(folder);
+const packs: Record<string, number> = {};
+for (const [k] of used) { const p = imported[k]?.pack ?? 'own'; packs[p] = (packs[p] ?? 0) + 1; }
 
 const model = trainCoachSet(samples.map(({ features, role }) => ({ features, role })), label,
-  { demos: used.length, trainedAt: new Date().toISOString().slice(0, 10), maps });
+  { demos: used.length, trainedAt: new Date().toISOString().slice(0, 10), maps, packs });
 fs.writeFileSync(OUT, JSON.stringify(model, null, 1) + '\n');
 
 // what changed, for a quick read

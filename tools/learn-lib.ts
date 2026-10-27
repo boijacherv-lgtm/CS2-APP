@@ -318,12 +318,20 @@ export function importedKeys(folder: string): Record<string, ImportedEntry> {
   try { return JSON.parse(fs.readFileSync(path.join(folder, IMPORTED), 'utf8')); } catch { return {}; }
 }
 export const matchIdOf = (f: string) => path.basename(f).match(/1-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0]?.toLowerCase() ?? null;
-/** Every demo training should count: the demo files here (one per match) and the imported ones of other matches. */
+/**
+ * Every demo training should count, one per match: the demo files here, the imported ones of other matches, and
+ * demos whose file can't be reached now (a linked external disk that isn't plugged in) but whose read is saved here.
+ */
 export function liveKeys(folder: string): Set<string> {
   const files = listDemos(folder);
   const out = new Set(files.map(f => keyOf(folder, f)));
   const here = new Set(files.map(matchIdOf).filter(Boolean));
-  for (const [k, e] of Object.entries(importedKeys(folder))) if (!e.matchId || !here.has(e.matchId)) out.add(k);
+  const add = (k: string, id: string | null) => { if (id && here.has(id)) return; out.add(k); if (id) here.add(id); };
+  for (const [k, e] of Object.entries(importedKeys(folder))) add(k, e.matchId);
+  const reads = newestParsed(folder);
+  for (const l of Object.keys(CACHES) as Learner[]) {
+    for (const k of cachedKeys(folder, l)) if (!out.has(k) && reads.has(k.replace(/[^\w.-]+/g, '_'))) add(k, matchIdOf(k));
+  }
   return out;
 }
 
