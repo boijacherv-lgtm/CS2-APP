@@ -529,6 +529,10 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                   );
                 })()
               : <Circle x={to.x} y={to.y} radius={TOKEN_R * 1.7 * k} stroke={color} strokeWidth={3.2 * k} dash={dash} shadowColor="#000" shadowBlur={4} shadowOpacity={0.8} />;
+            const step2 = (a: Vec2, b: Vec2, color: string, path?: Vec2[]) => Math.hypot(b.x - a.x, b.y - a.y) > 8 ? (
+              <Arrow points={[a, ...(path ?? []).filter(q => Math.hypot(q.x - a.x, q.y - a.y) > 6), b].flatMap(q => [q.x, q.y])} tension={0.25} stroke={color} fill={color}
+                strokeWidth={2 * k} pointerLength={7 * k} pointerWidth={7 * k} dash={[3 * k, 4 * k]} opacity={0.75} />
+            ) : null;
             const tag = (to: Vec2, text: string, color: string, dy: number) => (
               <Text x={to.x + 10 * k} y={to.y + dy * k} text={text} fontSize={12 * k} fontStyle="bold" fill={color} stroke="#000" strokeWidth={3 * k} fillAfterStrokeEnabled />
             );
@@ -537,9 +541,12 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               <Group>
                 {!same && line(did.to, doneColor, [6 * k, 4 * k], did.path)}
                 {!same && did.nade && <ThrowArc from={from} to={did.nade} k={k} color={doneColor} dashed />}
+                {/* thinking two moves ahead: the second move of each line, thinner, from where the first leaves them */}
+                {did.next && !same && step2(did.to, did.next.to, doneColor, did.next.path)}
+                {best.next && step2(best.to, best.next.to, SEARCH_COLOR.Best, best.next.path)}
                 {line(best.to, SEARCH_COLOR.Best, undefined, best.path)}
                 {best.nade && <ThrowArc from={from} to={best.nade} k={k} color={SEARCH_COLOR.Best} />}
-                {tag(best.to, `Best: ${best.label}`, SEARCH_COLOR.Best, -16)}
+                {tag(best.to, `Best: ${best.label}${best.next ? ` → ${best.next.label}` : ''}`, SEARCH_COLOR.Best, -16)}
                 {!same && tag(did.to, `${engineNow.cls}: ${did.label}`, doneColor, 4)}
               </Group>
             );

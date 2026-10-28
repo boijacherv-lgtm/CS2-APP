@@ -7,7 +7,7 @@
 //              on every demo: the engine never learned from these rounds' outcomes)
 // Writes src/engine/models/search-calibration.json.
 //
-//   npm run calibrate:search -- <folder> [--max 150]
+//   npm run calibrate:search -- <folder> [--max 150] [--deep all|flagged|off]
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -21,6 +21,10 @@ const opt = (k: string, d: string) => { const i = args.indexOf(`--${k}`); return
 const folder = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--'));
 if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run calibrate:search -- <folder> [--max 150]'); process.exit(1); }
 const MAX = Number(opt('max', '150'));
+// how far ahead the engine thinks: 'all' = two moves on every moment (the site's default), 'flagged' = only the
+// moves it would flag, 'off' = one move
+const DEEP = opt('deep', 'all');
+const deepMode: boolean | 'all' = DEEP === 'all' ? 'all' : DEEP !== 'off';
 const OUT = path.resolve(import.meta.dirname, '../src/engine/models/search-calibration.json');
 
 // only demos already read once (their saved read loads in a fraction of a second; imported ones too: their demo
@@ -44,7 +48,7 @@ for (const [i, f] of pick.entries()) {
   for (const r of d.rounds) {
     if (!r.winner) continue;
     let rs;
-    try { rs = searchRound(engine, r); } catch { continue; }
+    try { rs = searchRound(engine, r, 2, deepMode); } catch { continue; }
     const bySide = { CT: [] as number[], T: [] as number[] };
     for (const m of rs.moments) {
       losses.push(m.loss); bySide[m.side].push(m.loss);

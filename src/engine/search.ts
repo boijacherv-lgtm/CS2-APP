@@ -48,6 +48,9 @@ export interface SearchOption {
   win: number;
   /** Chance of dying in it, and expected kills. */
   death: number; kills: number;
+  /** Thinking two moves ahead: the best second move from where this one leaves them (its win is what the whole line
+   * is worth); only on moments the engine double-checked. */
+  next?: SearchOption;
 }
 export type SearchClass = 'Best' | 'Excellent' | 'Good' | 'Inaccuracy' | 'Mistake' | 'Blunder';
 export interface SearchMoment {
@@ -63,6 +66,10 @@ export interface SearchMoment {
   accuracy: number;
   /** Their side's win chance at the moment, before choosing. */
   before: number;
+  /** Double-checked two moves ahead (every move it was about to flag): the options are worth their best follow-up. */
+  deep?: boolean;
+  /** What they really did next (their next moment, a few seconds on), and how the engine graded it. */
+  then?: { t: number; label: string; cls: SearchClass };
 }
 
 const H = 5; // seconds each option is looked at
@@ -239,10 +246,25 @@ export function roundSearcher(engine: TacticalEngine, r: DemoRound) {
 }
 export type RoundSearcher = ReturnType<typeof roundSearcher>;
 
+type Known = { id: string; at: Vec2; seenAgo: number };
+type Deltas = { mine?: number; theirs?: number; myHp?: number; theirHp?: number; plant?: boolean; dt?: number; myAreas?: number; trade?: number };
+/** Two changes to the round one after the other (a first move's outcome, then the second move's). */
+const plus = (a: Deltas, b: Deltas): Deltas => ({
+  mine: (a.mine ?? 0) + (b.mine ?? 0), theirs: (a.theirs ?? 0) + (b.theirs ?? 0), myHp: (a.myHp ?? 0) + (b.myHp ?? 0), theirHp: (a.theirHp ?? 0) + (b.theirHp ?? 0),
+  plant: !!(a.plant || b.plant), dt: (a.dt ?? 0) + (b.dt ?? 0), myAreas: (a.myAreas ?? 0) + (b.myAreas ?? 0), trade: Math.max(a.trade ?? 0, b.trade ?? 0),
+});
+/** Where an option leaves the round: what changed, enemies killed in it, the clock, and the enemies still known about. */
+interface Step { d: Deltas; gone: Set<string>; clock: number; known: Known[] }
+interface Valued { opt: SearchOption; dead: number; alive: number; posGain: number; next: Step }
+/** The grenade a first move used up (not there for the second). */
+const NADE_OF: Partial<Record<OptionKind, RegExp>> = { flash: /flash/i, he: /high explosive|hegrenade/i, molotov: /molotov|incendiary/i, smoke: /smoke/i };
+/** First moves looked at two ahead: the best few (and what they did). */
+const DEEP_FIRST = 4;
+
 interface Plan { kind: OptionKind; label: string; to: Vec2; travel: number; /** the way there (radar), to see who can shoot them on it */ path?: Vec2[]; nade?: Vec2; flash?: string; smoke?: SmokeDisc; deny?: string; he?: string; plant?: boolean; defuse?: boolean }
 
 /** The search at one moment, for one player (null when there's nothing to decide: dead, or no enemy left). */
-export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearcher, id: string, t: number): SearchMoment | null {
+export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearcher, id: string, t: number, deep = false): SearchMoment | null {
   const s = S.side(id);
   if (!s || !S.alive(id, t)) return null;
   const foes = S.ids.filter(e => S.side(e) && S.side(e) !== s && S.alive(e, t));
@@ -252,71 +274,75 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
   const plantWatch = S.known(id, t, PLANT_SEEN);
   const smokes = S.smokesAt(t);
   const map = engine.map.id;
-  const phase = phaseOf(t, r.plant);
   const mates = S.ids.filter(o => S.side(o) === s && S.alive(o, t));
   const adv = advantageOf([mates.length, foes.length]);
   const spx = S.secPerPx(s);
   const before = S.winFor(s, t);
 
-  // ---- the options ------------------------------------------------------------------------------------------
-  const plans: Plan[] = [];
-  const here = placeOf(engine, me) || 'here';
-  plans.push({ kind: 'hold', label: `Hold ${here}`, to: me, travel: 0 });
-  // callouts reachable in REACH seconds (the closest few, plus every one level-10 players use here)
-  const cell = engine.grid.snap(me);
-  const reach = engine.map.callouts.filter(c => !c.minor).map(c => {
-    const f = calloutField(engine, c.name);
-    return { c, sec: f && cell >= 0 ? f[cell] * spx : Infinity };
-  }).filter(x => x.sec > 0.8 && x.sec <= REACH).sort((a, b) => a.sec - b.sec);
-  const used = new Set((proSituationSpots(map, s, phase, adv) ?? proSpots(map, s, phase)).filter(p => p.share >= 0.03).map(p => p.place));
-  // only spots level-10 players actually go to at this point of the round (a safe spot nobody plays, like running
-  // back to spawn mid-round, isn't a real option); the nearest two only when there's no data for this situation
-  const usedHere = reach.filter(x => used.has(x.c.name)).slice(0, 7);
-  const picked = usedHere.length >= 2 ? usedHere : [...usedHere, ...reach.slice(0, 2)];
-  for (const x of picked) if (!plans.some(p => p.label === `Move to ${x.c.name}`)) plans.push({ kind: 'move', label: `Move to ${x.c.name}`, to: x.c.pos, travel: x.sec, path: pathDown(engine, calloutField(engine, x.c.name)!, me) });
-  // peek each known enemy: the first point on the way to them that sees them
-  for (const e of enemies.slice(0, 3)) {
-    const path = engine.grid.shortestPath(me, e.at);
-    if (!path) continue;
-    let travelPx = 0, at: Vec2 | null = null;
-    for (let i = 1; i < path.length; i++) {
-      travelPx += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y);
-      if (engine.grid.lineOfSight(path[i], e.at, smokes)) { at = path[i]; break; }
+  // ---- the options, from a spot at a moment (step 2 asks again from where a first option leaves them) ----------
+  const inv0 = gearAt(r, id, t)?.inv ?? [];
+  const plansFrom = (me: Vec2, clock: number, enemies: Known[], inv: string[], second: boolean): Plan[] => {
+    const plans: Plan[] = [];
+    const here = placeOf(engine, me) || 'here';
+    const phase = phaseOf(clock, r.plant);
+    plans.push({ kind: 'hold', label: `Hold ${here}`, to: me, travel: 0 });
+    // callouts reachable in REACH seconds (the closest few, plus every one level-10 players use here)
+    const cell = engine.grid.snap(me);
+    const reach = engine.map.callouts.filter(c => !c.minor).map(c => {
+      const f = calloutField(engine, c.name);
+      return { c, sec: f && cell >= 0 ? f[cell] * spx : Infinity };
+    }).filter(x => x.sec > 0.8 && x.sec <= REACH).sort((a, b) => a.sec - b.sec);
+    const used = new Set((proSituationSpots(map, s, phase, adv) ?? proSpots(map, s, phase)).filter(p => p.share >= 0.03).map(p => p.place));
+    // only spots level-10 players actually go to at this point of the round (a safe spot nobody plays, like running
+    // back to spawn mid-round, isn't a real option); the nearest two only when there's no data for this situation;
+    // fewer for a second move (it's a follow-up, the near ones matter)
+    const usedHere = reach.filter(x => used.has(x.c.name)).slice(0, second ? 4 : 7);
+    const picked = usedHere.length >= 2 ? usedHere : [...usedHere, ...reach.slice(0, 2)];
+    for (const x of picked) if (!plans.some(p => p.label === `Move to ${x.c.name}`)) plans.push({ kind: 'move', label: `Move to ${x.c.name}`, to: x.c.pos, travel: x.sec, path: pathDown(engine, calloutField(engine, x.c.name)!, me) });
+    // peek each known enemy: the first point on the way to them that sees them
+    for (const e of enemies.slice(0, 3)) {
+      const path = engine.grid.shortestPath(me, e.at);
+      if (!path) continue;
+      let travelPx = 0, at: Vec2 | null = null;
+      for (let i = 1; i < path.length; i++) {
+        travelPx += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y);
+        if (engine.grid.lineOfSight(path[i], e.at, smokes)) { at = path[i]; break; }
+      }
+      // a peek is a swing at an enemy close by, not a walk across the map
+      if (!at || travelPx * spx > PEEK_REACH) continue;
+      const where = placeOf(engine, e.at) || 'the enemy';
+      const way = along(path.slice(0, path.indexOf(at) + 1));
+      plans.push({ kind: 'peek', label: `Peek ${where}`, to: at, travel: travelPx * spx, path: way });
+      // with a grenade they really have
+      if (inv.some(w => /flash/i.test(w))) plans.push({ kind: 'flash', label: `Flash and peek ${where}`, to: at, travel: travelPx * spx + 0.6, nade: e.at, flash: e.id, path: way });
+      if (inv.some(w => /high explosive|hegrenade/i.test(w)) && S.dist(me, e.at) < NADE_RANGE) plans.push({ kind: 'he', label: `HE ${where}`, to: me, travel: 1.2, nade: e.at, he: e.id });
+      if (inv.some(w => /molotov|incendiary/i.test(w)) && S.dist(me, e.at) < NADE_RANGE) plans.push({ kind: 'molotov', label: `Molotov ${where}`, to: me, travel: 1.4, nade: e.at, deny: e.id });
     }
-    // a peek is a swing at an enemy close by, not a walk across the map
-    if (!at || travelPx * spx > PEEK_REACH) continue;
-    const where = placeOf(engine, e.at) || 'the enemy';
-    const way = along(path.slice(0, path.indexOf(at) + 1));
-    plans.push({ kind: 'peek', label: `Peek ${where}`, to: at, travel: travelPx * spx, path: way });
-    // with a grenade they really have
-    const inv = gearAt(r, id, t)?.inv ?? [];
-    if (inv.some(w => /flash/i.test(w))) plans.push({ kind: 'flash', label: `Flash and peek ${where}`, to: at, travel: travelPx * spx + 0.6, nade: e.at, flash: e.id, path: way });
-    if (inv.some(w => /high explosive|hegrenade/i.test(w)) && S.dist(me, e.at) < NADE_RANGE) plans.push({ kind: 'he', label: `HE ${where}`, to: me, travel: 1.2, nade: e.at, he: e.id });
-    if (inv.some(w => /molotov|incendiary/i.test(w)) && S.dist(me, e.at) < NADE_RANGE) plans.push({ kind: 'molotov', label: `Molotov ${where}`, to: me, travel: 1.4, nade: e.at, deny: e.id });
-  }
-  // a smoke they have, on the standard spot nearest the enemies they know about (or the nearest one), then hold
-  const inv = gearAt(r, id, t)?.inv ?? [];
-  if (inv.some(w => /smoke/i.test(w))) {
-    const spots = (SPOTS[map] ?? []).filter(x => x.type === 'smoke' && x.side === s).map(x => S.radar({ x: x.x, y: x.y })).filter(p => S.dist(me, p) < NADE_RANGE);
-    const target = enemies[0]?.at;
-    const best = spots.sort((a, b) => (target ? S.dist(a, target) - S.dist(b, target) : S.dist(a, me) - S.dist(b, me)))[0];
-    if (best) plans.push({ kind: 'smoke', label: `Smoke ${placeOf(engine, best) || 'a standard spot'} and hold`, to: me, travel: 1.4, nade: best, smoke: { pos: best, r: SMOKE_RADIUS_UNITS / S.scale } });
-  }
-  // the bomb
+    // a smoke they have, on the standard spot nearest the enemies they know about (or the nearest one), then hold
+    if (inv.some(w => /smoke/i.test(w))) {
+      const spots = (SPOTS[map] ?? []).filter(x => x.type === 'smoke' && x.side === s).map(x => S.radar({ x: x.x, y: x.y })).filter(p => S.dist(me, p) < NADE_RANGE);
+      const target = enemies[0]?.at;
+      const best = spots.sort((a, b) => (target ? S.dist(a, target) - S.dist(b, target) : S.dist(a, me) - S.dist(b, me)))[0];
+      if (best) plans.push({ kind: 'smoke', label: `Smoke ${placeOf(engine, best) || 'a standard spot'} and hold`, to: me, travel: 1.4, nade: best, smoke: { pos: best, r: SMOKE_RADIUS_UNITS / S.scale } });
+    }
+    // the bomb carrier can plant: right here when on a site, or at a site they can reach in a few seconds (walk there,
+    // then 3.2 s planting, with whoever sees them on the way), so the option doesn't come and go as they cross a line
+    if (s === 'T' && r.plant === null && bomb?.kind === 'carry' && bomb.id === id) {
+      const onSite = S.siteAt(me);
+      if (onSite) plans.push({ kind: 'plant', label: `Plant on ${onSite}`, to: me, travel: 3.2, plant: true });
+      for (const [name, site] of Object.entries(engine.map.sites)) {
+        if (name === onSite) continue;
+        const f = calloutField(engine, `site:${name}`, site.center);
+        const sec = f && cell >= 0 ? f[cell] * spx : Infinity;
+        if (sec <= PLANT_REACH) plans.push({ kind: 'plant', label: `Go plant on ${name}`, to: site.center, travel: sec + 3.2, plant: true, path: pathDown(engine, f!, me) });
+      }
+    }
+    // (no "go defuse" option: whether a T is guarding the bomb is exactly what the engine can't know)
+    return plans;
+  };
   const bomb = bombAt(r, t);
-  // the bomb carrier can plant: right here when on a site, or at a site they can reach in a few seconds (walk there,
-  // then 3.2 s planting, with whoever sees them on the way), so the option doesn't come and go as they cross a line
-  if (s === 'T' && r.plant === null && bomb?.kind === 'carry' && bomb.id === id) {
-    const onSite = S.siteAt(me);
-    if (onSite) plans.push({ kind: 'plant', label: `Plant on ${onSite}`, to: me, travel: 3.2, plant: true });
-    for (const [name, site] of Object.entries(engine.map.sites)) {
-      if (name === onSite) continue;
-      const f = calloutField(engine, `site:${name}`, site.center);
-      const sec = f && cell >= 0 ? f[cell] * spx : Infinity;
-      if (sec <= PLANT_REACH) plans.push({ kind: 'plant', label: `Go plant on ${name}`, to: site.center, travel: sec + 3.2, plant: true, path: pathDown(engine, f!, me) });
-    }
-  }
-  // (no "go defuse" option: whether a T is guarding the bomb is exactly what the engine can't know)
+  const plans = plansFrom(me, t, enemies, inv0, false);
+  const here = placeOf(engine, me) || 'here';
 
   // ---- what they did: where they were H seconds later (or when they died), and any grenade or the plant ----------
   const until = Math.min(r.duration, t + H);
@@ -348,23 +374,26 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
   }
 
   // ---- step 1 and 2: value every option the same way --------------------------------------------------------------
-  const value = (p: Plan): SearchOption => {
+  // `from` / `ctx`: where the player starts the option and what already happened before it (a first move's outcome,
+  // when this is the second move). Besides the option, what it splits into: the win chance summed over the ways they
+  // die in it, the chance they come out alive, and the round as it is then (for a second move from there).
+  const value = (p: Plan, from: Vec2 = me, ctx: Step = { d: {}, gone: new Set(), clock: t, known: enemies }): Valued => {
     // every option looked at over the same stretch of round (the clock runs for a hold too: post-plant that matters)
     const dt = Math.max(H, p.travel);
     const sm = p.smoke ? [...smokes, p.smoke] : smokes;
     const myF = (moving: boolean) => S.fighter(id, t, p.to, moving);
-    // fights: known enemies that can see where the option leaves them (a denied / smoked-off enemy can't)
     // fights: known enemies that can see where the option leaves them, or see them on the way there (a denied /
     // smoked-off enemy can't); the ones on the way first
     const sees = (e: { at: Vec2 }, q: Vec2) => S.dist(q, e.at) < 3000 && engine.grid.lineOfSight(q, e.at, sm);
     // a plant takes seconds on the spot: an enemy seen near the site a while ago is still there to stop it
-    const live = (p.plant ? [...enemies, ...plantWatch.filter(w => !enemies.some(e => e.id === w.id))] : enemies).filter(e => e.id !== p.deny);
+    const live = (p.plant ? [...ctx.known, ...plantWatch.filter(w => !ctx.known.some(e => e.id === w.id) && !ctx.gone.has(w.id))] : ctx.known).filter(e => e.id !== p.deny);
     const onWay = live.filter(e => !sees(e, p.to) && (p.path ?? []).some((q, i) => i % 2 === 0 && sees(e, q)));
     // the plant is loud: an enemy this close swings on the sound even without a view of the spot
     const atEnd = live.filter(e => sees(e, p.to) || (p.plant && S.dist(p.to, e.at) < PLANT_HEARD)).sort((a, b) => S.dist(p.to, a.at) - S.dist(p.to, b.at));
     const contacts = [...onWay, ...atEnd].slice(0, 3);
-    const peeking = p.travel > 0 && contacts.some(e => !engine.grid.lineOfSight(me, e.at, smokes));
+    const peeking = p.travel > 0 && contacts.some(e => !engine.grid.lineOfSight(from, e.at, smokes));
     const mateNear = S.ids.some(o => o !== id && S.side(o) === s && S.alive(o, t) && S.dist(S.pos(o, t), p.to) < TRADE_DIST);
+    const phase = phaseOf(ctx.clock, r.plant);
     const posGain = (() => {
       // (left out when checking the engine on the same demos the spot stats were learned from: tools/calibrate-search.ts)
       if (NO_SPOT_STATS) return 0;
@@ -375,15 +404,18 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
       return sp?.gain !== undefined && (sp.n ?? 0) >= 8 ? Math.max(-0.03, Math.min(0.03, sp.gain / 3)) : 0;
     })();
     const hpDmg = p.he ? -Math.min(40, 25) : 0;
-    const base = { plant: p.plant, dt, theirHp: hpDmg, myAreas: p.kind === 'move' || p.kind === 'peek' || p.kind === 'actual' ? 1 : 0 };
-    let win: number, death = 0, killsE = 0;
+    const base = plus(ctx.d, { plant: p.plant, dt, theirHp: hpDmg, myAreas: p.kind === 'move' || p.kind === 'peek' || p.kind === 'actual' ? 1 : 0 });
+    let win: number, death = 0, killsE = 0, dead = 0, alive = 1, after: Deltas = base, gone = ctx.gone;
     if (!contacts.length) {
-      // no known enemy sees it: the risk of the ones nobody has seen, from how holding that spot goes for level-10 players
+      // no known enemy sees it: the risk of the ones nobody has seen, from how holding that spot goes for level-10
+      // players at this point of the round (for a second move: by then, where they'll likely be)
       const place = placeOf(engine, p.to);
-      const pressure = enemies.filter(e => S.dist(p.to, e.at) < 1500).length;
+      const pressure = ctx.known.filter(e => S.dist(p.to, e.at) < 1500).length;
       const risk = place ? proRisk(map, s, place, pressure, !mateNear) : null;
       death = risk && risk.n >= 8 ? (risk.died / risk.n) * 0.35 : 0;
-      win = (1 - death) * S.winFor(s, t, base) + death * S.winFor(s, t, { ...base, plant: false, mine: -1, trade: mateNear ? 1 : 0 });
+      dead = death * S.winFor(s, t, { ...base, plant: false, mine: (base.mine ?? 0) - 1, trade: mateNear ? 1 : 0 });
+      alive = 1 - death;
+      win = alive * S.winFor(s, t, base) + dead;
     } else {
       // fight them one after another; each fight from the duel model
       const qs = contacts.map(e => {
@@ -394,34 +426,62 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
         };
         return duelChance(sit) ?? 0.5;
       });
-      let alivePr = 1, fight = 0;
+      let alivePr = 1;
       for (let k = 0; k < qs.length; k++) {
         const dieHere = alivePr * (1 - qs[k]);
         // dying on the way or mid-plant: no bomb down
-        fight += dieHere * S.winFor(s, t, { ...base, plant: false, theirs: -k, mine: -1, trade: mateNear ? 1 : 0 });
+        dead += dieHere * S.winFor(s, t, { ...base, plant: false, theirs: (base.theirs ?? 0) - k, mine: (base.mine ?? 0) - 1, trade: mateNear ? 1 : 0 });
         death += dieHere;
         killsE += alivePr * qs[k];
         alivePr *= qs[k];
       }
-      fight += alivePr * S.winFor(s, t, { ...base, theirs: -qs.length });
-      // step 2, the enemy's reply: they can also back off instead of taking a fight that's bad for them (not from a
-      // plant or a defuse: letting it happen loses them the round)
-      const theyBackOff = S.winFor(s, t, { ...base, myAreas: (base.myAreas ?? 0) + 1 });
-      if (!p.plant && !p.defuse && fight > theyBackOff) { win = theyBackOff; death = 0; killsE = 0; } else win = fight;
+      after = plus(base, { theirs: -qs.length });
+      const fight = dead + alivePr * S.winFor(s, t, after);
+      alive = alivePr;
+      gone = new Set([...ctx.gone, ...contacts.map(e => e.id)]);
+      // the enemy's reply: they can also back off instead of taking a fight that's bad for them (not from a plant or a
+      // defuse: letting it happen loses them the round)
+      const backOff = plus(base, { myAreas: 1 });
+      const theyBackOff = S.winFor(s, t, backOff);
+      if (!p.plant && !p.defuse && fight > theyBackOff) { win = theyBackOff; death = 0; killsE = 0; dead = 0; alive = 1; after = backOff; gone = ctx.gone; }
+      else win = fight;
     }
     const way = p.path?.length ? [...p.path.filter((_, i, xs) => i % Math.max(1, Math.ceil(xs.length / 10)) === 0), p.to].map(q => ({ x: Math.round(q.x), y: Math.round(q.y) })) : undefined;
-    return { kind: p.kind, label: p.label, to: p.to, nade: p.nade, ...(way ? { path: way } : {}), win: Math.min(1, Math.max(0, win + posGain)), death: +death.toFixed(3), kills: +killsE.toFixed(3) };
+    return {
+      opt: { kind: p.kind, label: p.label, to: p.to, nade: p.nade, ...(way ? { path: way } : {}), win: Math.min(1, Math.max(0, win + posGain)), death: +death.toFixed(3), kills: +killsE.toFixed(3) },
+      dead, alive, posGain, next: { d: after, gone, clock: ctx.clock + dt, known: ctx.known.filter(e => !gone.has(e.id)) },
+    };
   };
 
-  let options = plans.map(value).sort((a, b) => b.win - a.win);
-  const mine = value(did);
+  // step 2 (deep): an option is worth what its best follow-up is worth, from where it leaves them and with what
+  // happened on the way (their deaths in it as they were; when they come out alive, the best second move from there)
+  const deepen = (p: Plan, v: Valued): SearchOption => {
+    if (p.plant || v.alive < 0.05 || v.next.clock >= r.duration - 1) return v.opt;
+    const invNext = p.nade ? inv0.filter(w => !NADE_OF[p.kind]?.test(w)) : inv0;
+    const second = plansFrom(p.to, v.next.clock, v.next.known, invNext, true).map(q => value(q, p.to, v.next)).sort((a, b) => b.opt.win - a.opt.win);
+    const top = second[0];
+    if (!top) return v.opt;
+    const win = Math.min(1, Math.max(0, v.dead + v.alive * top.opt.win + v.posGain));
+    return { ...v.opt, win, next: { ...top.opt, win: top.opt.win } };
+  };
+
+  const valued = plans.map(p => ({ p, v: value(p) })).sort((a, b) => b.v.opt.win - a.v.opt.win);
+  const mineV = value(did);
+  let options = valued.map(x => x.v.opt);
+  let mine = mineV.opt;
+  if (deep) {
+    // the best few first moves and what they did, each by its best follow-up
+    const top = valued.slice(0, DEEP_FIRST).map(x => deepen(x.p, x.v));
+    options = [...top, ...valued.slice(DEEP_FIRST).map(x => x.v.opt)].sort((a, b) => b.win - a.win);
+    mine = deepen(did, mineV);
+  }
   // what they did can beat every option on the list (a plan the list doesn't have): then it is the best one
   if (mine.win >= options[0].win) options = [mine, ...options];
   const best = options[0];
   const loss = Math.max(0, best.win - mine.win);
   return {
     t, player: id, side: s, options: options.slice(0, 6), did: mine, loss: +loss.toFixed(4), cost: +(loss * COST_SCALE).toFixed(4), cls: searchClass(loss),
-    accuracy: +searchAccuracy(loss * COST_SCALE * 100).toFixed(1), before: +before.toFixed(4),
+    accuracy: +searchAccuracy(loss * COST_SCALE * 100).toFixed(1), before: +before.toFixed(4), ...(deep ? { deep: true } : {}),
   };
 }
 
@@ -433,12 +493,32 @@ export interface RoundSearch {
 }
 const EMPTY_COUNTS = (): Record<SearchClass, number> => ({ Best: 0, Excellent: 0, Good: 0, Inaccuracy: 0, Mistake: 0, Blunder: 0 });
 
-/** The whole round, every 2 s for every player. */
-export function searchRound(engine: TacticalEngine, r: DemoRound, every = 2): RoundSearch {
+/**
+ * The whole round, every 2 s for every player, thinking two moves ahead (`deep` 'all', the default): each option is
+ * worth its best follow-up, so a move with a strong next step isn't marked down. That plays out better against round
+ * results on level-10 matches than one move (correlation 0.390 against 0.325, tools/calibrate-search.ts), and the
+ * grade lines are tuned on it. `true` = two moves only for the moves it would flag, `false` = one move. The moments
+ * that could become cards also get what the player really did next.
+ */
+export function searchRound(engine: TacticalEngine, r: DemoRound, every = 2, deep: boolean | 'all' = 'all'): RoundSearch {
   const S = roundSearcher(engine, r);
   const moments: SearchMoment[] = [];
   for (let t = 10; t < r.duration - 2; t += every)
-    for (const id of S.ids) { const m = searchMoment(engine, r, S, id, t); if (m) moments.push(m); }
+    for (const id of S.ids) { const m = searchMoment(engine, r, S, id, t, deep === 'all'); if (m) moments.push(m); }
+  if (deep) {
+    const checked: number[] = [];
+    for (let i = 0; i < moments.length; i++) {
+      const m = moments[i];
+      if (!(m.t >= OPENING && m.before >= 0.15 && (m.cls === 'Blunder' || m.cls === 'Mistake'))) continue;
+      const d = m.deep ? m : searchMoment(engine, r, S, m.player, m.t, true);
+      if (d) { moments[i] = d; checked.push(i); }
+    }
+    // then what they really did next, as graded after the double-checks
+    for (const i of checked) {
+      const m = moments[i], next = moments.find(x => x.player === m.player && x.t >= m.t + H - 0.01);
+      if (next) moments[i] = { ...m, then: { t: next.t, label: next.did.label, cls: next.cls } };
+    }
+  }
   const players: RoundSearch['players'] = {};
   for (const m of moments) {
     const p = (players[m.player] ??= { n: 0, accuracy: 0, counts: EMPTY_COUNTS() });
