@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -105,4 +106,7 @@ export default defineConfig({
   define: { __BUILD__: JSON.stringify({ commit, time: new Date().toISOString() }) },
   // the Steam cache (match list, downloaded demos) changes while the server runs; don't watch it
   server: { port: 5173, open: false, watch: { ignored: ['**/.steam-cache/**'] } },
+  // engine tests load the coach's models (several MB) and replay rounds through the two-move search: GitHub's
+  // runners are slower than a Mac, so 5 s per test was too tight there
+  test: { testTimeout: 30_000 },
 });
