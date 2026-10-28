@@ -3,6 +3,8 @@
 //           that side then won the round
 //   moves   from one callout to another, how often, and what had just happened (a teammate died there, an enemy
 //           was seen, the bomb went down): the "why" behind rotations and fall-backs
+//   flow    where a player holding a callout is 4 and 8 seconds later (the same spot = still there), per phase: the
+//           search engine moves the enemies it knows about with it when it thinks two moves ahead
 // Writes src/map/generated/positions.json, which the Review's "Pro positions" layer and the coach read.
 //
 //   npm run learn:positions -- <folder> [--map de_dust2]
@@ -82,7 +84,12 @@ type MapStats = {
    * died there, fell back / moved, and where to; how often the side won the round.
    */
   risks: Record<'CT' | 'T', Record<string, Risk>>;
+  /** Per `${place}|${phase}|${4|8}`: where they are that many seconds later (alive), most likely first. */
+  flow: Record<'CT' | 'T', Record<string, Flow>>;
 };
+type Flow = { n: number; to: { place: string; n: number }[] };
+/** Seconds ahead the flow is counted for. */
+const FLOW_AHEAD = [4, 8];
 type Risk = { n: number; died: number; moved: number; won: number; to: { place: string; n: number }[] };
 const riskKey = (place: string, pressure: number, alone: boolean) => `${place}|${Math.min(2, pressure)}|${alone ? "alone" : "team"}`;
 const advOf = (alive: [number, number]) => (alive[0] > alive[1] ? 'up' : alive[0] < alive[1] ? 'down' : 'even');
@@ -100,7 +107,7 @@ for (const demos of byMap.values())
 for (const [map, demos] of byMap) {
   if (only && map !== only) continue;
   const rounds = demos.flatMap(d => d.rounds);
-  const stats: MapStats = { demos: demos.length, rounds: rounds.length, spots: { CT: {}, T: {} }, situations: { CT: {}, T: {} }, moves: { CT: [], T: [] }, reactions: { CT: [], T: [] }, risks: { CT: {}, T: {} } };
+  const stats: MapStats = { demos: demos.length, rounds: rounds.length, spots: { CT: {}, T: {} }, situations: { CT: {}, T: {} }, moves: { CT: [], T: [] }, reactions: { CT: [], T: [] }, risks: { CT: {}, T: {} }, flow: { CT: {}, T: {} } };
   /** Each callout's share of a group of holds, with the rounds it appeared in and how often the side won those. */
   const spotStats = (side: 'CT' | 'T', keep: (h: Hold) => boolean): SpotStat[] => {
     const secs = new Map<string, number>(), inRounds = new Map<string, Set<number>>(), diffs = new Map<string, number[]>();
@@ -165,6 +172,35 @@ for (const [map, demos] of byMap) {
       }
     });
     for (const [k, x] of risks) if (x.n >= 5) stats.risks[side][k] = { ...x, to: x.to.sort((a, b) => b.n - a.n).slice(0, 3) };
+    // the flow: every 2 s of every hold, where that player is 4 and 8 s later (in the hold then, or the next one when
+    // they're on their way to it); not counted when they're dead by then
+    const flow = new Map<string, Map<string, number>>();
+    rounds.forEach(r => {
+      const mine = r.holds.filter(h => h.side === side);
+      const byPlayer = new Map<string, Hold[]>();
+      for (const h of mine) byPlayer.set(h.player, [...(byPlayer.get(h.player) ?? []), h]);
+      for (const hs of byPlayer.values()) {
+        hs.sort((a, b) => a.from - b.from);
+        hs.forEach((h, i) => {
+          for (let u = h.from; u < h.to; u += 2)
+            for (const ahead of FLOW_AHEAD) {
+              const w = u + ahead;
+              let place: string | undefined;
+              if (w <= h.to) place = h.place;
+              else if (h.ended === 'died') continue;
+              else place = hs.slice(i + 1).find(o => o.to >= w)?.place;
+              if (!place) continue;
+              const k = `${h.place}|${h.phase}|${ahead}`, m = flow.get(k) ?? new Map<string, number>();
+              m.set(place, (m.get(place) ?? 0) + 1);
+              flow.set(k, m);
+            }
+        });
+      }
+    });
+    for (const [k, m] of flow) {
+      const n = [...m.values()].reduce((a, b) => a + b, 0);
+      if (n >= 20) stats.flow[side][k] = { n, to: [...m].map(([place, c]) => ({ place, n: c })).sort((a, b) => b.n - a.n).slice(0, 4) };
+    }
     const mv = new Map<string, MoveStat & { why: Map<string, number> }>();
     const moveDiffs = new Map<string, number[]>(), reactDiffs = new Map<string, number[]>();
     const won = (r: { winner: 'CT' | 'T' | null }) => (r.winner === side ? 1 : 0);
