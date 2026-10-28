@@ -71,8 +71,9 @@ export function JudgePanel() {
         <b className={`dispute-note ${mark === '?' || mark === '??' ? 'bad' : mark === '?!' ? 'warn' : mark.startsWith('!') ? 'good' : ''}`}>{mark === 'book' ? '·' : mark}</b>
         <span>{c.card.title}</span>
       </div>
-      <div className={`dispute-says ${v.verdict}`}>Player: {v.verdict === 'ok' ? 'not a mistake' : 'it was a mistake'}{v.reason !== 'other' && v.reason !== 'mistake' ? ` · ${VERDICT_LABEL[v.reason].toLowerCase()}` : ''}</div>
-      {v.note && <blockquote className="dispute-quote">{v.note}</blockquote>}
+      {c.ask ? <div className="dispute-says ask">Coach asks: {c.ask.why}</div>
+        : <div className={`dispute-says ${v.verdict}`}>Player: {v.verdict === 'ok' ? 'not a mistake' : 'it was a mistake'}{v.reason !== 'other' && v.reason !== 'mistake' ? ` · ${VERDICT_LABEL[v.reason].toLowerCase()}` : ''}</div>}
+      {v.note && !c.ask && <blockquote className="dispute-quote">{v.note}</blockquote>}
       {c.card.why.length > 0 && (
         <details className="dispute-why"><summary className="muted small">Coach's reasons</summary>
           <ul>{c.card.why.map((w, i) => <li key={i}>{w}</li>)}</ul>
@@ -93,8 +94,8 @@ export function JudgePanel() {
       <input className="verdict-note" type="text" maxLength={400} placeholder="Your note: what the coach should have seen (optional)" value={note}
         onChange={e => setNote(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') (e.target as HTMLInputElement).blur(); }} />
       <div className="judge-actions">
-        <button className="cta primary small-btn" disabled={busy} onClick={() => rule('player')} title="The coach got it wrong: it learns from this (key 1)">Player's right <kbd>1</kbd></button>
-        <button className="cta small-btn" disabled={busy} onClick={() => rule('coach')} title="The coach's mark was right (key 2)">Coach was right <kbd>2</kbd></button>
+        <button className="cta primary small-btn" disabled={busy} onClick={() => rule('player')} title="The coach got it wrong: it learns from this (key 1)">{c.ask ? 'Mark is wrong' : 'Player\'s right'} <kbd>1</kbd></button>
+        <button className="cta small-btn" disabled={busy} onClick={() => rule('coach')} title="The coach's mark was right (key 2)">{c.ask ? 'Mark is right' : 'Coach was right'} <kbd>2</kbd></button>
         <button className="ghost small-btn" disabled={busy} onClick={() => next({ done: true })} title="Leave it out: it moves to Checked, without a call (key S)">Skip <kbd>S</kbd></button>
       </div>
       {err && <p className="warn-text small">{err}</p>}

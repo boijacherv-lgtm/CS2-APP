@@ -16,7 +16,7 @@
  * as malicious on the owner's account. Public and official APIs only.
  */
 import { adminStats, isOwner, saveHeartbeat } from './admin';
-import { clipData, clipList, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
+import { askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
@@ -315,6 +315,13 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
 
   // the moments the owner has ruled on, for the coach's tools on the owner's computer (tools/pull-disputes.ts)
   if (req.method === 'GET' && path === '/internal/disputes') return json(await ruledClips(env.SB));
+  // the coach's own questions (tools/ask-coach.ts): moments it's unsure of, judged on the dev page like disputes
+  if (req.method === 'GET' && path === '/internal/asks') return json(await askedKeys(env.SB));
+  if (req.method === 'POST' && path === '/internal/ask') {
+    const text = await req.text();
+    if (text.length > MAX_CLIP_BYTES) return json({ error: 'That round is too big to send.' }, 413);
+    return json(await saveClip(env.SB, COACH_ASKS, text));
+  }
   const ic = path.match(/^\/internal\/clip\/([0-9a-f]{24})$/);
   if (req.method === 'GET' && ic) {
     const gz = await clipData(env.SB, ic[1]);

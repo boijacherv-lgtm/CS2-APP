@@ -480,7 +480,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .dispute-card { display: flex; gap: 8px; align-items: baseline; color: var(--text-1); }
 .dispute-note { min-width: 22px; text-align: center; padding: 1px 6px; border-radius: 6px; font-size: 12px; background: var(--surface-2); color: var(--text-2); }
 .dispute-note.bad { color: #fff; background: var(--bad); } .dispute-note.warn { color: #241a02; background: var(--warn); } .dispute-note.good { color: #0b2414; background: var(--good); }
-.dispute-says { font-size: 13px; font-weight: 600; } .dispute-says.ok { color: var(--good); } .dispute-says.fault { color: var(--bad-soft, var(--bad)); }
+.dispute-says { font-size: 13px; font-weight: 600; } .dispute-says.ok { color: var(--good); } .dispute-says.fault { color: var(--bad-soft, var(--bad)); } .dispute-says.ask { color: var(--accent, var(--text)); }
 .dispute-why ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--text-2); display: grid; gap: 3px; }
 .dispute-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .dispute-ruling { display: inline-flex; gap: 4px; }
