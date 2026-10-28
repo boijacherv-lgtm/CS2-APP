@@ -521,7 +521,7 @@ function EngineSection({ search, id, until, duration, onJump }: { search: RoundS
                 <b>{m.did.label}</b>
                 <span className="usual" style={{ color: SEARCH_COLOR[m.cls], borderColor: SEARCH_COLOR[m.cls] }}>{m.cls} −{(m.cost * 100).toFixed(1)}%</span>
               </div>
-              <p>Best: <b style={{ color: SEARCH_COLOR.Best }}>{m.options[0].label}</b>{m.options[0].death < m.did.death - 0.1 ? ` (${Math.round(m.options[0].death * 100)}% to die instead of ${Math.round(m.did.death * 100)}%)` : ''}. Then: {m.options.slice(1, 3).map(o => o.label).join(', ')}.</p>
+              <p>Best: <b style={{ color: SEARCH_COLOR.Best }}>{m.options[0].label}</b>{m.options[0].death < m.did.death - 0.1 ? ` (${Math.round(m.options[0].death * 100)}% to die instead of ${Math.round(m.did.death * 100)}%)` : ''}. Then: {m.options.slice(1, 3).map(o => o.label).join(', ')}.{m.options[0].next ? ` Best line: ${m.options[0].label} → ${m.options[0].next.label}.` : ''}{m.then ? ` You did next: ${m.then.label} (${m.then.cls}).` : ''}</p>
             </li>
           ))}
         </ol>

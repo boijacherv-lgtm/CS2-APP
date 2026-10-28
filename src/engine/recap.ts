@@ -1452,6 +1452,10 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
           `Options: ${m.options.slice(0, 4).map((o, i) => (i === 0 ? `${o.label} (best)` : `${o.label} ${signed((best.win - o.win) * COST_SCALE)}`)).join(', ')}.`,
           ...(m.did.death >= 0.25 ? [`What you did: about ${Math.round(m.did.death * 100)}% to die in the next seconds${m.did.kills ? `, ${m.did.kills.toFixed(1)} kills expected` : ''}.`] : []),
           ...(best.death < m.did.death - 0.1 ? [`${best.label}: ${Math.round(best.death * 100)}% to die${best.kills ? `, ${best.kills.toFixed(1)} kills expected` : ''}.`] : []),
+          // thinking two moves ahead: the best line, the best from where they went, and what they really did next
+          ...(m.deep && best.next ? [`Best line: ${best.label} → then ${best.next.label.charAt(0).toLowerCase()}${best.next.label.slice(1)}.`] : []),
+          ...(m.deep && m.did.next ? [`From where you went, the best next move was ${m.did.next.label.charAt(0).toLowerCase()}${m.did.next.label.slice(1)}.`] : []),
+          ...(m.then ? [`What you did next: ${m.then.label.charAt(0).toLowerCase()}${m.then.label.slice(1)} (${m.then.cls}).`] : []),
           ...(retaking ? ['A retake: you were moving in on the bomb, so this is only about which way in.'] : []),
         ],
       });
