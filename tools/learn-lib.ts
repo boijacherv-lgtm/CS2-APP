@@ -48,7 +48,8 @@ export function listDemos(folder: string): string[] {
   const seen = new Set<string>();
   return out.sort().filter(f => { const id = matchId(f); if (!id) return true; if (seen.has(id)) return false; seen.add(id); return true; });
 }
-export { isTest } from '../src/engine/split';
+import { isTest } from '../src/engine/split';
+export { isTest };
 
 /** A demo's identity: its name (without the "(1)" of a second download) and size, so duplicates count once. */
 export const keyOf = (folder: string, f: string) => `${f.replace(/ \(\d+\)(?=\.dem)/, '')}|${fs.statSync(path.join(folder, f)).size}`;
@@ -333,6 +334,35 @@ export function liveKeys(folder: string): Set<string> {
     for (const k of cachedKeys(folder, l)) if (!out.has(k) && reads.has(k.replace(/[^\w.-]+/g, '_'))) add(k, matchIdOf(k));
   }
   return out;
+}
+
+// ---- when each match was played (tools/match-dates.ts): newer matches weigh more, and the newest are the test ------
+export const DATES = '.stratboard-dates.json';
+/** FACEIT match id → when it finished (ms); null when FACEIT had no date. */
+export function matchDates(folder: string): Record<string, number | null> {
+  try { return JSON.parse(fs.readFileSync(path.join(folder, DATES), 'utf8')); } catch { return {}; }
+}
+/** A match's weight halves every this many days older than the newest match. */
+export const HALF_LIFE_DAYS = 90;
+/**
+ * The split by date: the newest `testShare` of the dated matches is the test (what matters after a CS2 update), the
+ * next newest `validShare` decides when training stops; the rest trains. Matches without a date keep the fixed split
+ * by hash (isTest). `weight` is 1 for the newest match, halving every HALF_LIFE_DAYS.
+ */
+export function dateSplit(dates: Record<string, number | null>, ids: string[], testShare = 0.2, validShare = 0.1) {
+  const dated = ids.map(id => ({ id, at: dates[matchIdOf(id) ?? ''] ?? null })).filter((x): x is { id: string; at: number } => x.at !== null)
+    .sort((a, b) => b.at - a.at);
+  const group = new Map<string, 'test' | 'valid' | 'train'>();
+  const nTest = Math.round(dated.length * testShare), nValid = Math.round(dated.length * validShare);
+  dated.forEach((x, i) => group.set(x.id, i < nTest ? 'test' : i < nTest + nValid ? 'valid' : 'train'));
+  const newest = dated[0]?.at ?? 0, at = new Map(dated.map(x => [x.id, x.at]));
+  return {
+    dated: dated.length,
+    since: dated.length ? dated[nTest - 1 >= 0 ? nTest - 1 : 0].at : null,
+    groupOf: (id: string): 'test' | 'valid' | 'train' => group.get(id) ?? (isTest(id) ? 'test' : isTest(id, 10, 1) ? 'valid' : 'train'),
+    /** Infinity: every match the same. */
+    weightOf: (id: string, halfLife = HALF_LIFE_DAYS) => { const t = at.get(id); return !Number.isFinite(halfLife) ? 1 : t === undefined ? 0.5 : Math.pow(0.5, (newest - t) / 86400000 / halfLife); },
+  };
 }
 
 // ---- training packs (pack:training → import:training) ------------------------------------------------------------

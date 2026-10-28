@@ -30,8 +30,13 @@ export interface GbmOptions {
   /** Share of the rows each tree sees (speed, and less overfitting). */
   sample?: number;
   /** Rows to check on after every tree: stop once they stop getting better (and keep the best count). */
-  valid?: { x: number[][]; y: number[] };
+  valid?: { x: number[][]; y: number[]; init?: ArrayLike<number> };
   patience?: number;
+  /** How much each row counts (e.g. newer matches more); 1 each when left out. */
+  w?: ArrayLike<number>;
+  /** Start from these log-odds (another model's) instead of the overall rate: the trees then learn only what that
+   * model misses (a per-map fine-tune), and the model's base is 0 (add the two up). */
+  init?: ArrayLike<number>;
   log?: (s: string) => void;
 }
 
@@ -60,18 +65,24 @@ export function fitGbm(x: number[][], y: number[], features: string[], o: GbmOpt
     while (lo < hi) { const mid = (lo + hi) >> 1; if (e[mid] < v) lo = mid + 1; else hi = mid; }
     bin[i * k + j] = lo;
   }
-  // 2. start from the overall rate
-  const mean = y.reduce((a, b) => a + b, 0) / n;
-  const base = Math.log(mean / (1 - mean));
-  const z = new Float64Array(n).fill(base);
-  const vz = o.valid ? new Float64Array(o.valid.y.length).fill(base) : null;
+  // 2. start from the overall rate (weighted), or from the given log-odds
+  const wt = (i: number) => (o.w ? o.w[i] : 1);
+  let sw = 0, sy = 0;
+  for (let i = 0; i < n; i++) { sw += wt(i); sy += wt(i) * y[i]; }
+  const base = o.init ? 0 : Math.log(sy / sw / (1 - sy / sw));
+  const z = new Float64Array(n);
+  for (let i = 0; i < n; i++) z[i] = base + (o.init ? o.init[i] : 0);
+  const vz = o.valid ? new Float64Array(o.valid.y.length) : null;
+  if (o.valid && vz) for (let i = 0; i < vz.length; i++) vz[i] = base + (o.valid.init ? o.valid.init[i] : 0);
   const trees: GbmModel['trees'] = [];
+  // the check rows' loss before any tree: a fine-tune that never beats where it started keeps no trees
   let best = Infinity, bestAt = 0;
+  if (o.valid && vz) { best = 0; for (let i = 0; i < vz.length; i++) best += logLoss(sigmoid(vz[i]), o.valid.y[i]); best /= vz.length; }
   const g = new Float64Array(n), h = new Float64Array(n);
   let seed = 7;
   const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
   for (let t = 0; t < T; t++) {
-    for (let i = 0; i < n; i++) { const p = sigmoid(z[i]); g[i] = p - y[i]; h[i] = Math.max(1e-6, p * (1 - p)); }
+    for (let i = 0; i < n; i++) { const p = sigmoid(z[i]), wi = wt(i); g[i] = (p - y[i]) * wi; h[i] = Math.max(1e-6, p * (1 - p)) * wi; }
     const rows: number[] = [];
     for (let i = 0; i < n; i++) if (rnd() < sampleShare) rows.push(i);
     const tree = { f: [] as number[], v: [] as number[], l: [] as number[], r: [] as number[] };
@@ -122,5 +133,5 @@ export function fitGbm(x: number[][], y: number[], features: string[], o: GbmOpt
       if (t + 1 - bestAt >= patience) break;
     }
   }
-  return { features, base, trees: o.valid ? trees.slice(0, bestAt || trees.length) : trees };
+  return { features, base, trees: o.valid ? trees.slice(0, bestAt) : trees };
 }

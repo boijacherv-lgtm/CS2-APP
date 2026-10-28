@@ -210,7 +210,7 @@ export function roundSearcher(engine: TacticalEngine, r: DemoRound) {
     const ct = s === 'CT' ? my : th, T = s === 'CT' ? th : my;
     const z = learnedLogit({
       ct: ct.n, t: T.n, ctHp: ct.hp, tHp: T.hp, ctEquip: ct.eq, tEquip: T.eq, planted, time: tt, ctAreas: ct.areas, tAreas: T.areas,
-      tradeCT: tp.ct + (s === 'CT' ? d.trade ?? 0 : 0), tradeT: tp.t + (s === 'T' ? d.trade ?? 0 : 0),
+      tradeCT: tp.ct + (s === 'CT' ? d.trade ?? 0 : 0), tradeT: tp.t + (s === 'T' ? d.trade ?? 0 : 0), map: engine.map.id,
     });
     const pCT = z === null ? 0.5 : 1 / (1 + Math.exp(-z));
     return s === 'CT' ? pCT : 1 - pCT;
@@ -390,7 +390,7 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
         const sit: DuelSituation = {
           a: { f: myF(peeking), aim: null },
           b: { f: S.fighter(e.id, t, e.at, false, p.flash === e.id), aim: null },
-          range: S.dist(p.to, e.at) * 0.0254, sawFirst: 0,
+          range: S.dist(p.to, e.at) * 0.0254, sawFirst: 0, map,
         };
         return duelChance(sit) ?? 0.5;
       });

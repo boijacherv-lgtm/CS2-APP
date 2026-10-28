@@ -21,6 +21,8 @@ export interface WinState {
   tradeCT: number; tradeT: number;
   /** Planting or defusing right now (and the defuser's kit), when known: the boosted model reads it. */
   bombAct?: 'plant' | 'defuse' | null; kit?: boolean;
+  /** The map, for its own trees on top of the shared ones (when it has some). */
+  map?: string;
 }
 
 /**
@@ -62,12 +64,12 @@ export const WIN_MODEL: WinModel | null = M.coef && M.coef.length === WIN_FEATUR
 
 const sigmoid = (z: number) => 1 / (1 + Math.exp(-z));
 /** The boosted trees (tools/learn-win.ts → models/winprob-gbm.json), when they were trained and beat the logistic model on unseen matches. */
-const GBM: GbmModel | null = (GBM_JSON as { trees?: unknown[] }).trees?.length ? (GBM_JSON as unknown as GbmModel) : null;
+const GBM: (GbmModel & { maps?: Record<string, GbmModel> }) | null = (GBM_JSON as { trees?: unknown[] }).trees?.length ? (GBM_JSON as unknown as GbmModel) : null;
 export const WIN_GBM = GBM;
 
 /** The learned log-odds for CT (null until a model is trained): the boosted trees when there are some, else the logistic model. */
 export function learnedLogit(s: WinState): number | null {
-  if (GBM) return gbmLogit(GBM, winFeatures2(s));
+  if (GBM) { const f = winFeatures2(s), own = s.map ? GBM.maps?.[s.map] : undefined; return gbmLogit(GBM, f) + (own ? gbmLogit(own, f) : 0); }
   if (!WIN_MODEL) return null;
   const f = winFeatures(s);
   return WIN_MODEL.bias + f.reduce((a, v, i) => a + v * WIN_MODEL!.coef[i], 0);
@@ -173,7 +175,7 @@ export function roundWinChance(engine: TacticalEngine, r: {
     const s = Math.min(areas.ct.length - 1, Math.max(0, Math.floor(t)));
     const tp = tradePending(kills, ids, sideOf, where, t, engine.map.radar.scale);
     const z = learnedLogit({ ct: ct.length, t: tt.length, ctHp: hp(ct), tHp: hp(tt), ctEquip: eq(ct), tEquip: eq(tt), planted: r.plant !== null && t >= r.plant ? r.plant : null, time: t,
-      ctAreas: areas.ct[s], tAreas: areas.t[s], tradeCT: tp.ct, tradeT: tp.t });
+      ctAreas: areas.ct[s], tAreas: areas.t[s], tradeCT: tp.ct, tradeT: tp.t, map: engine.map.id });
     return z === null ? null : 1 / (1 + Math.exp(-z));
   };
 }

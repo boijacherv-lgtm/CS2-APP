@@ -233,7 +233,7 @@ const times = (n: number) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times
  * map's when there is one), plus findings: what stands out, with the rounds to watch.
  * `sideOf(round)` = the player's side in that round (null = not in it).
  */
-export function analystReport(rounds: (AnalystRound | null | undefined)[], player: string, sideOf: (i: number) => Side | null, bench: Bench): AnalystReport {
+export function analystReport(rounds: (AnalystRound | null | undefined)[], player: string, sideOf: (i: number) => Side | null, bench: Bench, map?: string): AnalystReport {
   const rs = rounds.map((r, i) => ({ r, i, side: sideOf(i) })).filter((x): x is { r: AnalystRound; i: number; side: Side } => !!x.r && !!x.side);
   const stats = {} as Record<Topic, Stat[]>;
   const findings: Finding[] = [];
@@ -304,7 +304,7 @@ export function analystReport(rounds: (AnalystRound | null | undefined)[], playe
     { label: 'Won after hitting first', you: pct(fh), pro: pct(bench.duels.firstHitWin), better: cmp(fh, bench.duels.firstHitWin) },
   ];
   // the duel model: wins against what level-10 players would expect from the same fights, and bad peeks
-  const odds = [...won.map(d => ({ d, w: 1, o: duelOdds(d, 'killer') })), ...lost.map(d => ({ d, w: 0, o: duelOdds(d, 'victim') }))].filter(x => x.o);
+  const odds = [...won.map(d => ({ d, w: 1, o: duelOdds(d, 'killer', undefined, map) })), ...lost.map(d => ({ d, w: 0, o: duelOdds(d, 'victim', undefined, map) }))].filter(x => x.o);
   if (odds.length >= 6) {
     const expected = odds.reduce((a, x) => a + x.o!.p, 0), got = odds.reduce((a, x) => a + x.w, 0);
     const peeks = odds.filter(x => x.o!.peek != null), bad = peeks.filter(x => x.o!.peek! < BAD_PEEK);

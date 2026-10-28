@@ -20,7 +20,7 @@ export const DUEL_FEATURES = [
 ];
 
 export interface DuelSide { f: DuelFighter; aim: number | null }
-export interface DuelSituation { a: DuelSide; b: DuelSide; range: number; /** +1 A saw B first, −1 B saw A first, 0 same / unknown */ sawFirst: number }
+export interface DuelSituation { a: DuelSide; b: DuelSide; range: number; /** +1 A saw B first, −1 B saw A first, 0 same / unknown */ sawFirst: number; /** The map, for its own trees (when it has some). */ map?: string }
 
 const SCOPES = /awp|ssg08|scout|g3sg1|scar20|aug|sg55/;
 /** Kills a second at this range (metres), from the gun table; 0 for a knife or a grenade. */
@@ -63,27 +63,29 @@ export function duelFeatures(s: DuelSituation): number[] {
 export const DUEL2_FEATURES = [...DUEL_FEATURES, 'A health', 'B health', 'A gun power', 'B gun power', 'range'];
 const extra = (s: DuelSituation) => [s.a.f.hp / 100, s.b.f.hp / 100, power(s.a.f.w, s.range), power(s.b.f.w, s.range), Math.min(60, s.range) / 20];
 export function duelFeatures2(s: DuelSituation): number[] { return [...duelFeatures(s), ...extra(s)]; }
-const flip = (s: DuelSituation): DuelSituation => ({ a: s.b, b: s.a, range: s.range, sawFirst: -s.sawFirst });
+const flip = (s: DuelSituation): DuelSituation => ({ a: s.b, b: s.a, range: s.range, sawFirst: -s.sawFirst, map: s.map });
 
 /** The boosted duel model (tools/learn-duel.ts → models/duel-gbm.json), when it beat the logistic one on unseen matches. */
-const GBM: GbmModel | null = (GBM_JSON as { trees?: unknown[] }).trees?.length ? (GBM_JSON as unknown as GbmModel) : null;
+const GBM: (GbmModel & { maps?: Record<string, GbmModel> }) | null = (GBM_JSON as { trees?: unknown[] }).trees?.length ? (GBM_JSON as unknown as GbmModel) : null;
 export const DUEL_GBM = GBM;
+/** The shared trees plus the map's own on top (when it has some). */
+const treesLogit = (x: number[], map?: string) => { const own = map ? GBM!.maps?.[map] : undefined; return gbmLogit(GBM!, x) + (own ? gbmLogit(own, x) : 0); };
 /**
  * P(A wins) from the trees, made fair both ways: A's log-odds from A's side minus B's from B's side, halved, so
  * P(A) + P(B) = 1 exactly. `f` (the differences) may be edited (peek / hold "what if"); `ex` is A's absolute numbers.
  */
 function chanceTrees(f: number[], s: DuelSituation): number {
   const ab = extra(s), ba = extra(flip(s));
-  return sigmoid((gbmLogit(GBM!, [...f, ...ab]) - gbmLogit(GBM!, [...f.map(v => -v), ...ba])) / 2);
+  return sigmoid((treesLogit([...f, ...ab], s.map) - treesLogit([...f.map(v => -v), ...ba], s.map)) / 2);
 }
 
 /** A duel as player A (the killer, or the victim) against the other; null for fights without the contact data. */
-export function duelSituation(d: DuelFact, as: 'killer' | 'victim'): DuelSituation | null {
+export function duelSituation(d: DuelFact, as: 'killer' | 'victim', map?: string): DuelSituation | null {
   if (!d.pre) return null;
   const k: DuelSide = { f: d.pre.k, aim: d.detail?.kAim ?? null }, v: DuelSide = { f: d.pre.v, aim: d.detail?.vAim ?? null };
   const sf = d.detail?.spottedFirst;
   const kFirst = sf === 'killer' ? 1 : sf === 'victim' ? -1 : 0;
-  return as === 'killer' ? { a: k, b: v, range: d.pre.range, sawFirst: kFirst } : { a: v, b: k, range: d.pre.range, sawFirst: -kFirst };
+  return as === 'killer' ? { a: k, b: v, range: d.pre.range, sawFirst: kFirst, map } : { a: v, b: k, range: d.pre.range, sawFirst: -kFirst, map };
 }
 
 /**
@@ -115,8 +117,8 @@ export interface DuelOdds {
   peeked: boolean;
 }
 /** The odds a player (killer or victim of the duel) had at first contact, and peeking vs holding when they peeked. */
-export function duelOdds(d: DuelFact, as: 'killer' | 'victim', model: DuelModel | null = DUEL_MODEL): DuelOdds | null {
-  const s = duelSituation(d, as);
+export function duelOdds(d: DuelFact, as: 'killer' | 'victim', model: DuelModel | null = DUEL_MODEL, map?: string): DuelOdds | null {
+  const s = duelSituation(d, as, map);
   if (!s || !model) return null;
   const f = duelFeatures(s);
   const trees = !!GBM && model === DUEL_MODEL;
