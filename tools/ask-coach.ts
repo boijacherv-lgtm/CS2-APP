@@ -87,9 +87,9 @@ for (const [id, { file }] of reads) {
       found.push({ id, d, round: i + 1, m, pattern: patternOf(m.kind, m.note, m.tags), ...unsure(m) });
     }
   });
-  // keep only the best few per match in memory
-  const mine = found.filter(f => f.id === id).sort((a, b) => b.score - a.score);
-  for (const f of mine.slice(3)) found.splice(found.indexOf(f), 1);
+  // keep only the best one per kind of mark of each match in memory (so the kinds stay varied to pick from)
+  const mine = found.filter(f => f.id === id).sort((a, b) => b.score - a.score), kept = new Set<string>();
+  for (const f of mine) { if (kept.has(f.pattern)) found.splice(found.indexOf(f), 1); else kept.add(f.pattern); }
 }
 console.log(`Looked through them in ${((Date.now() - t0) / 60000).toFixed(1)} min: ${found.length} flagged moments considered.`);
 
@@ -117,7 +117,12 @@ for (const p of picks) {
     verdict, card: { note: p.m.note, title, why: p.m.why, tags: p.m.tags }, demo: { ...p.d, rounds: [p.d.rounds[p.round - 1]] },
     ask: { why: p.why, score: p.score },
   });
-  const res = await fetch(`${link!.url}/internal/ask`, { method: 'POST', headers: { Authorization: `Bearer ${link!.token}`, 'Content-Type': 'application/json' }, body });
-  if (res.ok) sent++; else console.log(`      not sent: the site said ${res.status} ${(await res.text()).slice(0, 120)}`);
+  // a few tries: the connection can go stale while the matches are looked through
+  let res: Response | null = null, err = '';
+  for (let tryN = 0; tryN < 3 && !res; tryN++) {
+    try { res = await fetch(`${link!.url}/internal/ask`, { method: 'POST', headers: { Authorization: `Bearer ${link!.token}`, 'Content-Type': 'application/json' }, body }); }
+    catch (e) { err = e instanceof Error ? e.message : String(e); await new Promise(r => setTimeout(r, 1000 * (tryN + 1))); }
+  }
+  if (res?.ok) sent++; else console.log(`      not sent: ${res ? `the site said ${res.status} ${(await res.text()).slice(0, 120)}` : err}`);
 }
 console.log(DRY ? `\n${picks.length} moments picked (dry run: nothing sent).` : `\nSent ${sent} moments: judge them in Dev → Disputes → Coach asks.`);
