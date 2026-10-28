@@ -11,6 +11,8 @@
  *   POST /admin/restore-move   the owner: { key } put it back
  *   GET  /corrections          anyone: what the rulings change in the coach's marks, and the marks removed by hand
  *   GET  /internal/disputes    the coach's tools (SERVER_TOKEN): every ruled moment; /internal/clip/<id> its round
+ *   POST /internal/ask         the coach's tools: { verdict, card, demo, ask: { why, score } } a moment the coach is
+ *                              unsure of ("Coach asks"), judged like a dispute; GET /internal/asks: the ones sent so far
  *
  * KV: clips (the list), clip:<id> (the round, gzipped) and rulings (who was right, per move pattern: kept when a
  * moment is deleted, so the coach doesn't forget what it learned).
@@ -26,7 +28,11 @@ export const MAX_CLIP_BYTES = 3_000_000;
 export interface ClipCard { note: string; title: string; why: string[]; tags: string[] }
 /** The owner's call on a moment: the player was right (the coach was wrong) or the coach was. */
 export interface Ruling { side: 'player' | 'coach'; reason?: JudgeReason; note?: string; at: number }
-export interface ClipEntry { id: string; from: string; at: number; verdict: MoveVerdict; card: ClipCard; done?: boolean; ruling?: Ruling; size: number }
+export interface ClipEntry { id: string; from: string; at: number; verdict: MoveVerdict; card: ClipCard; done?: boolean; ruling?: Ruling; size: number;
+  /** "Coach asks": the coach sent it itself, unsure of its mark (why, and how unsure: 0–1). */
+  ask?: { why: string; score: number } }
+/** The sender of the coach's own questions. */
+export const COACH_ASKS = 'coach';
 type RulingRow = { id: string; pattern: string; side: Ruling['side']; reason?: JudgeReason; at: number };
 /** Rulings kept (the oldest go first). */
 const MAX_RULINGS = 5000;
@@ -59,27 +65,32 @@ function cleanCard(raw: unknown): ClipCard {
 
 export async function saveClip(kv: ClipKV, from: string, text: string) {
   if (text.length > MAX_CLIP_BYTES) throw new Error('That round is too big to send.');
-  const input = JSON.parse(text) as { verdict?: unknown; card?: unknown; demo?: { map?: unknown; rounds?: unknown[] } };
+  const input = JSON.parse(text) as { verdict?: unknown; card?: unknown; demo?: { map?: unknown; rounds?: unknown[] }; ask?: { why?: unknown; score?: unknown } };
   const verdict = cleanVerdict(input.verdict);
   if (!verdict) throw new Error('No verdict with it.');
   const demo = input.demo;
   if (!demo || typeof demo.map !== 'string' || !Array.isArray(demo.rounds) || demo.rounds.length !== 1) throw new Error('Send just the one round.');
   const id = await idOf(from, verdictKey(verdict));
+  // the coach asking again about a moment already judged: leave it as it is
+  if (from === COACH_ASKS && (await list(kv)).some(c => c.id === id && (c.ruling || c.done))) return { ok: true, id, skipped: true };
+  const ask = from === COACH_ASKS ? { why: str(input.ask?.why, 300), score: typeof input.ask?.score === 'number' ? Math.max(0, Math.min(1, input.ask.score)) : 0 } : null;
   const gz = await new Response(new Blob([JSON.stringify(demo)]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
   await kv.put(`clip:${id}`, gz);
   const before = (await list(kv)).find(c => c.id === id);
   let all = (await list(kv)).filter(c => c.id !== id);
   // sent again (a note added): the owner's call stays if the player's answer is the same
   const keep = before && before.verdict.verdict === verdict.verdict ? { ...(before.done ? { done: true } : {}), ...(before.ruling ? { ruling: before.ruling } : {}) } : {};
-  all.unshift({ id, from, at: Date.now(), verdict, card: cleanCard(input.card), size: gz.byteLength, ...keep });
+  all.unshift({ id, from, at: Date.now(), verdict, card: cleanCard(input.card), size: gz.byteLength, ...keep, ...(ask ? { ask } : {}) });
   // a player's oldest beyond their share, then everyone's oldest beyond the total
   const over = new Set(all.filter(c => c.from === from).slice(MAX_PER_PLAYER).map(c => c.id));
   const drop = new Set([...over, ...all.filter(c => !over.has(c.id)).slice(MAX_CLIPS).map(c => c.id)]);
   for (const d of drop) await kv.delete(`clip:${d}`);
   all = all.filter(c => !drop.has(c.id));
   await kv.put('clips', JSON.stringify(all));
-  return { ok: true };
+  return { ok: true, id };
 }
+/** The coach's questions sent so far (verdict keys), so its tool doesn't send the same moment twice. */
+export const askedKeys = async (kv: ClipKV) => ({ keys: (await list(kv)).filter(c => c.from === COACH_ASKS).map(c => verdictKey(c.verdict)) });
 
 export async function removeClip(kv: ClipKV, from: string, key: unknown) {
   if (typeof key !== 'string') return { ok: true };

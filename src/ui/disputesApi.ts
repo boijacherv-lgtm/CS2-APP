@@ -14,6 +14,8 @@ export interface Clip {
   card: { note: string; title: string; why: string[]; tags: string[] };
   /** Your call: the player was right (the coach was wrong) or the coach was. The coach learns from these. */
   ruling?: { side: 'player' | 'coach'; reason?: JudgeReason; note?: string; at: number };
+  /** "Coach asks": the coach sent it itself (tools/ask-coach.ts), unsure of its mark: why, and how unsure (0–1). */
+  ask?: { why: string; score: number };
 }
 export type ClipChange = { done?: boolean; delete?: boolean; ruling?: 'player' | 'coach' | null; rulingReason?: JudgeReason; rulingNote?: string };
 
@@ -32,8 +34,12 @@ export async function changeClip(c: Clip, change: ClipChange): Promise<Clip | nu
   const out = await adminCall<{ clip?: Clip }>(`/admin/clip/${c.id}`, change);
   return change.delete ? null : out.clip ?? c;
 }
-/** Still to judge: not ruled on and not skipped. */
-export const toJudge = (cs: Clip[]) => cs.filter(c => !c.ruling && !c.done);
+/** Still to judge: not ruled on and not skipped. Players' disputes first (newest first), then the coach's own
+ * questions, the ones it's least sure of first. */
+export const toJudge = (cs: Clip[]) => {
+  const open = cs.filter(c => !c.ruling && !c.done);
+  return [...open.filter(c => !c.ask), ...open.filter(c => c.ask).sort((a, b) => b.ask!.score - a.ask!.score)];
+};
 
 /** Opens a moment in Review as a 20 s clip, playing, with the judging panel on the board. */
 export async function openClip(c: Clip) {

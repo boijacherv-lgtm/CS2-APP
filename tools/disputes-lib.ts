@@ -16,12 +16,17 @@ function envOf(): Record<string, string> {
   return out;
 }
 
+/** The Worker and the shared secret (null when this computer isn't linked yet). */
+export function workerLink(): { url: string; token: string } | null {
+  const env = { ...envOf(), ...process.env };
+  return env.STRATBOARD_SERVER_TOKEN ? { url: env.STRATBOARD_WORKER_URL ?? WORKER, token: env.STRATBOARD_SERVER_TOKEN } : null;
+}
+
 /** Writes <dir>/disputes-live.json; says what it did (or why it couldn't) and never throws. */
 export async function pullDisputes(dir: string): Promise<string> {
-  const env = { ...envOf(), ...process.env };
-  const token = env.STRATBOARD_SERVER_TOKEN;
-  if (!token) return 'Checked moments: not linked to the site yet (npm run link:coach), using the files in the folder.';
-  const url = env.STRATBOARD_WORKER_URL ?? WORKER;
+  const link = workerLink();
+  if (!link) return 'Checked moments: not linked to the site yet (npm run link:coach), using the files in the folder.';
+  const { url, token } = link;
   const get = (p: string) => fetch(url + p, { headers: { Authorization: `Bearer ${token}` } });
   try {
     const res = await get('/internal/disputes');

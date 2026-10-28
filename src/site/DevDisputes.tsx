@@ -17,7 +17,7 @@ const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60))
 export function DevDisputes({ myId }: { myId: string | null }) {
   const [clips, setClips] = useState<Clip[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [show, setShow] = useState<'open' | 'done'>('open');
+  const [show, setShow] = useState<'open' | 'asks' | 'done'>('open');
   const [opening, setOpening] = useState<string | null>(null);
   const load = async () => {
     setErr(null);
@@ -62,13 +62,15 @@ export function DevDisputes({ myId }: { myId: string | null }) {
   };
   const ruled = (clips ?? []).filter(c => c.ruling).length;
 
-  const open = (clips ?? []).filter(c => !c.done), done = (clips ?? []).filter(c => c.done);
-  const rows = show === 'open' ? open : done;
+  // players' disputes and the coach's own questions ("Coach asks", tools/ask-coach.ts) to check, and everything checked
+  const open = (clips ?? []).filter(c => !c.done && !c.ask), asks = (clips ?? []).filter(c => !c.done && c.ask).sort((a, b) => b.ask!.score - a.ask!.score);
+  const done = (clips ?? []).filter(c => c.done);
+  const rows = show === 'open' ? open : show === 'asks' ? asks : done;
   return (
     <section className="site-card">
       <div className="card-head">
         <h2>Disputed moments</h2>
-        <span className="muted small">"Coach wrong?" from logged-in players · clips of {CLIP_BEFORE + CLIP_AFTER} s around the moment</span>
+        <span className="muted small">"Coach wrong?" from logged-in players, and moments the coach asks about · clips of {CLIP_BEFORE + CLIP_AFTER} s around the moment</span>
       </div>
       {clips && toJudge(clips).length > 0 && (
         <button className="cta primary judge-start" onClick={() => watch(toJudge(clips)[0])} disabled={!!opening}>
@@ -77,6 +79,7 @@ export function DevDisputes({ myId }: { myId: string | null }) {
       )}
       <div className="dispute-filter">
         <button className={`chip${show === 'open' ? ' on' : ''}`} onClick={() => setShow('open')}>To check {open.length}</button>
+        <button className={`chip${show === 'asks' ? ' on' : ''}`} onClick={() => setShow('asks')} title="Moments the coach is least sure of (npm run ask:coach)">Coach asks {asks.length}</button>
         <button className={`chip${show === 'done' ? ' on' : ''}`} onClick={() => setShow('done')}>Checked {done.length}</button>
         <span className="dispute-filter-end">
           <button className="ghost small-btn" onClick={download} disabled={!ruled || saving} title="The moments you've ruled on, with their rounds, for the coach's tests: put the file in the my-demos folder">{saving ? 'Packing…' : `Download ${ruled} checked`}</button>
@@ -84,7 +87,7 @@ export function DevDisputes({ myId }: { myId: string | null }) {
         </span>
       </div>
       {err && <p className="warn-text small">{err}</p>}
-      {!clips ? <p className="muted">Loading…</p> : !rows.length ? <p className="muted">{show === 'open' ? 'Nothing to check.' : 'Nothing checked yet.'}</p> : (
+      {!clips ? <p className="muted">Loading…</p> : !rows.length ? <p className="muted">{show === 'open' ? 'Nothing to check.' : show === 'asks' ? 'No questions from the coach: run npm run ask:coach to send some.' : 'Nothing checked yet.'}</p> : (
         <ul className="dispute-list">
           {rows.map(c => {
             const v = c.verdict;
@@ -92,17 +95,19 @@ export function DevDisputes({ myId }: { myId: string | null }) {
               <li key={c.id} className="dispute">
                 <div className="dispute-top">
                   <span className="dispute-where">{mapName(v.map)} · R{v.round} · {clock(v.t)}</span>
-                  <span className="muted small">{c.from === myId ? 'You' : c.from} · {fmtDate(c.at)}</span>
+                  <span className="muted small">{c.ask ? 'Coach' : c.from === myId ? 'You' : c.from} · {fmtDate(c.at)}</span>
                 </div>
                 <div className="dispute-card">
                   <b className={`dispute-note ${c.card.note === '?' || c.card.note === '??' ? 'bad' : c.card.note === '?!' ? 'warn' : c.card.note.startsWith('!') ? 'good' : ''}`}>{c.card.note === 'book' ? '·' : c.card.note}</b>
                   <span>{c.card.title}</span>
                 </div>
-                <div className={`dispute-says ${v.verdict}`}>
-                  {v.verdict === 'ok' ? `Not a mistake${v.reason !== 'other' ? ` · ${VERDICT_LABEL[v.reason]}` : ''}` : 'It was a mistake'}
-                </div>
-                {v.note && <blockquote className="dispute-quote">{v.note}</blockquote>}
-                {c.ruling && <div className="muted small">Your call: {c.ruling.side === 'player' ? 'player\'s right' : 'coach was right'}{c.ruling.reason ? ` · ${JUDGE_REASONS[c.ruling.reason].toLowerCase()}` : ''}{c.ruling.note ? ` · “${c.ruling.note}”` : ''}</div>}
+                {c.ask ? <div className="dispute-says ask">Coach asks: {c.ask.why}</div> : (
+                  <div className={`dispute-says ${v.verdict}`}>
+                    {v.verdict === 'ok' ? `Not a mistake${v.reason !== 'other' ? ` · ${VERDICT_LABEL[v.reason]}` : ''}` : 'It was a mistake'}
+                  </div>
+                )}
+                {v.note && !c.ask && <blockquote className="dispute-quote">{v.note}</blockquote>}
+                {c.ruling && <div className="muted small">Your call: {c.ruling.side === 'player' ? (c.ask ? 'mark is wrong' : 'player\'s right') : (c.ask ? 'mark is right' : 'coach was right')}{c.ruling.reason ? ` · ${JUDGE_REASONS[c.ruling.reason].toLowerCase()}` : ''}{c.ruling.note ? ` · “${c.ruling.note}”` : ''}</div>}
                 {c.card.why.length > 0 && (
                   <details className="dispute-why"><summary className="muted small">Coach's reasons</summary>
                     <ul>{c.card.why.map((w, i) => <li key={i}>{w}</li>)}</ul>
@@ -112,9 +117,9 @@ export function DevDisputes({ myId }: { myId: string | null }) {
                   <button className="cta primary small-btn" onClick={() => watch(c)} disabled={opening === c.id}><Icon name="play" size={12} /> {opening === c.id ? 'Opening…' : 'Watch'}</button>
                   <span className="dispute-ruling" role="group" aria-label="Who was right">
                     <button className={`chip${c.ruling?.side === 'player' ? ' on' : ''}`} onClick={() => update(c, { ruling: c.ruling?.side === 'player' ? null : 'player', ...(c.ruling?.reason ? { rulingReason: c.ruling.reason } : {}), rulingNote: noteOf(c) })}
-                      title="The coach got it wrong: it learns from this">Player's right</button>
+                      title="The coach got it wrong: it learns from this">{c.ask ? 'Mark is wrong' : 'Player\'s right'}</button>
                     <button className={`chip${c.ruling?.side === 'coach' ? ' on' : ''}`} onClick={() => update(c, { ruling: c.ruling?.side === 'coach' ? null : 'coach', ...(c.ruling?.reason ? { rulingReason: c.ruling.reason } : {}), rulingNote: noteOf(c) })}
-                      title="The coach's mark was right">Coach was right</button>
+                      title="The coach's mark was right">{c.ask ? 'Mark is right' : 'Coach was right'}</button>
                   </span>
                   {!c.ruling && <button className="ghost small-btn" onClick={() => update(c, { done: !c.done })}>{c.done ? 'Back to check' : 'Skip'}</button>}
                   <button className="ghost small-btn" onClick={() => update(c, { delete: true })} title="Removes the moment; a call you made on it still counts">Delete</button>
