@@ -1214,6 +1214,20 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       if (std) why.unshift(`A standard molotov: level-10 players burn this spot (${std.throws} in ${std.demos} matches).`);
       // a T molly clears a spot so the team can take it: one that finds nobody there cleared nothing (save it for the
       // post-plant, or burn the spot only when a teammate saw someone there)
+      // …unless it was on the site the team was taking and they walked onto the burned ground as it went out: then
+      // burning it was how they took the space (checked dispute: a T molly at Goose as the team went onto A)
+      const CLEARED = 300;
+      const onSite = Object.values(engine.map.sites).some(st => Math.hypot(st.center.x - at.x, st.center.y - at.y) < st.radius * 1.3);
+      const tookIt = !near.size && !enemyDmg && std && s === 'T' && onSite && teamOf(s).some(j => {
+        // on the burned ground as the fire goes out (not just passing by while it burns)
+        for (let t = to - 1; t <= Math.min(to + 6, r.duration); t += 0.5) {
+          if (!alive(j, t)) continue;
+          const p = posAt(j, t);
+          if (Math.hypot(p.x - at.x, p.y - at.y) * scale < CLEARED) return true;
+        }
+        return false;
+      });
+      if (tookIt) return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Burned the spot as your team took the space: they walked through it right after.'], tags };
       if (!near.size && !enemyDmg && std && s === 'T') {
         why.push('Nobody was there: it cleared an empty spot. Burn it when someone was seen there, or keep it for the post-plant.');
         return { gain: Math.min(gain, -0.01), note: '?!', why, tags: [...tags, 'WASTED'] };

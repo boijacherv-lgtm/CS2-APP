@@ -18,7 +18,13 @@ interface MapPositions {
   moves: Record<Side, ProMove[]>;
   reactions?: Record<Side, ProReaction[]>;
   risks?: Record<Side, Record<string, ProRisk>>;
+  flow?: Record<Side, Record<string, ProFlow>>;
 }
+/** Where level-10 players holding a spot are a few seconds later (the same spot = still there), most likely first. */
+export interface ProFlow { n: number; to: { place: string; n: number }[] }
+/** From `place` in `phase`, `ahead` seconds later (4 or 8). */
+export const proFlow = (map: string, side: Side, place: string, phase: Phase, ahead: 4 | 8): ProFlow | null =>
+  DATA[map]?.flow?.[side][`${place}|${phase}|${ahead}`] ?? null;
 /** How holding a spot goes for level-10 players in a given pressure / support (see tools/learn-positions.ts). */
 export interface ProRisk { n: number; died: number; moved: number; won: number; to: { place: string; n: number }[] }
 export const riskKey = (place: string, pressure: number, alone: boolean) => `${place}|${Math.min(2, pressure)}|${alone ? 'alone' : 'team'}`;

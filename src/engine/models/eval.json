@@ -1,8 +1,8 @@
 {
  "verdicts": {
   "at": "2026-10-28",
-  "right": 34,
-  "total": 34
+  "right": 37,
+  "total": 39
  },
  "winChance": {
   "at": "2026-10-28",
@@ -362,8 +362,8 @@
    "duels": 0.667,
    "engine": 0.39,
    "verdicts": {
-    "right": 34,
-    "total": 34
+    "right": 37,
+    "total": 39
    }
   }
  ]

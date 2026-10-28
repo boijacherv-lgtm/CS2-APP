@@ -6,7 +6,7 @@ import { duelChance, type DuelSituation } from './duelModel';
 import type { DuelFighter } from './analyst';
 import { gunFromName } from './guns';
 import { placeOf, phaseOf } from './situations';
-import { advantageOf, proRisk, proSituationSpots, proSpots } from '../map/positions';
+import { advantageOf, proFlow, proRisk, proSituationSpots, proSpots } from '../map/positions';
 import { CELL, SMOKE_RADIUS_UNITS, type SmokeDisc } from './grid';
 import type { Side, Vec2 } from './types';
 import UTIL_SPOTS from '../map/generated/util-spots.json';
@@ -260,6 +260,8 @@ interface Valued { opt: SearchOption; dead: number; alive: number; posGain: numb
 const NADE_OF: Partial<Record<OptionKind, RegExp>> = { flash: /flash/i, he: /high explosive|hegrenade/i, molotov: /molotov|incendiary/i, smoke: /smoke/i };
 /** First moves looked at two ahead: the best few (and what they did). */
 const DEEP_FIRST = 4;
+/** Known enemies move on in the second step (STRATBOARD_STATIC_ENEMIES=1 keeps them still, to compare). */
+const MOVE_ENEMIES = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.STRATBOARD_STATIC_ENEMIES !== '1';
 
 interface Plan { kind: OptionKind; label: string; to: Vec2; travel: number; /** the way there (radar), to see who can shoot them on it */ path?: Vec2[]; nade?: Vec2; flash?: string; smoke?: SmokeDisc; deny?: string; he?: string; plant?: boolean; defuse?: boolean }
 
@@ -453,12 +455,56 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
     };
   };
 
+  // the enemies they know about, a while later (learn:positions' flow: where level-10 players holding that spot are
+  // 4 / 8 s on). Most are still there, so the second move is weighed over two cases: they stayed, or the ones who
+  // might have moved went to where players from their spot most often go next (as far along the way as the time
+  // allows), weighted by how often that happens
+  const foeSide: Side = s === 'CT' ? 'T' : 'CT';
+  const foeSpx = S.secPerPx(foeSide);
+  const moved = new Map<string, { at: Known; p: number }>();
+  const moveOn = (known: Known[], dt: number): { known: Known[]; p: number } => {
+    let pSum = 0;
+    const out = known.map(e => {
+      const elapsed = e.seenAgo + dt, ahead: 4 | 8 = elapsed <= 6 ? 4 : 8;
+      const key = `${e.id}|${ahead}`;
+      let m = moved.get(key);
+      if (!m) {
+        m = { at: e, p: 0 };
+        const place = placeOf(engine, e.at);
+        const fl = place ? proFlow(map, foeSide, place, phaseOf(t - e.seenAgo, r.plant), ahead) : null;
+        const alt = fl?.to.find(x => x.place !== place);
+        const c = alt ? engine.map.callouts.find(x => x.name === alt.place) : undefined;
+        const f = c ? calloutField(engine, c.name) : null;
+        const cell = engine.grid.snap(e.at);
+        const sec = f && cell >= 0 ? f[cell] * foeSpx : Infinity;
+        const pMove = fl && alt ? 1 - (fl.to.find(x => x.place === place)?.n ?? 0) / fl.n : 0;
+        if (c && f && pMove >= 0.1 && Number.isFinite(sec) && sec > 0) {
+          const way = sec <= elapsed ? null : pathDown(engine, f, e.at);
+          m = { at: { ...e, at: way ? way[Math.min(way.length - 1, Math.floor((way.length * elapsed) / sec))] ?? e.at : c.pos, seenAgo: e.seenAgo + dt }, p: pMove };
+        }
+        moved.set(key, m);
+      }
+      pSum += m.p;
+      return m.at;
+    });
+    return { known: out, p: known.length ? pSum / known.length : 0 };
+  };
+
   // step 2 (deep): an option is worth what its best follow-up is worth, from where it leaves them and with what
-  // happened on the way (their deaths in it as they were; when they come out alive, the best second move from there)
+  // happened on the way (their deaths in it as they were; when they come out alive, the best second move from there,
+  // with the enemies they know about moved on as level-10 players would)
   const deepen = (p: Plan, v: Valued): SearchOption => {
     if (p.plant || v.alive < 0.05 || v.next.clock >= r.duration - 1) return v.opt;
     const invNext = p.nade ? inv0.filter(w => !NADE_OF[p.kind]?.test(w)) : inv0;
-    const second = plansFrom(p.to, v.next.clock, v.next.known, invNext, true).map(q => value(q, p.to, v.next)).sort((a, b) => b.opt.win - a.opt.win);
+    // the options as they look now, each valued with the enemies still there and with them moved on, weighted
+    const mv = MOVE_ENEMIES ? moveOn(v.next.known, v.next.clock - t) : { known: v.next.known, p: 0 };
+    const plansNext = plansFrom(p.to, v.next.clock, v.next.known, invNext, true);
+    const second = plansNext.map(q => {
+      const still = value(q, p.to, v.next);
+      if (mv.p <= 0) return still;
+      const gone = value(q, p.to, { ...v.next, known: mv.known });
+      return { ...still, opt: { ...still.opt, win: (1 - mv.p) * still.opt.win + mv.p * gone.opt.win, death: +((1 - mv.p) * still.opt.death + mv.p * gone.opt.death).toFixed(3) } };
+    }).sort((a, b) => b.opt.win - a.opt.win);
     const top = second[0];
     if (!top) return v.opt;
     const win = Math.min(1, Math.max(0, v.dead + v.alive * top.opt.win + v.posGain));
