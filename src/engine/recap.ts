@@ -407,6 +407,8 @@ export function evalState(state: {
   ctAreas?: number; tAreas?: number; tradeCT?: number; tradeT?: number;
   /** A plant or defuse under way (the boosted model reads it). */
   bombAct?: 'plant' | 'defuse' | null; kit?: boolean;
+  /** The map, for its own trees in the learned model. */
+  map?: string;
 }): number {
   const { ct, t } = state;
   if (t === 0 && state.planted === null) return 1;
@@ -420,7 +422,7 @@ export function evalState(state: {
   const learned = state.ctAreas !== undefined ? learnedLogit({
     ct, t, ctHp: state.ctHp, tHp: state.tHp, ctEquip: state.ctEquip ?? null, tEquip: state.tEquip ?? null, planted: state.planted, time: state.time,
     ctAreas: state.ctAreas, tAreas: state.tAreas ?? 0, tradeCT: state.tradeCT ?? 0, tradeT: state.tradeT ?? 0,
-    bombAct: state.bombAct ?? null, kit: state.kit ?? false,
+    bombAct: state.bombAct ?? null, kit: state.kit ?? false, map: state.map,
   }) : null;
   if (learned !== null) {
     let zl = learned;
@@ -801,7 +803,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         const s = Math.min(areas.ct.length - 1, Math.max(0, Math.floor(t)));
         const tp = tradePending(sim.kills, sim.ids, id => sideOf.get(id), whereAt, t, scale);
         const act = bombTryAt(r, t);
-        return { ctAreas: areas.ct[s], tAreas: areas.t[s], tradeCT: tp.ct, tradeT: tp.t, bombAct: act?.kind ?? null, kit: !!act?.kit };
+        return { ctAreas: areas.ct[s], tAreas: areas.t[s], tradeCT: tp.ct, tradeT: tp.t, bombAct: act?.kind ?? null, kit: !!act?.kit, map: engine.map.id };
       })() : {}),
     });
   };
@@ -1391,7 +1393,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     for (const d of an.duels) {
       const death = moves.find(m => m.kind === 'death' && m.player === d.victim && Math.abs(m.t - d.t) < 0.06);
       const kill = moves.find(m => m.kind === 'kill' && m.player === d.killer && Math.abs(m.t - d.t) < 0.06);
-      const lost = duelModelOdds(d, 'victim'), won = duelModelOdds(d, 'killer');
+      const lost = duelModelOdds(d, 'victim', undefined, engine.map.id), won = duelModelOdds(d, 'killer', undefined, engine.map.id);
       if (death && lost) {
         death.why.push(`Duel odds ${pctOdds(lost.p)}${lost.peek !== null && lost.held !== null ? `; for level 10 from here: peeking wins ${pctOdds(lost.peek)}, holding ${pctOdds(lost.held)}` : ''}.`);
         if (lost.peek !== null && lost.peek < 0.35 && lost.p < 0.4 && !d.withFlash) {

@@ -21,7 +21,7 @@ const at = new Date().toISOString().slice(0, 10);
 const w0 = prev.winChance, d0 = prev.duels;
 const search = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, '../src/engine/models/search-calibration.json'), 'utf8'));
 const point = {
-  at, matches: w0 ? w0.trainMatches + w0.testMatches : null, testMatches: w0?.testMatches ?? null,
+  at, matches: w0 ? w0.trainMatches + w0.testMatches : null, testMatches: w0?.testMatches ?? null, newest: !!w0?.split?.startsWith('newest'),
   win: w0 ? w0[w0.shipped].logLoss : null, duels: d0 ? d0[d0.shipped].accuracy : null, engine: search.check?.corr ?? null,
   verdicts: { right: v.right, total: v.total },
 };

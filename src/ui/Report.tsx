@@ -350,7 +350,7 @@ function AnalystCard({ data, rounds, player, level, done, onRound, onHotRound }:
   data: DemoData; rounds: (RoundSummary | null)[]; player: string; level: Level; done: boolean; onRound: (i: number) => void; onHotRound: (i: number | null) => void;
 }) {
   const bench = analystBench(data.map, level);
-  const rep = useMemo(() => (bench ? analystReport(rounds.map(r => r?.analyst), player, i => data.rounds[i]?.frames.players[player]?.side ?? null, bench) : null), [bench, rounds, player, data]);
+  const rep = useMemo(() => (bench ? analystReport(rounds.map(r => r?.analyst), player, i => data.rounds[i]?.frames.players[player]?.side ?? null, bench, data.map) : null), [bench, rounds, player, data]);
   const [topic, setTopic] = useState<Topic>('Trades');
   if (!bench || !rep) return null;
   const work = rep.findings.filter(f => !f.good).slice(0, 6), good = rep.findings.filter(f => f.good).slice(0, 3);

@@ -26,6 +26,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { MAPS } from '../src/map/catalog';
 import { keyOf, listDemos, readCache, runTool } from './learn-lib';
+import { api, env, needKey, sleep } from './faceit-api';
 
 // ---- options and keys ---------------------------------------------------------------------------------------
 const args = process.argv.slice(2).filter(a => a !== '--');
@@ -44,43 +45,9 @@ const FOLDER = home(opt('folder', '~/Desktop/APPS/faceit-demos')!);
 const PRO_FOLDER = home(opt('pro-folder', '~/Desktop/APPS/pro-demos')!);
 const DRY = flag('dry-run');
 
-function loadEnv(): Record<string, string> {
-  const p = path.resolve(import.meta.dirname, '../.env');
-  const out: Record<string, string> = {};
-  if (!fs.existsSync(p)) return out;
-  for (const line of fs.readFileSync(p, 'utf8').split('\n')) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-    if (m) out[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
-  }
-  return out;
-}
-const env = { ...loadEnv(), ...process.env };
-const API_KEY = env.FACEIT_API_KEY;
+needKey();
 const DL_TOKEN = env.FACEIT_DOWNLOADS_TOKEN;
-if (!API_KEY) {
-  console.error(`No FACEIT_API_KEY. Create a server-side API key at developers.faceit.com (Apps → your app → API keys) and add this line to ${path.resolve(import.meta.dirname, '../.env')}:\n  FACEIT_API_KEY=<your key>`);
-  process.exit(1);
-}
-
-// ---- FACEIT API ---------------------------------------------------------------------------------------------
-const DATA = 'https://open.faceit.com/data/v4';
 const DOWNLOAD = 'https://open.faceit.com/download/v2/demos/download';
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-let lastCall = 0;
-/** A Data API GET with a gentle pace (~4 a second) and backoff on 429 / 5xx. */
-async function api<T>(p: string, params: Record<string, string | number> = {}): Promise<T> {
-  const url = `${DATA}${p}?${new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))}`;
-  for (let attempt = 0; ; attempt++) {
-    const wait = 250 - (Date.now() - lastCall);
-    if (wait > 0) await sleep(wait);
-    lastCall = Date.now();
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${API_KEY}`, Accept: 'application/json' } });
-    if (res.ok) return res.json() as Promise<T>;
-    if ((res.status === 429 || res.status >= 500) && attempt < 5) { await sleep(2000 * (attempt + 1)); continue; }
-    if (res.status === 401 || res.status === 403) throw new Error(`FACEIT refused the API key (${res.status}): check FACEIT_API_KEY in .env.`);
-    throw new Error(`FACEIT ${p}: ${res.status} ${(await res.text()).slice(0, 200)}`);
-  }
-}
 type Ranking = { items: { player_id: string; nickname: string; faceit_elo?: number; game_skill_level?: number }[] };
 type History = { items: { match_id: string; game_mode?: string; competition_type?: string; competition_name?: string; status?: string; finished_at?: number }[] };
 type Match = { match_id: string; status?: string; demo_url?: string[]; voting?: { map?: { pick?: string[] } }; competition_name?: string; finished_at?: number };

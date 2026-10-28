@@ -149,12 +149,12 @@ export function Dev() {
         <>
           {w && (
             <section className="site-card">
-              <div className="card-head"><h2>Win chance</h2><span className="muted small">{fmtInt(w.testMatches)} matches it never learned from · {w.at}</span></div>
+              <div className="card-head"><h2>Win chance</h2><span className="muted small">{w.split ? `test: ${w.split}` : `${fmtInt(w.testMatches)} matches it never learned from`} · {w.at}</span></div>
               <BarList rows={([['Hand-set formula', w.formula], ['Logistic', w.logistic], ['Boosted trees', w.trees]] as const).map(([label, sc]) => ({
                 label: `${label}${(w.shipped === 'trees' ? 'Boosted trees' : 'Logistic') === label ? ' (in use)' : ''}`, value: `log loss ${sc.logLoss}`,
                 share: Math.max(0.05, (0.52 - sc.logLoss) / (0.52 - 0.44)), tone: (w.shipped === 'trees' ? 'Boosted trees' : 'Logistic') === label ? 'up' as const : 'flat' as const,
               }))} />
-              <p className="muted small">Log loss: how far the win % it shows is from what happened, on average. Lower is better; 0.69 is a coin flip. Longer bar = better. Calibration: {(w.shipped === 'trees' ? w.trees : w.logistic).calibration.filter(c => c.n > 300).map(c => `${Math.round(c.said * 100)}→${Math.round((c.won ?? 0) * 100)}%`).join(' · ')}</p>
+              <p className="muted small">Newer matches count more: {w.halfLife ? `yes, half every ${w.halfLife} days` : 'no (it didn\'t beat every match counting the same)'}. Log loss: how far the win % it shows is from what happened, on average. Lower is better; 0.69 is a coin flip. Longer bar = better. Calibration: {(w.shipped === 'trees' ? w.trees : w.logistic).calibration.filter(c => c.n > 300).map(c => `${Math.round(c.said * 100)}→${Math.round((c.won ?? 0) * 100)}%`).join(' · ')}</p>
             </section>
           )}
           <section className="site-card">
@@ -172,18 +172,33 @@ export function Dev() {
               <tr><td>Level ladder</td><td>{fmtInt(level.games.lvl10)} level-10 games, {fmtInt(level.games.pro)} pro</td><td>{level.trainedAt}</td></tr>
             </tbody></table>
           </section>
+          {(w?.perMap || du?.perMap) && (
+            <section className="site-card">
+              <div className="card-head"><h2>Per map</h2><span className="muted small">extra trees for a map, kept only where they beat the shared model</span></div>
+              <table className="site-table"><thead><tr><th>Map</th><th>Win chance</th><th>Duels</th></tr></thead><tbody>
+                {[...new Set([...Object.keys(w?.perMap ?? {}), ...Object.keys(du?.perMap ?? {})])].sort().map(m => {
+                  const cell = (x?: { shared: number; tuned: number; kept: boolean }) => !x ? '–'
+                    : x.kept ? <>{x.shared} → <b>{x.tuned}</b> <span className="dev-up">own</span></> : <span className="muted">{x.shared} shared</span>;
+                  return <tr key={m}><td>{mapName(m)}</td><td className="num">{cell(w?.perMap?.[m])}</td><td className="num">{cell(du?.perMap?.[m])}</td></tr>;
+                })}
+              </tbody></table>
+              <p className="muted small">Log loss on each map's newest matches, lower is better.</p>
+            </section>
+          )}
           {hist.length > 0 && (
             <section className="site-card">
               <div className="card-head"><h2>Progress</h2><span className="muted small">each retrain, on matches it never learned from</span></div>
-              <table className="site-table"><thead><tr><th>Date</th><th>Matches</th><th>Win chance</th><th>Duels right</th><th>Engine</th><th>Your verdicts</th></tr></thead><tbody>
+              <table className="site-table"><thead><tr><th>Date</th><th>Matches</th><th>Test</th><th>Win chance</th><th>Duels right</th><th>Engine</th><th>Your verdicts</th></tr></thead><tbody>
                 {[...hist].reverse().map((h, i, all) => {
-                  const was = all[i + 1];
+                  // arrows only against a row tested the same way
+                  const was = all[i + 1] && !!all[i + 1].newest === !!h.newest ? all[i + 1] : undefined;
                   const arrow = (now: number | null, before: number | null | undefined, lowerBetter = false) => now === null || before == null || now === before ? null
                     : <span className={(now < before) === lowerBetter ? 'dev-up' : 'dev-down'}>{(now < before) === lowerBetter ? ' ▲' : ' ▼'}</span>;
                   return (
                     <tr key={h.at}>
                       <td className="num">{h.at}</td>
                       <td className="num">{h.matches !== null ? fmtInt(h.matches) : '–'}</td>
+                      <td className="num">{h.testMatches ?? '–'} {h.newest ? 'newest' : 'random'}</td>
                       <td className="num">{h.win ?? '–'}{arrow(h.win, was?.win, true)}</td>
                       <td className="num">{h.duels !== null ? `${(h.duels * 100).toFixed(1)}%` : '–'}{arrow(h.duels, was?.duels)}</td>
                       <td className="num">{h.engine ?? '–'}</td>
@@ -192,7 +207,7 @@ export function Dev() {
                   );
                 })}
               </tbody></table>
-              <p className="muted small">Win chance: log loss, lower is better. Engine: how well playing like the engine matches winning rounds (correlation, higher is better).</p>
+              <p className="muted small">Test: the matches it's scored on, the newest ones or a random fifth; numbers are comparable only between rows tested the same way. Win chance: log loss, lower is better. Engine: how well playing like the engine matches winning rounds (correlation, higher is better).</p>
             </section>
           )}
         </>
@@ -251,8 +266,10 @@ const DEV_TABS: { id: DevTab; label: string; icon: IconName }[] = [
 
 type Scored = { logLoss: number; brier: number; calibration: { said: number; won: number | null; n: number }[] };
 type CoachEval = {
-  winChance?: { at: string; testMatches: number; testMoments: number; trainMatches: number; shipped: string; formula: Scored; logistic: Scored; trees: Scored };
+  winChance?: { at: string; testMatches: number; testMoments: number; trainMatches: number; shipped: string; formula: Scored; logistic: Scored; trees: Scored;
+    split?: string; halfLife?: number | null; perMap?: Record<string, { shared: number; tuned: number; kept: boolean }> };
   verdicts?: { at: string; right: number; total: number };
-  duels?: { at: string; testFights: number; trainFights: number; shipped: 'trees' | 'logistic'; logistic: { logLoss: number; accuracy: number }; trees: { logLoss: number; accuracy: number } };
-  history?: { at: string; matches: number | null; testMatches: number | null; win: number | null; duels: number | null; engine: number | null; verdicts: { right: number; total: number } }[];
+  duels?: { at: string; testFights: number; trainFights: number; shipped: 'trees' | 'logistic'; logistic: { logLoss: number; accuracy: number }; trees: { logLoss: number; accuracy: number };
+    halfLife?: number | null; perMap?: Record<string, { shared: number; tuned: number; kept: boolean }> };
+  history?: { at: string; matches: number | null; testMatches: number | null; newest?: boolean; win: number | null; duels: number | null; engine: number | null; verdicts: { right: number; total: number } }[];
 };
