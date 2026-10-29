@@ -3,6 +3,7 @@ import { Arc, Circle, Group, Image as KImage, Layer, Line, Rect, RegularPolygon,
 import { Icon } from '../ui/Icon';
 import { heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { MapArt, useGameMap } from './MapArt';
+import { RULES, TIMINGS_SOURCE, timersAt, urnLane } from './timings';
 import { kdaAt, playerAt, statAt, type DlMatch } from './match';
 import { useDl } from './store';
 import { useCoach, useMySlot } from './useCoach';
@@ -111,6 +112,7 @@ export function DlBoard() {
                 </button>
               );
             })}
+            {team === 1 && <DlTimers match={match} time={time} />}
           </aside>
         ))}
         <DlMap match={match} time={time} selected={selected} />
@@ -166,7 +168,8 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
       <Stage width={S} height={S}>
         <Layer listening={false}>
           {/* the map like the game draws it, your team's lanes in their colours; objectives destroyed by now hollow */}
-          <MapArt S={S} k={k} img={map} you={you} down={(team, key) => downKeys.has(`${team}_${key}`)} />
+          <MapArt S={S} k={k} img={map} you={you} down={(team, key) => downKeys.has(`${team}_${key}`)}
+            urn={time >= RULES.urn.spawn ? { lane: urnLane(RULES.urn.spawn + Math.floor((time - RULES.urn.spawn) / RULES.urn.every) * RULES.urn.every) } : null} />
           {trail && trail.length >= 4 && <Line points={trail} stroke="#fff" strokeWidth={1.5 * k} opacity={0.6} lineCap="round" lineJoin="round" />}
           {/* bodies: where a hero just died, fading out */}
           {match.deaths.filter(d => time >= d.t && time - d.t < BODY_GONE).map(d => {
@@ -271,5 +274,23 @@ function DlCard({ moves, time, canMine }: { moves: DlMove[]; time: number; canMi
         </article>
       )}
     </div>
+  );
+}
+
+/** What's up and what's next at this moment of the match (the game's timings, the mid boss from this match). */
+function DlTimers({ match, time }: { match: DlMatch; time: number }) {
+  const rows = timersAt(time, match.midBoss);
+  return (
+    <section className="dl-timers" aria-label="Timers">
+      <div className="dl-team-head">Timers</div>
+      {rows.map(r => (
+        <div key={r.what} className="dl-timer" title={r.note}>
+          <b>{r.what}</b>
+          <span className="muted small">{r.now}</span>
+          {r.next !== null && <span className="dl-timer-next num">{mins(Math.max(0, r.next - time))}</span>}
+        </div>
+      ))}
+      <a className="muted small dl-timer-src" href={TIMINGS_SOURCE.url} target="_blank" rel="noreferrer">Game timings from the Deadlock Wiki</a>
+    </section>
   );
 }

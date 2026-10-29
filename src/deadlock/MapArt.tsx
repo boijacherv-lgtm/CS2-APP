@@ -62,9 +62,11 @@ const ALL: Set<ArtLayer> = new Set(['lanes', 'objectives', 'camps', 'urn', 'shop
  * The map and what's on it. `you`: the team drawn in lane colours (the other one red), like the game shows your own
  * team. `down(team, key)`: whether that objective is destroyed (drawn hollow with a cross).
  */
-export function MapArt({ S, k, img, you = 0, layers = ALL, down }: {
+export function MapArt({ S, k, img, you = 0, layers = ALL, down, urn }: {
   S: number; k: number; img: HTMLCanvasElement | null; you?: DlTeam; layers?: Set<ArtLayer>;
   down?: (team: DlTeam, key: string) => boolean;
+  /** The urn out now (timings.ts): spawned at the Yellow (left) or Green (right) bridge, delivered on the other side. */
+  urn?: { lane: 'Yellow' | 'Green' } | null;
 }) {
   const P = (p: { x: number; y: number }) => ({ x: p.x * S, y: p.y * S });
   const mine = bump(you);
@@ -110,14 +112,20 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down }: {
             <Rect x={-3.6 * k} y={-4.4 * k} width={7.2 * k} height={1.4 * k} fill="#5fd39a" cornerRadius={0.7 * k} />
           </Group>
         ))}
-        {/* the urn: where it can appear, and the two drop-off pads */}
-        {layers.has('urn') && DL_MAP.urnSpawns.map((u, i) => (
-          <Group key={`u${i}`} {...P(u)}>
-            <Rect x={-2.4 * k} y={-3.4 * k} width={4.8 * k} height={1.2 * k} fill="#3fd0e6" cornerRadius={0.5 * k} />
-            <Circle y={0.8 * k} radius={3 * k} fill="#3fd0e6" />
-          </Group>
-        ))}
-        {layers.has('urn') && DL_MAP.urnPads.map((u, i) => <Circle key={`up${i}`} {...P(u)} radius={6.5 * k} stroke="#3fd0e6" strokeWidth={1.2 * k} dash={[3 * k, 2 * k]} />)}
+        {/* the urn: it lands by the Yellow (left) or Green (right) bridge, alternating, and is delivered on the other
+            side; with `urn`, the one out now and its drop-off, else both spots (the API's other spawn spots are from
+            before the May 2026 rework) */}
+        {layers.has('urn') && DL_MAP.urnPads.map((u, i) => {
+          const left = u.x < 0.5, out = urn ? (urn.lane === 'Yellow') === left : true, dropOff = !!urn && !out;
+          return (
+            <Group key={`u${i}`} {...P(u)}>
+              {dropOff && <Circle radius={7 * k} stroke="#3fd0e6" strokeWidth={1.2 * k} dash={[3 * k, 2 * k]} />}
+              {out && <Circle radius={urn ? 9 * k : 0} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={9 * k} fillRadialGradientColorStops={[0, 'rgba(63,208,230,0.5)', 1, 'rgba(63,208,230,0)']} />}
+              {out && <Rect x={-2.4 * k} y={-3.4 * k} width={4.8 * k} height={1.2 * k} fill="#3fd0e6" cornerRadius={0.5 * k} opacity={urn ? 1 : 0.7} />}
+              {out && <Circle y={0.8 * k} radius={3 * k} fill="#3fd0e6" opacity={urn ? 1 : 0.7} />}
+            </Group>
+          );
+        })}
         {/* bridge buffs and the unstable rifts */}
         {layers.has('buffs') && DL_MAP.bridgeBuffs.map((b, i) => (
           <Group key={`b${i}`} {...P(b)}>
