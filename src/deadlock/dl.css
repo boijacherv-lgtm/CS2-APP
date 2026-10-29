@@ -154,3 +154,11 @@
   .dl-tac-map { height: min(92vw, 70vh); }
   .dl-builds { grid-template-columns: 1fr; }
 }
+
+/* Review: the timers under the right-hand team */
+.dl-timers { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+.dl-timer { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; padding: 5px 8px; border-radius: 8px; background: var(--bg-2, rgba(255,255,255,0.03)); font-size: 12px; }
+.dl-timer b { font-weight: 600; }
+.dl-timer .muted { grid-column: 1; }
+.dl-timer-next { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-weight: 700; color: var(--text); }
+.dl-timer-src { padding: 2px 8px; }
