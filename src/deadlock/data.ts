@@ -47,11 +47,16 @@ export function objectiveOf(id: number): { kind: ObjectiveKind; lane: 1 | 3 | 4 
   if (id === 10 || id === 11) return { kind: 'shrine', lane: null, name: `Shrine ${id - 9}` };
   return { kind: 'base guardian', lane: lane(id - 11), name: `${laneName(id - 11)} Base Guardian` };
 }
-/** Where an objective stands on the map (0–1), when the map data has it (guardians, walkers, the patron). */
-export function objectiveSpot(team: DlTeam, id: number): { x: number; y: number } | null {
+/** The map data's key for an objective (generated/map.json: `team<0|1>_<key>`). */
+export function objectiveKey(id: number): string | null {
   const o = objectiveOf(id);
-  // the patron stands in the middle of the base (the map data's "titan" spot; its "core" spot is off the map)
-  const key = o.kind === 'guardian' ? `tier1_${o.lane}` : o.kind === 'walker' ? `tier2_${o.lane}` : o.kind === 'patron' || o.kind === 'titan' ? 'titan' : null;
+  // the patron stands in the middle of the base (the map data's "titan" spot)
+  return o.kind === 'guardian' ? `tier1_${o.lane}` : o.kind === 'walker' ? `tier2_${o.lane}` : o.kind === 'patron' || o.kind === 'titan' ? 'titan'
+    : o.kind === 'shrine' ? `shrine_${id - 9}` : o.kind === 'base guardian' && o.lane ? `base_${o.lane}` : null;
+}
+/** Where an objective stands on the map (0–1): guardians, walkers, base guardians, shrines and the patron. */
+export function objectiveSpot(team: DlTeam, id: number): { x: number; y: number } | null {
+  const key = objectiveKey(id);
   const spot = key ? MAP.objectives.find(x => x.id === `team${team}_${key}`) : null;
   return spot ? { x: spot.x, y: spot.y } : null;
 }
