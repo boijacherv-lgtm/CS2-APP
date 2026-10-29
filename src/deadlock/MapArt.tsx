@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Arc, Circle, Group, Image as KImage, Line, Rect, RegularPolygon, Star } from 'react-konva';
+import { Arc, Circle, Group, Image as KImage, Line, Rect, RegularPolygon, Star, Text } from 'react-konva';
 import type Konva from 'konva';
 import { DL_MAP, DL_MAP_IMAGE, type DlTeam } from './data';
+import { clock, RULES, urnLane } from './timings';
 
 /**
  * The Deadlock map drawn like the game's own minimap (Oct 2026): a dark round map with the two bases, each lane a
@@ -62,12 +63,27 @@ const ALL: Set<ArtLayer> = new Set(['lanes', 'objectives', 'camps', 'urn', 'shop
  * The map and what's on it. `you`: the team drawn in lane colours (the other one red), like the game shows your own
  * team. `down(team, key)`: whether that objective is destroyed (drawn hollow with a cross).
  */
-export function MapArt({ S, k, img, you = 0, layers = ALL, down, urn }: {
+export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
   S: number; k: number; img: HTMLCanvasElement | null; you?: DlTeam; layers?: Set<ArtLayer>;
   down?: (team: DlTeam, key: string) => boolean;
-  /** The urn out now (timings.ts): spawned at the Yellow (left) or Green (right) bridge, delivered on the other side. */
-  urn?: { lane: 'Yellow' | 'Green' } | null;
+  /** A moment of a match (Review): then only what's up at that time shows (timings.ts), with when it came, and the
+   * mid boss only while it's alive (its kills in this match). Without it, everything shows (Tactical). */
+  at?: { time: number; midBoss: { t: number }[] };
 }) {
+  const tm = at?.time;
+  const up = (from: number) => tm === undefined || tm >= from;
+  // the latest spawn mark at or before now, for things on a schedule
+  const lastMark = (first: number, every: number) => (tm === undefined || tm < first ? null : first + Math.floor((tm - first) / every) * every);
+  const urnAt = lastMark(RULES.urn.spawn, RULES.urn.every), urn = urnAt === null ? null : { lane: urnLane(urnAt), t: urnAt };
+  const buffsAt = lastMark(RULES.bridgeBuffs.spawn, RULES.bridgeBuffs.every);
+  // the rift: shown for 2 min from each expected spawn (it can be a minute either side, on either side lane)
+  const riftAt = lastMark(RULES.rift.spawn, RULES.rift.every);
+  const riftOn = tm === undefined || (riftAt !== null && tm - riftAt < 120);
+  const bossDown = at ? (() => { const dead = at.midBoss.filter(b => b.t <= at.time); const last = dead[dead.length - 1];
+    return !!last && at.time < last.t + RULES.midBoss.respawn[Math.min(dead.length - 1, RULES.midBoss.respawn.length - 1)]; })() : false;
+  const tag = (text: string, color: string, dy = 10) => (
+    <Text text={text} x={-20 * k} y={dy * k} width={40 * k} align="center" fontSize={8.5 * k} fontStyle="bold" fill={color} stroke="#0b0e12" strokeWidth={2.5 * k} fillAfterStrokeEnabled />
+  );
   const P = (p: { x: number; y: number }) => ({ x: p.x * S, y: p.y * S });
   const mine = bump(you);
   const colorOf = (o: Obj) => (o.team !== you ? ENEMY : o.lane ? LANE_COLOR[o.lane as 1 | 3 | 4] : HOME);
@@ -96,6 +112,8 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, urn }: {
         {/* neutral camps: one triangle for a small camp, with a bar for each step stronger; a vault as a box */}
         {layers.has('camps') && DL_MAP.camps.map((c, i) => {
           const tier = c.kind === 'strong' ? 2 : c.kind === 'medium' ? 1 : 0;
+          // camps come at 2 / 5 / 8 min by size, Sinner's Sacrifice (the vaults) at 8
+          if (!up(c.kind === 'vault' ? RULES.sinners.spawn : c.kind === 'strong' ? RULES.camps.strong.spawn : c.kind === 'medium' ? RULES.camps.medium.spawn : RULES.camps.small.spawn)) return null;
           if (c.kind === 'vault') return <Group key={`c${i}`} {...P(c)}><Rect x={-3.6 * k} y={-3.6 * k} width={7.2 * k} height={7.2 * k} stroke="#9cc4b9" strokeWidth={1 * k} cornerRadius={1 * k} /><Circle radius={1.6 * k} stroke="#9cc4b9" strokeWidth={1 * k} /></Group>;
           return (
             <Group key={`c${i}`} {...P(c)}>
@@ -115,7 +133,7 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, urn }: {
         {/* the urn: it lands by the Yellow (left) or Green (right) bridge, alternating, and is delivered on the other
             side; with `urn`, the one out now and its drop-off, else both spots (the API's other spawn spots are from
             before the May 2026 rework) */}
-        {layers.has('urn') && DL_MAP.urnPads.map((u, i) => {
+        {layers.has('urn') && (tm === undefined || urn) && DL_MAP.urnPads.map((u, i) => {
           const left = u.x < 0.5, out = urn ? (urn.lane === 'Yellow') === left : true, dropOff = !!urn && !out;
           return (
             <Group key={`u${i}`} {...P(u)}>
@@ -123,35 +141,45 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, urn }: {
               {out && <Circle radius={urn ? 9 * k : 0} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={9 * k} fillRadialGradientColorStops={[0, 'rgba(63,208,230,0.5)', 1, 'rgba(63,208,230,0)']} />}
               {out && <Rect x={-2.4 * k} y={-3.4 * k} width={4.8 * k} height={1.2 * k} fill="#3fd0e6" cornerRadius={0.5 * k} opacity={urn ? 1 : 0.7} />}
               {out && <Circle y={0.8 * k} radius={3 * k} fill="#3fd0e6" opacity={urn ? 1 : 0.7} />}
+              {out && urn && tag(clock(urn.t), '#3fd0e6')}
             </Group>
           );
         })}
         {/* bridge buffs and the unstable rifts */}
-        {layers.has('buffs') && DL_MAP.bridgeBuffs.map((b, i) => (
+        {layers.has('buffs') && (tm === undefined || buffsAt !== null) && DL_MAP.bridgeBuffs.map((b, i) => (
           <Group key={`b${i}`} {...P(b)}>
             <Circle radius={7 * k} stroke="#b07ce8" strokeWidth={1.3 * k} fill="rgba(176,124,232,0.15)" />
             <Star numPoints={5} innerRadius={2 * k} outerRadius={4.4 * k} fill="#b07ce8" />
+            {buffsAt !== null && tag(clock(buffsAt), '#b07ce8', 9)}
           </Group>
         ))}
-        {layers.has('buffs') && DL_MAP.rifts.map((b, i) => (
+        {layers.has('buffs') && riftOn && DL_MAP.rifts.map((b, i) => (
           <Group key={`r${i}`} {...P(b)}>
             <Circle radius={8 * k} stroke="#3fc7b4" strokeWidth={1.3 * k} />
             <Circle radius={4.5 * k} stroke="#3fc7b4" strokeWidth={1 * k} dash={[2 * k, 1.6 * k]} />
-          </Group>
-        ))}
-        {layers.has('teleporters') && DL_MAP.teleporters.map((t, i) => (
-          <Group key={`t${i}`} {...P(t)}>
-            <Circle radius={6 * k} stroke="#8a929c" strokeWidth={1.2 * k} />
-            <RegularPolygon sides={3} radius={2.6 * k} rotation={90} fill="#8a929c" />
+            {tm !== undefined && riftAt !== null && tag(`~${clock(riftAt)}`, '#3fc7b4', 10)}
           </Group>
         ))}
 
-        {/* the mid boss */}
-        <Group {...P(DL_MAP.midBoss)}>
+        {/* teleporters, like the game's icon: a ring with a doorway and someone stepping through it */}
+        {layers.has('teleporters') && DL_MAP.teleporters.map((t, i) => (
+          <Group key={`t${i}`} {...P(t)}>
+            <Circle radius={7.5 * k} fill="rgba(14,17,21,0.85)" stroke="#8a929c" strokeWidth={1.2 * k} />
+            <Line points={[0.6, 4.6, 0.6, -4.2, 4.4, -4.2, 4.4, 4.6].map(v => v * k)} stroke="#8a929c" strokeWidth={1.1 * k} lineJoin="round" />
+            <Circle x={-1.6 * k} y={-3.1 * k} radius={1.15 * k} fill="#c3c9d0" />
+            <Line points={[-1.4, -1.6, -1.9, 1.2, -0.2, 2.6, 0.2, 4.4].map(v => v * k)} stroke="#c3c9d0" strokeWidth={1.1 * k} lineCap="round" lineJoin="round" />
+            <Line points={[-1.9, 1.2, -3.4, 4.2].map(v => v * k)} stroke="#c3c9d0" strokeWidth={1.1 * k} lineCap="round" />
+            <Line points={[-3.6, -0.6, -1.6, -0.9, 0.4, 0.4].map(v => v * k)} stroke="#c3c9d0" strokeWidth={1 * k} lineCap="round" lineJoin="round" />
+            {[-1.6, 0, 1.6].map((y, j) => <Line key={j} points={[5.6 * k, y * k, 6.6 * k, y * k]} stroke="#8a929c" strokeWidth={0.8 * k} />)}
+          </Group>
+        ))}
+
+        {/* the mid boss, while it's alive */}
+        {!bossDown && <Group {...P(DL_MAP.midBoss)}>
           <Circle radius={13 * k} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={13 * k} fillRadialGradientColorStops={[0, 'rgba(242,194,48,0.45)', 1, 'rgba(242,194,48,0)']} />
           <Line points={[-9, -3, -2, -1, 0, 7, 2, -1, 9, -3, 3, -5, 0, -2, -3, -5].map(v => v * k)} closed fill="#f2c230" stroke="#7a5a10" strokeWidth={0.6 * k} />
           <Circle y={-6.5 * k} radius={2 * k} stroke="#f2c230" strokeWidth={1 * k} />
-        </Group>
+        </Group>}
 
         {/* the objectives: guardians, walkers (big, hollow middle), base guardians, shrines, the patron with its arch */}
         {layers.has('objectives') && DL_MAP.objectives.map(o => {
