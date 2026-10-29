@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Arc, Circle, Group, Image as KImage, Layer, Line, Rect, RegularPolygon, Stage, Text } from 'react-konva';
 import { Icon } from '../ui/Icon';
-import { DL_MAP, DL_MAP_IMAGE, heroOf, objectiveSpot, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
+import { heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
+import { MapArt, useGameMap } from './MapArt';
 import { kdaAt, playerAt, statAt, type DlMatch } from './match';
 import { useDl } from './store';
-import { useCoach } from './useCoach';
+import { useCoach, useMySlot } from './useCoach';
 import type { DlMove } from './coach';
 import { NOTE_INFO } from '../engine/recap';
 
@@ -15,30 +16,6 @@ const BODY_GONE = 3;
 const PHASES = [{ label: 'Laning', t: 0 }, { label: 'Mid game', t: 600 }, { label: 'Late game', t: 1500 }];
 const SPEEDS = [1, 2, 4, 8, 16, 32];
 
-/** The minimap in the site's colours: walkable ground mid-grey, buildings dark, outside clear. */
-function useThemedMap(src: string) {
-  const [img, setImg] = useState<HTMLCanvasElement | null>(null);
-  useEffect(() => {
-    const i = new window.Image();
-    i.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = i.width; c.height = i.height;
-      const g = c.getContext('2d')!;
-      g.drawImage(i, 0, 0);
-      const d = g.getImageData(0, 0, c.width, c.height);
-      for (let k = 0; k < d.data.length; k += 4) {
-        if (d.data[k + 3] < 20) continue;
-        const building = d.data[k] > 160;
-        const [r, gg, b] = building ? [24, 27, 33] : [58, 64, 74];
-        d.data[k] = r; d.data[k + 1] = gg; d.data[k + 2] = b;
-      }
-      g.putImageData(d, 0, 0);
-      setImg(c);
-    };
-    i.src = src;
-  }, [src]);
-  return img;
-}
 function useImages(urls: (string | null)[]) {
   const [imgs, setImgs] = useState<Record<string, HTMLImageElement>>({});
   const key = urls.filter(Boolean).join('|');
@@ -167,7 +144,11 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const map = useThemedMap(DL_MAP_IMAGE);
+  const map = useGameMap();
+  // your team in lane colours when you played in it (like the game), else the bottom team
+  const mine = useMySlot();
+  const you = (match.players.find(p => p.slot === mine)?.team ?? 0) as DlTeam;
+  const downKeys = useMemo(() => new Set(match.objectives.filter(o => o.destroyed !== null && time >= o.destroyed).map(o => `${o.team}_${objectiveKey(o.id)}`)), [match, Math.floor(time)]); // eslint-disable-line react-hooks/exhaustive-deps
   const icons = useImages(match.players.map(p => heroOf(p.hero).icon));
   const S = size, k = S / 640;
   const P = (p: { x: number; y: number }) => ({ x: p.x * S, y: p.y * S });
@@ -184,25 +165,8 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
     <div className="dl-map" ref={wrap}>
       <Stage width={S} height={S}>
         <Layer listening={false}>
-          {map && <KImage image={map} width={S} height={S} />}
-          {DL_MAP.lanes.map((l, i) => <Line key={i} points={l.pts.flatMap(p => [p.x * S, p.y * S])} stroke={l.color} strokeWidth={1.5 * k} opacity={0.45} dash={[6 * k, 5 * k]} />)}
-          {DL_MAP.urnSpawns.map((u, i) => <Circle key={`u${i}`} {...P(u)} radius={3 * k} stroke="#c9a7ff" strokeWidth={1 * k} opacity={0.6} />)}
-          {/* objectives: standing in the team's colour, destroyed greyed out with a cross */}
-          {match.objectives.map(o => {
-            const at = objectiveSpot(o.team, o.id);
-            if (!at) return null;
-            const down = o.destroyed !== null && time >= o.destroyed;
-            const big = o.kind === 'patron' || o.kind === 'titan', mid = o.kind === 'walker';
-            const r = (big ? 11 : mid ? 8 : 6) * k;
-            return (
-              <Group key={`${o.team}-${o.id}`} {...P(at)} opacity={down ? 0.85 : 1}>
-                {down
-                  ? <RegularPolygon sides={big ? 6 : 4} radius={r} rotation={big ? 0 : 45} fill="#0b0e12" stroke={TEAM_COLOR[o.team]} strokeWidth={1.3 * k} dash={[2.5 * k, 2 * k]} />
-                  : <RegularPolygon sides={big ? 6 : 4} radius={r} rotation={big ? 0 : 45} fill={TEAM_COLOR[o.team]} stroke="#0b0e12" strokeWidth={1.5 * k} />}
-                {down && <Line points={[-r * 0.45, -r * 0.45, r * 0.45, r * 0.45, 0, 0, r * 0.45, -r * 0.45, -r * 0.45, r * 0.45]} stroke={TEAM_COLOR[o.team]} strokeWidth={1.6 * k} lineCap="round" />}
-              </Group>
-            );
-          })}
+          {/* the map like the game draws it, your team's lanes in their colours; objectives destroyed by now hollow */}
+          <MapArt S={S} k={k} img={map} you={you} down={(team, key) => downKeys.has(`${team}_${key}`)} />
           {trail && trail.length >= 4 && <Line points={trail} stroke="#fff" strokeWidth={1.5 * k} opacity={0.6} lineCap="round" lineJoin="round" />}
           {/* bodies: where a hero just died, fading out */}
           {match.deaths.filter(d => time >= d.t && time - d.t < BODY_GONE).map(d => {
