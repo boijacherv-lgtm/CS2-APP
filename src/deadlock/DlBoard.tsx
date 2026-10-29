@@ -3,7 +3,7 @@ import { Arc, Circle, Group, Image as KImage, Layer, Line, Rect, RegularPolygon,
 import { Icon } from '../ui/Icon';
 import { heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { MapArt, useGameMap } from './MapArt';
-import { RULES, TIMINGS_SOURCE, timersAt, urnLane } from './timings';
+import { TIMINGS_SOURCE, timersAt } from './timings';
 import { kdaAt, playerAt, statAt, type DlMatch } from './match';
 import { useDl } from './store';
 import { useCoach, useMySlot } from './useCoach';
@@ -168,8 +168,7 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
       <Stage width={S} height={S}>
         <Layer listening={false}>
           {/* the map like the game draws it, your team's lanes in their colours; objectives destroyed by now hollow */}
-          <MapArt S={S} k={k} img={map} you={you} down={(team, key) => downKeys.has(`${team}_${key}`)}
-            urn={time >= RULES.urn.spawn ? { lane: urnLane(RULES.urn.spawn + Math.floor((time - RULES.urn.spawn) / RULES.urn.every) * RULES.urn.every) } : null} />
+          <MapArt S={S} k={k} img={map} you={you} down={(team, key) => downKeys.has(`${team}_${key}`)} at={{ time, midBoss: match.midBoss }} />
           {trail && trail.length >= 4 && <Line points={trail} stroke="#fff" strokeWidth={1.5 * k} opacity={0.6} lineCap="round" lineJoin="round" />}
           {/* bodies: where a hero just died, fading out */}
           {match.deaths.filter(d => time >= d.t && time - d.t < BODY_GONE).map(d => {
