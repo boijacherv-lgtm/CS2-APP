@@ -5,6 +5,7 @@ import { useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { Icon } from '../ui/Icon';
 import { loadMatch, matchHistory, steamId3, steamNames, type DlHistoryRow } from './api';
+import { loadDemo } from './demo';
 import { heroOf } from './data';
 import { DlBoard } from './DlBoard';
 import { loadBenchmarks } from './coach';
@@ -44,6 +45,12 @@ function DlStart() {
       steamNames(m.players.map(p => p.account)).then(names => useDl.setState({ names })).catch(() => {});
       // the average player on each hero, for the laning grade
       loadBenchmarks(m.players.map(p => p.hero)).then(bench => { if (useDl.getState().match?.id === m.id) useDl.setState({ bench }); });
+      // the demo, read by deadlock-api (about a minute the first time): exact camps, urn, buffs, casts
+      const mine = () => useDl.getState().match?.id === m.id;
+      useDl.setState({ demoStatus: { state: 'reading' } });
+      loadDemo(m, wait => { if (mine()) useDl.setState({ demoStatus: { state: 'reading', wait } }); })
+        .then(demo => { if (mine()) useDl.setState({ demo, demoStatus: { state: 'done' } }); })
+        .catch(e => { if (mine()) useDl.setState({ demoStatus: { state: 'failed', error: e instanceof Error ? e.message : String(e) } }); });
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     setBusy(null);
   };

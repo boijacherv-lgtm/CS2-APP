@@ -3,7 +3,8 @@ import { Arc, Circle, Group, Image as KImage, Layer, Line, Rect, RegularPolygon,
 import { Icon } from '../ui/Icon';
 import { heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { MapArt, useGameMap } from './MapArt';
-import { TIMINGS_SOURCE, timersAt } from './timings';
+import { RULES, TIMINGS_SOURCE, timersAt } from './timings';
+import { upAt } from './demo';
 import { kdaAt, playerAt, statAt, type DlMatch } from './match';
 import { useDl } from './store';
 import { useCoach, useMySlot } from './useCoach';
@@ -87,6 +88,7 @@ export function DlBoard() {
           <span className="dl-team-score" style={{ color: TEAM_COLOR[0] }}>{TEAM_NAME[0]} <b>{kills(0)}</b></span>
           <span className="dl-clock num">{mins(time)}</span>
           <span className="dl-team-score" style={{ color: TEAM_COLOR[1] }}><b>{kills(1)}</b> {TEAM_NAME[1]}</span>
+          <DemoChip />
         </div>
         <div className="dl-souls" title={`Team souls: ${TEAM_NAME[0]} ${s0.toLocaleString()} · ${TEAM_NAME[1]} ${s1.toLocaleString()}`}>
           <i style={{ width: `${lead * 100}%`, background: TEAM_COLOR[0] }} /><i style={{ width: `${(1 - lead) * 100}%`, background: TEAM_COLOR[1] }} />
@@ -147,6 +149,16 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
     return () => ro.disconnect();
   }, []);
   const map = useGameMap();
+  // the urn from the demo: on the ground where it lay, or with whoever carried it
+  const demo = useDl(s => s.demo);
+  const urnNow = useMemo(() => {
+    const u = demo ? [...demo.urn].reverse().find(x => x.from <= time) : undefined;
+    if (!u) return null;
+    if (u.taken === null || time < u.taken) return { x: u.x, y: u.y, label: time < u.landed ? 'landing' : mins(u.from), carried: false, fromLeft: u.fromLeft };
+    const at = u.slot !== null && u.until !== null && time < u.until ? playerAt(match, u.slot, time) : null;
+    const who = match.players.find(p => p.slot === u.slot);
+    return at && who ? { x: at.x, y: at.y, label: heroOf(who.hero).name, carried: true, fromLeft: u.fromLeft } : null;
+  }, [demo, match, Math.floor(time)]); // eslint-disable-line react-hooks/exhaustive-deps
   // your team in lane colours when you played in it (like the game), else the bottom team
   const mine = useMySlot();
   const you = (match.players.find(p => p.slot === mine)?.team ?? 0) as DlTeam;
@@ -168,7 +180,7 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
       <Stage width={S} height={S}>
         <Layer listening={false}>
           {/* the map like the game draws it, your team's lanes in their colours; objectives destroyed by now hollow */}
-          <MapArt S={S} k={k} img={map} you={you} down={(team, key) => downKeys.has(`${team}_${key}`)} at={{ time, midBoss: match.midBoss }} />
+          <MapArt S={S} k={k} img={map} you={you} down={(team, key) => downKeys.has(`${team}_${key}`)} at={{ time, midBoss: match.midBoss, demo, urnNow }} />
           {trail && trail.length >= 4 && <Line points={trail} stroke="#fff" strokeWidth={1.5 * k} opacity={0.6} lineCap="round" lineJoin="round" />}
           {/* bodies: where a hero just died, fading out */}
           {match.deaths.filter(d => time >= d.t && time - d.t < BODY_GONE).map(d => {
@@ -278,7 +290,19 @@ function DlCard({ moves, time, canMine }: { moves: DlMove[]; time: number; canMi
 
 /** What's up and what's next at this moment of the match (the game's timings, the mid boss from this match). */
 function DlTimers({ match, time }: { match: DlMatch; time: number }) {
+  const demo = useDl(s => s.demo);
   const rows = timersAt(time, match.midBoss);
+  // with the demo: what really happened, in place of the schedule's guess
+  if (demo) {
+    const set = (what: string, now: string) => { const r = rows.find(x => x.what === what); if (r) r.now = now; };
+    const u = [...demo.urn].reverse().find(x => x.from <= time);
+    const carrier = u?.slot != null ? heroOf(match.players.find(p => p.slot === u.slot)?.hero ?? 0).name : null;
+    set('Soul Urn', !u ? 'not yet' : u.taken === null || time < u.taken ? `on the ground since ${mins(u.from)} (${u.fromLeft ? 'Yellow' : 'Green'})`
+      : u.until !== null && time < u.until ? `carried${carrier ? ` by ${carrier}` : ''} since ${mins(u.taken)}` : 'none out');
+    const side = (i: number) => { const on = demo.buffs[i]?.find(([a, z]) => time >= a && time < z); return on ? `up since ${mins(on[0])}` : 'taken'; };
+    if (time >= RULES.bridgeBuffs.spawn) set('Bridge buffs', `left ${side(0)} · right ${side(1)}`);
+    set('Camps', `${demo.camps.filter(xs => upAt(xs, time)).length} of ${demo.camps.length} up`);
+  }
   return (
     <section className="dl-timers" aria-label="Timers">
       <div className="dl-team-head">Timers</div>
@@ -292,4 +316,14 @@ function DlTimers({ match, time }: { match: DlMatch; time: number }) {
       <a className="muted small dl-timer-src" href={TIMINGS_SOURCE.url} target="_blank" rel="noreferrer">Game timings from the Deadlock Wiki</a>
     </section>
   );
+}
+
+/** How reading the demo is going: deadlock-api reads it in about a minute the first time. */
+function DemoChip() {
+  const st = useDl(s => s.demoStatus);
+  if (!st) return null;
+  const text = st.state === 'done' ? 'Demo read' : st.state === 'failed' ? 'No demo' : `Reading the demo${st.wait ? ` · ~${st.wait} s` : '…'}`;
+  const tip = st.state === 'done' ? 'Camps, the urn and the bridge buffs are shown as they really were; ability casts and ultimates are in the coach.'
+    : st.state === 'failed' ? st.error ?? 'The demo couldn\'t be read.' : 'deadlock-api is reading this match\'s demo (about a minute the first time, then it\'s kept in this browser).';
+  return <span className={`dl-demo-chip ${st.state}`} title={tip}>{text}</span>;
 }

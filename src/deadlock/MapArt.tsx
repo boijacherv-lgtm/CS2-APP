@@ -3,6 +3,7 @@ import { Arc, Circle, Group, Image as KImage, Line, Rect, RegularPolygon, Star, 
 import type Konva from 'konva';
 import { DL_MAP, DL_MAP_IMAGE, type DlTeam } from './data';
 import { clock, RULES, urnLane } from './timings';
+import { upAt, type DlDemo } from './demo';
 
 /**
  * The Deadlock map drawn like the game's own minimap (Oct 2026): a dark round map with the two bases, each lane a
@@ -68,8 +69,12 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
   down?: (team: DlTeam, key: string) => boolean;
   /** A moment of a match (Review): then only what's up at that time shows (timings.ts), with when it came, and the
    * mid boss only while it's alive (its kills in this match). Without it, everything shows (Tactical). */
-  at?: { time: number; midBoss: { t: number }[] };
+  at?: { time: number; midBoss: { t: number }[];
+    /** The match's demo (demo.ts): then camps and bridge buffs as they really were, and the urn where it really was
+     * (`urnNow`: on the ground, or with its carrier; null: no urn out). */
+    demo?: DlDemo | null; urnNow?: { x: number; y: number; label: string; carried: boolean; fromLeft: boolean } | null };
 }) {
+  const demo = at?.demo ?? null;
   const tm = at?.time;
   const up = (from: number) => tm === undefined || tm >= from;
   // the latest spawn mark at or before now, for things on a schedule
@@ -113,7 +118,8 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
         {layers.has('camps') && DL_MAP.camps.map((c, i) => {
           const tier = c.kind === 'strong' ? 2 : c.kind === 'medium' ? 1 : 0;
           // camps come at 2 / 5 / 8 min by size, Sinner's Sacrifice (the vaults) at 8
-          if (!up(c.kind === 'vault' ? RULES.sinners.spawn : c.kind === 'strong' ? RULES.camps.strong.spawn : c.kind === 'medium' ? RULES.camps.medium.spawn : RULES.camps.small.spawn)) return null;
+          if (demo && tm !== undefined ? !upAt(demo.camps[i] ?? [], tm)
+            : !up(c.kind === 'vault' ? RULES.sinners.spawn : c.kind === 'strong' ? RULES.camps.strong.spawn : c.kind === 'medium' ? RULES.camps.medium.spawn : RULES.camps.small.spawn)) return null;
           if (c.kind === 'vault') return <Group key={`c${i}`} {...P(c)}><Rect x={-3.6 * k} y={-3.6 * k} width={7.2 * k} height={7.2 * k} stroke="#9cc4b9" strokeWidth={1 * k} cornerRadius={1 * k} /><Circle radius={1.6 * k} stroke="#9cc4b9" strokeWidth={1 * k} /></Group>;
           return (
             <Group key={`c${i}`} {...P(c)}>
@@ -133,7 +139,26 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
         {/* the urn: it lands by the Yellow (left) or Green (right) bridge, alternating, and is delivered on the other
             side; with `urn`, the one out now and its drop-off, else both spots (the API's other spawn spots are from
             before the May 2026 rework) */}
-        {layers.has('urn') && (tm === undefined || urn) && DL_MAP.urnPads.map((u, i) => {
+        {/* from the demo: the urn where it really is (on the ground, or a ring round its carrier), its drop-off across */}
+        {layers.has('urn') && demo && at?.urnNow && (() => {
+          const u = at.urnNow, drop = DL_MAP.urnPads.find(p => (p.x < 0.5) !== u.fromLeft);
+          return (
+            <>
+              {drop && <Circle {...P(drop)} radius={7 * k} stroke="#3fd0e6" strokeWidth={1.2 * k} dash={[3 * k, 2 * k]} />}
+              <Group {...P(u)}>
+                {u.carried
+                  ? <Circle radius={13 * k} stroke="#3fd0e6" strokeWidth={1.6 * k} dash={[4 * k, 2.5 * k]} />
+                  : <Circle radius={9 * k} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={9 * k} fillRadialGradientColorStops={[0, 'rgba(63,208,230,0.5)', 1, 'rgba(63,208,230,0)']} />}
+                <Group y={u.carried ? -16 * k : 0}>
+                  <Rect x={-2.4 * k} y={-3.4 * k} width={4.8 * k} height={1.2 * k} fill="#3fd0e6" cornerRadius={0.5 * k} />
+                  <Circle y={0.8 * k} radius={3 * k} fill="#3fd0e6" />
+                </Group>
+                {tag(u.label, '#3fd0e6', u.carried ? 14 : 10)}
+              </Group>
+            </>
+          );
+        })()}
+        {layers.has('urn') && !demo && (tm === undefined || urn) && DL_MAP.urnPads.map((u, i) => {
           const left = u.x < 0.5, out = urn ? (urn.lane === 'Yellow') === left : true, dropOff = !!urn && !out;
           return (
             <Group key={`u${i}`} {...P(u)}>
@@ -146,13 +171,18 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
           );
         })}
         {/* bridge buffs and the unstable rifts */}
-        {layers.has('buffs') && (tm === undefined || buffsAt !== null) && DL_MAP.bridgeBuffs.map((b, i) => (
-          <Group key={`b${i}`} {...P(b)}>
-            <Circle radius={7 * k} stroke="#b07ce8" strokeWidth={1.3 * k} fill="rgba(176,124,232,0.15)" />
-            <Star numPoints={5} innerRadius={2 * k} outerRadius={4.4 * k} fill="#b07ce8" />
-            {buffsAt !== null && tag(clock(buffsAt), '#b07ce8', 9)}
-          </Group>
-        ))}
+        {layers.has('buffs') && DL_MAP.bridgeBuffs.map((b, i) => {
+          // from the demo: only while one lies there (since when); else on the schedule
+          const since = demo && tm !== undefined ? (demo.buffs[i] ?? []).find(([a, z]) => tm >= a && tm < z)?.[0] ?? null : buffsAt;
+          if (tm !== undefined && since === null) return null;
+          return (
+            <Group key={`b${i}`} {...P(b)}>
+              <Circle radius={7 * k} stroke="#b07ce8" strokeWidth={1.3 * k} fill="rgba(176,124,232,0.15)" />
+              <Star numPoints={5} innerRadius={2 * k} outerRadius={4.4 * k} fill="#b07ce8" />
+              {since !== null && tag(clock(since), '#b07ce8', 9)}
+            </Group>
+          );
+        })}
         {layers.has('buffs') && riftOn && DL_MAP.rifts.map((b, i) => (
           <Group key={`r${i}`} {...P(b)}>
             <Circle radius={8 * k} stroke="#3fc7b4" strokeWidth={1.3 * k} />

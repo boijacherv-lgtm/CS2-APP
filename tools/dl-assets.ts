@@ -10,12 +10,18 @@ const API = 'https://api.deadlock-api.com';
 const OUT = path.resolve(import.meta.dirname, '../src/deadlock/generated');
 const get = async (p: string) => { const r = await fetch(API + p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
 
-type Hero = { id: number; name: string; player_selectable: boolean; disabled: boolean; in_development: boolean; colors?: { style_hex?: string }; images: Record<string, string> };
+type Hero = { id: number; name: string; player_selectable: boolean; disabled: boolean; in_development: boolean; colors?: { style_hex?: string }; images: Record<string, string>; items?: Record<string, string> };
 const heroes = (await get('/v1/assets/heroes?only_active=true')) as Hero[];
+// each hero's four abilities (the demo names a cast by its class), the ultimate and its cooldown
+type Ability = { class_name: string; name: string; ability_type?: string; properties?: { AbilityCooldown?: { value?: number | string } } };
+const abilities = new Map(((await get('/v1/assets/items/by-type/ability')) as Ability[]).map(a => [a.class_name, a]));
+const kitOf = (h: Hero) => [1, 2, 3, 4].map(n => abilities.get(h.items?.[`signature${n}`] ?? '')).filter((a): a is Ability => !!a)
+  .map(a => ({ cls: a.class_name, name: a.name, ult: a.ability_type === 'ultimate', cd: Number(a.properties?.AbilityCooldown?.value) || 0 }));
 const outHeroes = heroes.filter(h => h.player_selectable && !h.disabled).map(h => ({
   id: h.id, name: h.name, color: h.colors?.style_hex ?? '#888888',
   icon: h.images.minimap_image_webp ?? h.images.minimap_image ?? h.images.icon_image_small_webp ?? null,
   card: h.images.icon_image_small_webp ?? h.images.icon_image_small ?? null,
+  abilities: kitOf(h),
 })).sort((a, b) => a.name.localeCompare(b.name));
 
 type Pt = { left_relative: number; top_relative: number; position?: number[]; [k: string]: unknown };
