@@ -132,13 +132,13 @@ export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down,
   const isDown = (o: Obj) => !!down?.(o.team as DlTeam, o.id.replace(/^team\d_/, ''));
   return (
     <>
-      {/* the whole map, the underpasses over it, your base glowing */}
+      {/* the whole map on the site's own background (nothing drawn around it), the underpasses over it, a faint glow
+          at your base */}
       {B && <Group listening={false}>
-        <Rect width={S} height={S} fill="#0e1115" />
         {img && <KImage image={img} width={S} height={S} />}
         {layers.has('tunnels') && tunnels && <KImage image={tunnels} width={S} height={S} />}
-        <Circle {...P(mine)} radius={0.32 * S} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={0.32 * S}
-          fillRadialGradientColorStops={[0, 'rgba(90,200,175,0.30)', 0.55, 'rgba(90,200,175,0.08)', 1, 'rgba(90,200,175,0)']} />
+        <Circle {...P(mine)} radius={0.18 * S} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={0.18 * S}
+          fillRadialGradientColorStops={[0, 'rgba(90,200,175,0.10)', 1, 'rgba(90,200,175,0)']} />
       </Group>}
 
       <Group listening={false}>
