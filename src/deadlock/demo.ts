@@ -15,7 +15,7 @@ import { playerAt, type DlMatch } from './match';
 const API = 'https://api.deadlock-api.com';
 const TICKS = 64;
 /** Bump when what's read or how it's put together changes: demos read before are read again. */
-const DEMO_V = 2;
+const DEMO_V = 3;
 
 export interface DlDemo {
   v: number;
@@ -33,7 +33,14 @@ export interface DlDemo {
   midBossSpawns: number[];
   /** Rejuvenator crystals claimed, by whom. */
   rejuv: { t: number; slot: number | null }[];
+  /** Every hero 4 times a second (smooth movement, fast heroes too): map x / y, and height in game units (below 0:
+   * in the tunnels or the mid boss pit); NaN while dead. Sample i is at time i × TRACK_DT. */
+  tracks: Record<number, { x: number[]; y: number[]; z: number[] }>;
 }
+/** Seconds between two hero samples. */
+export const TRACK_DT = 0.25;
+/** Below this height a hero is underground (the tunnels, the mid boss pit): the streets are mostly 100–500. */
+export const UNDERGROUND_Z = 0;
 
 // ---- the queries (table names are matched case-insensitively, column names must be quoted) ----------------------
 const LIFE = (table: string) => `SELECT tick, entity_index AS e, delta_type AS d, ls, cx, cy, vx, vy FROM (
@@ -55,6 +62,9 @@ const QUERIES = {
   urn: `SELECT tick / ${TICKS} AS s, last_value("CBodyComponent__m_cellX" ORDER BY tick) AS cx, last_value("CBodyComponent__m_cellY" ORDER BY tick) AS cy,
     last_value("CBodyComponent__m_vecX" ORDER BY tick) AS vx, last_value("CBodyComponent__m_vecY" ORDER BY tick) AS vy FROM CCitadelItemPickupIdol GROUP BY tick / ${TICKS} ORDER BY s`,
   // the bridge buff stays all match; it can be taken while "active"
+  heroes: `SELECT tick / ${TICKS * TRACK_DT} AS b, entity_index AS e, last_value("CBodyComponent__m_cellX" ORDER BY tick) AS cx, last_value("CBodyComponent__m_cellY" ORDER BY tick) AS cy,
+    last_value("CBodyComponent__m_cellZ" ORDER BY tick) AS cz, last_value("CBodyComponent__m_vecX" ORDER BY tick) AS vx, last_value("CBodyComponent__m_vecY" ORDER BY tick) AS vy,
+    last_value("CBodyComponent__m_vecZ" ORDER BY tick) AS vz, last_value("m_lifeState" ORDER BY tick) AS ls FROM CCitadelPlayerPawn GROUP BY tick / ${TICKS * TRACK_DT}, entity_index ORDER BY b`,
   buffs: `SELECT tick, e, d, act, cx, cy, vx, vy FROM (SELECT tick, entity_index AS e, delta_type AS d, "m_bActive" AS act,
     lag("m_bActive") OVER (PARTITION BY entity_index ORDER BY tick) AS prev, ${POS} FROM CCitadel_Pickup_Modifier) WHERE d <> 'update' OR act <> prev ORDER BY tick`,
 };
@@ -156,6 +166,51 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     if (!cur || cur.taken !== null || Math.hypot(p.x - cur.x, p.y - cur.y) > 0.05) urn.push({ from: t, landed: t + 12.5, ...p, fromLeft: p.x < 0.5, taken: null, slot: null, until: null });
     else { cur.x = p.x; cur.y = p.y; }
   }
+  // every hero 4 times a second: each hero entity's last spot in each quarter second, carried on while nothing changed
+  // (NaN while dead). An entity is matched to the player it moves exactly like in the match data (a hero can change
+  // entity during a match, so the players' list alone isn't enough)
+  const n = Math.ceil(m.duration / TRACK_DT) + 1;
+  const byEntity = new Map<number, Row[]>();
+  for (const r of q.heroes) { const e = Number(r.e); byEntity.set(e, [...(byEntity.get(e) ?? []), r]); }
+  const tracks: DlDemo['tracks'] = {};
+  for (const p of m.players) tracks[p.slot] = { x: new Array(n).fill(NaN), y: new Array(n).fill(NaN), z: new Array(n).fill(NaN) };
+  for (const [e, rs] of byEntity) {
+    const tr = { x: new Array(n).fill(NaN), y: new Array(n).fill(NaN), z: new Array(n).fill(NaN) };
+    let cur: { x: number; y: number; z: number; dead: boolean } | null = null, k = 0;
+    for (let b = 0; b < n; b++) {
+      for (; k < rs.length && Number(rs[k].b) <= b; k++) {
+        const r = rs[k];
+        if (r.cx == null) continue;
+        const w = world(r), p = toMap(w.x, w.y);
+        cur = { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: Math.round((Number(r.cz) - 64) * 512 + Number(r.vz)), dead: r.ls != null && Number(r.ls) !== 0 };
+      }
+      if (cur && !cur.dead) { tr.x[b] = cur.x; tr.y[b] = cur.y; tr.z[b] = cur.z; }
+    }
+    // the player it follows: the demo's own player list when it names one, else the smallest typical gap to a
+    // player's 1-a-second track
+    let best: number | null = slotOfPawn.get(e) ?? null, bestGap = 0.02;
+    if (best === null) {
+      for (const p of m.players) {
+        const gaps: number[] = [];
+        for (let b = 0; b < n; b += 40) { if (Number.isNaN(tr.x[b])) continue; const a = playerAt(m, p.slot, b * TRACK_DT); if (a) gaps.push(Math.hypot(a.x - tr.x[b], a.y - tr.y[b])); }
+        if (gaps.length < 5) continue;
+        gaps.sort((x, y) => x - y);
+        if (gaps[gaps.length >> 1] < bestGap) { bestGap = gaps[gaps.length >> 1]; best = p.slot; }
+      }
+    }
+    if (best === null) continue;
+    const into = tracks[best];
+    for (let b = 0; b < n; b++) {
+      if (Number.isNaN(tr.x[b]) || !Number.isNaN(into.x[b])) continue;
+      // a sample far from where the match data has them isn't the hero you see (Mina's bats leave the hero entity
+      // behind): left out, so the board falls back on the match data there
+      const a = playerAt(m, best, b * TRACK_DT);
+      if (a && Math.hypot(a.x - tr.x[b], a.y - tr.y[b]) > 0.06) continue;
+      into.x[b] = tr.x[b]; into.y[b] = tr.y[b]; into.z[b] = tr.z[b];
+    }
+    void e;
+  }
+  const heroAtTrack = (slot: number, t: number) => (tracks[slot] ? heroAt({ tracks } as DlDemo, slot, t) : null);
   urn.forEach((u, i) => {
     if (u.taken === null) return;
     // carried by the hero nearest it when it went; until the next one comes, or it's run out (45 s + 45 s decay)
@@ -163,6 +218,13 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     let bd = u.taken - u.from > 180 ? 0.08 : 0.04;
     for (const p of m.players) { const a = playerAt(m, p.slot, u.taken); const d = a ? Math.hypot(a.x - u.x, a.y - u.y) : 9; if (d < bd) { bd = d; u.slot = p.slot; } }
     u.until = Math.min(urn[i + 1]?.from ?? m.duration, u.taken + 90, m.duration);
+    // it ends when the carrier reaches the drop-off on the other side (delivered) or dies (dropped)
+    const drop = DL_MAP.urnPads.find(p => (p.x < 0.5) !== u.fromLeft);
+    if (u.slot !== null) for (let t = u.taken; t < u.until; t += TRACK_DT) {
+      const a = heroAtTrack(u.slot, t) ?? playerAt(m, u.slot, t);
+      if (!a) { u.until = t; break; } // died
+      if (drop && Math.hypot(a.x - drop.x, a.y - drop.y) < 0.03) { u.until = t; break; }
+    }
   });
   // the bridge buffs: a buff lying on either bridge
   const buffs: [number, number][][] = DL_MAP.bridgeBuffs.map(() => []);
@@ -185,7 +247,7 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     } else if (r.k === 'midboss') midBossSpawns.push(t);
     else if (r.k === 'rejuv') rejuv.push({ t, slot: slotOf(r.a) });
   }
-  return { v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv };
+  return { v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv, tracks };
 }
 
 const KEY = (id: number) => `dldemo${DEMO_V}:${id}`;
@@ -200,3 +262,15 @@ export async function loadDemo(m: DlMatch, onWait: (s: number | null) => void = 
 
 /** Whether `t` falls in one of the intervals. */
 export const upAt = (xs: [number, number][], t: number) => xs.some(([a, b]) => t >= a && t < b);
+
+/** A hero's spot at time t from the demo (between the quarter-second samples; a jump of more than 4% of the map in a
+ * quarter second is a teleport, not drawn as a slide); null while dead or not in the demo. */
+export function heroAt(demo: DlDemo, slot: number, t: number): { x: number; y: number; z: number } | null {
+  const tr = demo.tracks?.[slot];
+  if (!tr) return null;
+  const f = t / TRACK_DT, i = Math.floor(f), j = i + 1, w = f - i;
+  const ok = (k: number) => k >= 0 && k < tr.x.length && !Number.isNaN(tr.x[k]);
+  if (!ok(i)) return ok(j) && w > 0.5 ? { x: tr.x[j], y: tr.y[j], z: tr.z[j] } : null;
+  if (!ok(j) || Math.hypot(tr.x[j] - tr.x[i], tr.y[j] - tr.y[i]) > 0.04) return { x: tr.x[i], y: tr.y[i], z: tr.z[i] };
+  return { x: tr.x[i] + (tr.x[j] - tr.x[i]) * w, y: tr.y[i] + (tr.y[j] - tr.y[i]) * w, z: tr.z[i] + (tr.z[j] - tr.z[i]) * w };
+}

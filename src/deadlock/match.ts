@@ -84,8 +84,9 @@ export function playerAt(match: DlMatch, slot: number, t: number): { x: number; 
   if (!tr) return null;
   if (match.deaths.some(d => d.slot === slot && t >= d.t && t < d.t + d.respawn)) return null;
   const n = tr.x.length, i = Math.max(0, Math.min(n - 1, Math.floor(t))), j = Math.min(n - 1, i + 1), f = Math.max(0, Math.min(1, t - i));
-  // a jump (a teleport, a respawn) isn't drawn as a slide across the map
-  const jump = Math.hypot(tr.x[j] - tr.x[i], tr.y[j] - tr.y[i]) > 0.05;
+  // a jump (a teleport, a respawn) isn't drawn as a slide across the map; a zipline or a dash is (up to 12% of the map
+  // in a second: below that it's movement)
+  const jump = Math.hypot(tr.x[j] - tr.x[i], tr.y[j] - tr.y[i]) > 0.12;
   return { x: jump ? tr.x[i] : tr.x[i] + (tr.x[j] - tr.x[i]) * f, y: jump ? tr.y[i] : tr.y[i] + (tr.y[j] - tr.y[i]) * f, hp: tr.hp[i] };
 }
 

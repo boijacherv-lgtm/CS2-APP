@@ -119,7 +119,7 @@ function Token({ h, at, k, S, icon, selected, onDrag, onClick, dim }: {
 function Macro() {
   const heroes = useTac(s => s.heroes), keys = useTac(s => s.keys), notes = useTac(s => s.notes), time = useTac(s => s.time), playing = useTac(s => s.playing), selected = useTac(s => s.selected);
   const t = useTac.getState();
-  const [layers, setLayers] = useLayers(['lanes', 'objectives', 'urn', 'camps']);
+  const [layers, setLayers] = useLayers(['lanes', 'objectives', 'urn', 'camps', 'tunnels']);
   const [note, setNote] = useState('');
   const icons = useImages(heroes.map(h => heroOf(h.hero).icon));
   // plays at 20x: a 40-minute plan in 2 minutes

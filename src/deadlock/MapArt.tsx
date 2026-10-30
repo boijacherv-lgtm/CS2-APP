@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Arc, Circle, Group, Image as KImage, Line, Rect, RegularPolygon, Star, Text } from 'react-konva';
-import type Konva from 'konva';
 import { DL_MAP, DL_MAP_IMAGE, type DlTeam } from './data';
 import { clock, RULES, urnLane } from './timings';
 import { upAt, type DlDemo } from './demo';
@@ -24,14 +23,45 @@ type Obj = (typeof DL_MAP.objectives)[number];
 const objAt = (team: DlTeam, key: string): Obj | undefined => DL_MAP.objectives.find(o => o.id === `team${team}_${key}`);
 const titan = (team: DlTeam) => objAt(team, 'titan')!;
 
-/** The map's outline: the round map and each base sticking out of it (map units). */
-const ROUND = { x: 0.5, y: 0.5, r: 0.495 };
-const bump = (team: DlTeam) => { const t = titan(team); return { x: t.x, y: t.y + (team === 0 ? 0.04 : -0.04), r: 0.1 }; };
-/** Clips a Konva group to the map's outline. */
-export const mapClip = (S: number) => (ctx: Konva.Context) => {
-  ctx.beginPath();
-  for (const c of [ROUND, bump(0), bump(1)]) { ctx.moveTo((c.x + c.r) * S, c.y * S); ctx.arc(c.x * S, c.y * S, c.r * S, 0, Math.PI * 2, false); }
-};
+/** A team's base, a little behind its patron (for the glow under your base). */
+const base = (team: DlTeam) => { const t = titan(team); return { x: t.x, y: t.y + (team === 0 ? 0.04 : -0.04) }; };
+
+/** The underpasses (deadlock-api's tunnel minimaps, same frame as the map): the mid boss pit with its side passages,
+ * and the sewer tunnels. Only their passages are kept, drawn warm and see-through over the streets. */
+const TUNNELS = ['minimap_midtown_mid_tunnels.png', 'minimap_midtown_rat_tunnels.png'].map(f => `https://assets-bucket.deadlock-api.com/assets-api-res/images/maps/${f}`);
+export function useTunnels() {
+  const [img, setImg] = useState<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    let left = TUNNELS.length;
+    const c = document.createElement('canvas');
+    c.width = 1024; c.height = 1024;
+    const g = c.getContext('2d')!;
+    for (const src of TUNNELS) {
+      const i = new window.Image();
+      i.crossOrigin = 'anonymous';
+      i.onload = () => {
+        const t = document.createElement('canvas');
+        t.width = 1024; t.height = 1024;
+        const tg = t.getContext('2d')!;
+        tg.drawImage(i, 0, 0, 1024, 1024);
+        const d = tg.getImageData(0, 0, 1024, 1024);
+        // a passage is an exactly neutral dark grey, solid (e.g. 38,38,38); the haze around them is a touch green
+        // (e.g. 44,53,47)
+        for (let k = 0; k < d.data.length; k += 4) {
+          const [r, g2, b] = [d.data[k], d.data[k + 1], d.data[k + 2]];
+          const solid = d.data[k + 3] > 200 && r < 75 && Math.abs(g2 - r) <= 2 && Math.abs(b - r) <= 2;
+          d.data[k] = 200; d.data[k + 1] = 164; d.data[k + 2] = 106; d.data[k + 3] = solid ? 120 : 0;
+        }
+        tg.putImageData(d, 0, 0);
+        g.drawImage(t, 0, 0);
+        if (--left === 0) setImg(c);
+      };
+      i.onerror = () => { if (--left === 0) setImg(c); };
+      i.src = src;
+    }
+  }, []);
+  return img;
+}
 
 /** The minimap in the game's dark colours: streets dark grey, buildings near black. */
 export function useGameMap(src = DL_MAP_IMAGE) {
@@ -57,15 +87,20 @@ export function useGameMap(src = DL_MAP_IMAGE) {
   return img;
 }
 
-export type ArtLayer = 'lanes' | 'objectives' | 'camps' | 'urn' | 'shops' | 'teleporters' | 'buffs';
-const ALL: Set<ArtLayer> = new Set(['lanes', 'objectives', 'camps', 'urn', 'shops', 'teleporters', 'buffs']);
+export type ArtLayer = 'lanes' | 'objectives' | 'camps' | 'urn' | 'shops' | 'teleporters' | 'buffs' | 'tunnels';
+const ALL: Set<ArtLayer> = new Set(['lanes', 'objectives', 'camps', 'urn', 'shops', 'teleporters', 'buffs', 'tunnels']);
 
 /**
  * The map and what's on it. `you`: the team drawn in lane colours (the other one red), like the game shows your own
  * team. `down(team, key)`: whether that objective is destroyed (drawn hollow with a cross).
  */
-export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
+export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down, at, part = 'all' }: {
   S: number; k: number; img: HTMLCanvasElement | null; you?: DlTeam; layers?: Set<ArtLayer>;
+  /** The underpasses (useTunnels), drawn over the streets. */
+  tunnels?: HTMLCanvasElement | null;
+  /** Which part to draw: the map and what never moves ('base': its own layer, redrawn only when that changes), what
+   * comes and goes with time ('live'), or both. */
+  part?: 'all' | 'base' | 'live';
   down?: (team: DlTeam, key: string) => boolean;
   /** A moment of a match (Review): then only what's up at that time shows (timings.ts), with when it came, and the
    * mid boss only while it's alive (its kills in this match). Without it, everything shows (Tactical). */
@@ -75,6 +110,7 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
     demo?: DlDemo | null; urnNow?: { x: number; y: number; label: string; carried: boolean; fromLeft: boolean } | null };
 }) {
   const demo = at?.demo ?? null;
+  const B = part !== 'live', L = part !== 'base';
   const tm = at?.time;
   const up = (from: number) => tm === undefined || tm >= from;
   // the latest spawn mark at or before now, for things on a schedule
@@ -90,32 +126,30 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
     <Text text={text} x={-20 * k} y={dy * k} width={40 * k} align="center" fontSize={8.5 * k} fontStyle="bold" fill={color} stroke="#0b0e12" strokeWidth={2.5 * k} fillAfterStrokeEnabled />
   );
   const P = (p: { x: number; y: number }) => ({ x: p.x * S, y: p.y * S });
-  const mine = bump(you);
+  const mine = base(you);
   const colorOf = (o: Obj) => (o.team !== you ? ENEMY : o.lane ? LANE_COLOR[o.lane as 1 | 3 | 4] : HOME);
   const lineOf = (team: DlTeam, lane: 1 | 3 | 4) => (team !== you ? ENEMY_LINE : LANE_LINE[lane]);
   const isDown = (o: Obj) => !!down?.(o.team as DlTeam, o.id.replace(/^team\d_/, ''));
   return (
     <>
-      {/* the round map, your base glowing */}
-      <Group clipFunc={mapClip(S)} listening={false}>
+      {/* the whole map, the underpasses over it, your base glowing */}
+      {B && <Group listening={false}>
         <Rect width={S} height={S} fill="#0e1115" />
         {img && <KImage image={img} width={S} height={S} />}
+        {layers.has('tunnels') && tunnels && <KImage image={tunnels} width={S} height={S} />}
         <Circle {...P(mine)} radius={0.32 * S} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={0.32 * S}
           fillRadialGradientColorStops={[0, 'rgba(90,200,175,0.30)', 0.55, 'rgba(90,200,175,0.08)', 1, 'rgba(90,200,175,0)']} />
-      </Group>
-      <Group listening={false}>
-        {[ROUND, bump(0), bump(1)].map((c, i) => <Arc key={i} {...P(c)} innerRadius={c.r * S} outerRadius={c.r * S + 1.2 * k} angle={360} fill="#262b33" />)}
-      </Group>
+      </Group>}
 
       <Group listening={false}>
         {/* each lane: patron → base guardian → walker → guardian */}
-        {layers.has('lanes') && ([0, 1] as DlTeam[]).flatMap(team => ([1, 3, 4] as const).map(lane => {
+        {B && layers.has('lanes') && ([0, 1] as DlTeam[]).flatMap(team => ([1, 3, 4] as const).map(lane => {
           const pts = [titan(team), objAt(team, `base_${lane}`), objAt(team, `tier2_${lane}`), objAt(team, `tier1_${lane}`)].filter((o): o is Obj => !!o);
           return <Line key={`l${team}${lane}`} points={pts.flatMap(o => [o.x * S, o.y * S])} stroke={lineOf(team, lane)} strokeWidth={1.6 * k} opacity={0.9} lineJoin="round" />;
         }))}
 
         {/* neutral camps: one triangle for a small camp, with a bar for each step stronger; a vault as a box */}
-        {layers.has('camps') && DL_MAP.camps.map((c, i) => {
+        {L && layers.has('camps') && DL_MAP.camps.map((c, i) => {
           const tier = c.kind === 'strong' ? 2 : c.kind === 'medium' ? 1 : 0;
           // camps come at 2 / 5 / 8 min by size, Sinner's Sacrifice (the vaults) at 8
           if (demo && tm !== undefined ? !upAt(demo.camps[i] ?? [], tm)
@@ -129,7 +163,7 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
           );
         })}
         {/* shops */}
-        {layers.has('shops') && DL_MAP.shops.map((s, i) => (
+        {B && layers.has('shops') && DL_MAP.shops.map((s, i) => (
           <Group key={`s${i}`} {...P(s)}>
             <Rect x={-5 * k} y={-2.6 * k} width={10 * k} height={5.6 * k} fill="#5fd39a" cornerRadius={1.2 * k} />
             <Rect x={-3.2 * k} y={-0.6 * k} width={6.4 * k} height={2.4 * k} fill="#0e1115" />
@@ -140,7 +174,7 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
             side; with `urn`, the one out now and its drop-off, else both spots (the API's other spawn spots are from
             before the May 2026 rework) */}
         {/* from the demo: the urn where it really is (on the ground, or a ring round its carrier), its drop-off across */}
-        {layers.has('urn') && demo && at?.urnNow && (() => {
+        {L && layers.has('urn') && demo && at?.urnNow && (() => {
           const u = at.urnNow, drop = DL_MAP.urnPads.find(p => (p.x < 0.5) !== u.fromLeft);
           return (
             <>
@@ -158,7 +192,7 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
             </>
           );
         })()}
-        {layers.has('urn') && !demo && (tm === undefined || urn) && DL_MAP.urnPads.map((u, i) => {
+        {L && layers.has('urn') && !demo && (tm === undefined || urn) && DL_MAP.urnPads.map((u, i) => {
           const left = u.x < 0.5, out = urn ? (urn.lane === 'Yellow') === left : true, dropOff = !!urn && !out;
           return (
             <Group key={`u${i}`} {...P(u)}>
@@ -171,7 +205,7 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
           );
         })}
         {/* bridge buffs and the unstable rifts */}
-        {layers.has('buffs') && DL_MAP.bridgeBuffs.map((b, i) => {
+        {L && layers.has('buffs') && DL_MAP.bridgeBuffs.map((b, i) => {
           // from the demo: only while one lies there (since when); else on the schedule
           const since = demo && tm !== undefined ? (demo.buffs[i] ?? []).find(([a, z]) => tm >= a && tm < z)?.[0] ?? null : buffsAt;
           if (tm !== undefined && since === null) return null;
@@ -183,7 +217,7 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
             </Group>
           );
         })}
-        {layers.has('buffs') && riftOn && DL_MAP.rifts.map((b, i) => (
+        {L && layers.has('buffs') && riftOn && DL_MAP.rifts.map((b, i) => (
           <Group key={`r${i}`} {...P(b)}>
             <Circle radius={8 * k} stroke="#3fc7b4" strokeWidth={1.3 * k} />
             <Circle radius={4.5 * k} stroke="#3fc7b4" strokeWidth={1 * k} dash={[2 * k, 1.6 * k]} />
@@ -192,7 +226,7 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
         ))}
 
         {/* teleporters, like the game's icon: a ring with a doorway and someone stepping through it */}
-        {layers.has('teleporters') && DL_MAP.teleporters.map((t, i) => (
+        {B && layers.has('teleporters') && DL_MAP.teleporters.map((t, i) => (
           <Group key={`t${i}`} {...P(t)}>
             <Circle radius={7.5 * k} fill="rgba(14,17,21,0.85)" stroke="#8a929c" strokeWidth={1.2 * k} />
             <Line points={[0.6, 4.6, 0.6, -4.2, 4.4, -4.2, 4.4, 4.6].map(v => v * k)} stroke="#8a929c" strokeWidth={1.1 * k} lineJoin="round" />
@@ -205,14 +239,14 @@ export function MapArt({ S, k, img, you = 0, layers = ALL, down, at }: {
         ))}
 
         {/* the mid boss, while it's alive */}
-        {!bossDown && <Group {...P(DL_MAP.midBoss)}>
+        {L && !bossDown && <Group {...P(DL_MAP.midBoss)}>
           <Circle radius={13 * k} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={13 * k} fillRadialGradientColorStops={[0, 'rgba(242,194,48,0.45)', 1, 'rgba(242,194,48,0)']} />
           <Line points={[-9, -3, -2, -1, 0, 7, 2, -1, 9, -3, 3, -5, 0, -2, -3, -5].map(v => v * k)} closed fill="#f2c230" stroke="#7a5a10" strokeWidth={0.6 * k} />
           <Circle y={-6.5 * k} radius={2 * k} stroke="#f2c230" strokeWidth={1 * k} />
         </Group>}
 
         {/* the objectives: guardians, walkers (big, hollow middle), base guardians, shrines, the patron with its arch */}
-        {layers.has('objectives') && DL_MAP.objectives.map(o => {
+        {B && layers.has('objectives') && DL_MAP.objectives.map(o => {
           const c = colorOf(o), off = isDown(o);
           const r = (o.kind === 'tier2' ? 10.5 : o.kind === 'titan' ? 9 : o.kind === 'tier1' ? 7 : 6) * k;
           const team = o.team as DlTeam;

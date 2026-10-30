@@ -17,7 +17,7 @@ describe('reading the demo', () => {
   const camp = DL_MAP.camps.findIndex(c => c.kind === 'weak'), at = cell(DL_MAP.camps[camp]);
   const buff = cell(DL_MAP.bridgeBuffs[0]), urnSpot = cell(DL_MAP.urnPads[0]);
   const d = buildDemo(m, {
-    players: [], events: [],
+    players: [], events: [], heroes: [],
     // a creature at a small camp: spawned at 2:00, sent again every minute (snapshots), killed at 4:05, back at 5:30
     camps: [
       { tick: 120 * T, e: 7, d: 'create', ls: 0, ...at }, { tick: 180 * T, e: 7, d: 'create', ls: 0, ...at },
