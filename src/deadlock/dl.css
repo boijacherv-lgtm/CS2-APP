@@ -167,3 +167,7 @@
 .dl-demo-chip { margin-left: 10px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); white-space: nowrap; }
 .dl-demo-chip.done { color: var(--good); }
 .dl-demo-chip.failed { color: var(--warn, #e3b341); }
+
+/* the board full screen */
+.dl-full { margin-left: 8px; }
+.dl-board:fullscreen { background: var(--bg, #0b0e12); padding: 10px 16px; }

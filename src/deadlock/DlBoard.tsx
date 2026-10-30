@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Arc, Circle, Group, Image as KImage, Layer, Line, Rect, RegularPolygon, Stage, Text } from 'react-konva';
 import { Icon } from '../ui/Icon';
 import { heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
-import { MapArt, useGameMap } from './MapArt';
+import { MapArt, useGameMap, useTunnels } from './MapArt';
+import { heroAt, UNDERGROUND_Z, upAt } from './demo';
 import { RULES, TIMINGS_SOURCE, timersAt } from './timings';
-import { upAt } from './demo';
 import { kdaAt, playerAt, statAt, type DlMatch } from './match';
 import { useDl } from './store';
 import { useCoach, useMySlot } from './useCoach';
@@ -71,6 +71,10 @@ export function DlBoard() {
     return () => removeEventListener('keydown', onKey);
   }, [match.duration, graded]);
 
+  // the board full screen (the map grows with it)
+  const board = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+  useEffect(() => { const on = () => setFull(!!document.fullscreenElement); document.addEventListener('fullscreenchange', on); return () => document.removeEventListener('fullscreenchange', on); }, []);
   const teams: DlTeam[] = [0, 1];
   const kills = (team: DlTeam) => match.deaths.filter(d => d.t <= time && d.killer !== null && match.players.find(p => p.slot === d.killer)?.team === team && d.killer !== d.slot).length;
   const souls = (team: DlTeam) => match.players.filter(p => p.team === team).reduce((a, p) => a + (statAt(match, p.slot, time)?.netWorth ?? 0), 0);
@@ -82,13 +86,15 @@ export function DlBoard() {
   };
 
   return (
-    <div className="dl-board">
+    <div className="dl-board" ref={board}>
       <div className="dl-top">
         <div className="dl-score">
           <span className="dl-team-score" style={{ color: TEAM_COLOR[0] }}>{TEAM_NAME[0]} <b>{kills(0)}</b></span>
           <span className="dl-clock num">{mins(time)}</span>
           <span className="dl-team-score" style={{ color: TEAM_COLOR[1] }}><b>{kills(1)}</b> {TEAM_NAME[1]}</span>
           <DemoChip />
+          <button className="ghost small-btn dl-full" onClick={() => (document.fullscreenElement ? document.exitFullscreen() : board.current?.requestFullscreen())}
+            title="Full screen (Esc to leave)">{full ? 'Exit full screen' : 'Full screen'}</button>
         </div>
         <div className="dl-souls" title={`Team souls: ${TEAM_NAME[0]} ${s0.toLocaleString()} · ${TEAM_NAME[1]} ${s1.toLocaleString()}`}>
           <i style={{ width: `${lead * 100}%`, background: TEAM_COLOR[0] }} /><i style={{ width: `${(1 - lead) * 100}%`, background: TEAM_COLOR[1] }} />
@@ -148,23 +154,40 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const map = useGameMap();
-  // the urn from the demo: on the ground where it lay, or with whoever carried it
+  const map = useGameMap(), tunnels = useTunnels();
+  // a hero's spot: from the demo (4 a second, smooth; height for underground) where it has one, else the match data;
+  // health from the match data
   const demo = useDl(s => s.demo);
+  const spotOf = (slot: number) => {
+    const base = playerAt(match, slot, time);
+    if (!base) return null;
+    const d = demo ? heroAt(demo, slot, time) : null;
+    return d ? { x: d.x, y: d.y, hp: base.hp, under: d.z < UNDERGROUND_Z } : { ...base, under: false };
+  };
+  // the urn from the demo: on the ground where it lay, or with whoever carried it
   const urnNow = useMemo(() => {
     const u = demo ? [...demo.urn].reverse().find(x => x.from <= time) : undefined;
     if (!u) return null;
     if (u.taken === null || time < u.taken) return { x: u.x, y: u.y, label: time < u.landed ? 'landing' : mins(u.from), carried: false, fromLeft: u.fromLeft };
-    const at = u.slot !== null && u.until !== null && time < u.until ? playerAt(match, u.slot, time) : null;
+    const at = u.slot !== null && u.until !== null && time < u.until ? spotOf(u.slot) : null;
     const who = match.players.find(p => p.slot === u.slot);
     return at && who ? { x: at.x, y: at.y, label: heroOf(who.hero).name, carried: true, fromLeft: u.fromLeft } : null;
-  }, [demo, match, Math.floor(time)]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [demo, match, time]); // eslint-disable-line react-hooks/exhaustive-deps
   // your team in lane colours when you played in it (like the game), else the bottom team
   const mine = useMySlot();
   const you = (match.players.find(p => p.slot === mine)?.team ?? 0) as DlTeam;
-  const downKeys = useMemo(() => new Set(match.objectives.filter(o => o.destroyed !== null && time >= o.destroyed).map(o => `${o.team}_${objectiveKey(o.id)}`)), [match, Math.floor(time)]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the objectives destroyed by now (as one string, so it changes only when one falls)
+  const downList = match.objectives.filter(o => o.destroyed !== null && time >= o.destroyed).map(o => `${o.team}_${objectiveKey(o.id)}`).join(' ');
+  const downKeys = useMemo(() => new Set(downList.split(' ')), [downList]);
   const icons = useImages(match.players.map(p => heroOf(p.hero).icon));
   const S = size, k = S / 640;
+  // the map like the game draws it, your team's lanes in their colours, objectives destroyed by now hollow: its own
+  // layer, kept as it is while only the time moves (the big map image isn't redrawn every frame)
+  const baseLayer = useMemo(() => (
+    <Layer listening={false}>
+      <MapArt S={S} k={k} img={map} tunnels={tunnels} you={you} down={(team, key) => downKeys.has(`${team}_${key}`)} part="base" />
+    </Layer>
+  ), [S, k, map, tunnels, you, downKeys]);
   const P = (p: { x: number; y: number }) => ({ x: p.x * S, y: p.y * S });
 
   // the selected hero's way over the last 20 s
@@ -178,9 +201,10 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
   return (
     <div className="dl-map" ref={wrap}>
       <Stage width={S} height={S}>
+        {baseLayer}
         <Layer listening={false}>
-          {/* the map like the game draws it, your team's lanes in their colours; objectives destroyed by now hollow */}
-          <MapArt S={S} k={k} img={map} you={you} down={(team, key) => downKeys.has(`${team}_${key}`)} at={{ time, midBoss: match.midBoss, demo, urnNow }} />
+          {/* what comes and goes: camps, bridge buffs, the urn, the rift, the mid boss */}
+          <MapArt S={S} k={k} img={map} you={you} at={{ time, midBoss: match.midBoss, demo, urnNow }} part="live" />
           {trail && trail.length >= 4 && <Line points={trail} stroke="#fff" strokeWidth={1.5 * k} opacity={0.6} lineCap="round" lineJoin="round" />}
           {/* bodies: where a hero just died, fading out */}
           {match.deaths.filter(d => time >= d.t && time - d.t < BODY_GONE).map(d => {
@@ -197,12 +221,14 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
         </Layer>
         <Layer>
           {match.players.map(p => {
-            const at = playerAt(match, p.slot, time);
+            const at = spotOf(p.slot);
             if (!at) return null;
             const h = heroOf(p.hero), img = h.icon ? icons[h.icon] : undefined, R = 9 * k, on = selected === p.slot;
             return (
-              <Group key={p.slot} {...P(at)} onClick={() => useDl.getState().select(on ? null : p.slot)} onTap={() => useDl.getState().select(on ? null : p.slot)}>
+              // underground (a tunnel, the mid boss pit): dimmed, with a dashed ring
+              <Group key={p.slot} {...P(at)} opacity={at.under ? 0.6 : 1} onClick={() => useDl.getState().select(on ? null : p.slot)} onTap={() => useDl.getState().select(on ? null : p.slot)}>
                 {on && <Circle radius={R + 6 * k} stroke="#fff" strokeWidth={1.4 * k} />}
+                {at.under && <Circle radius={R + 5.5 * k} stroke="#c8a46a" strokeWidth={1.3 * k} dash={[3 * k, 2.5 * k]} />}
                 <Circle radius={R + 3.4 * k} fill="#0b0e12" hitStrokeWidth={14} />
                 <Arc innerRadius={R + 1 * k} outerRadius={R + 3 * k} angle={360} fill={TEAM_COLOR[p.team]} opacity={0.22} />
                 {at.hp > 0 && <Arc innerRadius={R + 1 * k} outerRadius={R + 3 * k} angle={3.6 * at.hp} rotation={-90} fill={at.hp <= 30 ? '#ef4444' : TEAM_COLOR[p.team]} />}

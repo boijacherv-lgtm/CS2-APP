@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Layer, Rect, Stage } from 'react-konva';
 import type Konva from 'konva';
 import type { DlTeam } from './data';
-import { MapArt, useGameMap } from './MapArt';
+import { MapArt, useGameMap, useTunnels } from './MapArt';
 
 /** Hero icons (and any image URL) loaded once. */
 export function useImages(urls: (string | null)[]) {
@@ -20,9 +20,9 @@ export function useImages(urls: (string | null)[]) {
   return imgs;
 }
 
-export type MapLayer = 'lanes' | 'objectives' | 'camps' | 'urn' | 'shops' | 'teleporters' | 'buffs';
+export type MapLayer = 'lanes' | 'objectives' | 'camps' | 'urn' | 'shops' | 'teleporters' | 'buffs' | 'tunnels';
 export const LAYER_LABEL: Record<MapLayer, string> = {
-  lanes: 'Lanes', objectives: 'Objectives', camps: 'Camps', urn: 'Urn', shops: 'Shops', teleporters: 'Teleporters', buffs: 'Buffs & rifts',
+  lanes: 'Lanes', objectives: 'Objectives', camps: 'Camps', urn: 'Urn', shops: 'Shops', teleporters: 'Teleporters', buffs: 'Buffs & rifts', tunnels: 'Underpasses',
 };
 
 /**
@@ -49,7 +49,7 @@ export function MapBase({ layers, children, onBackground, you = 0 }: {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const map = useGameMap();
+  const map = useGameMap(), tunnels = useTunnels();
   const S = size, k = S / 640;
   const zoom = (by: number, at: { x: number; y: number }) => setView(v => {
     const scale = Math.max(1, Math.min(5, v.scale * by));
@@ -69,7 +69,7 @@ export function MapBase({ layers, children, onBackground, you = 0 }: {
         onTap={e => { if (e.target.name() === 'bg' && onBackground) { const at = toMap(); if (at) onBackground(at); } }}>
         <Layer>
           <Rect name="bg" width={S} height={S} fill="rgba(0,0,0,0.001)" />
-          <MapArt S={S} k={k} img={map} you={you} layers={layers} />
+          <MapArt S={S} k={k} img={map} tunnels={tunnels} you={you} layers={layers} />
         </Layer>
         {children(S, k)}
       </Stage>
