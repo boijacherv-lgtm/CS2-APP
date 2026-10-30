@@ -26,7 +26,7 @@ interface DlState {
 }
 
 export const useDl = create<DlState>(set => ({
-  match: null, names: {}, time: 0, playing: false, speed: 8, selected: null, bench: {}, scope: 'mine',
+  match: null, names: {}, time: 0, playing: false, speed: 1, selected: null, bench: {}, scope: 'mine',
   open: match => set({ match, time: 0, playing: false, selected: null, names: {}, bench: {} }),
   close: () => set({ match: null, time: 0, playing: false, selected: null }),
   setTime: time => set(s => ({ time: Math.max(0, Math.min(s.match?.duration ?? 0, time)) })),
