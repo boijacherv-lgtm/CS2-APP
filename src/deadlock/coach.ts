@@ -7,8 +7,9 @@
 import { MAP_UNITS, heroOf, objectiveSpot, type DlTeam } from './data';
 import { playerAt, statAt, type DlMatch } from './match';
 import type { Annotation } from '../engine/recap';
+import type { DlDemo } from './demo';
 
-export type DlTag = 'ISOLATED' | 'OUTNUMBERED' | 'OVEREXTENDED' | 'TRADED' | 'COST OBJECTIVE' | 'SOLO KILL' | 'MULTI-KILL' | 'UPSET' | 'LANE LOST' | 'LANE WON' | 'FIRST BLOOD';
+export type DlTag = 'ISOLATED' | 'OUTNUMBERED' | 'OVEREXTENDED' | 'TRADED' | 'COST OBJECTIVE' | 'SOLO KILL' | 'MULTI-KILL' | 'UPSET' | 'LANE LOST' | 'LANE WON' | 'FIRST BLOOD' | 'ULT UNUSED';
 export interface DlMove {
   t: number; slot: number; team: DlTeam;
   kind: 'death' | 'kill' | 'laning';
@@ -22,7 +23,7 @@ const HELP = 2500, FIGHT = 2200;
 const near = (u: number) => u / MAP_UNITS;
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<number, { name: string }> = {}): DlMove[] {
+export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<number, { name: string }> = {}, demo: DlDemo | null = null): DlMove[] {
   const moves: DlMove[] = [];
   const teamOf = new Map(m.players.map(p => [p.slot, p.team]));
   const nameOf = (slot: number | null) => {
@@ -58,9 +59,18 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     if (traded) { tags.push('TRADED'); why.push('A teammate killed your killer right after: the death was traded.'); }
     if (lost) { tags.push('COST OBJECTIVE'); why.push(`Your ${lost.name} fell ${Math.round(lost.destroyed! - d.t)} s later.`); }
     if (d === firstKill) { tags.push('FIRST BLOOD'); why.push('First death of the match.'); }
+    // from the demo: died with the ultimate ready (last used longer ago than its full cooldown, so surely back:
+    // cooldown items only make it shorter)
+    const ult = heroOf(m.players.find(p => p.slot === d.slot)?.hero ?? 0).abilities?.find(a => a.ult);
+    const lastUlt = demo?.casts.filter(c => c.slot === d.slot && c.ult && c.t < d.t).at(-1);
+    // …and had time to use it (a fight of 2 s or more, not a burst from nowhere)
+    const ultReady = !!ult && !!lastUlt && ult.cd > 0 && d.t - lastUlt.t >= ult.cd + 20 && (d.ttk ?? 0) >= 2;
+    if (ultReady) { tags.push('ULT UNUSED'); why.push(`Died with ${ult!.name} ready: last used ${mins(d.t - lastUlt!.t)} before (it's back in ${ult!.cd} s at most), in a ${d.ttk} s fight.`); }
     why.push(`Out for ${d.respawn} s.`);
     const faults = Number(alone) + Number(outnumbered) + Number(overextended);
-    const note: Annotation = traded ? 'book' : faults >= 2 && lost ? '??' : faults >= 1 && (lost || faults >= 2) ? '?' : faults >= 1 ? '?!' : 'book';
+    const base: Annotation = traded ? 'book' : faults >= 2 && lost ? '??' : faults >= 1 && (lost || faults >= 2) ? '?' : faults >= 1 ? '?!' : 'book';
+    // an ultimate held through a death is a step worse (a traded death too: it could have won the fight)
+    const note: Annotation = !ultReady ? base : base === 'book' ? '?!' : base === '?!' ? '?' : base === '?' ? '??' : base;
     moves.push({ t: d.t, slot: d.slot, team, kind: 'death', note, tags, why,
       title: `${nameOf(d.slot)} died${d.killer !== null && d.killer !== d.slot ? ` to ${nameOf(d.killer)}` : ''} at ${mins(d.t)}` });
   }

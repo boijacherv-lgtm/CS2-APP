@@ -17,9 +17,9 @@ export function useMySlot(): number | null {
 
 /** The open match graded (every death, kill and lane), and the moves shown: yours, or everyone's. */
 export function useCoach(): { all: DlMove[]; shown: DlMove[]; mine: number | null; canMine: boolean } {
-  const match = useDl(s => s.match), bench = useDl(s => s.bench), names = useDl(s => s.names), scope = useDl(s => s.scope);
+  const match = useDl(s => s.match), bench = useDl(s => s.bench), names = useDl(s => s.names), scope = useDl(s => s.scope), demo = useDl(s => s.demo);
   const mine = useMySlot();
-  const all = useMemo(() => (match ? coachMatch(match, bench, names) : []), [match, bench, names]);
+  const all = useMemo(() => (match ? coachMatch(match, bench, names, demo) : []), [match, bench, names, demo]);
   const shown = useMemo(() => (scope === 'mine' && mine !== null ? all.filter(m => m.slot === mine) : all), [all, scope, mine]);
   return { all, shown, mine, canMine: mine !== null };
 }

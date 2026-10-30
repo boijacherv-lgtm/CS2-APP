@@ -5,7 +5,8 @@
 import HEROES from './generated/heroes.json';
 import MAP from './generated/map.json';
 
-export interface DlHero { id: number; name: string; color: string; icon: string | null; card: string | null }
+export interface DlAbility { cls: string; name: string; ult: boolean; cd: number }
+export interface DlHero { id: number; name: string; color: string; icon: string | null; card: string | null; abilities?: DlAbility[] }
 export const DL_HEROES = HEROES as DlHero[];
 const byId = new Map(DL_HEROES.map(h => [h.id, h]));
 export const heroOf = (id: number): DlHero => byId.get(id) ?? { id, name: `Hero ${id}`, color: '#888888', icon: null, card: null };

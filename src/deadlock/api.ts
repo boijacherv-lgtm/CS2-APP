@@ -27,7 +27,7 @@ export async function matchHistory(account: string): Promise<DlHistoryRow[]> {
   return [...rows].sort((a, b) => b.start_time - a.start_time);
 }
 
-const KEY = (id: number) => `dlmatch1:${id}`;
+const KEY = (id: number) => `dlmatch2:${id}`;
 /** A match: from this browser when read before, else from deadlock-api (about 1 MB), then kept here. */
 export async function loadMatch(id: number): Promise<DlMatch> {
   const saved = await getItem<Blob>(KEY(id));

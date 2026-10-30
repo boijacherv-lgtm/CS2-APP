@@ -33,6 +33,7 @@
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",
     "@phosphor-icons/react": "^2.1.10",
+    "fzstd": "0.1.1",
     "konva": "^9.3.16",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

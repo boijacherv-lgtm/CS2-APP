@@ -12,7 +12,9 @@ export interface DlPlayer {
 }
 /** Every second of a player: where (on the minimap, 0–1) and health (0–100; 0 = dead). */
 export interface DlTrack { x: Float32Array; y: Float32Array; hp: Uint8Array }
-export interface DlDeath { t: number; slot: number; killer: number | null; at: { x: number; y: number }; from: { x: number; y: number } | null; respawn: number }
+export interface DlDeath { t: number; slot: number; killer: number | null; at: { x: number; y: number }; from: { x: number; y: number } | null; respawn: number;
+  /** How long the fight that killed them took (s), when the match data has it. */
+  ttk?: number }
 export interface DlObjective { team: DlTeam; id: number; kind: ObjectiveKind; lane: 1 | 3 | 4 | null; name: string; firstDamage: number | null; destroyed: number | null }
 /** A player's numbers at a moment (every few minutes and at the end). */
 export interface DlStat { t: number; netWorth: number; kills: number; deaths: number; assists: number; level: number; lastHits: number; possibleCreeps: number; denies: number; playerDamage: number }
@@ -53,6 +55,7 @@ export function matchFromMetadata(meta: any): DlMatch {
   const deaths: DlDeath[] = (m.players ?? []).flatMap((p: any) => (p.death_details ?? []).map((d: any) => ({
     t: d.game_time_s, slot: p.player_slot, killer: d.killer_player_slot ?? null,
     at: toMap(d.death_pos.x, d.death_pos.y), from: d.killer_pos ? toMap(d.killer_pos.x, d.killer_pos.y) : null, respawn: d.death_duration_s ?? 0,
+    ...(typeof d.time_to_kill_s === 'number' ? { ttk: +d.time_to_kill_s.toFixed(1) } : {}),
   }))).sort((a: DlDeath, b: DlDeath) => a.t - b.t);
   const objectives: DlObjective[] = (m.objectives ?? []).map((o: any) => ({
     team: o.team as DlTeam, id: o.team_objective_id, ...objectiveOf(o.team_objective_id),

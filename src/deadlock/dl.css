@@ -162,3 +162,8 @@
 .dl-timer .muted { grid-column: 1; }
 .dl-timer-next { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-weight: 700; color: var(--text); }
 .dl-timer-src { padding: 2px 8px; }
+
+/* the demo's status, next to the clock */
+.dl-demo-chip { margin-left: 10px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); white-space: nowrap; }
+.dl-demo-chip.done { color: var(--good); }
+.dl-demo-chip.failed { color: var(--warn, #e3b341); }
