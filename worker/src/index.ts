@@ -65,6 +65,15 @@ export default {
       if (req.method === 'POST' && path === '/openid/verify') return json(await verifyLogin(env, await body(req)));
       if (path.startsWith('/internal/')) return await internal(req, env, path, json);
 
+      // a Dota 2 replay from Valve's server, which doesn't let web pages read it. Valve's replay addresses only.
+      if (req.method === 'GET' && path === '/dota-replay') {
+        const target = new URL(req.url).searchParams.get('url') ?? '';
+        if (!/^http:\/\/replay\d+\.valve\.net\/570\/\d+_\d+\.dem\.bz2$/.test(target)) return json({ error: 'Not a Dota 2 replay address.' }, 400);
+        const up = await fetch(target);
+        const size = up.headers.get('Content-Length');
+        return new Response(up.body, { status: up.status, headers: { 'Content-Type': 'application/octet-stream', ...(size ? { 'Content-Length': size } : {}), ...cors } });
+      }
+
       // the coach's corrections from checked disputes: public (they're counts per kind of move), cached a few minutes
       if (req.method === 'GET' && path === '/corrections')
         return new Response(JSON.stringify(await corrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });

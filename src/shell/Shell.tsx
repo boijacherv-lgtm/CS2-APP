@@ -16,6 +16,10 @@ import { Tours } from '../ui/Tour';
 import { DlReview } from '../deadlock/DlReview';
 import { DlReport } from '../deadlock/DlReport';
 import { DlTactical } from '../deadlock/DlTactical';
+import { Dota2 } from '../site/Dota2';
+import { D2Review } from '../dota2/D2Review';
+import { D2Report } from '../dota2/D2Report';
+import { D2Tactical } from '../dota2/D2Tactical';
 import { useStore, whoAmI } from '../store';
 import { buildMatchReport } from '../engine/match';
 import { profileMatchOf } from '../engine/habits';
@@ -44,7 +48,7 @@ export function Shell() {
       <NavBar route={route} />
       <main className="shell-main">
         {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : <Cs2App />)
-          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
+          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : route.page === 'dota2' ? (route.mode === 'review' ? <D2Review /> : route.mode === 'report' ? <D2Report /> : route.mode === 'tactical' ? <D2Tactical /> : <Dota2 />) : <Home />}
       </main>
       <Tours />
     </div>

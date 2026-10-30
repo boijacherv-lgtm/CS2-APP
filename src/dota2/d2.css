@@ -1,0 +1,29 @@
+/* Dota 2 (dota2/): the shared layout is Deadlock's (deadlock/dl.css); these are the parts only Dota has */
+.d2-map-note { margin: 0; text-align: center; }
+.d2-parse { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 14px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); font-size: 13px; }
+.dl-board:has(.d2-parse) { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
+.dl-board:has(.d2-map-note):not(:has(.d2-parse)) { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.d2-kit { display: flex; flex-wrap: wrap; gap: 3px; justify-self: start; padding: 4px; border-radius: 8px; background: rgba(11, 14, 18, .82); }
+.d2-kit img, .d2-items img, .d2-buy img { border-radius: 3px; display: block; }
+.d2-items { display: inline-flex; gap: 2px; }
+.d2-table-wrap { overflow-x: auto; }
+.d2-timing { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 4px; border-top: 1px solid var(--border); }
+.d2-timing.me { background: rgba(255, 255, 255, .05); }
+.d2-timing-items { display: flex; flex-wrap: wrap; gap: 8px; }
+.d2-buy { display: inline-grid; justify-items: center; gap: 1px; }
+.d2-ward-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.d2-map-style { position: absolute; right: 8px; bottom: 8px; }
+.d2-layers { display: inline-flex; gap: 10px; margin-left: 10px; vertical-align: middle; }
+.d2-feed-event { color: var(--text-2); }
+.d2-feed-event img { display: block; }
+/* nothing lies over the map: the coach's card under one team, the feed under the other */
+@media (min-width: 901px) {
+  .d2-board .dl-main .dl-card-slot { left: 0; top: auto; bottom: 0; width: 250px; }
+  .d2-board .dl-feed { right: 0; top: auto; bottom: 0; width: 250px; justify-items: stretch; }
+}
+@media (max-width: 900px) {
+  .d2-board .dl-feed { position: static; grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .d2-timing { grid-template-columns: 1fr; }
+}

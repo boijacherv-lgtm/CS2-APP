@@ -98,11 +98,36 @@ function steamApi(): Plugin {
   };
 }
 
+/** A Dota 2 replay from Valve's server, which doesn't let web pages read it. Valve's replay addresses only. */
+function dotaReplayProxy(): Plugin {
+  return {
+    name: 'dota-replay-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/dota-replay', async (req, res) => {
+        const target = new URL(req.url ?? '/', 'http://x').searchParams.get('url') ?? '';
+        if (!/^http:\/\/replay\d+\.valve\.net\/570\/\d+_\d+\.dem\.bz2$/.test(target)) { res.statusCode = 400; return res.end('Not a Dota 2 replay address.'); }
+        try {
+          const up = await fetch(target);
+          res.statusCode = up.status;
+          const size = up.headers.get('Content-Length');
+          if (size) res.setHeader('Content-Length', size);
+          if (!up.ok || !up.body) return res.end();
+          for await (const part of up.body as unknown as AsyncIterable<Uint8Array>) res.write(part);
+          res.end();
+        } catch (e) {
+          res.statusCode = 502;
+          res.end(e instanceof Error ? e.message : String(e));
+        }
+      });
+    },
+  };
+}
+
 /** Which code a build is (the dev page shows it): the commit and when it was built. */
 const commit = (() => { try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
 
 export default defineConfig({
-  plugins: [react(), demoApi(), steamApi()],
+  plugins: [react(), demoApi(), steamApi(), dotaReplayProxy()],
   define: { __BUILD__: JSON.stringify({ commit, time: new Date().toISOString() }) },
   // the Steam cache (match list, downloaded demos) changes while the server runs; don't watch it
   server: { port: 5173, open: false, watch: { ignored: ['**/.steam-cache/**'] } },

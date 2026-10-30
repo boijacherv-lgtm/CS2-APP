@@ -28,7 +28,8 @@
     "fetch:faceit": "vite-node tools/fetch-faceit.ts",
     "pull:disputes": "vite-node tools/pull-disputes.ts",
     "link:coach": "node tools/link-coach.mjs",
-    "dl:assets": "vite-node tools/dl-assets.ts"
+    "dl:assets": "vite-node tools/dl-assets.ts",
+    "dota:assets": "vite-node tools/dota-assets.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",
