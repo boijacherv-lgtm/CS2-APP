@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Arc, Circle, Group, Image as KImage, Layer, Line, Shape, Text } from 'react-konva';
 import { NOTE_INFO } from '../engine/recap';
 import { Icon } from '../ui/Icon';
 import { loadMatch, requestParse } from './api';
 import type { D2Move } from './coach';
-import { buildingOf, heroOf, itemByKey, itemLook, mins, OBS_VISION, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, type D2Team } from './data';
+import { buildingOf, heroOf, itemByKey, itemLook, mins, OBS_VISION, skillLook, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, type D2Team } from './data';
 import { D2Map, useImages } from './D2Map';
-import { buildingUp, deadAt, kdAt, lastKnown, netWorthAt, teamKillsAt, type D2Event, type D2Match } from './match';
+import { buildingUp, deadAt, kdAt, lastKnown, netWorthAt, seriesAt, teamKillsAt, type D2Event, type D2Match } from './match';
 import { useD2 } from './store';
-import { heroAt, heroTrail, itemsAt, unitsAt } from './tracks';
+import { heroAt, heroTrail, itemCooldownAt, itemsAt, skillsAt, unitsAt, vitalsAt, type Cooldown, type SkillNow } from './tracks';
 import { useCoach } from './useCoach';
 
 const PHASES = [{ label: 'Laning', t: 0 }, { label: 'Mid game', t: 600 }, { label: 'Late game', t: 1800 }];
@@ -24,6 +24,8 @@ export function D2Board() {
   const match = useD2(s => s.match)!;
   const [show, setShow] = useState<Show>({ creeps: true, neutrals: true, couriers: true });
   const time = useD2(s => s.time), playing = useD2(s => s.playing), speed = useD2(s => s.speed), selected = useD2(s => s.selected);
+  const replay = useD2(s => s.replay);
+  const tracks = replay.status === 'ready' ? replay.tracks : null;
 
   useEffect(() => {
     if (!playing) return;
@@ -59,7 +61,7 @@ export function D2Board() {
   const worth = (team: D2Team) => match.players.filter(p => p.team === team).reduce((a, p) => a + netWorthAt(match, p.slot, time), 0);
   const g0 = worth(0), g1 = worth(1), lead = g0 + g1 ? g0 / (g0 + g1) : 0.5;
   const feed = match.deaths.filter(d => d.t <= time && time - d.t < 40).slice(-5).reverse();
-  const news = match.events.filter(e => e.t <= time && time - e.t < 40).slice(-4).reverse();
+  const news = match.events.filter(e => e.t <= time && time - e.t < 40).slice(-3).reverse();
   const newsText = (e: D2Event) => {
     if (e.kind === 'rune') return `${nameOf(e.slot)} took ${RUNE_NAME[e.rune] ?? 'a rune'}`;
     if (e.kind === 'building') { const b = buildingOf.get(e.uid)!; return `${match.names[b.team]} lost ${b.name}`; }
@@ -92,44 +94,60 @@ export function D2Board() {
             <div className="dl-team-head" style={{ color: TEAM_COLOR[team] }}>{match.names[team]}{match.winner === team && time >= match.duration ? ' · won' : ''}</div>
             {match.players.filter(p => p.team === team).map(p => {
               const h = heroOf(p.hero), kd = kdAt(match, p.slot, time), dead = deadAt(match, p.slot, time);
+              const slots = tracks ? itemsAt(tracks, p.hero, time) : null, hp = tracks ? heroAt(tracks, p.hero, time)?.hp : undefined;
+              const vitals = tracks ? vitalsAt(tracks, p.hero, time) : null, skills = tracks ? skillsAt(tracks, p.hero, time) : [];
+              const itemCd = (s: string | null | undefined) => (tracks && s ? itemCooldownAt(tracks, p.hero, s, time) : null);
               return (
                 <button key={p.slot} className={`dl-player ${dead ? 'dead' : ''} ${selected === p.slot ? 'on' : ''}`} onClick={() => useD2.getState().select(selected === p.slot ? null : p.slot)} title="Show what this hero carries right now, and their way">
-                  {h.icon ? <img src={h.icon} alt="" width={32} height={32} /> : <span className="dl-hero-dot" style={{ background: TEAM_COLOR[team] }} />}
-                  <span className="dl-player-name"><b>{p.name ?? h.name}</b><span className="muted small">{h.name}</span></span>
+                  {h.icon ? <img className="d2-row-hero" src={h.icon} alt="" width={32} height={32} /> : <span className="dl-hero-dot" style={{ background: TEAM_COLOR[team] }} />}
+                  <span className="dl-player-name" title={h.name}>
+                    <b>{p.name ?? h.name}</b>
+                    {skills.length ? <span className="d2-row-skills">{skills.map(s => <SkillCell key={s.name} skill={s} heroKey={h.key} />)}</span> : <span className="muted small">{h.name}</span>}
+                  </span>
+                  {vitals && <span className="d2-row-level num" title="Level">{vitals.level}</span>}
                   <span className="dl-player-kda num">{match.parsed ? `${kd.k}/${kd.d}` : `${p.kills}/${p.deaths}/${p.assists}`}</span>
                   <span className="dl-player-souls num muted small">{match.parsed ? `${(netWorthAt(match, p.slot, time) / 1000).toFixed(1)}k` : `${p.gpm} GPM`}</span>
+                  {slots && (
+                    <span className="d2-row-items">
+                      {range(0, 5).map(i => <ItemCell key={i} slot={slots[i]} cooldown={itemCd(slots[i])} />)}
+                      <span className="d2-row-neutral"><ItemCell slot={slots[16]} cooldown={itemCd(slots[16])} /></span>
+                    </span>
+                  )}
+                  {hp !== undefined && <span className="d2-row-hp"><i style={{ width: `${hp}%`, background: hp <= 30 ? 'var(--bad)' : TEAM_COLOR[team] }} /></span>}
+                  {vitals && <span className="d2-row-mana"><i style={{ width: `${vitals.mana}%` }} /></span>}
                   {dead && <span className="dl-respawn num">{Math.ceil(dead.t + dead.respawn - time)}</span>}
                 </button>
               );
             })}
+            {/* under the team, in its column: if there's no room the column scrolls, nobody is covered for good */}
+            {team === 0 && selected !== null && <div className="d2-under"><D2Items match={match} slot={selected} time={time} /></div>}
+            {team === 1 && (
+              <div className="d2-under">
+                <D2Card moves={graded} time={time} canMine={coach.canMine} />
+                <ol className="dl-feed" aria-label="Kills and events">
+                  {news.map((e, i) => <li key={`e${e.t}-${i}`} className="d2-feed-event">{e.kind === 'rune' && runeIcon(e.rune) && <img src={runeIcon(e.rune)!} alt="" width={16} height={16} />}{newsText(e)}</li>)}
+                  {feed.map((d, i) => (
+                    <li key={`${d.t}-${d.slot}-${i}`}>
+                      <span style={{ color: d.killer !== null ? TEAM_COLOR[match.players[d.killer].team] : 'var(--text-3)' }}>{nameOf(d.killer)}</span>
+                      <Icon name="close" size={10} />
+                      <span style={{ color: TEAM_COLOR[match.players[d.slot].team] }}>{nameOf(d.slot)}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </aside>
         ))}
-        <BoardMap match={match} time={time} selected={selected} show={show} />
-        {selected !== null && <div className="d2-under-left"><D2Items match={match} slot={selected} time={time} /></div>}
-        <div className="d2-under-right">
-        <D2Card moves={graded} time={time} canMine={coach.canMine} />
-        <ol className="dl-feed" aria-label="Kills and events">
-          {news.map((e, i) => <li key={`e${e.t}-${i}`} className="d2-feed-event">{e.kind === 'rune' && runeIcon(e.rune) && <img src={runeIcon(e.rune)!} alt="" width={16} height={16} />}{newsText(e)}</li>)}
-          {feed.map((d, i) => (
-            <li key={`${d.t}-${d.slot}-${i}`}>
-              <span style={{ color: d.killer !== null ? TEAM_COLOR[match.players[d.killer].team] : 'var(--text-3)' }}>{nameOf(d.killer)}</span>
-              <Icon name="close" size={10} />
-              <span style={{ color: TEAM_COLOR[match.players[d.slot].team] }}>{nameOf(d.slot)}</span>
-            </li>
-          ))}
-        </ol>
-        </div>
+        <BoardMap match={match} time={time} selected={selected} show={show} overlay={<ReplayNote />} />
       </div>
-      <p className="muted small d2-map-note">
-        <ReplayNote /> <b style={{ color: WARD_RING.obs }}>O</b> Observer, <b style={{ color: WARD_RING.sen }}>S</b> Sentry.
+      <Playbar match={match} time={time} playing={playing} speed={speed} graded={graded}>
         <span className="d2-layers" role="group" aria-label="Show on the map">
           {(Object.keys(SHOW_LABEL) as (keyof Show)[]).map(key => (
             <label key={key} className="dl-layer"><input type="checkbox" checked={show[key]} onChange={e => setShow({ ...show, [key]: e.target.checked })} /> {SHOW_LABEL[key]}</label>
           ))}
+          <span className="d2-legend small" title="Wards on the map"><b style={{ color: WARD_RING.obs }}>O</b> Obs <b style={{ color: WARD_RING.sen }}>S</b> Sen</span>
         </span>
-      </p>
-
-      <Playbar match={match} time={time} playing={playing} speed={speed} graded={graded} />
+      </Playbar>
     </div>
   );
 }
@@ -139,10 +157,10 @@ const STEP_LABEL = { download: 'Downloading the replay', unpack: 'Unpacking the 
 /** What the heroes on the map are: real movement once the replay is read, last known places until then. */
 function ReplayNote() {
   const replay = useD2(s => s.replay);
-  if (replay.status === 'ready') return <span>Heroes move as they did in the match, from its replay. The ring is their health.</span>;
-  if (replay.status === 'failed') return <span>Couldn't read the replay ({replay.error}), so heroes are at the last place the logs put them, not live.</span>;
+  if (replay.status === 'ready' || replay.status === 'idle') return null;
+  if (replay.status === 'failed') return <p className="d2-replay-note">Couldn't read the replay ({replay.error}), so heroes are at the last place the logs put them, not live.</p>;
   const step = replay.status === 'loading' && replay.step;
-  return <span><b>{step ? `${STEP_LABEL[step]}… ${Math.round((replay.share ?? 0) * 100)}%` : 'Getting the replay…'}</b> Heroes start moving when it's done. The first time can take a few minutes, depending on Valve's server; after that the match opens at once. Until then heroes are at the last place the logs put them.</span>;
+  return <p className="d2-replay-note"><b>{step ? `${STEP_LABEL[step]}… ${Math.round((replay.share ?? 0) * 100)}%` : 'Getting the replay…'}</b> The first time can take a few minutes, depending on Valve's server; after that the match opens at once. Until then heroes are at the last place the logs put them.</p>;
 }
 
 function NotParsed({ match }: { match: D2Match }) {
@@ -166,7 +184,7 @@ function NotParsed({ match }: { match: D2Match }) {
   );
 }
 
-function BoardMap({ match, time, selected, show }: { match: D2Match; time: number; selected: number | null; show: Show }) {
+function BoardMap({ match, time, selected, show, overlay }: { match: D2Match; time: number; selected: number | null; show: Show; overlay: ReactNode }) {
   const replay = useD2(s => s.replay);
   const tracks = replay.status === 'ready' ? replay.tracks : null;
   const wards = match.wards.filter(w => time >= w.t && time < w.until);
@@ -187,7 +205,7 @@ function BoardMap({ match, time, selected, show }: { match: D2Match; time: numbe
   const small = units.filter(u => (u.kind === 'creep' || u.kind === 'siege') ? show.creeps : u.kind === 'neutral' ? show.neutrals : u.kind === 'courier' && show.couriers);
   const big = units.filter(u => u.kind === 'roshan' || u.kind === 'tormentor' || u.kind === 'rune');
   return (
-    <D2Map up={uid => buildingUp(match, uid, time)} onBackground={at => {
+    <D2Map up={uid => buildingUp(match, uid, time)} overlay={overlay} onBackground={at => {
       // a click on a hero looks at them; heroes aren't listening themselves, as hit-testing them every frame would be costly
       let near: number | null = null, best = PICK_RADIUS;
       for (const s of spots) { const d = Math.hypot(s.at.x - at.x, s.at.y - at.y); if (d < best) { best = d; near = s.p.slot; } }
@@ -300,7 +318,7 @@ function HeroMark({ k, icon, name, team, selected, hp, dead }: { k: number; icon
 function Label({ text, k, fill, y }: { text: string; k: number; fill: string; y: number }) {
   return <Text text={text} x={-LABEL_W / 2} y={y} width={LABEL_W} align="center" wrap="none" fontSize={Math.max(8.5, 9.5 * k)} fontStyle="bold" fill={fill} stroke="#000" strokeWidth={2.2 * k} fillAfterStrokeEnabled />;
 }
-function Playbar({ match, time, playing, speed, graded }: { match: D2Match; time: number; playing: boolean; speed: number; graded: D2Move[] }) {
+function Playbar({ match, time, playing, speed, graded, children }: { match: D2Match; time: number; playing: boolean; speed: number; graded: D2Move[]; children: ReactNode }) {
   const s = useD2.getState();
   const span = match.duration - match.start || 1;
   const left = (t: number) => `${((t - match.start) / span) * 100}%`;
@@ -332,6 +350,7 @@ function Playbar({ match, time, playing, speed, graded }: { match: D2Match; time
         </div>
       </div>
       <span className="num dl-time">{mins(time)} / {mins(match.duration)}</span>
+      {children}
     </div>
   );
 }
@@ -343,13 +362,31 @@ function stepMoment(moves: D2Move[], dir: 1 | -1) {
   if (next) { s.setPlaying(false); s.setTime(next.t - LEAD); }
 }
 
-function ItemCell({ slot }: { slot: string | null | undefined }) {
+/** A cooldown over an icon: dark for the part still to run, and the seconds left. */
+function CooldownMark({ cd }: { cd: Cooldown | null | undefined }) {
+  if (!cd) return null;
+  return <><i className="d2-cd-sweep" style={{ height: `${Math.min(100, (cd.left / cd.total) * 100)}%` }} /><b className="d2-cd-text num">{Math.ceil(cd.left)}</b></>;
+}
+
+function ItemCell({ slot, cooldown }: { slot: string | null | undefined; cooldown?: Cooldown | null }) {
   if (!slot) return <span className="d2-slot empty" />;
   const it = itemLook(slot);
   return (
-    <span className="d2-slot" title={it.name}>
+    <span className="d2-slot" title={cooldown ? `${it.name}: ready in ${Math.ceil(cooldown.left)} s` : it.name}>
       <img src={it.icon} alt={it.name} onError={e => { e.currentTarget.style.visibility = 'hidden'; }} />
       {it.charges > 0 && !it.key.startsWith('enhancement_') && <b className="d2-charges num">{it.charges}</b>}
+      <CooldownMark cd={cooldown} />
+    </span>
+  );
+}
+
+function SkillCell({ skill, heroKey, large }: { skill: SkillNow; heroKey: string; large?: boolean }) {
+  const look = skillLook(skill.name, heroKey);
+  return (
+    <span className={`d2-skill ${skill.level ? '' : 'unlearned'} ${large ? 'large' : ''}`} title={`${look.name}, level ${skill.level}${skill.cooldown ? `: ready in ${Math.ceil(skill.cooldown.left)} s` : ''}`}>
+      <img src={look.icon} alt={look.name} onError={e => { e.currentTarget.style.visibility = 'hidden'; }} />
+      <CooldownMark cd={skill.cooldown} />
+      {large && skill.level > 0 && <b className="d2-skill-level num">{skill.level}</b>}
     </span>
   );
 }
@@ -361,9 +398,12 @@ const BOUGHT_FROM = 500;
 /** What the hero you're looking at carries at this moment of the match, or (without the replay) what they've bought so far. */
 function D2Items({ match, slot, time }: { match: D2Match; slot: number; time: number }) {
   const replay = useD2(s => s.replay);
-  const p = match.players[slot], h = heroOf(p.hero);
+  const p = match.players[slot], h = heroOf(p.hero), m = match.minutes[slot];
   const slots = replay.status === 'ready' ? itemsAt(replay.tracks, p.hero, time) : null;
+  const tracks = replay.status === 'ready' ? replay.tracks : null;
   const stash = slots?.slice(9, 15).filter(Boolean) ?? [];
+  const vitals = tracks && vitalsAt(tracks, p.hero, time), skills = tracks ? skillsAt(tracks, p.hero, time) : [];
+  const itemCd = (s: string | null | undefined) => (tracks && s ? itemCooldownAt(tracks, p.hero, s, time) : null);
   const bought = slots ? [] : match.buys.filter(b => b.slot === slot && b.t <= time && (itemByKey.get(b.item)?.cost ?? 0) >= BOUGHT_FROM);
   return (
     <section className="d2-items-panel" aria-label={`${h.name}'s items at ${mins(time)}`}>
@@ -375,11 +415,16 @@ function D2Items({ match, slot, time }: { match: D2Match; slot: number; time: nu
       </header>
       {slots ? (
         <>
-          <div className="d2-slots">{range(0, 5).map(i => <ItemCell key={i} slot={slots[i]} />)}</div>
+          <div className="d2-stats num small">
+            <span><b>{Math.round(seriesAt(m.lh, time))}</b>/{Math.round(seriesAt(m.dn, time))} <i>LH/DN</i></span>
+            <span><b>{Math.round(netWorthAt(match, slot, time)).toLocaleString()}</b> <i>net worth</i></span>
+            {vitals && <span><b>{vitals.level}</b> <i>lvl</i></span>}
+          </div>
+          {skills.length > 0 && <div className="d2-panel-skills">{skills.map(s => <SkillCell key={s.name} skill={s} heroKey={h.key} large />)}</div>}
           <div className="d2-slots">
             {range(6, 8).map(i => <span key={i} className="d2-back" title="Backpack"><ItemCell slot={slots[i]} /></span>)}
-            <span title="Town Portal"><ItemCell slot={slots[15]} /></span>
-            <span title="Neutral item"><ItemCell slot={slots[16]} /></span>
+            <span title="Town Portal"><ItemCell slot={slots[15]} cooldown={itemCd(slots[15])} /></span>
+            <span title="Neutral item"><ItemCell slot={slots[16]} cooldown={itemCd(slots[16])} /></span>
             <span title="Its enhancement"><ItemCell slot={slots[17]} /></span>
           </div>
           {stash.length > 0 && <div className="d2-stash"><span className="muted small">Stash</span>{stash.map((s, i) => <ItemCell key={i} slot={s} />)}</div>}

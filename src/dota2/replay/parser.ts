@@ -450,10 +450,14 @@ function readFields(r: Bits, cls: Class, into: Map<string, number> | null) {
 // ---- the replay ------------------------------------------------------------------------------------------------------
 
 const ORIGIN = 'CBodyComponent.m_skeletonInstance.m_vecOrigin';
-const HERO_FIELDS = [`${ORIGIN}.m_cellX`, `${ORIGIN}.m_cellY`, `${ORIGIN}.m_vecX`, `${ORIGIN}.m_vecY`, 'm_lifeState', 'm_iHealth', 'm_iMaxHealth', 'm_iPlayerID', 'm_iTeamNum', 'm_hReplicatingOtherHeroModel'];
+const HERO_FIELDS = [`${ORIGIN}.m_cellX`, `${ORIGIN}.m_cellY`, `${ORIGIN}.m_vecX`, `${ORIGIN}.m_vecY`, 'm_lifeState', 'm_iHealth', 'm_iMaxHealth', 'm_iPlayerID', 'm_iTeamNum', 'm_hReplicatingOtherHeroModel', 'm_iCurrentLevel', 'm_flMana', 'm_flMaxMana'];
 const RULES_FIELDS = ['m_pGameRules.m_flGameStartTime', 'm_pGameRules.m_flPreGameStartTime', 'm_pGameRules.m_nTotalPausedTicks', 'm_pGameRules.m_nPauseStartTick', 'm_pGameRules.m_nGameState', 'm_pGameRules.m_bGamePaused'];
-const KEEP_PATTERNS = [/^m_vecPlayerTeamData\.\d+\.m_nSelectedHeroID$/, /^m_Inventory\.m_hItems\.\d+$/];
+const KEEP_PATTERNS = [/^m_vecPlayerTeamData\.\d+\.m_nSelectedHeroID$/, /^m_Inventory\.m_hItems\.\d+$/, /^m_vecAbilities\.\d+$/];
 const ITEM_NAME = 'm_pEntity.m_nameStringTableIndex', ITEM_CHARGES = 'm_iCurrentCharges';
+const COOLDOWN = 'm_fCooldown', COOLDOWN_LENGTH = 'm_flCooldownLength', ABILITY_LEVEL = 'm_iLevel', ABILITY_HIDDEN = 'm_bHidden';
+const USE_FIELDS = [ITEM_NAME, ITEM_CHARGES, COOLDOWN, COOLDOWN_LENGTH, ABILITY_LEVEL, ABILITY_HIDDEN];
+/** Abilities only creeps and bosses have: there are thousands, and nobody looks at their cooldowns. */
+const NOT_A_HERO_SKILL = /^CDOTA_Ability_(Creep|Neutral|Roshan|Miniboss|FlagBearer|BigThunderLizard)/;
 /** What else walks the map, by its class in the replay. */
 export type UnitKind = 'creep' | 'siege' | 'neutral' | 'roshan' | 'tormentor' | 'rune' | 'courier';
 const UNIT_CLASSES: Record<string, UnitKind> = {
@@ -465,7 +469,7 @@ const keepFor = (name: string) => (name.startsWith('CDOTA_Unit_Hero_') ? new Set
   : name === 'CDOTAGamerulesProxy' ? new Set(RULES_FIELDS)
     : name === 'CDOTA_PlayerResource' ? new Set<string>()
       : UNIT_CLASSES[name] ? new Set(UNIT_FIELDS)
-        : name.startsWith('CDOTA_Item') ? new Set([ITEM_NAME, ITEM_CHARGES]) : null);
+        : name.startsWith('CDOTA_Item') || (name.startsWith('CDOTA_Ability_') && !NOT_A_HERO_SKILL.test(name)) ? new Set(USE_FIELDS) : null);
 
 /** One hero's way over the match, at the times in `ReplayTracks.times` (in OpenDota's map cells; hp in %, 0: dead). */
 export interface ReplayHero {
@@ -475,7 +479,17 @@ export interface ReplayHero {
    * 16 neutral item, 17 its enhancement), as the item's name and, when it has more than one charge, `*` and how many.
    */
   items: { t: number; slots: (string | null)[] }[];
+  /** Their skills in the game's order: from each time on, the level (and whether it's shown at all); every cast, from `t` until it's ready again at `until`. */
+  skills: ReplaySkill[];
+  /** The same casts for items, by item name. */
+  itemCasts: Record<string, ReplayCast[]>;
+  /** Their level whenever it changed, and mana in % once a second, from row `manaFrom` of `ReplayTracks.unitTimes`. */
+  levels: { t: number; level: number }[];
+  mana: number[];
+  manaFrom: number;
 }
+export interface ReplayCast { t: number; until: number }
+export interface ReplaySkill { name: string; levels: { t: number; level: number; hidden: boolean }[]; casts: ReplayCast[] }
 /**
  * One creep, Roshan, rune, courier…: its way from row `from` of `ReplayTracks.unitTimes`, one point every `every` rows, for
  * as long as it lasts, in tenths of a map cell to keep it small; 0 while it's dead (a courier comes back). `hp` for Roshan
@@ -493,6 +507,8 @@ const CELL = 128;
 const GAME_STATE_PREGAME = 4, GAME_STATE_PLAYING = 5;
 /** A hero's item slots, and what an empty one holds. */
 const ITEM_SLOTS = 18, NO_HANDLE = 0xffffff;
+/** A hero's ability slots, and what's in them that isn't a skill they'd press. */
+const ABILITY_SLOTS = 32, HIDDEN_SKILL = /^(special_bonus|generic_hidden|plus_|ability_|twin_gate|dota_)/;
 
 interface Entity { cls: Class; values: Map<string, number> | null; unit?: ReplayUnit }
 
@@ -630,6 +646,8 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
   const times: number[] = [];
   let start = 0;
   const heroes = new Map<number, ReplayHero>();
+  /** The seconds left on each skill or item when last looked at. */
+  const castLeft = new Map<Entity, number>();
   const unitTimes: number[] = [], allUnits: ReplayUnit[] = [];
   let nextUnits = 0;
   const cell = (v: Map<string, number>, axis: 'X' | 'Y') => (v.get(`${ORIGIN}.m_cell${axis}`) ?? 0) + (v.get(`${ORIGIN}.m_vec${axis}`) ?? 0) / CELL;
@@ -692,7 +710,7 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
       seen.add(heroId);
       let h = heroes.get(heroId);
       if (!h) {
-        h = { heroId, team: v.get('m_iTeamNum') ?? 0, x: [], y: [], hp: [], items: [] };
+        h = { heroId, team: v.get('m_iTeamNum') ?? 0, x: [], y: [], hp: [], items: [], skills: [], itemCasts: {}, levels: [], mana: [], manaFrom: 0 };
         heroes.set(heroId, h);
       }
       // a hero first seen late gets their first position for the time before
@@ -702,12 +720,39 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
       fill(h.y, Math.round(((v.get(`${ORIGIN}.m_cellY`) ?? 0) + (v.get(`${ORIGIN}.m_vecY`) ?? 0) / CELL) * 100) / 100);
       fill(h.hp, alive ? Math.max(1, Math.round(((v.get('m_iHealth') ?? 0) / max) * 100)) : 0);
       if (everySecond) {
+        const now = (tick - paused) / 30;
+        // a cooldown counts the seconds left, so when that goes up something was just used; its length tells when
+        const cast = (list: ReplayCast[], e: Entity) => {
+          const left = e.values!.get(COOLDOWN) ?? 0, before = castLeft.get(e) ?? 0;
+          castLeft.set(e, left);
+          // much less than a second's worth lower: it was reset (Refresher, a kill), so it's ready sooner
+          if (left < before - 1.5 && list.length) list[list.length - 1].until = now + left;
+          if (left <= before || left <= 0) return;
+          const length = e.values!.get(COOLDOWN_LENGTH) ?? 0;
+          list.push({ t: now - Math.max(0, length - left), until: now + left });
+        };
+        const level = v.get('m_iCurrentLevel') ?? 0;
+        if (h.levels.at(-1)?.level !== level) h.levels.push({ t: now, level });
+        if (!h.mana.length) h.manaFrom = unitTimes.length - 1;
+        h.mana.push(Math.round(((v.get('m_flMana') ?? 0) / (v.get('m_flMaxMana') || 1)) * 100));
+        for (let s = 0; s < ABILITY_SLOTS; s++) {
+          const handle = v.get(`m_vecAbilities.${pad(s)}`);
+          const e = handle === undefined || handle === NO_HANDLE ? null : entities[handle & 0x3fff];
+          const index = e?.values?.get(ITEM_NAME), name = index === undefined ? undefined : entityNames[index];
+          if (!e || !name || HIDDEN_SKILL.test(name)) continue;
+          let skill = h.skills.find(x => x.name === name);
+          if (!skill) { skill = { name, levels: [], casts: [] }; h.skills.push(skill); }
+          const lvl = e.values!.get(ABILITY_LEVEL) ?? 0, hidden = !!e.values!.get(ABILITY_HIDDEN), was = skill.levels.at(-1);
+          if (!was || was.level !== lvl || was.hidden !== hidden) skill.levels.push({ t: now, level: lvl, hidden });
+          cast(skill.casts, e);
+        }
         const slots: (string | null)[] = [];
         for (let s = 0; s < ITEM_SLOTS; s++) {
           // a handle's low bits are the entity's index
           const handle = v.get(`m_Inventory.m_hItems.${pad(s)}`);
           const item = handle === undefined || handle === NO_HANDLE ? null : entities[handle & 0x3fff];
           const name = item?.values?.get(ITEM_NAME);
+          if (item && name !== undefined && entityNames[name]) cast(h.itemCasts[entityNames[name]] ??= [], item);
           const charges = item?.values?.get(ITEM_CHARGES) ?? 0;
           slots.push(name === undefined ? null : (entityNames[name] ?? '') + (charges > 1 ? `*${charges}` : ''));
         }
@@ -784,6 +829,14 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
     .map(t => Math.round(t / 60) * 60 - t).sort((a, b) => a - b);
   const behind = late.length ? late[late.length >> 1] + UNIT_SAMPLE_TICKS / 60 : 0;
   const clock = (t: number) => Math.round((t - start + behind) * 100) / 100;
-  for (const h of heroes.values()) for (const it of h.items) it.t = clock(it.t);
+  for (const h of heroes.values()) {
+    for (const it of h.items) it.t = clock(it.t);
+    for (const l of h.levels) l.t = clock(l.t);
+    for (const s of h.skills) {
+      for (const l of s.levels) l.t = clock(l.t);
+      for (const c of s.casts) { c.t = clock(c.t); c.until = clock(c.until); }
+    }
+    for (const list of Object.values(h.itemCasts)) for (const c of list) { c.t = clock(c.t); c.until = clock(c.until); }
+  }
   return { times: times.map(clock), heroes: [...heroes.values()], unitTimes: unitTimes.map(clock), units: allUnits };
 }

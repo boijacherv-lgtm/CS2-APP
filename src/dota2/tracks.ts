@@ -5,10 +5,10 @@
 import { API_URL, ONLINE } from '../env';
 import { getItem, gunzipJson, gzipJson, setItem } from '../ui/localStore';
 import { cellToMap, type Pt } from './data';
-import type { ReplayTracks, UnitKind } from './replay/parser';
+import type { ReplayCast, ReplayTracks, UnitKind } from './replay/parser';
 import type { ReplayWorkerIn, ReplayWorkerOut } from './replay/worker';
 
-const KEY = (id: number) => `d2tracks5:${id}`;
+const KEY = (id: number) => `d2tracks6:${id}`;
 /** A way drawn behind a hero uses every this many samples. */
 const TRAIL_STEP = 4;
 /** A jump this long (in map cells) between two samples is a teleport or a respawn: no sliding across the map. */
@@ -101,6 +101,43 @@ export function itemsAt(tracks: ReplayTracks, heroId: number, t: number): (strin
     if (list[mid].t <= t) lo = mid; else hi = mid - 1;
   }
   return list[lo].slots;
+}
+
+/** A cooldown running at time t: seconds left and how long it is in all. */
+export interface Cooldown { left: number; total: number }
+function cooldownAt(casts: ReplayCast[] | undefined, t: number): Cooldown | null {
+  if (!casts) return null;
+  for (let i = casts.length - 1; i >= 0; i--) {
+    const c = casts[i];
+    if (c.t > t) continue;
+    return t < c.until ? { left: c.until - t, total: Math.max(c.until - c.t, 0.1) } : null;
+  }
+  return null;
+}
+/** What an item's cooldown is at time t, by its name in the replay (with or without charges). */
+export const itemCooldownAt = (tracks: ReplayTracks, heroId: number, slot: string, t: number) =>
+  cooldownAt(tracks.heroes.find(x => x.heroId === heroId)?.itemCasts[slot.split('*')[0]], t);
+
+export interface SkillNow { name: string; level: number; cooldown: Cooldown | null }
+/** A hero's skills as they stand at time t: those they could see then, with level and cooldown. */
+export function skillsAt(tracks: ReplayTracks, heroId: number, t: number): SkillNow[] {
+  const out: SkillNow[] = [];
+  for (const s of tracks.heroes.find(x => x.heroId === heroId)?.skills ?? []) {
+    let state = s.levels[0];
+    if (!state || state.t > t) continue;
+    for (const l of s.levels) { if (l.t > t) break; state = l; }
+    if (!state.hidden) out.push({ name: s.name, level: state.level, cooldown: cooldownAt(s.casts, t) });
+  }
+  return out;
+}
+/** A hero's level and mana (%) at time t. */
+export function vitalsAt(tracks: ReplayTracks, heroId: number, t: number): { level: number; mana: number } | null {
+  const h = tracks.heroes.find(x => x.heroId === heroId);
+  if (!h?.levels.length) return null;
+  let level = h.levels[0].level;
+  for (const l of h.levels) { if (l.t > t) break; level = l.level; }
+  const i = Math.min(h.mana.length - 1, Math.max(0, rowAt(tracks.unitTimes, t) - h.manaFrom));
+  return { level, mana: h.mana[i] ?? 0 };
 }
 
 export interface UnitNow { kind: UnitKind; team: number; at: Pt; hp?: number; rune?: number }

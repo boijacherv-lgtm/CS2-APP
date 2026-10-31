@@ -30,6 +30,13 @@ export function itemLook(slot: string): { key: string; name: string; icon: strin
   };
 }
 
+/** A skill as a replay names it (`axe_battle_hunger`, hero `npc_dota_hero_axe`): its icon, and a readable name. */
+export function skillLook(name: string, heroKey: string): { name: string; icon: string } {
+  const prefix = `${heroKey.replace('npc_dota_hero_', '')}_`;
+  const short = name.startsWith(prefix) ? name.slice(prefix.length) : name;
+  return { name: short.split('_').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' '), icon: `${ITEM_ICONS.replace(/items$/, 'abilities')}/${name}.png` };
+}
+
 export type Pt = { x: number; y: number };
 /** The part of the game's world the map shows, in map cells (the image's edges, measured against a replay's positions). */
 const VIEW = { left: 63, top: 192.5, span: 130 };

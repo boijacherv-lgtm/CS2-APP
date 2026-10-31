@@ -45,8 +45,10 @@ const readStyle = (): MapStyle => { try { return localStorage.getItem(STYLE_KEY)
  * The map on a Konva stage that fills its box (square), with zoom (wheel) and pan (drag the background).
  * `children(S, k)` draws on top: S = the map's size in px, k = a scale for line widths and icons (1 at 640 px).
  */
-export function D2Map({ up = () => true, children, onBackground }: {
+export function D2Map({ up = () => true, children, onBackground, overlay }: {
   up?: (uid: string) => boolean;
+  /** Controls laid on the map itself. */
+  overlay?: ReactNode;
   children: (S: number, k: number, style: MapStyle) => ReactNode;
   /** A click / tap on the map itself (not a token): where, in map coordinates (0–1). */
   onBackground?: (at: Pt) => void;
@@ -60,7 +62,9 @@ export function D2Map({ up = () => true, children, onBackground }: {
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setSize(Math.max(200, Math.min(el.clientWidth, el.clientHeight))));
+    const fit = () => setSize(Math.max(200, Math.min(el.clientWidth, el.clientHeight)));
+    fit();
+    const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -76,6 +80,7 @@ export function D2Map({ up = () => true, children, onBackground }: {
   };
   return (
     <div className="dl-map" ref={wrap}>
+      <div className="d2-map-box" style={{ width: S, height: S }}>
       <Stage ref={stage} width={S} height={S} scaleX={view.scale} scaleY={view.scale} x={view.x} y={view.y}
         draggable={view.scale > 1} onDragEnd={e => { if (e.target === e.target.getStage()) setView(v => ({ ...v, x: e.target.x(), y: e.target.y() })); }}
         onWheel={e => { e.evt.preventDefault(); zoom(e.evt.deltaY < 0 ? 1.15 : 1 / 1.15, stage.current!.getPointerPosition()!); }}
@@ -91,6 +96,8 @@ export function D2Map({ up = () => true, children, onBackground }: {
         <button className={style === 'game' ? 'on' : ''} onClick={() => pickStyle('game')}>Game</button>
       </div>
       {view.scale > 1 && <button className="ghost small-btn dl-zoom-reset" onClick={() => setView({ scale: 1, x: 0, y: 0 })}>Fit map</button>}
+      {overlay}
+      </div>
     </div>
   );
 }

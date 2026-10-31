@@ -1,12 +1,12 @@
 // @ts-expect-error this project has no types for Node's own modules; tests run in Node
 import zlib from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { cellToMap, itemLook } from '../data';
+import { cellToMap, itemLook, skillLook } from '../data';
 import type { ReplayTracks } from '../replay/parser';
 import { readReplay } from '../replay/parser';
 import { bunzip2, snappy, unpackReplay } from '../replay/unpack';
 import { unzstd } from '../replay/zstd';
-import { heroAt, heroTrail, itemsAt, unitsAt } from '../tracks';
+import { heroAt, heroTrail, itemCooldownAt, itemsAt, skillsAt, unitsAt, vitalsAt } from '../tracks';
 
 /** Data with both repeats and noise, like a real file: exercises matches, literals and every kind of table. */
 function sample(size: number) {
@@ -54,7 +54,10 @@ describe('Hero movement', () => {
     times: [0, 1, 2, 3],
     heroes: [{ heroId: 7, team: 2, x: [100, 101, 180, 181], y: [100, 100, 180, 180], hp: [90, 80, 80, 0], items: [
       { t: -30, slots: ['item_tango*3', null] }, { t: 100, slots: ['item_tango*2', 'item_blink'] }, { t: 500, slots: [null, 'item_blink'] },
-    ] }],
+    ], skills: [
+      { name: 'axe_culling_blade', levels: [{ t: -30, level: 0, hidden: false }, { t: 360, level: 1, hidden: false }], casts: [{ t: 400, until: 480 }, { t: 600, until: 610 }] },
+      { name: 'axe_secret', levels: [{ t: -30, level: 1, hidden: true }], casts: [] },
+    ], itemCasts: { item_blink: [{ t: 300, until: 315 }] }, levels: [{ t: -30, level: 1 }, { t: 200, level: 6 }], mana: [100, 50, 25], manaFrom: 1 }],
     unitTimes: [0, 1, 2, 3, 4],
     units: [
       { kind: 'creep', team: 2, from: 1, every: 1, x: [1000, 1010], y: [1000, 1000] },
@@ -70,6 +73,30 @@ describe('Hero movement', () => {
     expect(itemsAt(tracks, 7, 100)).toEqual(['item_tango*2', 'item_blink']);
     expect(itemsAt(tracks, 7, 9999)).toEqual([null, 'item_blink']);
     expect(itemsAt(tracks, 8, 100)).toBeNull();
+  });
+  it('shows a skill with its level, and its cooldown only while it runs; a hidden one not at all', () => {
+    expect(skillsAt(tracks, 7, 100)).toEqual([{ name: 'axe_culling_blade', level: 0, cooldown: null }]);
+    expect(skillsAt(tracks, 7, 380)[0].level).toBe(1);
+    expect(skillsAt(tracks, 7, 440)[0].cooldown).toEqual({ left: 40, total: 80 });
+    expect(skillsAt(tracks, 7, 500)[0].cooldown).toBeNull();
+    expect(skillsAt(tracks, 7, 605)[0].cooldown).toEqual({ left: 5, total: 10 });
+  });
+  it('runs item cooldowns by the item, whatever its charges', () => {
+    expect(itemCooldownAt(tracks, 7, 'item_blink', 310)).toEqual({ left: 5, total: 15 });
+    expect(itemCooldownAt(tracks, 7, 'item_blink*2', 310)?.left).toBe(5);
+    expect(itemCooldownAt(tracks, 7, 'item_blink', 320)).toBeNull();
+    expect(itemCooldownAt(tracks, 7, 'item_tango', 310)).toBeNull();
+  });
+  it('knows a hero\'s level and mana at any moment', () => {
+    expect(vitalsAt(tracks, 7, 50)?.level).toBe(1);
+    expect(vitalsAt(tracks, 7, 250)?.level).toBe(6);
+    expect(vitalsAt(tracks, 7, 0)?.mana).toBe(100);
+    expect(vitalsAt(tracks, 7, 2)?.mana).toBe(50);
+    expect(vitalsAt(tracks, 8, 2)).toBeNull();
+  });
+  it('names a skill without its hero, and finds its icon', () => {
+    expect(skillLook('dark_seer_ion_shell', 'npc_dota_hero_dark_seer')).toMatchObject({ name: 'Ion Shell' });
+    expect(skillLook('axe_battle_hunger', 'npc_dota_hero_axe').icon).toContain('/abilities/axe_battle_hunger.png');
   });
   it('reads a replay item: name, icon and charges, also one the shop list lacks', () => {
     expect(itemLook('item_tango*3')).toMatchObject({ key: 'tango', name: 'Tango', charges: 3 });
@@ -98,7 +125,7 @@ describe('Hero movement', () => {
     expect(heroAt(tracks, 7, 0.5)!.hp).toBe(90);
   });
   it('rounds a corner instead of turning on the spot', () => {
-    const corner: ReplayTracks = { times: [0, 1, 2], heroes: [{ heroId: 1, team: 2, x: [100, 101, 101], y: [100, 100, 101], hp: [100, 100, 100], items: [] }], unitTimes: [], units: [] };
+    const corner: ReplayTracks = { times: [0, 1, 2], heroes: [{ heroId: 1, team: 2, x: [100, 101, 101], y: [100, 100, 101], hp: [100, 100, 100], items: [], skills: [], itemCasts: {}, levels: [], mana: [], manaFrom: 0 }], unitTimes: [], units: [] };
     const at = heroAt(corner, 1, 1)!.at, sharp = cellToMap(101, 100);
     expect(at.x).toBeLessThan(sharp.x);
     expect(at.y).toBeLessThan(sharp.y);

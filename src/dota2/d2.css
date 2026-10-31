@@ -1,45 +1,108 @@
 /* Dota 2 (dota2/): the shared layout is Deadlock's (deadlock/dl.css); these are the parts only Dota has */
-.d2-map-note { margin: 0; text-align: center; }
 .d2-parse { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 14px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); font-size: 13px; }
-.dl-board:has(.d2-parse) { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
-.dl-board:has(.d2-map-note):not(:has(.d2-parse)) { grid-template-rows: auto minmax(0, 1fr) auto auto; }
-.d2-items img, .d2-buy img { border-radius: 3px; display: block; }
 .d2-items { display: inline-flex; gap: 2px; }
+.d2-items img, .d2-buy img { border-radius: 3px; display: block; }
 .d2-table-wrap { overflow-x: auto; }
 .d2-timing { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 4px; border-top: 1px solid var(--border); }
 .d2-timing.me { background: rgba(255, 255, 255, .05); }
 .d2-timing-items { display: flex; flex-wrap: wrap; gap: 8px; }
 .d2-buy { display: inline-grid; justify-items: center; gap: 1px; }
 .d2-ward-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* the board: the map gets all the room there is, like a spectator's HUD with a team on each side */
+.d2-board { gap: 6px; padding: 6px 10px; }
+.d2-board:has(.d2-parse) { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.d2-board .dl-top { gap: 3px; }
+.d2-board .dl-team-score b { font-size: 19px; }
+.d2-board .dl-clock { font-size: 17px; padding: 1px 10px; }
+.d2-board .dl-souls { width: min(640px, 100%); height: 14px; }
+.d2-board .dl-souls-label { font-size: 10.5px; }
+.d2-board .dl-main { grid-template-columns: 276px minmax(0, 1fr) 276px; gap: 8px; }
+.d2-board .dl-team { gap: 4px; }
+.d2-board .dl-map { place-items: center; }
+
+/* a team's players: who, how they're doing, and what they carry now */
+.d2-board .dl-player { grid-template-columns: 38px minmax(0, 1fr) auto; row-gap: 2px; padding: 5px 7px 7px; overflow: hidden; }
+.d2-board .dl-player .d2-row-hero { width: 38px; height: 38px; }
+.d2-board .dl-respawn { left: 7px; top: 5px; width: 38px; height: 38px; }
+.d2-row-items { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, 1fr) 1.1fr; gap: 2px; margin-top: 2px; }
+.d2-row-neutral { display: block; margin-left: 4px; }
+.d2-row-neutral .d2-slot { border-radius: 50%; aspect-ratio: 1; }
+.d2-row-hp, .d2-row-mana { position: absolute; left: 0; right: 0; height: 3px; background: rgba(127, 127, 127, .2); }
+.d2-row-hp { bottom: 3px; }
+.d2-row-mana { bottom: 0; }
+.d2-row-hp i, .d2-row-mana i { display: block; height: 100%; }
+.d2-row-mana i { background: #4a8fe0; }
+.d2-board .dl-player:has(.d2-row-mana) { padding-bottom: 9px; }
+.d2-row-level { position: absolute; left: 31px; top: 30px; min-width: 15px; height: 15px; padding: 0 2px; border-radius: 4px; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; background: rgba(11, 14, 18, .9); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .25); z-index: 1; }
+.d2-row-skills { display: flex; gap: 2px; margin-top: 2px; }
+
+/* skills and cooldowns */
+.d2-skill { position: relative; display: block; width: 19px; height: 19px; flex: none; border-radius: 3px; overflow: hidden; background: rgba(255, 255, 255, .06); }
+.d2-skill.large { width: 100%; height: auto; aspect-ratio: 1; }
+.d2-skill.unlearned img { filter: grayscale(1) brightness(.45); }
+.d2-skill img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.d2-cd-sweep { position: absolute; left: 0; right: 0; top: 0; background: rgba(0, 0, 0, .72); }
+.d2-cd-text { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; line-height: 1; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 2px #000; }
+.d2-skill .d2-cd-text { font-size: 10px; }
+.d2-skill.large .d2-cd-text { font-size: 14px; }
+.d2-skill-level { position: absolute; right: 1px; bottom: 0; font-size: 10px; color: #ffd86b; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 2px #000; }
+.d2-panel-skills { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+
+/* on the map */
+.d2-map-box { position: relative; }
 .d2-map-style { position: absolute; right: 8px; bottom: 8px; }
-.d2-layers { display: inline-flex; gap: 10px; margin-left: 10px; vertical-align: middle; }
-/* what the selected hero carries right now */
-.d2-items-panel { display: grid; gap: 5px; padding: 8px; border-radius: 12px; border: 1px solid var(--border); background: rgba(17, 20, 25, .96); }
+.d2-layers { display: inline-flex; align-items: center; gap: 10px; font-size: 12.5px; }
+.d2-legend { color: var(--text-2); }
+.d2-replay-note { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: min(76%, 460px); margin: 0; padding: 7px 11px; border-radius: 9px; border: 1px solid var(--border); background: rgba(11, 14, 18, .92); font-size: 12px; color: var(--text-2); text-align: center; }
+.d2-replay-note b { display: block; color: var(--text-1); font-size: 13px; }
+
+/* more about the selected hero, under their team */
+.d2-items-panel { display: grid; gap: 5px; padding: 7px 8px; border-radius: 12px; border: 1px solid var(--border); background: rgba(17, 20, 25, .96); }
 .d2-items-panel header { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .d2-items-panel header b { flex: 1; min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .d2-items-panel header img { border-radius: 5px; }
 .d2-items-panel p { margin: 0; }
+.d2-stats { display: flex; justify-content: space-between; gap: 8px; }
+.d2-stats b { color: var(--text-1); }
+.d2-stats i { font-style: normal; color: var(--text-3); }
 .d2-slots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; }
 .d2-back { opacity: .65; }
 .d2-stash { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
 .d2-stash .d2-slot { width: 34px; }
 .d2-slot { position: relative; display: block; aspect-ratio: 88 / 64; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); }
 .d2-slot img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.d2-charges { position: absolute; right: 2px; bottom: 0; font-size: 11px; line-height: 1.2; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 2px #000; }
+.d2-charges { position: absolute; right: 2px; bottom: 0; font-size: 10.5px; line-height: 1.2; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 2px #000; }
 .d2-feed-event { color: var(--text-2); }
 .d2-feed-event img { display: block; }
-/* nothing lies over the map: under one team what the hero carries, under the other the coach's card and the feed */
-.d2-under-right { display: grid; gap: 6px; }
-.d2-board .d2-under-right .dl-card-slot, .d2-board .d2-under-right .dl-feed { position: static; width: auto; }
-.d2-board .d2-under-right .dl-feed { justify-items: stretch; }
-@media (min-width: 901px) {
-  .d2-under-left, .d2-under-right { position: absolute; bottom: 0; width: 250px; }
-  .d2-under-left { left: 0; }
-  .d2-under-right { right: 0; }
+
+/* nothing lies over the map: under one team the selected hero, under the other the coach's card and the feed */
+.d2-under { position: sticky; bottom: 0; margin-top: auto; display: grid; gap: 6px; z-index: 1; }
+.d2-board .d2-under .dl-card-slot, .d2-board .d2-under .dl-feed { position: static; width: auto; }
+.d2-board .d2-under .dl-feed { justify-items: stretch; }
+.d2-board .d2-under .dl-card { padding: 7px 10px; font-size: 12.5px; }
+/* a low window: every row gives up a line so the map and the panels keep their room */
+@media (min-width: 901px) and (max-height: 820px) {
+  .d2-board .dl-player { grid-template-columns: 28px minmax(0, 1fr) auto auto; column-gap: 7px; padding: 4px 6px 6px; }
+  .d2-board .dl-player .d2-row-hero { grid-row: auto; width: 28px; height: 28px; }
+  .d2-board .dl-player-souls { grid-column: auto; }
+  .d2-board .dl-respawn { left: 6px; top: 4px; width: 28px; height: 28px; }
+  .d2-row-level { left: 22px; top: 22px; }
+  .d2-row-skills .d2-skill { width: 15px; height: 15px; }
+  .d2-skill .d2-cd-text { font-size: 9px; }
+  /* the rows already show the skills: the panel keeps what they don't */
+  .d2-panel-skills { display: none; }
+}
+@media (max-width: 1250px) {
+  .d2-board .dl-phases { display: none; }
 }
 @media (max-width: 900px) {
-  .d2-under-left, .d2-under-right { grid-column: 1 / -1; }
+  .d2-board .dl-main { grid-template-columns: 1fr 1fr; }
+  .d2-under { position: static; }
 }
 @media (max-width: 640px) {
   .d2-timing { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .d2-board .dl-main { grid-template-columns: 1fr; }
 }
