@@ -13,7 +13,8 @@ export function useCoach(): { all: D2Move[]; shown: D2Move[]; mine: number | nul
     const acc = Number(steamId3(me));
     return match.players.find(p => p.account === acc)?.slot ?? null;
   }, [me, match]);
-  const all = useMemo(() => (match ? coachMatch(match) : []), [match]);
+  const tracks = useD2(s => (s.replay.status === 'ready' ? s.replay.tracks : null));
+  const all = useMemo(() => (match ? coachMatch(match, tracks) : []), [match, tracks]);
   const shown = useMemo(() => (scope === 'mine' && mine !== null ? all.filter(m => m.slot === mine) : all), [all, scope, mine]);
   return { all, shown, mine, canMine: mine !== null };
 }

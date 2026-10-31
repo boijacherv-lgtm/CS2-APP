@@ -70,6 +70,7 @@ const FEATURES: { icon: IconName; title: string; text: string }[] = [
   { icon: 'play', title: 'Match replay', text: 'Heroes and creeps moving on the map, Roshan, runes, wards with their vision, towers falling.' },
   { icon: 'target', title: 'The coach', text: 'Every death and kill graded, with the reasons. Lanes compared at 10:00.' },
   { icon: 'star', title: 'Match recap', text: 'Gold lead, lessons that come back, fights, objectives, item timings, scoreboard.' },
+  { icon: 'grid', title: 'Draft', text: 'Who counters whom, and picks against the other team.' },
   { icon: 'route', title: 'Macro plan', text: 'Heroes and wards over the match, with notes for your team.' },
   { icon: 'swords', title: 'Teamfight planner', text: 'A fight frame by frame: positions, range rings, who focuses whom.' },
   { icon: 'trendUp', title: 'You on your hero', text: 'How your numbers compare with other players on the same hero.' },
@@ -77,7 +78,7 @@ const FEATURES: { icon: IconName; title: string; text: string }[] = [
 
 const ROAD: { title: string; text: string; state: 'done' | 'next' }[] = [
   { title: 'Match replay and the coach', text: 'Any parsed match by its ID, graded, with its recap.', state: 'done' },
-  { title: 'Tactical', text: 'A macro planner with wards and a teamfight planner.', state: 'done' },
+  { title: 'Tactical', text: 'Draft with counters, a macro planner with wards, a teamfight planner, and planning from any moment of a match.', state: 'done' },
   { title: 'Heroes on the map', text: 'Every hero moving as they did in the match, with their health.', state: 'done' },
   { title: 'Your replay files', text: 'Open a replay you saved, even after Valve has deleted it.', state: 'next' },
 ];

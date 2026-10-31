@@ -9,6 +9,54 @@
 .d2-buy { display: inline-grid; justify-items: center; gap: 1px; }
 .d2-ward-tools { display: flex; gap: 6px; flex-wrap: wrap; }
 
+/* Match recap: draft, lanes, skill order, items against what's usual */
+.d2-draft { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 5px; }
+.d2-draft li { display: grid; justify-items: center; gap: 1px; padding: 3px; border-radius: 7px; border: 1px solid; background: var(--surface-1); }
+.d2-draft li img { display: block; border-radius: 4px; }
+.d2-draft li.ban { border-style: dashed; opacity: .55; }
+.d2-draft li.ban img { filter: grayscale(1); }
+.d2-lanes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.d2-lanes li { display: grid; grid-template-columns: 70px 64px 62px 20px 62px 64px minmax(0, 1fr); align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border); }
+.d2-lane-heroes { display: flex; gap: 2px; }
+.d2-lane-heroes img { border-radius: 4px; }
+.d2-order { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 3px 10px; align-items: center; padding: 7px 4px; border-top: 1px solid var(--border); }
+.d2-order.me { background: rgba(255, 255, 255, .05); }
+.d2-order-skills { display: flex; flex-wrap: wrap; gap: 2px; }
+.d2-order-cell { width: 24px; height: 24px; border-radius: 3px; overflow: hidden; background: rgba(255, 255, 255, .06); display: grid; place-items: center; }
+.d2-order-cell img { width: 100%; height: 100%; display: block; }
+.d2-order-cell.talent { font-size: 11px; font-weight: 700; color: #ffd86b; background: rgba(255, 216, 107, .12); }
+.d2-order-talents { grid-column: 2; }
+.d2-timing-who { justify-self: start; padding: 2px 6px; border-radius: 7px; }
+.d2-timing-who.on { box-shadow: inset 0 0 0 1px var(--text-1); }
+.d2-vs { margin-bottom: 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border); }
+.d2-vs h4 { margin: 0 0 8px; }
+.d2-vs ul { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 5px; }
+.d2-vs li { display: grid; grid-template-columns: 30px minmax(0, 1fr) 50px minmax(0, 150px) 62px; align-items: center; gap: 8px; }
+.d2-vs li img { border-radius: 3px; }
+.d2-verdict { justify-self: start; padding: 1px 7px; border-radius: 6px; font-size: 11.5px; font-weight: 700; color: #0b2414; background: var(--good); }
+.d2-verdict.late { color: #fff; background: var(--bad); }
+.d2-verdict.on-time { color: var(--text-2); background: rgba(255, 255, 255, .08); }
+
+/* Tactical: the draft */
+.d2-draft-tab { min-height: 0; overflow-y: auto; display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 12px; align-items: start; }
+.d2-draft-side { display: grid; gap: 10px; }
+.d2-draft-main { display: grid; gap: 10px; }
+.d2-pairs { border-collapse: collapse; font-size: 12.5px; }
+.d2-pairs th, .d2-pairs td { padding: 3px 5px; text-align: center; }
+.d2-pairs th img { display: block; border-radius: 4px; }
+.d2-pairs td.up { color: var(--good); } .d2-pairs td.down { color: var(--bad); }
+.d2-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 5px; }
+.d2-pick { display: flex; align-items: center; gap: 7px; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-1); text-align: left; }
+.d2-pick:hover:not(:disabled) { border-color: var(--border-strong); }
+.d2-pick img { border-radius: 4px; }
+.d2-pick b { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; font-weight: 600; }
+@media (max-width: 900px) {
+  .d2-draft-tab { grid-template-columns: 1fr; }
+  .d2-lanes li { grid-template-columns: 60px 1fr 1fr; }
+  .d2-order { grid-template-columns: 1fr; }
+  .d2-order-talents { grid-column: 1; }
+}
+
 /* the board: the map gets all the room there is, like a spectator's HUD with a team on each side */
 .d2-board { gap: 6px; padding: 6px 10px; }
 .d2-board:has(.d2-parse) { grid-template-rows: auto auto minmax(0, 1fr) auto; }
@@ -77,12 +125,18 @@
 .d2-feed-event img { display: block; }
 
 /* nothing lies over the map: under one team the selected hero, under the other the coach's card and the feed */
-.d2-under { position: sticky; bottom: 0; margin-top: auto; display: grid; gap: 6px; z-index: 1; }
+/* players keep their size whatever comes and goes below them */
+.d2-board .dl-player { flex: none; }
+.d2-under { display: grid; gap: 6px; align-content: start; }
+/* the selected hero stays in view at the bottom; if the column has to scroll, the players scroll past behind it */
+.dl-team.t0 .d2-under { position: sticky; bottom: 0; margin-top: auto; z-index: 1; }
+/* the card and the feed get what's left under the players: what doesn't fit (the oldest kills) is cut off, nothing moves */
+.dl-team.t1 .d2-under { flex: 1 1 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .d2-board .d2-under .dl-card-slot, .d2-board .d2-under .dl-feed { position: static; width: auto; }
 .d2-board .d2-under .dl-feed { justify-items: stretch; }
 .d2-board .d2-under .dl-card { padding: 7px 10px; font-size: 12.5px; }
 /* a low window: every row gives up a line so the map and the panels keep their room */
-@media (min-width: 901px) and (max-height: 820px) {
+@media (min-width: 901px) and (max-height: 940px) {
   .d2-board .dl-player { grid-template-columns: 28px minmax(0, 1fr) auto auto; column-gap: 7px; padding: 4px 6px 6px; }
   .d2-board .dl-player .d2-row-hero { grid-row: auto; width: 28px; height: 28px; }
   .d2-board .dl-player-souls { grid-column: auto; }
@@ -93,12 +147,21 @@
   /* the rows already show the skills: the panel keeps what they don't */
   .d2-panel-skills { display: none; }
 }
+/* lower still: slimmer items, and the coach's card says only the main reason */
+@media (min-width: 901px) and (max-height: 780px) {
+  .d2-row-items .d2-slot { aspect-ratio: auto; height: 19px; }
+  .d2-row-neutral .d2-slot { aspect-ratio: auto; border-radius: 4px; }
+  .d2-under .dl-card ul li:not(:first-child) { display: none; }
+  .d2-under .dl-card { padding: 5px 9px; }
+  .d2-under .dl-card-title { margin: 3px 0 2px; }
+}
 @media (max-width: 1250px) {
   .d2-board .dl-phases { display: none; }
 }
 @media (max-width: 900px) {
   .d2-board .dl-main { grid-template-columns: 1fr 1fr; }
-  .d2-under { position: static; }
+  .dl-team.t0 .d2-under { position: static; }
+  .dl-team.t1 .d2-under { flex: none; overflow: visible; }
 }
 @media (max-width: 640px) {
   .d2-timing { grid-template-columns: 1fr; }

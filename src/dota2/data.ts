@@ -1,4 +1,5 @@
 import HEROES from './generated/heroes.json';
+import ABILITIES from './generated/abilities.json';
 import ITEMS from './generated/items.json';
 
 /** Dota 2's static data: heroes, items, teams and the map's buildings (0–1 across, Radiant bottom left). */
@@ -29,6 +30,9 @@ export function itemLook(slot: string): { key: string; name: string; icon: strin
     name: known?.name ?? key.replace(/^enhancement_/, '').split('_').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' '),
   };
 }
+
+/** A skill or talent by the number a match's skill order uses. */
+export const abilityById = (id: number): { key: string; name: string; talent: boolean } | null => (ABILITIES as Record<string, { key: string; name: string; talent: boolean }>)[id] ?? null;
 
 /** A skill as a replay names it (`axe_battle_hunger`, hero `npc_dota_hero_axe`): its icon, and a readable name. */
 export function skillLook(name: string, heroKey: string): { name: string; icon: string } {

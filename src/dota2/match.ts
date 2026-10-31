@@ -15,12 +15,13 @@ interface RawPlayer {
   obs_placed?: number; sen_placed?: number; camps_stacked?: number; buyback_count?: number;
   benchmarks?: Record<string, { pct?: number }>; gold_t?: number[]; networth_t?: number[]; lh_t?: number[]; dn_t?: number[]; xp_t?: number[];
   deaths_log?: RawLog[]; kills_log?: RawLog[]; obs_log?: RawLog[]; sen_log?: RawLog[]; obs_left_log?: RawLog[]; sen_left_log?: RawLog[];
-  purchase_log?: RawLog[]; runes_log?: RawLog[]; lane_pos?: Record<string, Record<string, number>>;
+  purchase_log?: RawLog[]; runes_log?: RawLog[]; lane_pos?: Record<string, Record<string, number>>; ability_upgrades_arr?: number[] | null;
 }
 export interface RawMatch {
   match_id: number; duration: number; radiant_win: boolean; start_time: number; version?: number | null; replay_url?: string | null;
   od_data?: { has_parsed?: boolean }; radiant_name?: string; dire_name?: string; radiant_team?: { name?: string }; dire_team?: { name?: string };
   players: RawPlayer[]; radiant_gold_adv?: number[] | null; radiant_xp_adv?: number[] | null;
+  picks_bans?: { is_pick: boolean; hero_id: number; team: number; order: number }[] | null;
   objectives?: { time: number; type: string; key?: string; team?: number; slot?: number }[] | null;
   teamfights?: { start: number; end: number; deaths?: number; players: RawFightPlayer[] }[] | null;
 }
@@ -31,6 +32,8 @@ export interface D2Player {
   lane: number | null;
   kills: number; deaths: number; assists: number; lastHits: number; denies: number; level: number; netWorth: number; gpm: number; xpm: number;
   heroDamage: number; towerDamage: number; healing: number; items: number[]; obs: number; sen: number; stacks: number; buybacks: number;
+  /** What they took at each level: skill and talent numbers (see abilityById). */
+  upgrades: number[];
   /** Share of players on this hero this player beat (0–1), per stat. */
   bench: Record<string, number>;
 }
@@ -48,6 +51,8 @@ export interface D2Match {
   replayUrl: string | null;
   players: D2Player[]; minutes: D2Minute[]; deaths: D2Death[]; wards: D2Ward[]; downs: D2Down[];
   roshan: { t: number; team: D2Team }[]; fights: D2Fight[]; buys: D2Buy[]; goldAdv: number[]; xpAdv: number[]; events: D2Event[];
+  /** Picks and bans in order, when the game mode had a draft. */
+  draft: { hero: number; team: D2Team; pick: boolean }[];
   /** Where each hero spent the laning phase (the first 10 minutes), for the map. */
   laneHeat: { x: number; y: number; w: number }[][];
 }
@@ -129,6 +134,7 @@ export function matchFromOpenDota(raw: RawMatch): D2Match {
   ].sort((a, b) => a.t - b.t);
   return {
     events: happenings,
+    draft: [...(raw.picks_bans ?? [])].sort((a, b) => a.order - b.order).map(d => ({ hero: d.hero_id, team: d.team as D2Team, pick: d.is_pick })),
     id: raw.match_id, parsed, duration: raw.duration, winner, startTime: raw.start_time, replayUrl: raw.replay_url ?? null,
     start: Math.min(0, ...events.filter(t => t > -180)),
     names: { 0: raw.radiant_team?.name ?? raw.radiant_name ?? 'Radiant', 1: raw.dire_team?.name ?? raw.dire_name ?? 'Dire' },
@@ -138,6 +144,7 @@ export function matchFromOpenDota(raw: RawMatch): D2Match {
       netWorth: p.net_worth ?? 0, gpm: p.gold_per_min, xpm: p.xp_per_min, heroDamage: p.hero_damage ?? 0, towerDamage: p.tower_damage ?? 0, healing: p.hero_healing ?? 0,
       items: [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].filter((i): i is number => !!i),
       obs: p.obs_placed ?? 0, sen: p.sen_placed ?? 0, stacks: p.camps_stacked ?? 0, buybacks: p.buyback_count ?? 0,
+      upgrades: p.ability_upgrades_arr ?? [],
       bench: Object.fromEntries(Object.entries(p.benchmarks ?? {}).filter(([, v]) => typeof v.pct === 'number').map(([k, v]) => [k, v.pct!])),
     })),
     minutes: raw.players.map(p => ({ gold: p.networth_t ?? p.gold_t ?? [], lh: p.lh_t ?? [], dn: p.dn_t ?? [], xp: p.xp_t ?? [] })),
@@ -199,6 +206,21 @@ export function lastKnown(m: D2Match, slot: number, t: number): { at: Pt; age: n
     seen(d.t + d.respawn, FOUNTAIN[team]);
   }
   return { at, age: t - when, dead: !!deadAt(m, slot, t) };
+}
+
+/** How far ahead (share of the lane's average net worth) a side has to be at 10:00 to have won its lane. */
+const LANE_WON = 0.08;
+export interface D2Lane { lane: number; name: string; radiant: number; dire: number; lead: number; winner: D2Team | null }
+/** Each lane at 10:00: net worth of the heroes who played it, and who came out ahead. */
+export function laneResults(m: D2Match): D2Lane[] {
+  const names: Record<number, string> = { 1: 'Bottom', 2: 'Middle', 3: 'Top' };
+  return [3, 2, 1].flatMap(lane => {
+    const worth = (team: D2Team) => m.players.filter(p => p.team === team && p.lane === lane).reduce((a, p) => a + netWorthAt(m, p.slot, 600), 0);
+    const radiant = worth(0), dire = worth(1);
+    if (!radiant || !dire || m.duration < 600) return [];
+    const lead = (radiant - dire) / ((radiant + dire) / 2);
+    return [{ lane, name: names[lane], radiant, dire, lead, winner: lead > LANE_WON ? 0 as const : lead < -LANE_WON ? 1 as const : null }];
+  });
 }
 
 /** A run of deaths close together: heroes lost on each side, and the gold it handed over. */

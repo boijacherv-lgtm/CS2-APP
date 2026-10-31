@@ -9,7 +9,9 @@ import { D2Map, useImages } from './D2Map';
 import { buildingUp, deadAt, kdAt, lastKnown, netWorthAt, seriesAt, teamKillsAt, type D2Event, type D2Match } from './match';
 import { useD2 } from './store';
 import { heroAt, heroTrail, itemCooldownAt, itemsAt, skillsAt, unitsAt, vitalsAt, type Cooldown, type SkillNow } from './tracks';
+import { useTac } from './tacticalStore';
 import { useCoach } from './useCoach';
+import { navigate } from '../shell/router';
 
 const PHASES = [{ label: 'Laning', t: 0 }, { label: 'Mid game', t: 600 }, { label: 'Late game', t: 1800 }];
 const SPEEDS = [1, 2, 4, 8, 16, 32];
@@ -350,9 +352,27 @@ function Playbar({ match, time, playing, speed, graded, children }: { match: D2M
         </div>
       </div>
       <span className="num dl-time">{mins(time)} / {mins(match.duration)}</span>
+      <PlanFromHere match={match} time={time} />
       {children}
     </div>
   );
+}
+
+/** Takes this moment to Tactical: every hero where they stand, to plan what should have happened next. */
+function PlanFromHere({ match, time }: { match: D2Match; time: number }) {
+  const replay = useD2(s => s.replay);
+  if (replay.status !== 'ready') return null;
+  const go = () => {
+    if (useTac.getState().heroes.length && !confirm('Replace your current plan in Tactical with this moment?')) return;
+    useTac.getState().loadMoment(time, match.players.flatMap(p => {
+      const now = heroAt(replay.tracks, p.hero, time);
+      return now ? [{ team: p.team, hero: p.hero, at: now.at }] : [];
+    }));
+    useD2.getState().setPlaying(false);
+    try { localStorage.setItem('stratboard.d2.tab', 'fight'); } catch { /* private mode */ }
+    navigate({ page: 'dota2', mode: 'tactical' });
+  };
+  return <button className="chip" onClick={go} title="Open this moment in Tactical, with every hero where they stand">Plan from here</button>;
 }
 
 function stepMoment(moves: D2Move[], dir: 1 | -1) {

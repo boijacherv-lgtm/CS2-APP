@@ -21,7 +21,19 @@ const items = Object.entries((await get('items')) as Record<string, Item>)
   .map(([key, i]) => ({ id: i.id!, key, name: i.dname!, cost: i.cost!, icon: i.img ? CDN + i.img.replace(/\?.*$/, '') : null }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
+// skills and talents, by the numbers a match's skill order uses
+type Ability = { dname?: string };
+const abilityIds = (await get('ability_ids')) as Record<string, string>;
+const abilityInfo = (await get('abilities')) as Record<string, Ability>;
+const heroAbilities = (await get('hero_abilities')) as Record<string, { abilities: string[]; talents: { name: string }[] }>;
+const talents = new Set(Object.values(heroAbilities).flatMap(h => h.talents.map(t => t.name)));
+const skills = new Set(Object.values(heroAbilities).flatMap(h => h.abilities).filter(a => a !== 'generic_hidden'));
+const pretty = (key: string) => (abilityInfo[key]?.dname ?? key).replace(/\{s:[^}]+\}/g, 'X').replace(/\s+/g, ' ').trim();
+const abilities = Object.fromEntries(Object.entries(abilityIds).filter(([, key]) => skills.has(key) || talents.has(key))
+  .map(([id, key]) => [id, { key, name: pretty(key), talent: talents.has(key) }]));
+
 fs.mkdirSync(OUT, { recursive: true });
+fs.writeFileSync(path.join(OUT, 'abilities.json'), JSON.stringify(abilities));
 fs.writeFileSync(path.join(OUT, 'heroes.json'), JSON.stringify(heroes));
 fs.writeFileSync(path.join(OUT, 'items.json'), JSON.stringify(items));
 console.log(`${heroes.length} heroes, ${items.length} items → ${path.relative(process.cwd(), OUT)}`);

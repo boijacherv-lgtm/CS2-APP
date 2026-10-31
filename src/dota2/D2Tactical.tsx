@@ -1,24 +1,142 @@
 import { useEffect, useState } from 'react';
 import { Arrow, Circle, Group, Image as KImage, Layer, Line, Text } from 'react-konva';
 import { Icon, type IconName } from '../ui/Icon';
-import { buildingOf, D2_HEROES, heroOf, LANE_TOWER, MAP_UNITS, mins, OBS_VISION, TEAM_COLOR, TEAM_NAME, type D2Team, type Pt } from './data';
+import { heroMatchups, matchupRate, type HeroMatchup } from './api';
+import { buildingOf, cellToMap, D2_HEROES, heroOf, LANE_TOWER, MAP_UNITS, mins, OBS_VISION, roshanOnMap, runeIcon, TEAM_COLOR, TEAM_NAME, type D2Team, type MapStyle, type Pt } from './data';
 import { D2Map, useImages } from './D2Map';
 import { keyAt, MATCH_LENGTH, useTac, WARD_LIFE, type TacHero } from './tacticalStore';
 import '../deadlock/dl.css';
 import './d2.css';
 
-type Tab = 'macro' | 'fight';
+type Tab = 'draft' | 'macro' | 'fight';
 const TABS: { id: Tab; label: string; icon: IconName; tip: string }[] = [
+  { id: 'draft', label: 'Draft', icon: 'grid', tip: 'Both teams\' heroes, who counters whom, and picks against the other side' },
   { id: 'macro', label: 'Macro plan', icon: 'route', tip: 'Who goes where over the match: lanes, rotations, wards' },
   { id: 'fight', label: 'Teamfight', icon: 'swords', tip: 'One fight, frame by frame: positions, engages, who focuses whom' },
 ];
+/** Fixed places on the map, in cells as read from a replay: where runes appear and where Tormentors stand. */
+const BOUNTY_SPOTS: [number, number][] = [[120.2, 162.6], [132.6, 91.6]];
+const POWER_SPOTS: [number, number][] = [[115.2, 136.7], [137.2, 118.5]];
+const TORMENTOR_SPOTS: [number, number][] = [[68, 177.5], [188.5, 79.5]];
+const LAIRS: [number, number][] = [[103, 146.7], [150.3, 106.4]];
+
+/** What a plan is built around: runes, Roshan's lairs and Tormentors, labelled. */
+function Landmarks({ S, k, style }: { S: number; k: number; style: MapStyle }) {
+  const icons = useImages([runeIcon(5), runeIcon(0)]);
+  const label = (text: string, y: number) => <Text text={text} x={-40} y={y} width={80} align="center" fontSize={Math.max(8, 8.5 * k)} fontStyle="bold" fill="#fff" stroke="#000" strokeWidth={2 * k} fillAfterStrokeEnabled />;
+  const rune = (at: Pt, icon: string | null, name: string, key: string) => (
+    <Group key={key} x={at.x * S} y={at.y * S} opacity={0.85}>
+      {icon && icons[icon] && <KImage image={icons[icon]} x={-8 * k} y={-8 * k} width={16 * k} height={16 * k} />}
+      {label(name, 9 * k)}
+    </Group>
+  );
+  return (
+    <Layer listening={false}>
+      {BOUNTY_SPOTS.map(([x, y], i) => rune(cellToMap(x, y), runeIcon(5), 'Bounty', `b${i}`))}
+      {POWER_SPOTS.map(([x, y], i) => rune(cellToMap(x, y), runeIcon(0), 'Power / Water', `p${i}`))}
+      {LAIRS.map(([x, y], i) => { const at = roshanOnMap(style, cellToMap(x, y)); return <Group key={`r${i}`} x={at.x * S} y={at.y * S} opacity={0.85}>{label('Roshan', 11 * k)}</Group>; })}
+      {TORMENTOR_SPOTS.map(([x, y], i) => { const at = cellToMap(x, y); return <Group key={`t${i}`} x={at.x * S} y={at.y * S} opacity={0.85}>{label('Tormentor', 14 * k)}</Group>; })}
+    </Layer>
+  );
+}
+
+/** How many picks to suggest for a side. */
+const SUGGESTED = 12;
+
+/** Both teams' heroes, who counters whom and what to pick against the other side, from OpenDota's matchups. */
+function Draft() {
+  const heroes = useTac(s => s.heroes);
+  const t = useTac.getState();
+  const [tables, setTables] = useState<Record<number, HeroMatchup[]>>({});
+  const [failed, setFailed] = useState<string | null>(null);
+  const ids = [...new Set(heroes.map(h => h.hero))].join();
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      for (const h of ids ? ids.split(',').map(Number) : []) {
+        if (tables[h]) continue;
+        try { const rows = await heroMatchups(h); if (live) setTables(x => ({ ...x, [h]: rows })); }
+        catch (e) { if (live) setFailed(e instanceof Error ? e.message : String(e)); return; }
+      }
+    })();
+    return () => { live = false; };
+  }, [ids]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rate = (hero: number, vs: number) => {
+    // either side's table will do; both are the same games seen from each end
+    const direct = tables[hero]?.find(m => m.hero_id === vs);
+    if (direct) return matchupRate(direct);
+    const other = tables[vs]?.find(m => m.hero_id === hero);
+    return other ? 1 - matchupRate(other) : 0.5;
+  };
+  const side = (team: D2Team) => heroes.filter(h => h.team === team);
+  const picked = new Set(heroes.map(h => h.hero));
+  const suggest = (team: D2Team) => {
+    const enemies = side((1 - team) as D2Team).filter(e => tables[e.hero]);
+    if (!enemies.length) return [];
+    return D2_HEROES.filter(h => !picked.has(h.id))
+      .map(h => ({ hero: h, edge: enemies.reduce((a, e) => a + (rate(h.id, e.hero) - 0.5), 0) / enemies.length }))
+      .sort((a, b) => b.edge - a.edge).slice(0, SUGGESTED);
+  };
+  const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)}%`;
+  const radiant = side(0), dire = side(1);
+  return (
+    <div className="d2-draft-tab">
+      <aside className="d2-draft-side">
+        <Roster />
+        <p className="muted small">Heroes here are the same ones you plan with in Macro plan and Teamfight.</p>
+      </aside>
+      <div className="d2-draft-main">
+        {failed && <p className="warn-text small">{failed}</p>}
+        <section className="recap-card">
+          <h3>Who counters whom</h3>
+          {!radiant.length || !dire.length ? <p className="muted">Add heroes to both teams to see their matchups.</p> : (
+            <div className="d2-table-wrap">
+              <table className="d2-pairs">
+                <thead><tr><th />{dire.map(d => <th key={d.id} title={heroOf(d.hero).name}>{heroOf(d.hero).icon && <img src={heroOf(d.hero).icon!} alt={heroOf(d.hero).name} width={26} height={26} />}</th>)}</tr></thead>
+                <tbody>
+                  {radiant.map(r => (
+                    <tr key={r.id}>
+                      <th title={heroOf(r.hero).name}>{heroOf(r.hero).icon && <img src={heroOf(r.hero).icon!} alt={heroOf(r.hero).name} width={26} height={26} />}</th>
+                      {dire.map(d => { const v = rate(r.hero, d.hero) - 0.5; return <td key={d.id} className={`num ${v >= 0.02 ? 'up' : v <= -0.02 ? 'down' : ''}`} title={`${heroOf(r.hero).name} against ${heroOf(d.hero).name}`}>{pct(v)}</td>; })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="muted small">Win rate above even for the {TEAM_NAME[0]} hero. From OpenDota's sample of games, which is small for a single pair: a hint, not a verdict.</p>
+        </section>
+        {([0, 1] as D2Team[]).map(team => {
+          const list = suggest(team);
+          return (
+            <section key={team} className="recap-card">
+              <h3 style={{ color: TEAM_COLOR[team] }}>Picks for {TEAM_NAME[team]}</h3>
+              {!list.length ? <p className="muted small">Add a {TEAM_NAME[(1 - team) as D2Team]} hero to see what does well against them.</p> : (
+                <div className="d2-picks">
+                  {list.map(({ hero, edge }) => (
+                    <button key={hero.id} className="d2-pick" disabled={side(team).length >= 5} title={`Add ${hero.name} to ${TEAM_NAME[team]}`}
+                      onClick={() => t.addHero(team, hero.id, { x: SPAWN[team].x + (side(team).length - 2) * 0.02, y: SPAWN[team].y })}>
+                      {hero.icon && <img src={hero.icon} alt="" width={24} height={24} />}
+                      <b>{hero.name}</b>
+                      <span className={`num small ${edge >= 0 ? '' : 'muted'}`}>{pct(edge)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 const SPAWN: Record<D2Team, Pt> = { 0: { x: 0.12, y: 0.9 }, 1: { x: 0.88, y: 0.08 } };
 /** The usual lanes for five heroes: 1 and 5 bottom for Radiant (top for Dire), 2 mid, 3 and 4 the other side. */
 const LANES_OF: Record<D2Team, (1 | 2 | 3)[]> = { 0: [1, 2, 3, 3, 1], 1: [3, 2, 1, 1, 3] };
 
 /** Dota 2 Tactical: two planners in tabs. Everything is kept in this browser. */
 export function D2Tactical() {
-  const [tab, setTab] = useState<Tab>(() => { try { return (localStorage.getItem('stratboard.d2.tab') as Tab) || 'macro'; } catch { return 'macro'; } });
+  const [tab, setTab] = useState<Tab>(() => { try { return (localStorage.getItem('stratboard.d2.tab') as Tab) || 'draft'; } catch { return 'draft'; } });
   const pick = (t: Tab) => { setTab(t); try { localStorage.setItem('stratboard.d2.tab', t); } catch { /* private mode */ } };
   return (
     <div className="dl-tac">
@@ -28,7 +146,7 @@ export function D2Tactical() {
         </div>
         <button className="ghost small-btn" onClick={() => { if (confirm('Clear every plan (heroes, paths, wards, frames)?')) useTac.getState().reset(); }}>Clear all</button>
       </nav>
-      {tab === 'macro' ? <Macro /> : <Fight />}
+      {tab === 'draft' ? <Draft /> : tab === 'macro' ? <Macro /> : <Fight />}
     </div>
   );
 }
@@ -130,7 +248,9 @@ function Macro() {
       </aside>
       <div className="dl-tac-map">
         <D2Map onBackground={at => { if (wardTool) t.addWard({ t: Math.round(time), at, kind: wardTool, team: wardTeam }); else t.select(null); }}>
-          {(S, k) => (
+          {(S, k, style) => (
+            <>
+            <Landmarks S={S} k={k} style={style} />
             <Layer>
               {up.map((w, i) => (
                 <Group key={`${w.t}-${i}`} x={w.at.x * S} y={w.at.y * S} onClick={e => { e.cancelBubble = true; t.removeWard(w); }} onTap={e => { e.cancelBubble = true; t.removeWard(w); }}>
@@ -157,6 +277,7 @@ function Macro() {
                   onDrag={p => { t.setKey(h.id, time, p); t.select(h.id); }} onClick={() => t.select(selected === h.id ? null : h.id)} />;
               })}
             </Layer>
+            </>
           )}
         </D2Map>
         {near.length > 0 && <div className="dl-tac-notes">{near.map(n => <span key={n.t + n.text}><b className="num">{mins(n.t)}</b> {n.text}</span>)}</div>}
@@ -235,7 +356,9 @@ function Fight() {
       </aside>
       <div className="dl-tac-map">
         <D2Map onBackground={() => t.select(null)}>
-          {(S, k) => (
+          {(S, k, style) => (
+            <>
+            <Landmarks S={S} k={k} style={style} />
             <Layer>
               {heroes.map(h => {
                 const at = posOf(h.id), r = ranges[h.id];
@@ -259,6 +382,7 @@ function Fight() {
                   onClick={() => { if (sel && sel.team !== h.team) t.toggleFocus(sel.id, h.id); else t.select(selected === h.id ? null : h.id); }} />;
               })}
             </Layer>
+            </>
           )}
         </D2Map>
       </div>

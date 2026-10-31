@@ -22,6 +22,8 @@ interface TacState {
   selected: string | null;
 
   addHero(team: D2Team, hero: number, at: Pt): void;
+  /** Starts a plan from a real moment of a match: these heroes where they stood, at that time. */
+  loadMoment(t: number, heroes: { team: D2Team; hero: number; at: Pt }[]): void;
   setHero(id: string, hero: number): void;
   removeHero(id: string): void;
   setKey(id: string, t: number, at: Pt): void;
@@ -67,6 +69,12 @@ export const useTac = create<TacState>((set, get) => {
       const s = get();
       commit({ heroes: [...s.heroes, { id, team, hero }], keys: { ...s.keys, [id]: [{ t: 0, at }] },
         frames: s.frames.map(f => ({ ...f, pos: { ...f.pos, [id]: at } })), selected: id });
+    },
+    loadMoment: (t, list) => {
+      const heroes = list.map(h => ({ id: newId(), team: h.team, hero: h.hero }));
+      const keys = Object.fromEntries(heroes.map((h, i) => [h.id, [{ t: Math.max(0, Math.round(t)), at: list[i].at }]]));
+      const pos = Object.fromEntries(heroes.map((h, i) => [h.id, list[i].at]));
+      commit({ ...EMPTY, heroes, keys, frames: [{ pos, focus: [] }], frame: 0, time: Math.max(0, Math.min(MATCH_LENGTH, t)), selected: null, playing: false });
     },
     setHero: (id, hero) => commit({ heroes: get().heroes.map(h => (h.id === id ? { ...h, hero } : h)) }),
     removeHero: id => {

@@ -1,7 +1,8 @@
 // @ts-expect-error this project has no types for Node's own modules; tests run in Node
 import zlib from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { cellToMap, itemLook, skillLook } from '../data';
+import { matchupRate, typicalTiming } from '../api';
+import { abilityById, cellToMap, itemLook, skillLook } from '../data';
 import type { ReplayTracks } from '../replay/parser';
 import { readReplay } from '../replay/parser';
 import { bunzip2, snappy, unpackReplay } from '../replay/unpack';
@@ -46,6 +47,23 @@ describe('Replay unpacking', () => {
   });
   it('refuses what is not a replay', () => {
     expect(() => readReplay(new TextEncoder().encode('not a replay at all'))).toThrow('Not a Source 2 replay');
+  });
+});
+
+describe('What OpenDota says about heroes', () => {
+  it('finds when half the players have an item, and says so only with enough games', () => {
+    expect(typicalTiming([{ time: 1800, games: '60', wins: '1' }, { time: 900, games: '10', wins: '1' }, { time: 1500, games: '50', wins: '1' }])).toBe(1500);
+    expect(typicalTiming([{ time: 900, games: '5', wins: '1' }])).toBeNull();
+    expect(typicalTiming([])).toBeNull();
+  });
+  it('pulls a small sample of a matchup towards even', () => {
+    expect(matchupRate({ hero_id: 1, games_played: 2, wins: 2 })).toBeCloseTo(12 / 22);
+    expect(matchupRate({ hero_id: 1, games_played: 400, wins: 240 })).toBeCloseTo(250 / 420);
+    expect(matchupRate(undefined)).toBe(0.5);
+  });
+  it('knows skills and talents by their numbers', () => {
+    expect(abilityById(5003)?.key).toBeDefined();
+    expect(abilityById(-1)).toBeNull();
   });
 });
 

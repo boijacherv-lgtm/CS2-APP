@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDINGS, cellToMap, mins, roshanOnMap } from '../data';
 import { coachMatch } from '../coach';
-import { buildingUp, clashes, deadAt, lastKnown, matchFromOpenDota, seriesAt, teamKillsAt, type RawMatch } from '../match';
+import type { ReplayHero } from '../replay/parser';
+import { buildingUp, clashes, deadAt, laneResults, lastKnown, matchFromOpenDota, seriesAt, teamKillsAt, type RawMatch } from '../match';
 
 const player = (slot: number, hero: number, extra: object = {}) => ({
   player_slot: slot < 5 ? slot : 128 + slot - 5, isRadiant: slot < 5, hero_id: hero, kills: 0, deaths: 0, assists: 0, last_hits: 0, denies: 0, level: 1, gold_per_min: 300, xp_per_min: 300, ...extra,
@@ -70,6 +71,17 @@ describe('Dota 2 match', () => {
     expect(lastKnown(m, 0, 950).at).toEqual(fountain);
     expect(lastKnown(m, 1, 1000).at).toEqual(fountain);
   });
+  it('calls a lane at 10:00: won only by a clear margin', () => {
+    const [bottom] = laneResults(m);
+    expect(bottom).toMatchObject({ lane: 1, radiant: 2000, dire: 4000, winner: 1 });
+    const even = matchFromOpenDota({ ...raw, players: raw.players.map((p, i) => (i === 5 ? { ...p, networth_t: Array.from({ length: 31 }, (_, j) => j * 205) } : p)) });
+    expect(laneResults(even)[0].winner).toBeNull();
+  });
+  it('keeps the draft in order, and the skill order', () => {
+    const d = matchFromOpenDota({ ...raw, picks_bans: [{ is_pick: true, hero_id: 2, team: 1, order: 1 }, { is_pick: false, hero_id: 9, team: 0, order: 0 }], players: raw.players.map((p, i) => (i === 0 ? { ...p, ability_upgrades_arr: [5004, 5005] } : p)) });
+    expect(d.draft).toEqual([{ hero: 9, team: 0, pick: false }, { hero: 2, team: 1, pick: true }]);
+    expect(d.players[0].upgrades).toEqual([5004, 5005]);
+  });
   it('collects what the whole map hears about, in order', () => {
     const named = matchFromOpenDota({ ...raw, players: raw.players.map((p, i) => (i === 0 ? { ...p, runes_log: [{ time: 240, key: '5' }] } : p)) });
     expect(named.events[0]).toEqual({ t: 240, kind: 'rune', slot: 0, rune: 5 });
@@ -118,6 +130,18 @@ describe('Dota 2 coach', () => {
     const named = { ...raw, players: raw.players.map((p, i) => (i === 0 ? { ...p, personaname: '1-0ps9JIq2m8TWI3pyoBMY6aBV' } : i === 5 ? { ...p, personaname: '/' } : p)) };
     const d = coachMatch(matchFromOpenDota(named)).find(x => x.kind === 'death' && x.t === 300)!;
     expect(d.title).toBe('Anti-Mage (1-0ps9JIq2m8T…) died to Axe at 5:00');
+  });
+  it('with the replay, counts who really stood near and what was ready to use', () => {
+    const still = (heroId: number, team: number, x: number, y: number): ReplayHero => ({ heroId, team, x: [x, x], y: [y, y], hp: [100, 100], items: heroId === 1 ? [{ t: 0, slots: ['item_black_king_bar', 'item_blink'] }] : [], skills: [], itemCasts: heroId === 1 ? { item_blink: [{ t: 290, until: 305 }] } : {}, levels: [], mana: [], manaFrom: 0 });
+    // Anti-Mage at (100,100): a teammate next to them, Axe next to them, everyone else far away
+    const tracks = { times: [0, 2000], unitTimes: [], units: [], heroes: [still(1, 2, 100, 100), still(5, 2, 102, 100), still(2, 3, 101, 100), ...[6, 7, 8].map(h => still(h, 2, 170, 170)), ...[9, 10, 11, 12].map(h => still(h, 3, 70, 70))] };
+    const d = coachMatch(m, tracks).find(x => x.kind === 'death' && x.t === 300)!;
+    expect(d.tags).not.toContain('PICKED OFF');
+    expect(d.tags).toContain('SAVE UNUSED');
+    expect(d.why.join(' ')).toContain('Black King Bar was ready');
+    expect(d.why.join(' ')).not.toContain('Blink');
+    const alone = { ...tracks, heroes: tracks.heroes.map(h => (h.heroId === 5 ? still(5, 2, 170, 170) : h)) };
+    expect(coachMatch(m, alone).find(x => x.kind === 'death' && x.t === 300)!.tags).toContain('PICKED OFF');
   });
   it('has nothing to grade on a match without a parse', () => {
     expect(coachMatch(matchFromOpenDota({ ...raw, version: null, od_data: { has_parsed: false } }))).toEqual([]);
