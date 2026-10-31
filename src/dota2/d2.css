@@ -3,8 +3,7 @@
 .d2-parse { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 14px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); font-size: 13px; }
 .dl-board:has(.d2-parse) { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
 .dl-board:has(.d2-map-note):not(:has(.d2-parse)) { grid-template-rows: auto minmax(0, 1fr) auto auto; }
-.d2-kit { display: flex; flex-wrap: wrap; gap: 3px; justify-self: start; padding: 4px; border-radius: 8px; background: rgba(11, 14, 18, .82); }
-.d2-kit img, .d2-items img, .d2-buy img { border-radius: 3px; display: block; }
+.d2-items img, .d2-buy img { border-radius: 3px; display: block; }
 .d2-items { display: inline-flex; gap: 2px; }
 .d2-table-wrap { overflow-x: auto; }
 .d2-timing { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 4px; border-top: 1px solid var(--border); }
@@ -14,15 +13,32 @@
 .d2-ward-tools { display: flex; gap: 6px; flex-wrap: wrap; }
 .d2-map-style { position: absolute; right: 8px; bottom: 8px; }
 .d2-layers { display: inline-flex; gap: 10px; margin-left: 10px; vertical-align: middle; }
+/* what the selected hero carries right now */
+.d2-items-panel { display: grid; gap: 5px; padding: 8px; border-radius: 12px; border: 1px solid var(--border); background: rgba(17, 20, 25, .96); }
+.d2-items-panel header { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.d2-items-panel header b { flex: 1; min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d2-items-panel header img { border-radius: 5px; }
+.d2-items-panel p { margin: 0; }
+.d2-slots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; }
+.d2-back { opacity: .65; }
+.d2-stash { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.d2-stash .d2-slot { width: 34px; }
+.d2-slot { position: relative; display: block; aspect-ratio: 88 / 64; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, .05); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); }
+.d2-slot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.d2-charges { position: absolute; right: 2px; bottom: 0; font-size: 11px; line-height: 1.2; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 2px #000; }
 .d2-feed-event { color: var(--text-2); }
 .d2-feed-event img { display: block; }
-/* nothing lies over the map: the coach's card under one team, the feed under the other */
+/* nothing lies over the map: under one team what the hero carries, under the other the coach's card and the feed */
+.d2-under-right { display: grid; gap: 6px; }
+.d2-board .d2-under-right .dl-card-slot, .d2-board .d2-under-right .dl-feed { position: static; width: auto; }
+.d2-board .d2-under-right .dl-feed { justify-items: stretch; }
 @media (min-width: 901px) {
-  .d2-board .dl-main .dl-card-slot { left: 0; top: auto; bottom: 0; width: 250px; }
-  .d2-board .dl-feed { right: 0; top: auto; bottom: 0; width: 250px; justify-items: stretch; }
+  .d2-under-left, .d2-under-right { position: absolute; bottom: 0; width: 250px; }
+  .d2-under-left { left: 0; }
+  .d2-under-right { right: 0; }
 }
 @media (max-width: 900px) {
-  .d2-board .dl-feed { position: static; grid-column: 1 / -1; }
+  .d2-under-left, .d2-under-right { grid-column: 1 / -1; }
 }
 @media (max-width: 640px) {
   .d2-timing { grid-template-columns: 1fr; }

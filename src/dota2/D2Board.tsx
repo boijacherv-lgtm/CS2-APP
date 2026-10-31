@@ -4,11 +4,11 @@ import { NOTE_INFO } from '../engine/recap';
 import { Icon } from '../ui/Icon';
 import { loadMatch, requestParse } from './api';
 import type { D2Move } from './coach';
-import { buildingOf, heroOf, itemById, mins, OBS_VISION, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, type D2Team } from './data';
+import { buildingOf, heroOf, itemByKey, itemLook, mins, OBS_VISION, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, type D2Team } from './data';
 import { D2Map, useImages } from './D2Map';
 import { buildingUp, deadAt, kdAt, lastKnown, netWorthAt, teamKillsAt, type D2Event, type D2Match } from './match';
 import { useD2 } from './store';
-import { heroAt, heroTrail, unitsAt } from './tracks';
+import { heroAt, heroTrail, itemsAt, unitsAt } from './tracks';
 import { useCoach } from './useCoach';
 
 const PHASES = [{ label: 'Laning', t: 0 }, { label: 'Mid game', t: 600 }, { label: 'Late game', t: 1800 }];
@@ -93,7 +93,7 @@ export function D2Board() {
             {match.players.filter(p => p.team === team).map(p => {
               const h = heroOf(p.hero), kd = kdAt(match, p.slot, time), dead = deadAt(match, p.slot, time);
               return (
-                <button key={p.slot} className={`dl-player ${dead ? 'dead' : ''} ${selected === p.slot ? 'on' : ''}`} onClick={() => useD2.getState().select(selected === p.slot ? null : p.slot)} title="Show this hero's wards and where they laned">
+                <button key={p.slot} className={`dl-player ${dead ? 'dead' : ''} ${selected === p.slot ? 'on' : ''}`} onClick={() => useD2.getState().select(selected === p.slot ? null : p.slot)} title="Show what this hero carries right now, and their way">
                   {h.icon ? <img src={h.icon} alt="" width={32} height={32} /> : <span className="dl-hero-dot" style={{ background: TEAM_COLOR[team] }} />}
                   <span className="dl-player-name"><b>{p.name ?? h.name}</b><span className="muted small">{h.name}</span></span>
                   <span className="dl-player-kda num">{match.parsed ? `${kd.k}/${kd.d}` : `${p.kills}/${p.deaths}/${p.assists}`}</span>
@@ -105,6 +105,8 @@ export function D2Board() {
           </aside>
         ))}
         <BoardMap match={match} time={time} selected={selected} show={show} />
+        {selected !== null && <div className="d2-under-left"><D2Items match={match} slot={selected} time={time} /></div>}
+        <div className="d2-under-right">
         <D2Card moves={graded} time={time} canMine={coach.canMine} />
         <ol className="dl-feed" aria-label="Kills and events">
           {news.map((e, i) => <li key={`e${e.t}-${i}`} className="d2-feed-event">{e.kind === 'rune' && runeIcon(e.rune) && <img src={runeIcon(e.rune)!} alt="" width={16} height={16} />}{newsText(e)}</li>)}
@@ -116,6 +118,7 @@ export function D2Board() {
             </li>
           ))}
         </ol>
+        </div>
       </div>
       <p className="muted small d2-map-note">
         <ReplayNote /> <b style={{ color: WARD_RING.obs }}>O</b> Observer, <b style={{ color: WARD_RING.sen }}>S</b> Sentry.
@@ -184,7 +187,12 @@ function BoardMap({ match, time, selected, show }: { match: D2Match; time: numbe
   const small = units.filter(u => (u.kind === 'creep' || u.kind === 'siege') ? show.creeps : u.kind === 'neutral' ? show.neutrals : u.kind === 'courier' && show.couriers);
   const big = units.filter(u => u.kind === 'roshan' || u.kind === 'tormentor' || u.kind === 'rune');
   return (
-    <D2Map up={uid => buildingUp(match, uid, time)}>
+    <D2Map up={uid => buildingUp(match, uid, time)} onBackground={at => {
+      // a click on a hero looks at them; heroes aren't listening themselves, as hit-testing them every frame would be costly
+      let near: number | null = null, best = PICK_RADIUS;
+      for (const s of spots) { const d = Math.hypot(s.at.x - at.x, s.at.y - at.y); if (d < best) { best = d; near = s.p.slot; } }
+      useD2.getState().select(near !== null && near === selected ? null : near);
+    }}>
       {(S, k, style) => (
         <Layer listening={false}>
           {/* hundreds of them every frame: one shape draws them all */}
@@ -258,6 +266,8 @@ const WARD_RING = { obs: '#f2c94c', sen: '#56b4f2' };
 const NEUTRAL_COLOR = '#c9b98f';
 const RUNE_COLOR: Record<number, string> = { 0: '#5aa7ff', 1: '#ff5a4d', 2: '#f4c430', 3: '#b48cff', 4: '#59d36a', 5: '#ffcf3f', 6: '#ff7be0', 7: '#4fd8ff', 8: '#a8e05f', 9: '#ffb35a' };
 const LABEL_W = 92;
+/** How close to a hero a click on the map picks them, in map widths. */
+const PICK_RADIUS = 0.03;
 /** How much of a selected hero's way is drawn (s). */
 const TRAIL = 20;
 /** A place the logs gave longer ago than this (s) is drawn faded: the hero has probably moved on. */
@@ -333,11 +343,61 @@ function stepMoment(moves: D2Move[], dir: 1 | -1) {
   if (next) { s.setPlaying(false); s.setTime(next.t - LEAD); }
 }
 
-/** The coach's card for the latest graded moment, and the item just bought by the hero you're looking at. */
+function ItemCell({ slot }: { slot: string | null | undefined }) {
+  if (!slot) return <span className="d2-slot empty" />;
+  const it = itemLook(slot);
+  return (
+    <span className="d2-slot" title={it.name}>
+      <img src={it.icon} alt={it.name} onError={e => { e.currentTarget.style.visibility = 'hidden'; }} />
+      {it.charges > 0 && !it.key.startsWith('enhancement_') && <b className="d2-charges num">{it.charges}</b>}
+    </span>
+  );
+}
+
+const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
+/** Items that cost this much are worth listing when all we have is what was bought. */
+const BOUGHT_FROM = 500;
+
+/** What the hero you're looking at carries at this moment of the match, or (without the replay) what they've bought so far. */
+function D2Items({ match, slot, time }: { match: D2Match; slot: number; time: number }) {
+  const replay = useD2(s => s.replay);
+  const p = match.players[slot], h = heroOf(p.hero);
+  const slots = replay.status === 'ready' ? itemsAt(replay.tracks, p.hero, time) : null;
+  const stash = slots?.slice(9, 15).filter(Boolean) ?? [];
+  const bought = slots ? [] : match.buys.filter(b => b.slot === slot && b.t <= time && (itemByKey.get(b.item)?.cost ?? 0) >= BOUGHT_FROM);
+  return (
+    <section className="d2-items-panel" aria-label={`${h.name}'s items at ${mins(time)}`}>
+      <header>
+        {h.icon && <img src={h.icon} alt="" width={22} height={22} />}
+        <b>{p.name ?? h.name}</b>
+        <span className="num muted small">{mins(time)}</span>
+        <button className="verdict-undo" onClick={() => useD2.getState().select(null)} aria-label="Stop looking at this hero"><Icon name="close" size={11} /></button>
+      </header>
+      {slots ? (
+        <>
+          <div className="d2-slots">{range(0, 5).map(i => <ItemCell key={i} slot={slots[i]} />)}</div>
+          <div className="d2-slots">
+            {range(6, 8).map(i => <span key={i} className="d2-back" title="Backpack"><ItemCell slot={slots[i]} /></span>)}
+            <span title="Town Portal"><ItemCell slot={slots[15]} /></span>
+            <span title="Neutral item"><ItemCell slot={slots[16]} /></span>
+            <span title="Its enhancement"><ItemCell slot={slots[17]} /></span>
+          </div>
+          {stash.length > 0 && <div className="d2-stash"><span className="muted small">Stash</span>{stash.map((s, i) => <ItemCell key={i} slot={s} />)}</div>}
+        </>
+      ) : (
+        <>
+          <p className="muted small">Bought so far (the replay tells what they carry once it's read):</p>
+          <div className="d2-stash">{bought.length ? bought.map((b, i) => <ItemCell key={i} slot={b.item} />) : <span className="muted small">Nothing big yet.</span>}</div>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** The coach's card for the latest graded moment. */
 function D2Card({ moves, time, canMine }: { moves: D2Move[]; time: number; canMine: boolean }) {
-  const scope = useD2(s => s.scope), match = useD2(s => s.match)!, selected = useD2(s => s.selected);
+  const scope = useD2(s => s.scope);
   const m = [...moves].reverse().find(x => time >= x.t - LEAD && time <= x.t + 24);
-  const kit = selected !== null ? match.players[selected].items.map(i => itemById.get(i)).filter(Boolean) : [];
   return (
     <div className="dl-card-slot">
       {canMine && (
@@ -356,11 +416,6 @@ function D2Card({ moves, time, canMine }: { moves: D2Move[]; time: number; canMi
           <p className="dl-card-title">{m.title}</p>
           <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>
         </article>
-      )}
-      {kit.length > 0 && (
-        <div className="d2-kit" title="Items at the end of the match">
-          {kit.map(i => i!.icon && <img key={i!.id} src={i!.icon} alt={i!.name} title={i!.name} width={34} height={25} />)}
-        </div>
       )}
     </div>
   );

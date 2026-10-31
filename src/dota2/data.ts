@@ -20,6 +20,16 @@ export const D2_ITEMS = ITEMS as D2Item[];
 export const itemById = new Map(D2_ITEMS.map(i => [i.id, i]));
 export const itemByKey = new Map(D2_ITEMS.map(i => [i.key, i]));
 
+const ITEM_ICONS = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/items';
+/** An item as a replay names it (`item_tango*3`): its name, icon and charges, also for items the shop list doesn't have (neutral ones). */
+export function itemLook(slot: string): { key: string; name: string; icon: string; charges: number } {
+  const [raw, count] = slot.split('*'), key = raw.replace(/^item_/, ''), known = itemByKey.get(key);
+  return {
+    key, charges: Number(count) || 0, icon: known?.icon ?? `${ITEM_ICONS}/${key}.png`,
+    name: known?.name ?? key.replace(/^enhancement_/, '').split('_').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' '),
+  };
+}
+
 export type Pt = { x: number; y: number };
 /** The part of the game's world the map shows, in map cells (the image's edges, measured against a replay's positions). */
 const VIEW = { left: 63, top: 192.5, span: 130 };

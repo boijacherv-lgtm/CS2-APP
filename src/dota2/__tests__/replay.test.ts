@@ -1,12 +1,12 @@
 // @ts-expect-error this project has no types for Node's own modules; tests run in Node
 import zlib from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { cellToMap } from '../data';
+import { cellToMap, itemLook } from '../data';
 import type { ReplayTracks } from '../replay/parser';
 import { readReplay } from '../replay/parser';
 import { bunzip2, snappy, unpackReplay } from '../replay/unpack';
 import { unzstd } from '../replay/zstd';
-import { heroAt, heroTrail, unitsAt } from '../tracks';
+import { heroAt, heroTrail, itemsAt, unitsAt } from '../tracks';
 
 /** Data with both repeats and noise, like a real file: exercises matches, literals and every kind of table. */
 function sample(size: number) {
@@ -52,7 +52,9 @@ describe('Replay unpacking', () => {
 describe('Hero movement', () => {
   const tracks: ReplayTracks = {
     times: [0, 1, 2, 3],
-    heroes: [{ heroId: 7, team: 2, x: [100, 101, 180, 181], y: [100, 100, 180, 180], hp: [90, 80, 80, 0] }],
+    heroes: [{ heroId: 7, team: 2, x: [100, 101, 180, 181], y: [100, 100, 180, 180], hp: [90, 80, 80, 0], items: [
+      { t: -30, slots: ['item_tango*3', null] }, { t: 100, slots: ['item_tango*2', 'item_blink'] }, { t: 500, slots: [null, 'item_blink'] },
+    ] }],
     unitTimes: [0, 1, 2, 3, 4],
     units: [
       { kind: 'creep', team: 2, from: 1, every: 1, x: [1000, 1010], y: [1000, 1000] },
@@ -62,6 +64,18 @@ describe('Hero movement', () => {
     ],
   };
   const ofKind = (t: number, kind: string) => unitsAt(tracks, t).find(u => u.kind === kind);
+  it('tells what a hero carries at any moment, not only at the end', () => {
+    expect(itemsAt(tracks, 7, -90)).toEqual(['item_tango*3', null]);
+    expect(itemsAt(tracks, 7, 99)).toEqual(['item_tango*3', null]);
+    expect(itemsAt(tracks, 7, 100)).toEqual(['item_tango*2', 'item_blink']);
+    expect(itemsAt(tracks, 7, 9999)).toEqual([null, 'item_blink']);
+    expect(itemsAt(tracks, 8, 100)).toBeNull();
+  });
+  it('reads a replay item: name, icon and charges, also one the shop list lacks', () => {
+    expect(itemLook('item_tango*3')).toMatchObject({ key: 'tango', name: 'Tango', charges: 3 });
+    expect(itemLook('item_pogo_stick')).toMatchObject({ key: 'pogo_stick', name: 'Pogo Stick', charges: 0 });
+    expect(itemLook('item_pogo_stick').icon).toContain('/items/pogo_stick.png');
+  });
   it('has a creep only while it lives, sliding along its way', () => {
     expect(ofKind(0.5, 'creep')).toBeUndefined();
     expect(ofKind(1.5, 'creep')!.at.x).toBeCloseTo(cellToMap(100.5, 100).x);
@@ -84,7 +98,7 @@ describe('Hero movement', () => {
     expect(heroAt(tracks, 7, 0.5)!.hp).toBe(90);
   });
   it('rounds a corner instead of turning on the spot', () => {
-    const corner: ReplayTracks = { times: [0, 1, 2], heroes: [{ heroId: 1, team: 2, x: [100, 101, 101], y: [100, 100, 101], hp: [100, 100, 100] }], unitTimes: [], units: [] };
+    const corner: ReplayTracks = { times: [0, 1, 2], heroes: [{ heroId: 1, team: 2, x: [100, 101, 101], y: [100, 100, 101], hp: [100, 100, 100], items: [] }], unitTimes: [], units: [] };
     const at = heroAt(corner, 1, 1)!.at, sharp = cellToMap(101, 100);
     expect(at.x).toBeLessThan(sharp.x);
     expect(at.y).toBeLessThan(sharp.y);

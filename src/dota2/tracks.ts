@@ -8,7 +8,7 @@ import { cellToMap, type Pt } from './data';
 import type { ReplayTracks, UnitKind } from './replay/parser';
 import type { ReplayWorkerIn, ReplayWorkerOut } from './replay/worker';
 
-const KEY = (id: number) => `d2tracks4:${id}`;
+const KEY = (id: number) => `d2tracks5:${id}`;
 /** A way drawn behind a hero uses every this many samples. */
 const TRAIL_STEP = 4;
 /** A jump this long (in map cells) between two samples is a teleport or a respawn: no sliding across the map. */
@@ -88,6 +88,19 @@ export function heroAt(tracks: ReplayTracks, heroId: number, t: number): HeroPos
     x += p.x * w; y += p.y * w; sum += w;
   }
   return { at: cellToMap(x / sum, y / sum), hp: h.hp[rowAt(times, t)] };
+}
+
+/** What a hero carries at time t, by slot (see ReplayHero.items); null when the replay doesn't have them. */
+export function itemsAt(tracks: ReplayTracks, heroId: number, t: number): (string | null)[] | null {
+  const list = tracks.heroes.find(x => x.heroId === heroId)?.items;
+  if (!list?.length) return null;
+  let lo = 0, hi = list.length - 1;
+  if (t < list[0].t) return list[0].slots;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (list[mid].t <= t) lo = mid; else hi = mid - 1;
+  }
+  return list[lo].slots;
 }
 
 export interface UnitNow { kind: UnitKind; team: number; at: Pt; hp?: number; rune?: number }

@@ -452,7 +452,8 @@ function readFields(r: Bits, cls: Class, into: Map<string, number> | null) {
 const ORIGIN = 'CBodyComponent.m_skeletonInstance.m_vecOrigin';
 const HERO_FIELDS = [`${ORIGIN}.m_cellX`, `${ORIGIN}.m_cellY`, `${ORIGIN}.m_vecX`, `${ORIGIN}.m_vecY`, 'm_lifeState', 'm_iHealth', 'm_iMaxHealth', 'm_iPlayerID', 'm_iTeamNum', 'm_hReplicatingOtherHeroModel'];
 const RULES_FIELDS = ['m_pGameRules.m_flGameStartTime', 'm_pGameRules.m_flPreGameStartTime', 'm_pGameRules.m_nTotalPausedTicks', 'm_pGameRules.m_nPauseStartTick', 'm_pGameRules.m_nGameState', 'm_pGameRules.m_bGamePaused'];
-const KEEP_PATTERNS = [/^m_vecPlayerTeamData\.\d+\.m_nSelectedHeroID$/];
+const KEEP_PATTERNS = [/^m_vecPlayerTeamData\.\d+\.m_nSelectedHeroID$/, /^m_Inventory\.m_hItems\.\d+$/];
+const ITEM_NAME = 'm_pEntity.m_nameStringTableIndex', ITEM_CHARGES = 'm_iCurrentCharges';
 /** What else walks the map, by its class in the replay. */
 export type UnitKind = 'creep' | 'siege' | 'neutral' | 'roshan' | 'tormentor' | 'rune' | 'courier';
 const UNIT_CLASSES: Record<string, UnitKind> = {
@@ -463,10 +464,18 @@ const UNIT_FIELDS = [...HERO_FIELDS.slice(0, 7), 'm_iTeamNum', 'm_iRuneType'];
 const keepFor = (name: string) => (name.startsWith('CDOTA_Unit_Hero_') ? new Set(HERO_FIELDS)
   : name === 'CDOTAGamerulesProxy' ? new Set(RULES_FIELDS)
     : name === 'CDOTA_PlayerResource' ? new Set<string>()
-      : UNIT_CLASSES[name] ? new Set(UNIT_FIELDS) : null);
+      : UNIT_CLASSES[name] ? new Set(UNIT_FIELDS)
+        : name.startsWith('CDOTA_Item') ? new Set([ITEM_NAME, ITEM_CHARGES]) : null);
 
 /** One hero's way over the match, at the times in `ReplayTracks.times` (in OpenDota's map cells; hp in %, 0: dead). */
-export interface ReplayHero { heroId: number; team: number; x: number[]; y: number[]; hp: number[] }
+export interface ReplayHero {
+  heroId: number; team: number; x: number[]; y: number[]; hp: number[];
+  /**
+   * What they carried from each time on, whenever it changed: by slot (0–5 inventory, 6–8 backpack, 9–14 stash, 15 TP,
+   * 16 neutral item, 17 its enhancement), as the item's name and, when it has more than one charge, `*` and how many.
+   */
+  items: { t: number; slots: (string | null)[] }[];
+}
 /**
  * One creep, Roshan, rune, courier…: its way from row `from` of `ReplayTracks.unitTimes`, one point every `every` rows, for
  * as long as it lasts, in tenths of a map cell to keep it small; 0 while it's dead (a courier comes back). `hp` for Roshan
@@ -482,6 +491,8 @@ const UNIT_SAMPLE_TICKS = 30;
 /** Game units in a map cell: a position is its cell and the offset inside it. */
 const CELL = 128;
 const GAME_STATE_PREGAME = 4, GAME_STATE_PLAYING = 5;
+/** A hero's item slots, and what an empty one holds. */
+const ITEM_SLOTS = 18, NO_HANDLE = 0xffffff;
 
 interface Entity { cls: Class; values: Map<string, number> | null; unit?: ReplayUnit }
 
@@ -499,11 +510,15 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
   const entities: (Entity | null)[] = new Array(8192).fill(null);
   const baselineBytes = new Map<number, Bytes>(), baselineValues = new Map<number, Map<string, number>>();
   const tables: { name: string; fixed: boolean; size: number; flags: number; varBits: boolean; keys: string[] }[] = [];
+  /** What each entity is called, by its index in this table: how an item entity says which item it is. */
+  let entityNames: string[] = [];
   let seenFull = false, nextSample = 0;
 
   // ---- string tables: only the entity baselines matter here
   const readTable = (t: (typeof tables)[number], buf: Bytes, count: number) => {
-    if (t.name !== 'instancebaseline') return;
+    const baseline = t.name === 'instancebaseline';
+    if (!baseline && t.name !== 'EntityNames') return;
+    if (t.name === 'EntityNames') entityNames = t.keys;
     const r = new Bits(buf);
     let index = -1, delta = 0;
     const rows = t.keys;
@@ -530,6 +545,7 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
           size = (t.varBits ? r.ubit() : r.bits(17)) * 8;
         }
         const raw = r.bytes(size >>> 3);
+        if (!baseline) continue;
         const value = compressed ? snappy(raw) : raw;
         const id = parseInt(rows[index] ?? '', 10);
         if (!Number.isNaN(id)) { baselineBytes.set(id, value); baselineValues.delete(id); }
@@ -647,7 +663,7 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
       if (e.cls.name === 'CDOTAGamerulesProxy') rules = e;
       else if (e.cls.name === 'CDOTA_PlayerResource') players = e;
       else if (UNIT_CLASSES[e.cls.name]) others.push(e);
-      else units.push(e);
+      else if (e.cls.name.startsWith('CDOTA_Unit_Hero_')) units.push(e);
     }
     if (!rules || !players) return;
     const gr = (rules as Entity).values!;
@@ -660,7 +676,8 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
       + (gr.get('m_pGameRules.m_bGamePaused') ? tick - (gr.get('m_pGameRules.m_nPauseStartTick') ?? tick) : 0);
     const row = times.length;
     times.push((tick - paused) / 30);
-    if (tick >= nextUnits) { sampleUnits(others, (tick - paused) / 30); nextUnits = tick + UNIT_SAMPLE_TICKS; }
+    const everySecond = tick >= nextUnits;
+    if (everySecond) { sampleUnits(others, (tick - paused) / 30); nextUnits = tick + UNIT_SAMPLE_TICKS; }
     const seen = new Set<number>();
     for (const e of units) {
       const v = e.values!;
@@ -675,7 +692,7 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
       seen.add(heroId);
       let h = heroes.get(heroId);
       if (!h) {
-        h = { heroId, team: v.get('m_iTeamNum') ?? 0, x: [], y: [], hp: [] };
+        h = { heroId, team: v.get('m_iTeamNum') ?? 0, x: [], y: [], hp: [], items: [] };
         heroes.set(heroId, h);
       }
       // a hero first seen late gets their first position for the time before
@@ -684,6 +701,19 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
       fill(h.x, Math.round(((v.get(`${ORIGIN}.m_cellX`) ?? 0) + (v.get(`${ORIGIN}.m_vecX`) ?? 0) / CELL) * 100) / 100);
       fill(h.y, Math.round(((v.get(`${ORIGIN}.m_cellY`) ?? 0) + (v.get(`${ORIGIN}.m_vecY`) ?? 0) / CELL) * 100) / 100);
       fill(h.hp, alive ? Math.max(1, Math.round(((v.get('m_iHealth') ?? 0) / max) * 100)) : 0);
+      if (everySecond) {
+        const slots: (string | null)[] = [];
+        for (let s = 0; s < ITEM_SLOTS; s++) {
+          // a handle's low bits are the entity's index
+          const handle = v.get(`m_Inventory.m_hItems.${pad(s)}`);
+          const item = handle === undefined || handle === NO_HANDLE ? null : entities[handle & 0x3fff];
+          const name = item?.values?.get(ITEM_NAME);
+          const charges = item?.values?.get(ITEM_CHARGES) ?? 0;
+          slots.push(name === undefined ? null : (entityNames[name] ?? '') + (charges > 1 ? `*${charges}` : ''));
+        }
+        const last = h.items[h.items.length - 1];
+        if (!last || last.slots.join() !== slots.join()) h.items.push({ t: (tick - paused) / 30, slots });
+      }
     }
     for (const h of heroes.values()) if (h.x.length <= row) {
       // not in this update (it can't be seen on an entity list for a moment): stays where it was
@@ -734,6 +764,8 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
               if (h === 1) name = text(x);
               else if (h === 2) { const it = { key: '', data: null as Bytes | null }; pb(x as Bytes, (i, y) => { if (i === 1) it.key = text(y); else if (i === 2) it.data = y as Bytes; }); items.push(it); }
             });
+            const known = tables.find(x => x.name === name);
+            if (name === 'EntityNames' && known) { items.forEach((it, i) => { known.keys[i] = it.key; }); entityNames = known.keys; }
             if (name === 'instancebaseline') for (const it of items) {
               const id = parseInt(it.key, 10);
               if (it.data && !Number.isNaN(id)) { baselineBytes.set(id, it.data.slice()); baselineValues.delete(id); }
@@ -752,5 +784,6 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
     .map(t => Math.round(t / 60) * 60 - t).sort((a, b) => a - b);
   const behind = late.length ? late[late.length >> 1] + UNIT_SAMPLE_TICKS / 60 : 0;
   const clock = (t: number) => Math.round((t - start + behind) * 100) / 100;
+  for (const h of heroes.values()) for (const it of h.items) it.t = clock(it.t);
   return { times: times.map(clock), heroes: [...heroes.values()], unitTimes: unitTimes.map(clock), units: allUnits };
 }
