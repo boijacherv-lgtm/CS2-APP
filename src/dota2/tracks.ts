@@ -4,7 +4,7 @@
  */
 import { API_URL, ONLINE } from '../env';
 import { getItem, gunzipJson, gzipJson, setItem } from '../ui/localStore';
-import { cellToMap, type Pt } from './data';
+import { CAMP_REACH, CAMPS, cellToMap, type Pt } from './data';
 import type { ReplayCast, ReplayTracks, UnitKind } from './replay/parser';
 import type { ReplayWorkerIn, ReplayWorkerOut } from './replay/worker';
 
@@ -160,6 +160,18 @@ export function unitsAt(tracks: ReplayTracks, t: number): UnitNow[] {
     out.push({ kind: u.kind, team: u.team, at: cellToMap(x / 10, y / 10), hp: u.hp?.[i], rune: u.rune });
   }
   return out;
+}
+
+/** How many neutrals stand in each camp (in the order of CAMPS), and those pulled away from any. */
+export function campsNow(units: UnitNow[]): { counts: number[]; strays: UnitNow[] } {
+  const counts = CAMPS.map(() => 0), strays: UnitNow[] = [];
+  for (const u of units) {
+    if (u.kind !== 'neutral') continue;
+    let near = -1, best = CAMP_REACH;
+    CAMPS.forEach((c, i) => { const d = Math.hypot(c.x - u.at.x, c.y - u.at.y); if (d < best) { best = d; near = i; } });
+    if (near < 0) strays.push(u); else counts[near]++;
+  }
+  return { counts, strays };
 }
 
 /** A hero's way over the last `seconds`, as map points (cut at a teleport or a death, so it doesn't cross the map). */

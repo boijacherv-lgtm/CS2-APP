@@ -14,7 +14,7 @@ export function Dota2() {
         <div className="dl-hero-text">
           <span className="eyebrow"><GameMark game={GAME} size={14} /> {GAME.name} <span className={`games-status ${GAME.status}`}>{STATUS_LABEL[GAME.status]}</span></span>
           <h1>The same coach, for Dota 2.</h1>
-          <p className="lead">Open any match by its ID: wards, buildings, deaths and fights over time, with the coach grading every death, kill and lane, then plan your next one in Tactical. Beta on {APP_NAME}.</p>
+          <p className="lead">Open any match by its ID and watch it back: every hero and creep moving on the map, with what they carry and their cooldowns. The coach grades every death, kill and lane; then plan your next one in Tactical. Beta on {APP_NAME}.</p>
           <div className="hero-cta">
             <a className="cta primary" href="#/dota2/review">Review a match <Icon name="arrowRight" size={14} /></a>
             <a className="cta" href="#/dota2/tactical">Plan a match</a>

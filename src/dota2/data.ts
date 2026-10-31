@@ -1,6 +1,7 @@
 import HEROES from './generated/heroes.json';
 import ABILITIES from './generated/abilities.json';
 import ITEMS from './generated/items.json';
+import treeSpots from './generated/trees.json';
 
 /** Dota 2's static data: heroes, items, teams and the map's buildings (0–1 across, Radiant bottom left). */
 export type D2Team = 0 | 1;
@@ -61,7 +62,7 @@ export interface Building { uid: string; key: string; team: D2Team; kind: 'tower
  */
 export type MapStyle = 'simple' | 'game';
 const MAP_IMAGES: Record<MapStyle, { src: string; a: number; b: number; c: number; d: number }> = {
-  simple: { src: '/images/maps/dota2-simple.png', a: 6.93, b: -376, c: -6.918, d: 1393 },
+  simple: { src: '/images/maps/dota2-dark.png', a: 6.93, b: -376, c: -6.918, d: 1393 },
   game: { src: '/images/maps/dota2-game.png', a: 6.32, b: -295, c: -6.306, d: 1304 },
 };
 const IMAGE_SIZE = 1024;
@@ -70,6 +71,39 @@ export function mapImage(style: MapStyle) {
   const { src, a, b, c, d } = MAP_IMAGES[style];
   return { src, x: -(a * VIEW.left + b) / (a * VIEW.span), y: (c * VIEW.top + d) / (VIEW.span * c), w: IMAGE_SIZE / (a * VIEW.span), h: -IMAGE_SIZE / (c * VIEW.span) };
 }
+/** The trees, as tools/dota-map.ts found them on the game's art: thousandths of the map across, down, and 1 on the Dire's side. */
+export const TREES = treeSpots as [number, number, number][];
+export type CampTier = 'small' | 'medium' | 'large' | 'ancient';
+/**
+ * Where neutral creeps appear again and again, in map cells, by how strong a camp is (from a replay: the spawners don't
+ * move between matches, and the replay gives no creep's name, so its tier comes from the health of the creeps seen there).
+ */
+const CAMP_SPOTS: Record<CampTier, [number, number][]> = {
+  small: [[65.4, 113.7], [97.5, 165.7], [159.1, 88.7], [194, 137.9]],
+  medium: [[95.1, 193], [96.6, 135.7], [105.5, 185.5], [107.8, 158.2], [109.4, 62.5], [112.7, 90.5], [137.6, 160.4], [142.5, 96.8], [143.8, 189.7], [149.6, 62.9], [154.6, 117.1], [162.5, 62.2]],
+  large: [[63.3, 123.5], [90.3, 158.6], [116.6, 101.7], [121.4, 166.7], [122.4, 67.9], [129.4, 87.4], [130.7, 188.2], [136.3, 148.2], [164.4, 99], [189.9, 127.2]],
+  ancient: [[88.9, 127.3], [162, 128.4]],
+};
+const inside = (v: number) => Math.max(0.015, Math.min(0.985, v));
+export const CAMPS: (Pt & { tier: CampTier })[] = (Object.keys(CAMP_SPOTS) as CampTier[]).flatMap(tier => CAMP_SPOTS[tier].map(([x, y]) => {
+  const at = cellToMap(x, y);
+  return { x: inside(at.x), y: inside(at.y), tier };
+}));
+export const campIcon = (name: string) => `/images/icons/dota2/camps/${name}.png`;
+export const CAMP_ICONS = (Object.keys(CAMP_SPOTS) as CampTier[]).map(campIcon);
+/** Fixed sights of the map, in cells as read from a replay: the Twin Gates, the fountains giving experience, the Lotus Pools. */
+export const SIGHTS: { kind: 'gate' | 'wisdom' | 'lotus'; name: string; at: Pt }[] = [
+  ...[[77.5, 187.4], [178.2, 70.9]].map(([x, y]) => ({ kind: 'gate' as const, name: 'Twin Gate', at: cellToMap(x, y) })),
+  ...[[64.8, 134], [191.8, 119.1]].map(([x, y]) => ({ kind: 'wisdom' as const, name: 'Wisdom', at: cellToMap(x, y) })),
+  ...[[69, 160.9], [186.6, 93.6]].map(([x, y]) => ({ kind: 'lotus' as const, name: 'Lotus Pool', at: cellToMap(x, y) })),
+];
+/** The game starts by day and turns every 5 minutes (night-bringing skills, like Night Stalker's, aren't in here). */
+const DAY_LENGTH = 300;
+export const isNight = (t: number) => t >= 0 && Math.floor(t / DAY_LENGTH) % 2 === 1;
+/** When the present day or night turns. */
+export const nextDawnOrDusk = (t: number) => (t < 0 ? DAY_LENGTH : (Math.floor(t / DAY_LENGTH) + 1) * DAY_LENGTH);
+/** Neutrals this near a camp (of the map's width) are standing in it; farther off they've been pulled away. */
+export const CAMP_REACH = 5.5 / VIEW.span;
 /** Roshan's two lairs, across the map's x (from a replay), and how far each is drawn from there on each image, in its pixels. */
 const LAIR_X = { top: cellToMap(103, 0).x, bottom: cellToMap(150.3, 0).x };
 const LAIR_SHIFT: Record<MapStyle, { top: Pt; bottom: Pt }> = {

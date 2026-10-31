@@ -5,11 +5,13 @@ import { STEAM_AVAILABLE } from '../env';
 import { Icon } from '../ui/Icon';
 import { useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
-import { loadMatch, matchHistory, steamId3, type D2HistoryRow } from './api';
+import { loadMatch, matchHistory, proMatches, recentMatches, rememberMatch, steamId3, type D2HistoryRow, type ProMatchRow, type RecentMatch } from './api';
 import { D2Board } from './D2Board';
 import { heroOf, mins } from './data';
 import { useD2 } from './store';
 
+/** How many pro matches to offer. */
+const PRO_SHOWN = 6;
 const ago = (unix: number) => {
   const h = (Date.now() / 1000 - unix) / 3600;
   return h < 1 ? 'just now' : h < 24 ? `${Math.round(h)} h ago` : `${Math.round(h / 24)} d ago`;
@@ -28,7 +30,10 @@ function D2Start() {
   const [err, setErr] = useState<string | null>(null);
   const [rows, setRows] = useState<D2HistoryRow[] | null>(null);
   const [histErr, setHistErr] = useState<string | null>(null);
+  const [pros, setPros] = useState<ProMatchRow[] | null>(null);
+  const [recent] = useState<RecentMatch[]>(recentMatches);
   const account = me?.steamId ? steamId3(me.steamId) : null;
+  useEffect(() => { proMatches().then(r => setPros(r.slice(0, PRO_SHOWN))).catch(() => setPros([])); }, []);
   useEffect(() => {
     setRows(null); setHistErr(null);
     if (!account) return;
@@ -37,7 +42,7 @@ function D2Start() {
 
   const open = async (matchId: number) => {
     setBusy(matchId); setErr(null);
-    try { useD2.getState().open(await loadMatch(matchId)); }
+    try { const m = await loadMatch(matchId); rememberMatch(m); useD2.getState().open(m); }
     catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     setBusy(null);
   };
@@ -55,6 +60,15 @@ function D2Start() {
         <button className="cta primary" disabled={!typed || busy !== null}>{busy === typed && typed ? 'Loading…' : 'Open'}</button>
       </form>
       {err && <p className="warn-text">{err}</p>}
+
+      {recent.length > 0 && (
+        <section className="site-card dl-history">
+          <div className="card-head"><h2>Opened recently</h2></div>
+          <ul className="d2-match-list">
+            {recent.map(r => <MatchRow key={r.id} title={`${r.names[0]} vs ${r.names[1]}`} sub={`Match ${r.id} · ${ago(r.at / 1000)}`} duration={r.duration} winner={r.names[r.winner]} busy={busy === r.id} disabled={busy !== null} onOpen={() => open(r.id)} />)}
+          </ul>
+        </section>
+      )}
 
       <section className="site-card dl-history">
         <div className="card-head"><h2>Your matches</h2>{rows && <span className="muted small">{rows.length} found</span>}</div>
@@ -84,6 +98,28 @@ function D2Start() {
           </ul>
         )}
       </section>
+
+      <section className="site-card dl-history">
+        <div className="card-head"><h2>Latest pro matches</h2><span className="muted small">Nothing of your own? See how it looks</span></div>
+        {!pros ? <p className="muted">Loading…</p> : !pros.length ? <p className="muted">OpenDota isn't answering right now.</p> : (
+          <ul className="d2-match-list">
+            {pros.map(p => <MatchRow key={p.match_id} title={`${p.radiant_name ?? 'Radiant'} vs ${p.dire_name ?? 'Dire'}`} sub={`${p.league_name ?? 'Pro match'} · ${ago(p.start_time)}`} duration={p.duration} winner={p.radiant_win ? p.radiant_name ?? 'Radiant' : p.dire_name ?? 'Dire'} busy={busy === p.match_id} disabled={busy !== null} onOpen={() => open(p.match_id)} />)}
+          </ul>
+        )}
+      </section>
     </div>
+  );
+}
+
+function MatchRow({ title, sub, duration, winner, busy, disabled, onOpen }: { title: string; sub: string; duration: number; winner: string; busy: boolean; disabled: boolean; onOpen: () => void }) {
+  return (
+    <li>
+      <button className="d2-match-row" onClick={onOpen} disabled={disabled}>
+        <span className="d2-match-title"><b>{title}</b><span className="muted small">{sub}</span></span>
+        <span className="muted small d2-match-winner">{winner} won</span>
+        <span className="num muted small">{mins(duration)}</span>
+        <span className="dl-row-go">{busy ? 'Loading…' : <Icon name="arrowRight" size={14} />}</span>
+      </button>
+    </li>
   );
 }

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { BUILDINGS, cellToMap, mins, roshanOnMap } from '../data';
+import { BUILDINGS, CAMP_REACH, CAMPS, cellToMap, isNight, mins, nextDawnOrDusk, roshanOnMap, TREES } from '../data';
+import { campsNow } from '../tracks';
 import { coachMatch } from '../coach';
 import type { ReplayHero } from '../replay/parser';
-import { buildingUp, clashes, deadAt, laneResults, lastKnown, matchFromOpenDota, seriesAt, teamKillsAt, type RawMatch } from '../match';
+import { buildingUp, clashes, deadAt, keyFacts, laneResults, lastKnown, matchFromOpenDota, seriesAt, teamKillsAt, type RawMatch } from '../match';
 
 const player = (slot: number, hero: number, extra: object = {}) => ({
   player_slot: slot < 5 ? slot : 128 + slot - 5, isRadiant: slot < 5, hero_id: hero, kills: 0, deaths: 0, assists: 0, last_hits: 0, denies: 0, level: 1, gold_per_min: 300, xp_per_min: 300, ...extra,
@@ -70,6 +71,38 @@ describe('Dota 2 match', () => {
     expect(lastKnown(m, 0, 905)).toMatchObject({ at: cellToMap(100, 100), dead: true });
     expect(lastKnown(m, 0, 950).at).toEqual(fountain);
     expect(lastKnown(m, 1, 1000).at).toEqual(fountain);
+  });
+  it('counts neutrals into the camp they stand in, and leaves out those pulled away', () => {
+    const neutral = (x: number, y: number) => ({ kind: 'neutral' as const, team: 4, at: { x, y } });
+    const c = CAMPS[10];
+    const { counts, strays } = campsNow([neutral(c.x, c.y), neutral(c.x + CAMP_REACH / 2, c.y), neutral(0.5, 0.5), { kind: 'creep', team: 2, at: c }]);
+    expect(counts[10]).toBe(2);
+    expect(counts.reduce((a, b) => a + b)).toBe(2);
+    expect(strays).toHaveLength(1);
+  });
+  it('turns day and night every five minutes, starting with day', () => {
+    expect([-30, 0, 299, 300, 599, 600].map(isNight)).toEqual([false, false, false, true, true, false]);
+    expect(nextDawnOrDusk(-30)).toBe(300);
+    expect(nextDawnOrDusk(300)).toBe(600);
+  });
+  it('keeps every camp and tree on the map', () => {
+    for (const c of CAMPS) expect(Math.min(c.x, c.y, 1 - c.x, 1 - c.y)).toBeGreaterThan(0);
+    expect(TREES.length).toBeGreaterThan(500);
+    expect(TREES.every(([x, y]) => x >= -10 && x <= 1010 && y >= -10 && y <= 1010)).toBe(true);
+  });
+  it('sums a match up: where the gold swung hardest, who ended on top, Roshans per side', () => {
+    const f = keyFacts(matchFromOpenDota({ ...raw, radiant_gold_adv: [0, 100, 200, 300, 400, -3000, -3100], players: raw.players.map((p, i) => (i === 3 ? { ...p, net_worth: 9000, kills: 7 } : i === 5 ? { ...p, net_worth: 12000, kills: 2 } : p)) }));
+    expect(f.swing).toEqual({ t: 180, team: 1, gold: 3400 });
+    expect(f.richest).toBe(5);
+    expect(f.killer).toBe(3);
+    expect(f.roshan).toEqual([0, 1]);
+  });
+  it('sums up a match with nothing to go on without inventing anything', () => {
+    const f = keyFacts(matchFromOpenDota({ ...raw, objectives: [], radiant_gold_adv: null }));
+    expect(f.swing).toBeNull();
+    expect(f.richest).toBeNull();
+    expect(f.killer).toBeNull();
+    expect(f.roshan).toEqual([0, 0]);
   });
   it('calls a lane at 10:00: won only by a clear margin', () => {
     const [bottom] = laneResults(m);

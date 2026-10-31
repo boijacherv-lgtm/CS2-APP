@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Arrow, Circle, Group, Image as KImage, Layer, Line, Text } from 'react-konva';
+import { Arrow, Circle, Group, Image as KImage, Layer, Line, Shape, Text } from 'react-konva';
 import { Icon, type IconName } from '../ui/Icon';
 import { heroMatchups, matchupRate, type HeroMatchup } from './api';
-import { buildingOf, cellToMap, D2_HEROES, heroOf, LANE_TOWER, MAP_UNITS, mins, OBS_VISION, roshanOnMap, runeIcon, TEAM_COLOR, TEAM_NAME, type D2Team, type MapStyle, type Pt } from './data';
-import { D2Map, useImages } from './D2Map';
+import { buildingOf, CAMP_ICONS, cellToMap, D2_HEROES, heroOf, LANE_TOWER, MAP_UNITS, mins, OBS_VISION, roshanOnMap, runeIcon, TEAM_COLOR, TEAM_NAME, type D2Team, type MapStyle, type Pt } from './data';
+import { DayNight } from './D2Board';
+import { D2Map, drawCamps, useImages } from './D2Map';
+import { useD2 } from './store';
 import { keyAt, MATCH_LENGTH, useTac, WARD_LIFE, type TacHero } from './tacticalStore';
 import '../deadlock/dl.css';
 import './d2.css';
@@ -22,7 +24,7 @@ const LAIRS: [number, number][] = [[103, 146.7], [150.3, 106.4]];
 
 /** What a plan is built around: runes, Roshan's lairs and Tormentors, labelled. */
 function Landmarks({ S, k, style }: { S: number; k: number; style: MapStyle }) {
-  const icons = useImages([runeIcon(5), runeIcon(0)]);
+  const icons = useImages([runeIcon(5), runeIcon(0)]), campImages = useImages(CAMP_ICONS);
   const label = (text: string, y: number) => <Text text={text} x={-40} y={y} width={80} align="center" fontSize={Math.max(8, 8.5 * k)} fontStyle="bold" fill="#fff" stroke="#000" strokeWidth={2 * k} fillAfterStrokeEnabled />;
   const rune = (at: Pt, icon: string | null, name: string, key: string) => (
     <Group key={key} x={at.x * S} y={at.y * S} opacity={0.85}>
@@ -32,6 +34,7 @@ function Landmarks({ S, k, style }: { S: number; k: number; style: MapStyle }) {
   );
   return (
     <Layer listening={false}>
+      <Shape sceneFunc={ctx => drawCamps(ctx, S, k, campImages)} />
       {BOUNTY_SPOTS.map(([x, y], i) => rune(cellToMap(x, y), runeIcon(5), 'Bounty', `b${i}`))}
       {POWER_SPOTS.map(([x, y], i) => rune(cellToMap(x, y), runeIcon(0), 'Power / Water', `p${i}`))}
       {LAIRS.map(([x, y], i) => { const at = roshanOnMap(style, cellToMap(x, y)); return <Group key={`r${i}`} x={at.x * S} y={at.y * S} opacity={0.85}>{label('Roshan', 11 * k)}</Group>; })}
@@ -153,10 +156,21 @@ export function D2Tactical() {
 
 /** Both teams' heroes: change, remove, add (up to five a side). */
 function Roster() {
-  const heroes = useTac(s => s.heroes), selected = useTac(s => s.selected);
+  const heroes = useTac(s => s.heroes), selected = useTac(s => s.selected), match = useD2(s => s.match);
   const t = useTac.getState();
   return (
     <div className="dl-roster">
+      {!heroes.length && (
+        <div className="d2-start-plan">
+          <b>Start a plan</b>
+          <span className="muted small">{match ? 'Take the heroes of the match you have open, or add your own below.' : 'Add heroes below, or open a match in Review and press Plan from here.'}</span>
+          {match && (
+            <button className="cta primary" onClick={() => t.loadMoment(0, match.players.map((p, i) => ({ team: p.team, hero: p.hero, at: { x: SPAWN[p.team].x + ((i % 5) - 2) * 0.035, y: SPAWN[p.team].y } })))}>
+              Use the open match's heroes
+            </button>
+          )}
+        </div>
+      )}
       {([0, 1] as D2Team[]).map(team => {
         const mine = heroes.filter(h => h.team === team);
         return (
@@ -291,7 +305,7 @@ function Macro() {
             {notes.map(n => <i key={n.t + n.text} className="objective" style={{ left: `${(n.t / MATCH_LENGTH) * 100}%`, background: 'var(--highlight)' }} />)}
           </div>
         </div>
-        <span className="num dl-time">{mins(time)}</span>
+        <span className="num dl-time"><DayNight t={time} />{mins(time)}</span>
         <form className="dl-note-form" onSubmit={e => { e.preventDefault(); if (note.trim()) { t.addNote({ t: Math.round(time), text: note.trim().slice(0, 120) }); setNote(''); } }}>
           <input value={note} onChange={e => setNote(e.target.value)} placeholder={`Note at ${mins(time)} (e.g. "smoke for Roshan")`} maxLength={120} />
           <button className="chip" disabled={!note.trim()}>Add</button>

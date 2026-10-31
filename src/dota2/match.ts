@@ -208,6 +208,19 @@ export function lastKnown(m: D2Match, slot: number, t: number): { at: Pt; age: n
   return { at, age: t - when, dead: !!deadAt(m, slot, t) };
 }
 
+/** Over how many minutes the turning point is measured. */
+export const SWING_MINUTES = 3;
+/** A match at a glance: where the gold swung hardest, who ended richest, who killed most, Roshans per side. */
+export function keyFacts(m: D2Match) {
+  let swing: { t: number; team: D2Team; gold: number } | null = null;
+  for (let i = SWING_MINUTES; i < m.goldAdv.length; i++) {
+    const d = m.goldAdv[i] - m.goldAdv[i - SWING_MINUTES];
+    if (!swing || Math.abs(d) > swing.gold) swing = { t: (i - SWING_MINUTES) * 60, team: d >= 0 ? 0 : 1, gold: Math.abs(d) };
+  }
+  const best = (score: (p: D2Player) => number) => m.players.reduce<number | null>((a, p) => (score(p) > 0 && (a === null || score(p) > score(m.players[a])) ? p.slot : a), null);
+  return { swing, richest: best(p => p.netWorth), killer: best(p => p.kills), roshan: [0, 1].map(t => m.roshan.filter(r => r.team === t).length) };
+}
+
 /** How far ahead (share of the lane's average net worth) a side has to be at 10:00 to have won its lane. */
 const LANE_WON = 0.08;
 export interface D2Lane { lane: number; name: string; radiant: number; dire: number; lead: number; winner: D2Team | null }

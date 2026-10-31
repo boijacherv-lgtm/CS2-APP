@@ -58,6 +58,21 @@ export function typicalTiming(rows: ItemTiming[]): number | null {
 /** How a hero does against another from a small sample: pulled towards even, so ten lucky games don't look like a counter. */
 export const matchupRate = (m: HeroMatchup | undefined) => (m ? (m.wins + 10) / (m.games_played + 20) : 0.5);
 
+export interface ProMatchRow { match_id: number; duration: number; start_time: number; radiant_name: string | null; dire_name: string | null; league_name: string | null; radiant_win: boolean }
+/** The latest professional matches, newest first: something to open for anyone with no matches of their own. */
+export const proMatches = () => get<ProMatchRow[]>('/proMatches');
+
+/** Matches opened in this browser, newest first, to get back to them. */
+export interface RecentMatch { id: number; names: [string, string]; duration: number; winner: number; at: number }
+const RECENT_KEY = 'stratboard.d2.recent', RECENT_MAX = 6;
+export function recentMatches(): RecentMatch[] {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as RecentMatch[]; } catch { return []; }
+}
+export function rememberMatch(m: D2Match) {
+  const row: RecentMatch = { id: m.id, names: [m.names[0], m.names[1]], duration: m.duration, winner: m.winner, at: Date.now() };
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify([row, ...recentMatches().filter(r => r.id !== m.id)].slice(0, RECENT_MAX))); } catch { /* private mode */ }
+}
+
 const KEY = (id: number) => `d2match6:${id}`;
 /** A match: from this browser when read before, else from OpenDota, then kept here once it's parsed. */
 export async function loadMatch(id: number, fresh = false): Promise<D2Match> {

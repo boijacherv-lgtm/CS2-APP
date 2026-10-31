@@ -110,6 +110,7 @@
 /* Tactical (deadlock/DlTactical.tsx) */
 .dl-tac { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; padding: 8px 12px; }
 .dl-tac-tabs { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dl-tac .dl-tac-tabs { margin: 0 -12px; padding: 8px 12px; } /* .recap-tabs reaches past a wider gutter than this page's */
 .dl-tac-body { min-height: 0; display: grid; grid-template-columns: 280px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; grid-template-areas: "side map" "bar bar" "notes notes"; gap: 10px; }
 .dl-tac-side { grid-area: side; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
 .dl-tac-map { grid-area: map; position: relative; min-height: 0; display: grid; }

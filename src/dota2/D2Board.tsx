@@ -4,11 +4,11 @@ import { NOTE_INFO } from '../engine/recap';
 import { Icon } from '../ui/Icon';
 import { loadMatch, requestParse } from './api';
 import type { D2Move } from './coach';
-import { buildingOf, heroOf, itemByKey, itemLook, mins, OBS_VISION, skillLook, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, type D2Team } from './data';
-import { D2Map, useImages } from './D2Map';
+import { buildingOf, CAMP_ICONS, heroOf, isNight, itemByKey, itemLook, mins, nextDawnOrDusk, OBS_VISION, skillLook, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, type D2Team } from './data';
+import { D2Map, drawCamps, useImages } from './D2Map';
 import { buildingUp, deadAt, kdAt, lastKnown, netWorthAt, seriesAt, teamKillsAt, type D2Event, type D2Match } from './match';
 import { useD2 } from './store';
-import { heroAt, heroTrail, itemCooldownAt, itemsAt, skillsAt, unitsAt, vitalsAt, type Cooldown, type SkillNow } from './tracks';
+import { campsNow, heroAt, heroTrail, itemCooldownAt, itemsAt, skillsAt, unitsAt, vitalsAt, type Cooldown, type SkillNow } from './tracks';
 import { useTac } from './tacticalStore';
 import { useCoach } from './useCoach';
 import { navigate } from '../shell/router';
@@ -80,7 +80,7 @@ export function D2Board() {
       <div className="dl-top">
         <div className="dl-score">
           <span className="dl-team-score" style={{ color: TEAM_COLOR[0] }}>{match.names[0]} <b>{teamKillsAt(match, 0, time)}</b></span>
-          <span className="dl-clock num">{mins(time)}</span>
+          <span className="dl-clock num"><DayNight t={time} />{mins(time)}</span>
           <span className="dl-team-score" style={{ color: TEAM_COLOR[1] }}><b>{teamKillsAt(match, 1, time)}</b> {match.names[1]}</span>
         </div>
         <div className="dl-souls" title={`Team net worth: ${match.names[0]} ${Math.round(g0).toLocaleString()} · ${match.names[1]} ${Math.round(g1).toLocaleString()}`}>
@@ -109,6 +109,9 @@ export function D2Board() {
                   {vitals && <span className="d2-row-level num" title="Level">{vitals.level}</span>}
                   <span className="dl-player-kda num">{match.parsed ? `${kd.k}/${kd.d}` : `${p.kills}/${p.deaths}/${p.assists}`}</span>
                   <span className="dl-player-souls num muted small">{match.parsed ? `${(netWorthAt(match, p.slot, time) / 1000).toFixed(1)}k` : `${p.gpm} GPM`}</span>
+                  <span className="d2-row-cs num small" title="Enemy creeps killed (last hits) / own creeps killed (denies)">
+                    {match.parsed ? <>{Math.round(seriesAt(match.minutes[p.slot].lh, time))}<i>/</i>{Math.round(seriesAt(match.minutes[p.slot].dn, time))}</> : <>{p.lastHits}<i>/</i>{p.denies}</>}
+                  </span>
                   {slots && (
                     <span className="d2-row-items">
                       {range(0, 5).map(i => <ItemCell key={i} slot={slots[i]} cooldown={itemCd(slots[i])} />)}
@@ -193,6 +196,7 @@ function BoardMap({ match, time, selected, show, overlay }: { match: D2Match; ti
   const fight = match.fights.find(f => f.at && time >= f.start && time <= f.end + 5);
   const icons = useImages(match.players.map(p => heroOf(p.hero).icon));
   const runeImages = useImages(RUNE_ICONS);
+  const campImages = useImages(CAMP_ICONS);
   // with the replay: where each hero really is. Without: the last place the logs put them, fanned out at the same spot
   const real = tracks && match.players.map(p => heroAt(tracks, p.hero, time));
   const known = real && real.every(Boolean) ? [] : match.players.map(p => ({ p, ...lastKnown(match, p.slot, time) }));
@@ -204,10 +208,12 @@ function BoardMap({ match, time, selected, show, overlay }: { match: D2Match; ti
   });
   const trail = tracks && selected !== null ? heroTrail(tracks, match.players[selected].hero, time, TRAIL) : [];
   const units = tracks ? unitsAt(tracks, time) : [];
-  const small = units.filter(u => (u.kind === 'creep' || u.kind === 'siege') ? show.creeps : u.kind === 'neutral' ? show.neutrals : u.kind === 'courier' && show.couriers);
+  // neutrals in a camp are counted on its mark; only those pulled away from it are drawn themselves
+  const camps = campsNow(units);
+  const small = [...units.filter(u => (u.kind === 'creep' || u.kind === 'siege') ? show.creeps : u.kind === 'courier' && show.couriers), ...(show.neutrals ? camps.strays : [])];
   const big = units.filter(u => u.kind === 'roshan' || u.kind === 'tormentor' || u.kind === 'rune');
   return (
-    <D2Map up={uid => buildingUp(match, uid, time)} overlay={overlay} onBackground={at => {
+    <D2Map up={uid => buildingUp(match, uid, time)} overlay={overlay} clickableAt={at => spots.some(s => Math.hypot(s.at.x - at.x, s.at.y - at.y) < PICK_RADIUS)} onBackground={at => {
       // a click on a hero looks at them; heroes aren't listening themselves, as hit-testing them every frame would be costly
       let near: number | null = null, best = PICK_RADIUS;
       for (const s of spots) { const d = Math.hypot(s.at.x - at.x, s.at.y - at.y); if (d < best) { best = d; near = s.p.slot; } }
@@ -215,6 +221,7 @@ function BoardMap({ match, time, selected, show, overlay }: { match: D2Match; ti
     }}>
       {(S, k, style) => (
         <Layer listening={false}>
+          {tracks && show.neutrals && <Shape sceneFunc={ctx => drawCamps(ctx, S, k, campImages, camps.counts)} />}
           {/* hundreds of them every frame: one shape draws them all */}
           {small.length > 0 && <Shape sceneFunc={ctx => {
             for (const u of small) {
@@ -386,6 +393,19 @@ function stepMoment(moves: D2Move[], dir: 1 | -1) {
 function CooldownMark({ cd }: { cd: Cooldown | null | undefined }) {
   if (!cd) return null;
   return <><i className="d2-cd-sweep" style={{ height: `${Math.min(100, (cd.left / cd.total) * 100)}%` }} /><b className="d2-cd-text num">{Math.ceil(cd.left)}</b></>;
+}
+
+/** A sun or a moon, and until when it lasts. */
+export function DayNight({ t }: { t: number }) {
+  const night = isNight(t);
+  return (
+    <svg className={`d2-daynight ${night ? 'night' : 'day'}`} width={15} height={15} viewBox="0 0 16 16" fill="currentColor" role="img" aria-label={night ? 'Night' : 'Day'}>
+      <title>{`${night ? 'Night' : 'Day'} until ${mins(nextDawnOrDusk(t))}`}</title>
+      {night
+        ? <path d="M11.5 10.6A5.6 5.6 0 0 1 5.4 2.5a6.2 6.2 0 1 0 8.1 8.1 5.6 5.6 0 0 1-2 0z" />
+        : <><circle cx="8" cy="8" r="3.3" /><path d="M8 .8v2.2M8 13v2.2M.8 8H3M13 8h2.2M2.9 2.9l1.6 1.6M11.5 11.5l1.6 1.6M2.9 13.1l1.6-1.6M11.5 4.5l1.6-1.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></>}
+    </svg>
+  );
 }
 
 function ItemCell({ slot, cooldown }: { slot: string | null | undefined; cooldown?: Cooldown | null }) {

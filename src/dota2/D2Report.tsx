@@ -6,7 +6,7 @@ import { Icon, type IconName } from '../ui/Icon';
 import { itemTimings, TIMING_MARGIN, typicalTiming } from './api';
 import type { D2Move, D2Tag } from './coach';
 import { abilityById, buildingOf, heroOf, itemById, itemByKey, mins, skillLook, TEAM_COLOR, TEAM_NAME, type D2Team } from './data';
-import { clashes, laneResults, type D2Match } from './match';
+import { clashes, keyFacts, laneResults, SWING_MINUTES, type D2Match } from './match';
 import { useD2 } from './store';
 import { useCoach } from './useCoach';
 import '../deadlock/dl.css';
@@ -46,13 +46,14 @@ export function D2Report() {
     <div className="report d2-report">
       <header className="recap-head">
         <div className="recap-head-main">
-          <span className="recap-map display">Dota 2</span>
+          <span className="d2-head-team" style={{ color: TEAM_COLOR[0] }}>{match.names[0]}{match.winner === 0 && <span className="d2-head-won">won</span>}</span>
           <span className="recap-score display">
             <b style={{ color: TEAM_COLOR[0] }}>{kills(0)}</b><i>:</i><b style={{ color: TEAM_COLOR[1] }}>{kills(1)}</b>
           </span>
+          <span className="d2-head-team" style={{ color: TEAM_COLOR[1] }}>{match.winner === 1 && <span className="d2-head-won">won</span>}{match.names[1]}</span>
           {me && <span className={`recap-result ${match.winner === me.team ? 'victory' : 'defeat'}`}>{match.winner === me.team ? 'Victory' : 'Defeat'}</span>}
         </div>
-        <p className="muted">Match {match.id} · {mins(match.duration)} · {match.names[match.winner]} won{me ? ` · you: ${heroOf(me.hero).name}` : ''}</p>
+        <p className="muted">Match {match.id} · {mins(match.duration)}{me ? ` · you: ${heroOf(me.hero).name}` : ''}</p>
       </header>
 
       <nav className="recap-tabs" aria-label="Recap">
@@ -79,12 +80,43 @@ function Overview({ match, me, moves, watch }: { match: D2Match; me: number | nu
   const lead = useMemo(() => match.goldAdv.map((v, i) => ({ label: `${i}:00`, value: team === 0 ? v : -v })), [match, team]);
   const bad = moves.filter(m => m.note === '?' || m.note === '??'), good = moves.filter(m => m.note === '!' || m.note === '!!');
   const bench = me !== null ? match.players[me].bench : null;
+  const f = useMemo(() => keyFacts(match), [match]);
+  const heroName = (slot: number) => { const p = match.players[slot]; return p.name ?? heroOf(p.hero).name; };
   return (
     <>
+      <section className="d2-facts" aria-label="The match at a glance">
+        {f.swing && (
+          <button className="d2-fact" onClick={() => watch(f.swing!.t)} title="Watch this moment">
+            <span className="d2-fact-label">Turning point</span>
+            <b className="num">{mins(f.swing.t)}</b>
+            <span className="small" style={{ color: TEAM_COLOR[f.swing.team] }}>{match.names[f.swing.team]} +{f.swing.gold.toLocaleString()} gold in {SWING_MINUTES} min</span>
+          </button>
+        )}
+        {f.richest !== null && (
+          <div className="d2-fact">
+            <span className="d2-fact-label">Richest</span>
+            <b>{heroOf(match.players[f.richest].hero).name}</b>
+            <span className="small muted">{heroName(f.richest)} · {match.players[f.richest].netWorth.toLocaleString()} gold</span>
+          </div>
+        )}
+        {f.killer !== null && (
+          <div className="d2-fact">
+            <span className="d2-fact-label">Most kills</span>
+            <b>{heroOf(match.players[f.killer].hero).name}</b>
+            <span className="small muted">{heroName(f.killer)} · {match.players[f.killer].kills} kills</span>
+          </div>
+        )}
+        <div className="d2-fact">
+          <span className="d2-fact-label">Roshan</span>
+          <b className="num">{f.roshan[0]} : {f.roshan[1]}</b>
+          <span className="small muted">{match.names[0]} : {match.names[1]}</span>
+        </div>
+      </section>
+      <div className="d2-overview-grid">
       {lead.length > 1 && (
         <section className="recap-card overview">
           <h3>Gold lead ({match.names[team]}{me !== null ? ', your team' : ''})</h3>
-          <AreaChart points={lead} fmt={v => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v)).toLocaleString()}`} height={180} color={TEAM_COLOR[team]} />
+          <AreaChart points={lead} fmt={v => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v)).toLocaleString()}`} height={220} color={TEAM_COLOR[team]} />
         </section>
       )}
       <section className="recap-card">
@@ -96,6 +128,7 @@ function Overview({ match, me, moves, watch }: { match: D2Match; me: number | nu
         {bad.length > 0 && <><h4>Worst moments</h4><MoveList moves={[...bad].sort((a, b) => (a.note === '??' ? -1 : 0) - (b.note === '??' ? -1 : 0)).slice(0, 4)} watch={watch} /></>}
         {good.length > 0 && <><h4>Best moments</h4><MoveList moves={good.slice(0, 3)} watch={watch} /></>}
       </section>
+      </div>
       {bench && Object.keys(bench).length > 0 && (
         <section className="recap-card">
           <h3>You against others on {heroOf(match.players[me!].hero).name}</h3>
@@ -179,19 +212,38 @@ function Objectives({ match, watch }: { match: D2Match; watch: (t: number) => vo
 function DraftAndLanes({ match }: { match: D2Match }) {
   const lanes = laneResults(match);
   const hero = (id: number) => heroOf(id);
+  const drafted = match.draft.map((d, i) => ({ ...d, order: i + 1 }));
+  // Public games list every ban under one side, though nobody on that side chose them: those belong to neither team.
+  const bans = drafted.filter(d => !d.pick), sidedBans = new Set(bans.map(d => d.team)).size > 1;
+  const row = (list: typeof drafted, pick: boolean) => (
+    <ol className={`d2-draft ${pick ? 'picks' : 'bans'}`} aria-label={pick ? 'Picks' : 'Bans'}>
+      {list.map(d => (
+        <li key={d.order} className={pick ? 'pick' : 'ban'} title={`${pick ? 'Picked' : 'Banned'} ${hero(d.hero).name}${sidedBans || pick ? `, turn ${d.order}` : ''}`}>
+          {hero(d.hero).icon && <img src={hero(d.hero).icon!} alt={hero(d.hero).name} width={pick ? 36 : 24} height={pick ? 36 : 24} />}
+          {(sidedBans || pick) && <span className="num muted small">{d.order}</span>}
+        </li>
+      ))}
+    </ol>
+  );
   return (
     <>
       <section className="recap-card">
         <h3>Draft</h3>
         {!match.draft.length ? <p className="muted">This game mode had no draft to show.</p> : (
-          <ol className="d2-draft">
-            {match.draft.map((d, i) => (
-              <li key={i} className={d.pick ? 'pick' : 'ban'} style={{ borderColor: TEAM_COLOR[d.team] }} title={`${match.names[d.team]} ${d.pick ? 'picked' : 'banned'} ${hero(d.hero).name}`}>
-                {hero(d.hero).icon && <img src={hero(d.hero).icon!} alt={hero(d.hero).name} width={30} height={30} />}
-                <span className="num muted small">{i + 1}</span>
-              </li>
-            ))}
-          </ol>
+          <>
+            <div className="d2-draft-teams">
+              {([0, 1] as D2Team[]).map(team => (
+                <div key={team} className="d2-draft-team">
+                  <b style={{ color: TEAM_COLOR[team] }}>{match.names[team]}</b>
+                  {row(drafted.filter(d => d.pick && d.team === team), true)}
+                  {sidedBans && row(bans.filter(d => d.team === team), false)}
+                </div>
+              ))}
+            </div>
+            {!sidedBans && bans.length > 0 && (
+              <div className="d2-draft-pool"><span className="muted small">Banned</span>{row(bans, false)}</div>
+            )}
+          </>
         )}
       </section>
       <section className="recap-card">
