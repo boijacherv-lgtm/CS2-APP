@@ -139,7 +139,7 @@ function ReplayNote() {
   if (replay.status === 'ready') return <span>Heroes move as they did in the match, from its replay. The ring is their health.</span>;
   if (replay.status === 'failed') return <span>Couldn't read the replay ({replay.error}), so heroes are at the last place the logs put them, not live.</span>;
   const step = replay.status === 'loading' && replay.step;
-  return <span><b>{step ? `${STEP_LABEL[step]}… ${Math.round((replay.share ?? 0) * 100)}%` : 'Getting the replay…'}</b> Heroes start moving when it's done; until then they're at the last place the logs put them.</span>;
+  return <span><b>{step ? `${STEP_LABEL[step]}… ${Math.round((replay.share ?? 0) * 100)}%` : 'Getting the replay…'}</b> Heroes start moving when it's done. The first time can take a few minutes, depending on Valve's server; after that the match opens at once. Until then heroes are at the last place the logs put them.</span>;
 }
 
 function NotParsed({ match }: { match: D2Match }) {

@@ -68,8 +68,11 @@ export default {
       // a Dota 2 replay from Valve's server, which doesn't let web pages read it. Valve's replay addresses only.
       if (req.method === 'GET' && path === '/dota-replay') {
         const target = new URL(req.url).searchParams.get('url') ?? '';
-        if (!/^http:\/\/replay\d+\.valve\.net\/570\/\d+_\d+\.dem\.bz2$/.test(target)) return json({ error: 'Not a Dota 2 replay address.' }, 400);
-        const up = await fetch(target);
+        // China's clusters have their own domains
+        if (!/^http:\/\/replay\d+\.(valve\.net|dota2\.com\.cn|wmsj\.cn)\/570\/\d+_\d+\.dem\.bz2$/.test(target)) return json({ error: 'Not a Dota 2 replay address.' }, 400);
+        // the same file is on Valve's domain too; a server that fails now and then gets a second chance there
+        const first = await fetch(target).catch(() => null);
+        const up = first?.ok ? first : await fetch(target.replace(/\.(dota2\.com\.cn|wmsj\.cn)\//, '.valve.net/'));
         const size = up.headers.get('Content-Length');
         return new Response(up.body, { status: up.status, headers: { 'Content-Type': 'application/octet-stream', ...(size ? { 'Content-Length': size } : {}), ...cors } });
       }

@@ -105,9 +105,12 @@ function dotaReplayProxy(): Plugin {
     configureServer(server) {
       server.middlewares.use('/api/dota-replay', async (req, res) => {
         const target = new URL(req.url ?? '/', 'http://x').searchParams.get('url') ?? '';
-        if (!/^http:\/\/replay\d+\.valve\.net\/570\/\d+_\d+\.dem\.bz2$/.test(target)) { res.statusCode = 400; return res.end('Not a Dota 2 replay address.'); }
+        // China's clusters have their own domains
+        if (!/^http:\/\/replay\d+\.(valve\.net|dota2\.com\.cn|wmsj\.cn)\/570\/\d+_\d+\.dem\.bz2$/.test(target)) { res.statusCode = 400; return res.end('Not a Dota 2 replay address.'); }
         try {
-          const up = await fetch(target);
+          // the same file is on Valve's domain too; a server that fails now and then gets a second chance there
+          const up = await fetch(target).then(r => (r.ok ? r : Promise.reject(new Error(String(r.status)))))
+            .catch(() => fetch(target.replace(/\.(dota2\.com\.cn|wmsj\.cn)\//, '.valve.net/')));
           res.statusCode = up.status;
           const size = up.headers.get('Content-Length');
           if (size) res.setHeader('Content-Length', size);
