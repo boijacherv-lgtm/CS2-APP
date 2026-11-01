@@ -4,7 +4,7 @@ import { NOTE_INFO } from '../engine/recap';
 import { Icon } from '../ui/Icon';
 import { loadMatch, requestParse } from './api';
 import type { D2Move } from './coach';
-import { buildingOf, CAMP_ICONS, heroOf, isNight, itemByKey, itemLook, mins, nextDawnOrDusk, OBS_VISION, skillLook, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, type D2Team } from './data';
+import { buildingOf, CAMP_ICONS, heroOf, isNight, itemByKey, itemLook, mins, nextDawnOrDusk, OBS_VISION, skillLook, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, visionShape, type D2Team } from './data';
 import { D2Map, drawCamps, useImages } from './D2Map';
 import { buildingUp, deadAt, kdAt, lastKnown, netWorthAt, seriesAt, teamKillsAt, type D2Event, type D2Match } from './match';
 import { useD2 } from './store';
@@ -261,7 +261,7 @@ function BoardMap({ match, time, selected, show, overlay }: { match: D2Match; ti
             const dim = selected !== null && w.slot !== selected;
             return (
               <Group key={`${w.kind}${w.slot}${w.t}${i}`} x={w.at.x * S} y={w.at.y * S} opacity={dim ? 0.3 : 1}>
-                {w.kind === 'obs' && <Circle radius={OBS_VISION * S} fill={TEAM_COLOR[w.team]} opacity={0.09} />}
+                {w.kind === 'obs' && <Line points={visionShape(w.at, OBS_VISION).points.flatMap((v, j) => [(v - (j % 2 ? w.at.y : w.at.x)) * S])} closed fill={TEAM_COLOR[w.team]} opacity={0.13} />}
                 <Circle radius={6 * k} fill={WARD_RING[w.kind]} stroke={TEAM_COLOR[w.team]} strokeWidth={1.4 * k} />
                 <Text text={w.kind === 'obs' ? 'O' : 'S'} width={12 * k} x={-6 * k} y={-3.8 * k} align="center" fontSize={8 * k} fontStyle="bold" fill="#0b0e12" />
               </Group>

@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Arrow, Circle, Group, Image as KImage, Layer, Line, Shape, Text } from 'react-konva';
 import { Icon, type IconName } from '../ui/Icon';
 import { heroMatchups, matchupRate, type HeroMatchup } from './api';
-import { buildingOf, CAMP_ICONS, cellToMap, D2_HEROES, heroOf, LANE_TOWER, MAP_UNITS, mins, OBS_VISION, roshanOnMap, runeIcon, TEAM_COLOR, TEAM_NAME, type D2Team, type MapStyle, type Pt } from './data';
+import { autoPick, bestPair, countersOf, type HeroPairs } from './draft';
+import { bestWards, phaseAt, WARD_ICON, WARD_PHASES, WARD_SAMPLE } from './wardSpots';
+import { BOUNTY_SPOTS, buildingOf, CAMP_ICONS, cellToMap, D2_HEROES, heroOf, LAIRS, LANE_TOWER, MAP_UNITS, mins, OBS_VISION, POWER_SPOTS, roshanOnMap, runeIcon, TEAM_COLOR, TEAM_NAME, TORMENTOR_SPOTS, visionShape, type D2Team, type MapStyle, type Pt } from './data';
 import { DayNight } from './D2Board';
 import { D2Map, drawCamps, useImages } from './D2Map';
 import { useD2 } from './store';
@@ -16,12 +18,6 @@ const TABS: { id: Tab; label: string; icon: IconName; tip: string }[] = [
   { id: 'macro', label: 'Macro plan', icon: 'route', tip: 'Who goes where over the match: lanes, rotations, wards' },
   { id: 'fight', label: 'Teamfight', icon: 'swords', tip: 'One fight, frame by frame: positions, engages, who focuses whom' },
 ];
-/** Fixed places on the map, in cells as read from a replay: where runes appear and where Tormentors stand. */
-const BOUNTY_SPOTS: [number, number][] = [[120.2, 162.6], [132.6, 91.6]];
-const POWER_SPOTS: [number, number][] = [[115.2, 136.7], [137.2, 118.5]];
-const TORMENTOR_SPOTS: [number, number][] = [[68, 177.5], [188.5, 79.5]];
-const LAIRS: [number, number][] = [[103, 146.7], [150.3, 106.4]];
-
 /** What a plan is built around: runes, Roshan's lairs and Tormentors, labelled. */
 function Landmarks({ S, k, style }: { S: number; k: number; style: MapStyle }) {
   const icons = useImages([runeIcon(5), runeIcon(0)]), campImages = useImages(CAMP_ICONS);
@@ -45,6 +41,8 @@ function Landmarks({ S, k, style }: { S: number; k: number; style: MapStyle }) {
 
 /** How many picks to suggest for a side. */
 const SUGGESTED = 12;
+/** How many heroes to list on each side of a counter-pick lookup. */
+const COUNTERS = 8;
 
 /** Both teams' heroes, who counters whom and what to pick against the other side, from OpenDota's matchups. */
 function Draft() {
@@ -82,6 +80,16 @@ function Draft() {
   };
   const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)}%`;
   const radiant = side(0), dire = side(1);
+  const [pairs, setPairs] = useState<HeroPairs | null>(null);
+  useEffect(() => { void import('./generated/heroPairs.json').then(m => setPairs(m.default)); }, []);
+  const addTo = (team: D2Team, hero: number, already = side(team).length) => t.addHero(team, hero, { x: SPAWN[team].x + (already - 2) * 0.035, y: SPAWN[team].y });
+  const fill = (team: D2Team) => {
+    if (!pairs) return;
+    const mine = side(team).map(h => h.hero), enemies = side((1 - team) as D2Team).map(h => h.hero);
+    autoPick(pairs, mine, enemies).forEach((hero, i) => addTo(team, hero, mine.length + i));
+  };
+  const [target, setTarget] = useState<number | null>(null), [counterFor, setCounterFor] = useState<D2Team>(0);
+  const countered = pairs && target !== null ? countersOf(pairs, target, COUNTERS) : null;
   return (
     <div className="d2-draft-tab">
       <aside className="d2-draft-side">
@@ -90,6 +98,56 @@ function Draft() {
       </aside>
       <div className="d2-draft-main">
         {failed && <p className="warn-text small">{failed}</p>}
+        <section className="recap-card">
+          <h3>Auto-pick</h3>
+          <div className="d2-auto-teams">
+            {([0, 1] as D2Team[]).map(team => {
+              const mine = side(team), pair = pairs && mine.length > 1 ? bestPair(pairs, mine.map(h => h.hero)) : null;
+              return (
+                <div key={team} className="d2-auto-team">
+                  <button className="cta primary" disabled={!pairs || mine.length >= 5} onClick={() => fill(team)} style={{ '--side': TEAM_COLOR[team] } as CSSProperties}>
+                    {mine.length ? `Finish ${TEAM_NAME[team]}` : `Pick ${TEAM_NAME[team]}`} ({5 - mine.length})
+                  </button>
+                  {pair && <span className="small muted">Best together: <b>{heroOf(pair.a).name}</b> + <b>{heroOf(pair.b).name}</b> <span className="num">{pct(pair.gain)}</span></span>}
+                </div>
+              );
+            })}
+          </div>
+          <p className="muted small">Each hero is chosen to win more with the heroes already on the team and against the enemy's, and to cover the roles still missing. {pairs ? `From ${pairs.matches.toLocaleString()} high-rank ranked games of the last ${pairs.days} days.` : ''} A starting point for your draft, not a verdict.</p>
+        </section>
+        <section className="recap-card">
+          <h3>Counter a hero</h3>
+          <div className="d2-counter-pick">
+            <select className="dl-hero-select" value={target ?? ''} onChange={e => setTarget(e.target.value ? Number(e.target.value) : null)} aria-label="Hero to counter">
+              <option value="">Choose a hero…</option>
+              {D2_HEROES.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+            </select>
+            {countered && (
+              <div className="d2-ward-tools" role="group" aria-label="Add to">
+                <span className="muted small">Add to</span>
+                {([0, 1] as D2Team[]).map(team => <button key={team} className={`chip ${counterFor === team ? 'on' : ''}`} style={{ color: TEAM_COLOR[team] }} onClick={() => setCounterFor(team)}>{TEAM_NAME[team]}</button>)}
+              </div>
+            )}
+          </div>
+          {countered && target !== null && (
+            <div className="d2-counter-lists">
+              {[{ title: `Good against ${heroOf(target).name}`, list: countered.beatIt, up: true }, { title: `${heroOf(target).name} is good against`, list: countered.itBeats, up: false }].map(({ title, list, up }) => (
+                <div key={title}>
+                  <h4>{title}</h4>
+                  <div className="d2-picks">
+                    {list.map(c => (
+                      <button key={c.hero} className="d2-pick" disabled={picked.has(c.hero) || side(counterFor).length >= 5} title={`${c.games.toLocaleString()} games against each other. Add ${heroOf(c.hero).name} to ${TEAM_NAME[counterFor]}`} onClick={() => addTo(counterFor, c.hero)}>
+                        {heroOf(c.hero).icon && <img src={heroOf(c.hero).icon!} alt="" width={24} height={24} />}
+                        <b>{heroOf(c.hero).name}</b>
+                        <span className={`num small ${up ? 'up' : 'down'}`}>{pct(c.edge)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
         <section className="recap-card">
           <h3>Who counters whom</h3>
           {!radiant.length || !dire.length ? <p className="muted">Add heroes to both teams to see their matchups.</p> : (
@@ -221,6 +279,8 @@ function Macro() {
   const [note, setNote] = useState('');
   const [wardTool, setWardTool] = useState<'obs' | 'sen' | null>(null);
   const [wardTeam, setWardTeam] = useState<D2Team>(0);
+  const [showBest, setShowBest] = useState(false), [bestKind, setBestKind] = useState<'obs' | 'sen'>('obs'), [hoverSpot, setHoverSpot] = useState<number | null>(null);
+  const wardImages = useImages(Object.values(WARD_ICON));
   const icons = useImages(heroes.map(h => heroOf(h.hero).icon));
   // plays at 20x: a 50-minute plan in two and a half minutes
   useEffect(() => {
@@ -247,28 +307,83 @@ function Macro() {
   const near = notes.filter(n => Math.abs(n.t - time) <= 30);
   const sel = heroes.find(h => h.id === selected);
   const up = wards.filter(w => time >= w.t && time < w.t + WARD_LIFE[w.kind]);
+  // the spots follow the plan's clock and the side and ward chosen for them
+  const phase = phaseAt(time);
+  const best = useMemo(() => bestWards(wardTeam, phase, bestKind), [wardTeam, phase, bestKind]);
   return (
     <div className="dl-tac-body">
       <aside className="dl-tac-side">
         <Roster />
         <button className="ghost small-btn" onClick={lanePreset} disabled={!heroes.length} title="Safe lane, mid and off lane, at their first towers at 1:00">Lane setup (2-1-2)</button>
         <p className="muted small">Drag a hero at any moment of the match to set where they should be then: in between they move in a straight line. Play to watch the plan.</p>
-        <div className="d2-ward-tools" role="group" aria-label="Place wards">
-          <button className={`chip ${wardTool === 'obs' ? 'on' : ''}`} onClick={() => setWardTool(wardTool === 'obs' ? null : 'obs')}>Observer</button>
-          <button className={`chip ${wardTool === 'sen' ? 'on' : ''}`} onClick={() => setWardTool(wardTool === 'sen' ? null : 'sen')}>Sentry</button>
-          {([0, 1] as D2Team[]).map(team => <button key={team} className={`chip ${wardTeam === team ? 'on' : ''}`} onClick={() => setWardTeam(team)} style={{ color: TEAM_COLOR[team] }}>{TEAM_NAME[team]}</button>)}
-        </div>
-        <p className="muted small">{wardTool ? `Click the map to place a ward at ${mins(time)}. Click a ward to remove it.` : 'Pick a ward, then click the map. It stays up as long as it does in the game.'}</p>
       </aside>
       <div className="dl-tac-map">
+        <div className="d2-ward-panel">
+          <div className="d2-ward-tools" role="group" aria-label="Place wards">
+            <button className={`chip ${wardTool === 'obs' ? 'on' : ''}`} onClick={() => setWardTool(wardTool === 'obs' ? null : 'obs')}>Observer</button>
+            <button className={`chip ${wardTool === 'sen' ? 'on' : ''}`} onClick={() => setWardTool(wardTool === 'sen' ? null : 'sen')}>Sentry</button>
+            {!showBest && ([0, 1] as D2Team[]).map(team => <button key={team} className={`chip ${wardTeam === team ? 'on' : ''}`} onClick={() => setWardTeam(team)} style={{ color: TEAM_COLOR[team] }}>{TEAM_NAME[team]}</button>)}
+          </div>
+          <p className="muted small">{wardTool ? `Click the map to place a ward at ${mins(time)}. Click a ward to remove it.` : 'Pick a ward, then click the map. It stays up as long as it does in the game.'}</p>
+          <button className={`chip ${showBest ? 'on' : ''}`} onClick={() => setShowBest(!showBest)} aria-pressed={showBest}>Best wards</button>
+          {showBest && (
+            <>
+              <div className="d2-ward-side" role="group" aria-label="Best wards for">
+                {([0, 1] as D2Team[]).map(team => <button key={team} className={wardTeam === team ? 'on' : ''} style={{ '--side': TEAM_COLOR[team] } as CSSProperties} onClick={() => { setWardTeam(team); setHoverSpot(null); }}>For {TEAM_NAME[team]}</button>)}
+              </div>
+              <div className="d2-ward-tools" role="group" aria-label="Ward">
+                {(['obs', 'sen'] as const).map(kind => <button key={kind} className={`chip ${bestKind === kind ? 'on' : ''}`} onClick={() => { setBestKind(kind); setHoverSpot(null); }}>{kind === 'obs' ? 'Observer' : 'Sentry'}</button>)}
+              </div>
+              <div className="d2-ward-tools" role="group" aria-label="Part of the match">
+                {WARD_PHASES.map((p, i) => <button key={p.name} className={`chip ${phase === i ? 'on' : ''}`} onClick={() => { t.setTime(p.from); setHoverSpot(null); }}>{p.name}</button>)}
+              </div>
+              <ol className="d2-ward-list" style={{ '--side': TEAM_COLOR[wardTeam] } as CSSProperties}>
+                {best.map((s, i) => (
+                  <li key={`${s.at.x}-${s.at.y}`}>
+                    <button className={`d2-ward-row ${hoverSpot === i ? 'on' : ''}`} onMouseEnter={() => setHoverSpot(i)} onMouseLeave={() => setHoverSpot(null)} onClick={() => t.addWard({ t: Math.round(time), at: s.at, kind: bestKind, team: wardTeam })} title="Add to the plan at this moment">
+                      <img src={WARD_ICON[bestKind]} alt="" />
+                      <span>
+                        <b>{s.place}</b>
+                        <small className="num">{s.n}× · stands {mins(s.life)}{bestKind === 'obs' ? ` · sees ${Math.round(s.open * 100)}%` : ''}</small>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              <p className="muted small">From {WARD_SAMPLE.matches} pro matches of the last {WARD_SAMPLE.days} days: how often placed, how long it stood{bestKind === 'obs' ? ', and how much of its circle the trees leave open' : ''}. Best first.</p>
+            </>
+          )}
+        </div>
         <D2Map onBackground={at => { if (wardTool) t.addWard({ t: Math.round(time), at, kind: wardTool, team: wardTeam }); else t.select(null); }}>
           {(S, k, style) => (
             <>
             <Landmarks S={S} k={k} style={style} />
+            {showBest && (
+              <Layer>
+                {/* what each spot sees past the trees: all of them faintly, the one pointed at clearly */}
+                {bestKind === 'obs' && best.map((s, i) => (
+                  <Line key={`v${s.at.x}-${s.at.y}`} points={visionShape(s.at, OBS_VISION).points.map(v => v * S)} closed fill={TEAM_COLOR[wardTeam]}
+                    opacity={hoverSpot === i ? 0.3 : hoverSpot === null ? 0.07 : 0.03} stroke={TEAM_COLOR[wardTeam]} strokeWidth={hoverSpot === i ? 1.2 * k : 0} listening={false} />
+                ))}
+                {best.map((s, i) => {
+                  const r = (hoverSpot === i ? 11.5 : 8.5) * k, img = wardImages[WARD_ICON[bestKind]];
+                  return (
+                    <Group key={`${s.at.x}-${s.at.y}`} x={s.at.x * S} y={s.at.y * S}
+                      onMouseEnter={e => { setHoverSpot(i); e.target.getStage()!.container().style.cursor = 'pointer'; }}
+                      onMouseLeave={e => { setHoverSpot(null); e.target.getStage()!.container().style.cursor = ''; }}
+                      onClick={e => { e.cancelBubble = true; t.addWard({ t: Math.round(time), at: s.at, kind: bestKind, team: wardTeam }); }}
+                      onTap={e => { e.cancelBubble = true; t.addWard({ t: Math.round(time), at: s.at, kind: bestKind, team: wardTeam }); }}>
+                      <Circle radius={r} fill="#0b0e12" stroke={TEAM_COLOR[wardTeam]} strokeWidth={1.8 * k} hitStrokeWidth={8} />
+                      {img && <Group clipFunc={ctx => { ctx.arc(0, 0, r, 0, Math.PI * 2); }} listening={false}><KImage image={img} x={-r * 1.4} y={-r} width={r * 2.8} height={r * 2} /></Group>}
+                    </Group>
+                  );
+                })}
+              </Layer>
+            )}
             <Layer>
               {up.map((w, i) => (
                 <Group key={`${w.t}-${i}`} x={w.at.x * S} y={w.at.y * S} onClick={e => { e.cancelBubble = true; t.removeWard(w); }} onTap={e => { e.cancelBubble = true; t.removeWard(w); }}>
-                  {w.kind === 'obs' && <Circle radius={OBS_VISION * S} fill={TEAM_COLOR[w.team]} opacity={0.1} listening={false} />}
+                  {w.kind === 'obs' && <Line points={visionShape(w.at, OBS_VISION).points.map((v, j) => (v - (j % 2 ? w.at.y : w.at.x)) * S)} closed fill={TEAM_COLOR[w.team]} opacity={0.14} listening={false} />}
                   <Circle radius={5 * k} fill={w.kind === 'obs' ? '#f2c94c' : '#56b4f2'} stroke={TEAM_COLOR[w.team]} strokeWidth={1.4 * k} hitStrokeWidth={10} />
                 </Group>
               ))}

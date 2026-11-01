@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { BUILDINGS, CAMP_REACH, CAMPS, cellToMap, isNight, mins, nextDawnOrDusk, roshanOnMap, TREES } from '../data';
+import { BUILDINGS, CAMP_REACH, CAMPS, cellToMap, isNight, mins, nextDawnOrDusk, roshanOnMap, TREES, visionShape } from '../data';
+import { autoPick, bestPair, counterEdge, countersOf, synergy, type HeroPairs } from '../draft';
 import { campsNow } from '../tracks';
+import { bestWards, placeOf } from '../wardSpots';
 import { coachMatch } from '../coach';
 import type { ReplayHero } from '../replay/parser';
 import { buildingUp, clashes, deadAt, keyFacts, laneResults, lastKnown, matchFromOpenDota, seriesAt, teamKillsAt, type RawMatch } from '../match';
@@ -84,6 +86,57 @@ describe('Dota 2 match', () => {
     expect([-30, 0, 299, 300, 599, 600].map(isNight)).toEqual([false, false, false, true, true, false]);
     expect(nextDawnOrDusk(-30)).toBe(300);
     expect(nextDawnOrDusk(300)).toBe(600);
+  });
+  it('cuts a ward\'s vision at the trees in its way', () => {
+    const at = { x: 0.5, y: 0.5 };
+    const clear = visionShape(at, 0.1, []);
+    expect(clear.open).toBeCloseTo(1);
+    const shaded = visionShape(at, 0.1, [{ x: 0.55, y: 0.5 }]);
+    expect(shaded.open).toBeLessThan(1);
+    expect(shaded.points[0]).toBeCloseTo(0.55); // the ray going right stops at the tree
+    expect(shaded.points[90]).toBeCloseTo(0.4); // the ray going left doesn't
+    expect(visionShape(at, 0.1, [{ x: 0.5, y: 0.5 }]).open).toBeCloseTo(1); // standing in it isn't blocked
+  });
+  it('gives each side its own best ward spots, named and at most eight', () => {
+    const radiant = bestWards(0, 0, 'obs'), dire = bestWards(1, 0, 'obs');
+    expect(radiant.length).toBeGreaterThan(0);
+    expect(radiant.length).toBeLessThanOrEqual(8);
+    expect(radiant.map(s => s.at)).not.toEqual(dire.map(s => s.at));
+    for (const s of radiant) { expect(s.place).toMatch(/^By | of /); expect(s.open).toBeGreaterThan(0); expect(s.open).toBeLessThanOrEqual(1); }
+    expect(placeOf(cellToMap(103, 146.7))).toBe('By Top Roshan lair');
+    expect(placeOf(cellToMap(103, 151))).toBe('North of Top Roshan lair');
+  });
+  // four heroes, every pair even except: 1 and 2 win together, 3 beats 4
+  const pairsData: HeroPairs = {
+    matches: 1000, days: 1, ids: [1, 2, 3, 4], roles: [['Carry'], ['Support'], ['Support'], ['Durable']],
+    games: [1000, 1000, 1000, 1000], wins: [500, 500, 500, 500],
+    // pairs in order: 1-2, 1-3, 1-4, 2-3, 2-4, 3-4
+    withGames: [500, 500, 500, 500, 500, 500], withWins: [400, 250, 250, 250, 250, 250],
+    vsGames: [500, 500, 500, 500, 500, 500], vsWins: [250, 250, 250, 250, 250, 400],
+  };
+  it('finds the heroes who win together and the heroes who beat each other', () => {
+    expect(synergy(pairsData, 1, 2)).toBeGreaterThan(0.2);
+    expect(synergy(pairsData, 2, 1)).toBeCloseTo(synergy(pairsData, 1, 2));
+    expect(synergy(pairsData, 1, 3)).toBeCloseTo(0);
+    expect(counterEdge(pairsData, 3, 4)).toBeGreaterThan(0.2);
+    expect(counterEdge(pairsData, 4, 3)).toBeCloseTo(-counterEdge(pairsData, 3, 4));
+    expect(countersOf(pairsData, 4, 1).beatIt[0].hero).toBe(3);
+    expect(countersOf(pairsData, 3, 1).itBeats[0].hero).toBe(4);
+    expect(bestPair(pairsData, [1, 2, 3])).toMatchObject({ a: 1, b: 2 });
+  });
+  it('doesn\'t call a pair of weak heroes good for losing as much as expected in a few games', () => {
+    const weak: HeroPairs = { ...pairsData, wins: [300, 300, 500, 500], withGames: [15, 500, 500, 500, 500, 500], withWins: [4, 250, 250, 250, 250, 250] };
+    expect(synergy(weak, 1, 2)).toBeLessThan(0.02);
+  });
+  it('auto-picks what goes with the team and against the enemy, never someone taken', () => {
+    expect(autoPick(pairsData, [1], [])[0]).toBe(2);
+    expect(autoPick(pairsData, [], [4])[0]).toBe(3);
+    const rest = autoPick(pairsData, [1], [4]);
+    expect(rest).not.toContain(1);
+    expect(rest).not.toContain(4);
+    expect(new Set(rest).size).toBe(rest.length);
+    expect(autoPick(pairsData, [1, 2, 3, 4], [])).toEqual([]);
+    expect(autoPick(pairsData, [], [], () => 0)).toHaveLength(4);
   });
   it('keeps every camp and tree on the map', () => {
     for (const c of CAMPS) expect(Math.min(c.x, c.y, 1 - c.x, 1 - c.y)).toBeGreaterThan(0);

@@ -66,6 +66,40 @@ button.d2-fact:hover { border-color: var(--border-strong); background: var(--sur
 .d2-verdict.late { color: #fff; background: var(--bad); }
 .d2-verdict.on-time { color: var(--text-2); background: rgba(255, 255, 255, .08); }
 
+/* Tactical: auto-pick and counter-picks */
+.d2-auto-teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 8px; }
+.d2-auto-team { display: grid; gap: 6px; justify-items: start; align-content: start; }
+.d2-auto-team .cta { background: color-mix(in srgb, var(--side) 22%, transparent); border-color: var(--side); color: var(--side); }
+.d2-counter-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.d2-counter-pick select { width: 220px; }
+.d2-counter-pick .d2-ward-tools { align-items: center; }
+.d2-counter-lists { display: grid; gap: 12px; margin-top: 12px; }
+.d2-counter-lists h4 { margin: 0 0 6px; font-size: 13px; color: var(--text-2); font-weight: 600; }
+.d2-pick .up { color: var(--good, #7fd05a); }
+.d2-pick .down { color: var(--bad, #e5533d); }
+
+/* Tactical: where pros put their wards */
+.d2-ward-panel { display: grid; gap: 7px; justify-items: stretch; align-content: start; min-height: 0; overflow-y: auto; padding-right: 2px; }
+.d2-ward-panel p { margin: 0; }
+.d2-ward-panel h4 { margin: 6px 0 0; font-size: 13px; }
+.d2-ward-panel > .chip { justify-self: start; }
+.dl-tac-map:has(> .d2-ward-panel) { grid-template-columns: 270px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; }
+.dl-tac-map > .d2-ward-panel + .dl-map { grid-area: auto; }
+.d2-ward-side { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.d2-ward-side button { padding: 7px 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-1); color: var(--text-2); font-weight: 700; font-size: 13px; }
+.d2-ward-side button.on { border-color: var(--side); color: var(--side); background: color-mix(in srgb, var(--side) 14%, transparent); }
+.d2-ward-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.d2-ward-row { width: 100%; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; align-items: center; padding: 5px 6px; text-align: left; border-radius: 8px; border: 1px solid transparent; background: var(--surface-1); color: var(--text-1); }
+.d2-ward-row:hover, .d2-ward-row.on { border-color: var(--border-strong); background: var(--surface-2); }
+.d2-ward-row img { width: 26px; height: 26px; object-fit: cover; border-radius: 50%; box-shadow: 0 0 0 2px var(--side); }
+.d2-ward-row b { display: block; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d2-ward-row small { display: block; color: var(--text-3); font-size: 11px; }
+/* no room beside the map: above it instead */
+@media (max-width: 1100px) {
+  .dl-tac-map:has(> .d2-ward-panel) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .d2-ward-panel { overflow: visible; }
+}
+
 /* Tactical: an empty plan says how to begin */
 .d2-start-plan { display: grid; gap: 6px; padding: 10px; border-radius: 10px; border: 1px dashed var(--border-strong); }
 .d2-start-plan .cta { justify-self: start; }

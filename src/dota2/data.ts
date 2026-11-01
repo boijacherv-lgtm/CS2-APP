@@ -22,7 +22,7 @@ export const D2_ITEMS = ITEMS as D2Item[];
 export const itemById = new Map(D2_ITEMS.map(i => [i.id, i]));
 export const itemByKey = new Map(D2_ITEMS.map(i => [i.key, i]));
 
-const ITEM_ICONS = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/items';
+export const ITEM_ICONS = 'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/items';
 /** An item as a replay names it (`item_tango*3`): its name, icon and charges, also for items the shop list doesn't have (neutral ones). */
 export function itemLook(slot: string): { key: string; name: string; icon: string; charges: number } {
   const [raw, count] = slot.split('*'), key = raw.replace(/^item_/, ''), known = itemByKey.get(key);
@@ -71,8 +71,43 @@ export function mapImage(style: MapStyle) {
   const { src, a, b, c, d } = MAP_IMAGES[style];
   return { src, x: -(a * VIEW.left + b) / (a * VIEW.span), y: (c * VIEW.top + d) / (VIEW.span * c), w: IMAGE_SIZE / (a * VIEW.span), h: -IMAGE_SIZE / (c * VIEW.span) };
 }
+/** Fixed places on the map, in cells as read from a replay: where runes appear, where Tormentors stand, Roshan's lairs. */
+export const BOUNTY_SPOTS: [number, number][] = [[120.2, 162.6], [132.6, 91.6]];
+export const POWER_SPOTS: [number, number][] = [[115.2, 136.7], [137.2, 118.5]];
+export const TORMENTOR_SPOTS: [number, number][] = [[68, 177.5], [188.5, 79.5]];
+export const LAIRS: [number, number][] = [[103, 146.7], [150.3, 106.4]];
 /** The trees, as tools/dota-map.ts found them on the game's art: thousandths of the map across, down, and 1 on the Dire's side. */
 export const TREES = treeSpots as [number, number, number][];
+const TREE_POINTS: Pt[] = TREES.map(([x, y]) => ({ x: x / 1000, y: y / 1000 }));
+/** How wide a tree stands in the way of sight, of the map's width: wider than its trunk, as only some of a forest's trees are known. */
+const TREE_BLOCK = 0.75 / VIEW.span;
+const visions = new Map<string, { points: number[]; open: number }>();
+/**
+ * What a ward at this spot really sees: its circle of vision, cut short wherever a tree stands in the way (rays out from the
+ * ward; a tree it stands right against doesn't count). `open` is the share of the full circle's area left. Cliffs aren't
+ * in here: the map holds no heights.
+ */
+export function visionShape(at: Pt, radius: number, trees: Pt[] = TREE_POINTS, rays = 90): { points: number[]; open: number } {
+  const key = trees === TREE_POINTS ? `${at.x},${at.y},${radius}` : '';
+  const known = key && visions.get(key);
+  if (known) return known;
+  const reach = new Array<number>(rays).fill(radius), step = (Math.PI * 2) / rays;
+  for (const t of trees) {
+    const dx = t.x - at.x, dy = t.y - at.y, d = Math.hypot(dx, dy);
+    if (d >= radius + TREE_BLOCK || d <= TREE_BLOCK) continue;
+    const mid = Math.atan2(dy, dx), span = Math.asin(TREE_BLOCK / d);
+    for (let i = Math.floor((mid - span) / step); i <= Math.ceil((mid + span) / step); i++) {
+      const ray = ((i % rays) + rays) % rays;
+      reach[ray] = Math.min(reach[ray], d);
+    }
+  }
+  const shape = {
+    points: reach.flatMap((r, i) => [at.x + Math.cos(i * step) * r, at.y + Math.sin(i * step) * r]),
+    open: reach.reduce((a, r) => a + r * r, 0) / (rays * radius * radius),
+  };
+  if (key) visions.set(key, shape);
+  return shape;
+}
 export type CampTier = 'small' | 'medium' | 'large' | 'ancient';
 /**
  * Where neutral creeps appear again and again, in map cells, by how strong a camp is (from a replay: the spawners don't
