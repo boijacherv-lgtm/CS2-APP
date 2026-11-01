@@ -4,6 +4,10 @@
  * hero's place is only known where the logs say (a ward, a death in a teamfight, the laning heatmap).
  */
 import { BUILDINGS, cellToMap, heroByKey, heroOf, type D2Team, type Pt } from './data';
+import CHAT_WHEEL from './generated/chatwheel.json';
+
+/** The chat wheel's phrases, by the number a match's chat gives. */
+const WHEEL = CHAT_WHEEL as Record<string, string>;
 
 interface RawLog { time: number; key?: string; x?: number; y?: number; time_dead?: number; gold_lost?: number; gold_fed?: number }
 interface RawFightPlayer { deaths_pos?: Record<string, Record<string, number>>; ability_uses?: Record<string, number>; damage?: number; gold_delta?: number }
@@ -24,6 +28,7 @@ export interface RawMatch {
   picks_bans?: { is_pick: boolean; hero_id: number; team: number; order: number }[] | null;
   objectives?: { time: number; type: string; key?: string; team?: number; slot?: number }[] | null;
   teamfights?: { start: number; end: number; deaths?: number; players: RawFightPlayer[] }[] | null;
+  chat?: { time: number; type: string; key?: string; slot?: number; player_slot?: number; unit?: string }[] | null;
 }
 
 export interface D2Player {
@@ -45,12 +50,16 @@ export interface D2Buy { t: number; slot: number; item: string }
 /** Something the whole map hears about, for the feed on the board. */
 export type D2Event = { t: number } & ({ kind: 'rune'; slot: number; rune: number } | { kind: 'roshan' | 'tormentor' | 'aegis'; team: D2Team } | { kind: 'building'; uid: string });
 export interface D2Minute { gold: number[]; lh: number[]; dn: number[]; xp: number[] }
+/** A line of the match's chat. `wheel`: a chat wheel phrase. `slot` null: someone OpenDota couldn't place among the players. */
+export interface D2Chat { t: number; slot: number | null; who: string | null; text: string; wheel: boolean }
 export interface D2Match {
   id: number; parsed: boolean; start: number; duration: number; winner: D2Team; startTime: number; names: Record<D2Team, string>;
   /** Where Valve keeps the replay (about two weeks), when OpenDota knows. */
   replayUrl: string | null;
   players: D2Player[]; minutes: D2Minute[]; deaths: D2Death[]; wards: D2Ward[]; downs: D2Down[];
   roshan: { t: number; team: D2Team }[]; fights: D2Fight[]; buys: D2Buy[]; goldAdv: number[]; xpAdv: number[]; events: D2Event[];
+  /** What was said, in order, as far as OpenDota read it from the replay. */
+  chat: D2Chat[];
   /** Picks and bans in order, when the game mode had a draft. */
   draft: { hero: number; team: D2Team; pick: boolean }[];
   /** Where each hero spent the laning phase (the first 10 minutes), for the map. */
@@ -132,7 +141,17 @@ export function matchFromOpenDota(raw: RawMatch): D2Match {
     }),
     ...raw.players.flatMap((p, slot) => (p.runes_log ?? []).map((l): D2Event => ({ t: l.time, kind: 'rune', slot, rune: Number(l.key) }))),
   ].sort((a, b) => a.t - b.t);
+  // sprays and other wheel entries without words have nothing to read here, so they're left out
+  const chat: D2Chat[] = (raw.chat ?? []).flatMap((c): D2Chat[] => {
+    const wheel = c.type === 'chatwheel', text = wheel ? WHEEL[c.key ?? ''] : c.key?.trim();
+    if (!text || (!wheel && c.type !== 'chat')) return [];
+    const bySlot = raw.players.findIndex(p => p.player_slot === c.player_slot);
+    const slot = bySlot >= 0 ? bySlot : c.slot !== undefined && raw.players[c.slot] ? c.slot : null;
+    return [{ t: c.time, slot, who: slot === null ? c.unit ?? null : null, text, wheel }];
+  }).sort((a, b) => a.t - b.t);
+
   return {
+    chat,
     events: happenings,
     draft: [...(raw.picks_bans ?? [])].sort((a, b) => a.order - b.order).map(d => ({ hero: d.hero_id, team: d.team as D2Team, pick: d.is_pick })),
     id: raw.match_id, parsed, duration: raw.duration, winner, startTime: raw.start_time, replayUrl: raw.replay_url ?? null,

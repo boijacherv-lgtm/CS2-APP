@@ -6,18 +6,19 @@ import { Icon, type IconName } from '../ui/Icon';
 import { itemTimings, TIMING_MARGIN, typicalTiming } from './api';
 import type { D2Move, D2Tag } from './coach';
 import { abilityById, buildingOf, heroOf, itemById, itemByKey, mins, skillLook, TEAM_COLOR, TEAM_NAME, type D2Team } from './data';
+import { TalentTree } from './D2Talents';
 import { clashes, keyFacts, laneResults, SWING_MINUTES, type D2Match } from './match';
 import { useD2 } from './store';
 import { useCoach } from './useCoach';
 import '../deadlock/dl.css';
 import './d2.css';
 
-type Tab = 'overview' | 'coach' | 'draft' | 'fights' | 'objectives' | 'items' | 'skills' | 'scoreboard';
+type Tab = 'overview' | 'coach' | 'draft' | 'fights' | 'objectives' | 'items' | 'skills' | 'chat' | 'scoreboard';
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'overview', label: 'Overview', icon: 'star' }, { id: 'coach', label: 'Coach', icon: 'target' },
   { id: 'draft', label: 'Draft & lanes', icon: 'grid' }, { id: 'fights', label: 'Fights', icon: 'swords' },
   { id: 'objectives', label: 'Objectives', icon: 'map' }, { id: 'items', label: 'Items', icon: 'trendUp' },
-  { id: 'skills', label: 'Skills', icon: 'bolt' }, { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
+  { id: 'skills', label: 'Skills', icon: 'bolt' }, { id: 'chat', label: 'Chat', icon: 'chat' }, { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
 ];
 /** What each kind of mistake means, and what to do instead (the coach's lessons). */
 const LESSON: Partial<Record<D2Tag, { title: string; fix: string }>> = {
@@ -67,6 +68,7 @@ export function D2Report() {
       {match.parsed && tab === 'coach' && <Coach moves={myMoves} watch={watch} who={me ? 'you' : 'everyone'} />}
       {match.parsed && tab === 'draft' && <DraftAndLanes match={match} />}
       {tab === 'skills' && <Skills match={match} mine={coach.mine} />}
+      {tab === 'chat' && <Chat match={match} watch={watch} />}
       {match.parsed && tab === 'fights' && <Fights match={match} team={me?.team ?? 0} watch={watch} />}
       {match.parsed && tab === 'objectives' && <Objectives match={match} watch={watch} />}
       {match.parsed && tab === 'items' && <Items match={match} mine={coach.mine} />}
@@ -269,6 +271,31 @@ function DraftAndLanes({ match }: { match: D2Match }) {
   );
 }
 
+/** What was said during the match, each line a way back to its moment. */
+function Chat({ match, watch }: { match: D2Match; watch: (t: number) => void }) {
+  return (
+    <section className="recap-card">
+      <h3>Chat</h3>
+      {!match.chat.length ? <p className="muted">{match.parsed ? 'Nothing in this match\'s chat as OpenDota read it from the replay.' : 'The chat comes with the parsed match.'}</p> : (
+        <ol className="d2-chat">
+          {match.chat.map((c, i) => {
+            const p = c.slot !== null ? match.players[c.slot] : null, h = p ? heroOf(p.hero) : null;
+            return (
+              <li key={i} className={c.wheel ? 'wheel' : ''}>
+                <button className="chip num" onClick={() => watch(c.t)} title="Watch this moment">{mins(c.t)}</button>
+                {h?.icon ? <img src={h.icon} alt="" width={22} height={22} /> : <span />}
+                <b style={{ color: p ? TEAM_COLOR[p.team] : 'var(--text-3)' }}>{p ? p.name ?? h!.name : c.who ?? 'Someone'}</b>
+                <span>{c.text}</span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      <p className="muted small">As far as OpenDota read it from the replay{match.chat.some(c => c.wheel) ? '. Chat wheel phrases are in italics' : ''}.</p>
+    </section>
+  );
+}
+
 /** Every player's skill order, level by level, and the talents they took. */
 function Skills({ match, mine }: { match: D2Match; mine: number | null }) {
   const anyone = match.players.some(p => p.upgrades.length);
@@ -287,7 +314,7 @@ function Skills({ match, mine }: { match: D2Match; mine: number | null }) {
                 ? <span key={i} className="d2-order-cell talent" title={`Level ${i + 1}: ${a.name}`}>T</span>
                 : <span key={i} className="d2-order-cell" title={`Level ${i + 1}: ${a?.name ?? 'unknown'}`}>{a && <img src={skillLook(a.key, h.key).icon} alt={a.name} onError={e => { e.currentTarget.style.visibility = 'hidden'; }} />}</span>)}
             </span>
-            {talents.length > 0 && <span className="muted small d2-order-talents">{talents.map(t => t!.name).join(' · ')}</span>}
+            {talents.length > 0 && <TalentTree hero={p.hero} upgrades={p.upgrades} />}
           </div>
         );
       })}

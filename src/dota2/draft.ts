@@ -6,10 +6,8 @@ export interface HeroPairs {
 
 /** Games of the expected result mixed into a pair's own: few games can't make a big claim. */
 const PULL = 100;
-/** What a role the team still lacks is worth, against win rates: enough to choose between close heroes, not to pick a bad one. */
-const ROLE_WORTH = 0.012;
-/** A team of five usually wants this many heroes of each kind. */
-const TEAM_ROLES: Record<string, number> = { Carry: 1, Support: 2, Durable: 1, Initiator: 1, Disabler: 2, Nuker: 1 };
+/** What suiting a free position is worth, against win rates: a team needs all five played, more than it needs a small edge. */
+const POSITION_WORTH = 0.015;
 /** How many of the very best a team's first hero is drawn from, so auto-pick doesn't build the same team each time. */
 const FIRST_FROM = 8;
 
@@ -53,22 +51,51 @@ export function countersOf(d: HeroPairs, hero: number, count: number): { beatIt:
   return { beatIt: by.slice(0, count), itBeats: by.slice(-count).reverse().map(c => ({ ...c, edge: -c.edge })) };
 }
 
-/** How many more of each kind of hero this team wants. */
-function lacking(d: HeroPairs, team: number[]) {
-  const want = { ...TEAM_ROLES }, at = lookup(d);
-  for (const h of team) for (const r of d.roles[at.get(h) ?? -1] ?? []) if (want[r]) want[r]--;
-  return want;
+export type Position = 1 | 2 | 3 | 4 | 5;
+/** The five positions of a team: what each is called, the lane it goes to and what it's there to do. */
+export const POSITION_INFO: Record<Position, { name: string; job: string; lane: (team: 0 | 1) => 1 | 2 | 3 }> = {
+  1: { name: 'Carry', job: 'Farm safely and last-hit; takes over the late game.', lane: team => (team === 0 ? 1 : 3) },
+  2: { name: 'Mid', job: 'Get ahead in levels, take power runes and gank the side lanes.', lane: () => 2 },
+  3: { name: 'Offlane', job: 'Pressure the enemy carry, survive, and start the fights.', lane: team => (team === 0 ? 3 : 1) },
+  4: { name: 'Soft support', job: 'Help the offlane, then roam: ganks, stacks, smokes.', lane: team => (team === 0 ? 3 : 1) },
+  5: { name: 'Hard support', job: 'Protect the carry: pull, ward, buy the team\'s vision.', lane: team => (team === 0 ? 1 : 3) },
+};
+/** OpenDota's lane numbers, in words. */
+export const LANE_NAME: Record<1 | 2 | 3, string> = { 1: 'Bottom', 2: 'Mid', 3: 'Top' };
+/** How well each of the game's hero tags suits a position. A rule of thumb: the tags don't say where a hero is really played. */
+const POSITION_TAGS: Record<Position, Record<string, number>> = {
+  1: { Carry: 3, Pusher: 0.5, Support: -3 },
+  2: { Nuker: 2, Escape: 1, Carry: 1, Pusher: 0.5, Support: -1 },
+  3: { Durable: 3, Initiator: 2, Disabler: 0.5, Support: -1 },
+  4: { Support: 2, Initiator: 1.5, Disabler: 1, Nuker: 1, Escape: 0.5, Carry: -1 },
+  5: { Support: 3, Disabler: 1, Carry: -2 },
+};
+const ALL_POSITIONS: Position[] = [1, 2, 3, 4, 5];
+
+/** The heroes in the positions that suit them best together, and how well that is. Nobody shares a position. */
+function bestPositions(d: HeroPairs, team: number[]): { at: Map<number, Position>; score: number } {
+  const index = lookup(d);
+  const suits = (hero: number, pos: Position) => (d.roles[index.get(hero) ?? -1] ?? []).reduce((a, r) => a + (POSITION_TAGS[pos][r] ?? 0), 0);
+  let best = { at: new Map<number, Position>(), score: -Infinity };
+  const walk = (i: number, free: Position[], score: number, at: [number, Position][]) => {
+    if (i === team.length) { if (score > best.score) best = { at: new Map(at), score }; return; }
+    for (const pos of free) walk(i + 1, free.filter(p => p !== pos), score + suits(team[i], pos), [...at, [team[i], pos]]);
+  };
+  walk(0, ALL_POSITIONS, 0, []);
+  return best;
+}
+/** Who plays where, in position order. */
+export function assignPositions(d: HeroPairs, team: number[]): { hero: number; position: Position }[] {
+  return [...bestPositions(d, team.slice(0, 5)).at].map(([hero, position]) => ({ hero, position })).sort((a, b) => a.position - b.position);
 }
 
-/** What a hero would add to a team: how well they fit with it and do against the enemy, and the roles it's missing. */
+/** What a hero would add to a team: how well they fit with it and do against the enemy, and whether the five can still play every position. */
 export function fitOf(d: HeroPairs, hero: number, team: number[], enemies: number[]): number {
-  const want = lacking(d, team), i = lookup(d).get(hero);
-  const roles = i === undefined ? [] : d.roles[i];
-  const roleGain = roles.reduce((a, r) => a + (want[r] ? ROLE_WORTH : 0), 0);
+  const i = lookup(d).get(hero);
   return (i === undefined ? 0 : own(d, i))
     + team.reduce((a, h) => a + synergy(d, hero, h), 0)
     + enemies.reduce((a, h) => a + counterEdge(d, hero, h), 0)
-    + roleGain;
+    + (bestPositions(d, [...team, hero]).score - bestPositions(d, team).score) * POSITION_WORTH;
 }
 
 /**

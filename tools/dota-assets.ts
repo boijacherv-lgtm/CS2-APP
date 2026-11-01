@@ -32,7 +32,14 @@ const pretty = (key: string) => (abilityInfo[key]?.dname ?? key).replace(/\{s:[^
 const abilities = Object.fromEntries(Object.entries(abilityIds).filter(([, key]) => skills.has(key) || talents.has(key))
   .map(([id, key]) => [id, { key, name: pretty(key), talent: talents.has(key) }]));
 
+// the chat wheel's phrases, by the number a match's chat gives (sprays have no words)
+const wheel = (await get('chat_wheel')) as Record<string, { message?: string; label?: string }>;
+// these few come as codes the game fills in with a hero or a time, which the match's chat doesn't give
+const WHEEL_CODES: Record<string, string> = { dota_chatwheel_message_MissingHero: 'Enemy missing!', dota_chatwheel_message_ReturnedHero: 'Enemy returned!', dota_chatwheel_message_Day_Night_Cycle: 'Day / night is about to change' };
+const chatWheel = Object.fromEntries(Object.entries(wheel).map(([id, w]) => { const text = (w.message || w.label || '').trim(); return [id, WHEEL_CODES[text] ?? text]; }).filter(([, text]) => text));
+
 fs.mkdirSync(OUT, { recursive: true });
+fs.writeFileSync(path.join(OUT, 'chatwheel.json'), `${JSON.stringify(chatWheel)}\n`);
 fs.writeFileSync(path.join(OUT, 'abilities.json'), JSON.stringify(abilities));
 fs.writeFileSync(path.join(OUT, 'heroes.json'), JSON.stringify(heroes));
 fs.writeFileSync(path.join(OUT, 'items.json'), JSON.stringify(items));

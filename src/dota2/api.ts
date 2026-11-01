@@ -73,7 +73,7 @@ export function rememberMatch(m: D2Match) {
   try { localStorage.setItem(RECENT_KEY, JSON.stringify([row, ...recentMatches().filter(r => r.id !== m.id)].slice(0, RECENT_MAX))); } catch { /* private mode */ }
 }
 
-const KEY = (id: number) => `d2match6:${id}`;
+const KEY = (id: number) => `d2match7:${id}`;
 /** A match: from this browser when read before, else from OpenDota, then kept here once it's parsed. */
 export async function loadMatch(id: number, fresh = false): Promise<D2Match> {
   if (!fresh) {

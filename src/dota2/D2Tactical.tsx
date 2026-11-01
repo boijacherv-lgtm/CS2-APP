@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Arrow, Circle, Group, Image as KImage, Layer, Line, Shape, Text } from 'react-konva';
 import { Icon, type IconName } from '../ui/Icon';
 import { heroMatchups, matchupRate, type HeroMatchup } from './api';
-import { autoPick, bestPair, countersOf, type HeroPairs } from './draft';
+import { assignPositions, autoPick, bestPair, countersOf, LANE_NAME, POSITION_INFO, type HeroPairs } from './draft';
 import { bestWards, phaseAt, WARD_ICON, WARD_PHASES, WARD_SAMPLE } from './wardSpots';
 import { BOUNTY_SPOTS, buildingOf, CAMP_ICONS, cellToMap, D2_HEROES, heroOf, LAIRS, LANE_TOWER, MAP_UNITS, mins, OBS_VISION, POWER_SPOTS, roshanOnMap, runeIcon, TEAM_COLOR, TEAM_NAME, TORMENTOR_SPOTS, visionShape, type D2Team, type MapStyle, type Pt } from './data';
 import { DayNight } from './D2Board';
@@ -87,6 +87,16 @@ function Draft() {
     if (!pairs) return;
     const mine = side(team).map(h => h.hero), enemies = side((1 - team) as D2Team).map(h => h.hero);
     autoPick(pairs, mine, enemies).forEach((hero, i) => addTo(team, hero, mine.length + i));
+    // and to their lanes, a minute in, so Macro plan opens with everyone where they should be
+    const placed = useTac.getState().heroes.filter(h => h.team === team);
+    const used: Record<number, number> = {};
+    for (const { hero, position } of assignPositions(pairs, placed.map(h => h.hero))) {
+      const id = placed.find(h => h.hero === hero)?.id, lane = POSITION_INFO[position].lane(team);
+      const g = buildingOf.get(LANE_TOWER[lane][team]);
+      if (id === undefined || !g) continue;
+      const nth = used[lane] = (used[lane] ?? 0) + 1;
+      t.setKey(id, 60, { x: g.x + (nth % 2 ? -0.02 : 0.02), y: g.y + (team === 0 ? -0.03 : 0.03) });
+    }
   };
   const [target, setTarget] = useState<number | null>(null), [counterFor, setCounterFor] = useState<D2Team>(0);
   const countered = pairs && target !== null ? countersOf(pairs, target, COUNTERS) : null;
@@ -108,12 +118,29 @@ function Draft() {
                   <button className="cta primary" disabled={!pairs || mine.length >= 5} onClick={() => fill(team)} style={{ '--side': TEAM_COLOR[team] } as CSSProperties}>
                     {mine.length ? `Finish ${TEAM_NAME[team]}` : `Pick ${TEAM_NAME[team]}`} ({5 - mine.length})
                   </button>
+                  {pairs && mine.length > 0 && (
+                    <ol className="d2-team-plan" aria-label={`Who plays where on ${TEAM_NAME[team]}`}>
+                      {assignPositions(pairs, mine.map(h => h.hero)).map(({ hero, position }) => {
+                        const info = POSITION_INFO[position], h = heroOf(hero);
+                        return (
+                          <li key={hero} title={info.job}>
+                            <span className="pos num" aria-label={`Position ${position}`}>{position}</span>
+                            {h.icon ? <img src={h.icon} alt="" /> : <span />}
+                            <span>
+                              <b>{h.name}</b>
+                              <small><span className="where">{info.name} · {LANE_NAME[info.lane(team)]}</span> — {info.job}</small>
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
                   {pair && <span className="small muted">Best together: <b>{heroOf(pair.a).name}</b> + <b>{heroOf(pair.b).name}</b> <span className="num">{pct(pair.gain)}</span></span>}
                 </div>
               );
             })}
           </div>
-          <p className="muted small">Each hero is chosen to win more with the heroes already on the team and against the enemy's, and to cover the roles still missing. {pairs ? `From ${pairs.matches.toLocaleString()} high-rank ranked games of the last ${pairs.days} days.` : ''} A starting point for your draft, not a verdict.</p>
+          <p className="muted small">Each hero is chosen to win more with the heroes already on the team and against the enemy's, and to cover the roles still missing. {pairs ? `From ${pairs.matches.toLocaleString()} high-rank ranked games of the last ${pairs.days} days.` : ''} Positions go by each hero's tags in the game, a rule of thumb: check them against how you play. A starting point for your draft, not a verdict.</p>
         </section>
         <section className="recap-card">
           <h3>Counter a hero</h3>

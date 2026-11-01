@@ -16,6 +16,13 @@ export interface D2Move {
   note: Annotation; title: string; why: string[]; tags: D2Tag[];
 }
 
+/** Seconds before and after a graded moment that playback slows to 1× for, so it can be seen and read. */
+const SLOW_BEFORE = 5, SLOW_AFTER = 6;
+/** How fast to play at this moment. */
+export function speedAt(moves: { t: number }[], time: number, speed: number, slow: boolean): number {
+  return slow && speed > 1 && moves.some(m => time >= m.t - SLOW_BEFORE && time <= m.t + SLOW_AFTER) ? 1 : speed;
+}
+
 /** A death handing over this much gold (lost plus the bounty) is an expensive one. */
 const EXPENSIVE = 1500;
 /** Nicknames can be anything: a card shows the hero, and this much of the nick. */

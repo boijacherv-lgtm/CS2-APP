@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import { Arc, Circle, Group, Image as KImage, Layer, Line, Shape, Text } from 'react-konva';
 import { NOTE_INFO } from '../engine/recap';
 import { Icon } from '../ui/Icon';
 import { loadMatch, requestParse } from './api';
-import type { D2Move } from './coach';
+import { speedAt, type D2Move } from './coach';
 import { buildingOf, CAMP_ICONS, heroOf, isNight, itemByKey, itemLook, mins, nextDawnOrDusk, OBS_VISION, skillLook, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, visionShape, type D2Team } from './data';
 import { D2Map, drawCamps, useImages } from './D2Map';
+import { TalentTree } from './D2Talents';
 import { buildingUp, deadAt, kdAt, lastKnown, netWorthAt, seriesAt, teamKillsAt, type D2Event, type D2Match } from './match';
 import { useD2 } from './store';
 import { campsNow, heroAt, heroTrail, itemCooldownAt, itemsAt, skillsAt, unitsAt, vitalsAt, type Cooldown, type SkillNow } from './tracks';
@@ -15,8 +16,11 @@ import { navigate } from '../shell/router';
 
 const PHASES = [{ label: 'Laning', t: 0 }, { label: 'Mid game', t: 600 }, { label: 'Late game', t: 1800 }];
 const SPEEDS = [1, 2, 4, 8, 16, 32];
-/** A moment is shown from this long before it. */
-const LEAD = 8;
+/** A moment is shown from this long before it, and marked on the map until this long after. */
+const LEAD = 5, MOMENT_AFTER = 8;
+const SLOW_KEY = 'stratboard.d2.slow';
+/** How long a chat line stays on the board (s), and how many at once. */
+const CHAT_SHOWN = 15, CHAT_LINES = 4;
 
 type Show = { creeps: boolean; neutrals: boolean; couriers: boolean };
 const SHOW_LABEL: Record<keyof Show, string> = { creeps: 'Creeps', neutrals: 'Neutrals', couriers: 'Couriers' };
@@ -29,21 +33,27 @@ export function D2Board() {
   const replay = useD2(s => s.replay);
   const tracks = replay.status === 'ready' ? replay.tracks : null;
 
+  const coach = useCoach();
+  const graded = useMemo(() => coach.shown.filter(m => m.note !== 'book'), [coach.shown]);
+  const [slow, setSlowState] = useState(() => { try { return localStorage.getItem(SLOW_KEY) !== 'off'; } catch { return true; } });
+  const setSlow = (on: boolean) => { setSlowState(on); try { localStorage.setItem(SLOW_KEY, on ? 'on' : 'off'); } catch { /* private mode */ } };
   useEffect(() => {
     if (!playing) return;
     let last = performance.now(), raf = 0;
     const tick = (now: number) => {
       const s = useD2.getState();
-      const t = Math.min(match.duration, s.time + ((now - last) / 1000) * s.speed);
+      const t = Math.min(match.duration, s.time + ((now - last) / 1000) * speedAt(graded, s.time, s.speed, slow));
       last = now;
       useD2.setState({ time: t, ...(t >= match.duration ? { playing: false } : {}) });
       if (t < match.duration) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, match.duration]);
-  const coach = useCoach();
-  const graded = useMemo(() => coach.shown.filter(m => m.note !== 'book'), [coach.shown]);
+  }, [playing, match.duration, graded, slow]);
+  // the moment being talked about: shown on the map and on its hero's row
+  const moment = [...graded].reverse().find(m => time >= m.t - LEAD && time <= m.t + MOMENT_AFTER) ?? null;
+  /** The move whose window was closed: the next one opens its own. */
+  const [closed, setClosed] = useState<D2Move | null>(null);
   // keys: Space play / pause, ← → the previous / next graded moment, Shift + ← → 30 s
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -60,9 +70,8 @@ export function D2Board() {
     return () => removeEventListener('keydown', onKey);
   }, [match, graded]);
 
-  const worth = (team: D2Team) => match.players.filter(p => p.team === team).reduce((a, p) => a + netWorthAt(match, p.slot, time), 0);
-  const g0 = worth(0), g1 = worth(1), lead = g0 + g1 ? g0 / (g0 + g1) : 0.5;
   const feed = match.deaths.filter(d => d.t <= time && time - d.t < 40).slice(-5).reverse();
+  const chatNow = match.chat.filter(c => c.t <= time && time - c.t < CHAT_SHOWN).slice(-CHAT_LINES).reverse();
   const news = match.events.filter(e => e.t <= time && time - e.t < 40).slice(-3).reverse();
   const newsText = (e: D2Event) => {
     if (e.kind === 'rune') return `${nameOf(e.slot)} took ${RUNE_NAME[e.rune] ?? 'a rune'}`;
@@ -83,10 +92,6 @@ export function D2Board() {
           <span className="dl-clock num"><DayNight t={time} />{mins(time)}</span>
           <span className="dl-team-score" style={{ color: TEAM_COLOR[1] }}><b>{teamKillsAt(match, 1, time)}</b> {match.names[1]}</span>
         </div>
-        <div className="dl-souls" title={`Team net worth: ${match.names[0]} ${Math.round(g0).toLocaleString()} · ${match.names[1]} ${Math.round(g1).toLocaleString()}`}>
-          <i style={{ width: `${lead * 100}%`, background: TEAM_COLOR[0] }} /><i style={{ width: `${(1 - lead) * 100}%`, background: TEAM_COLOR[1] }} />
-          <span className="dl-souls-label num">{Math.abs(g0 - g1) < 1 ? 'Even gold' : `${g0 > g1 ? match.names[0] : match.names[1]} +${Math.abs(Math.round(g0 - g1)).toLocaleString()} gold`}</span>
-        </div>
       </div>
       {!match.parsed && <NotParsed match={match} />}
 
@@ -94,13 +99,14 @@ export function D2Board() {
         {([0, 1] as D2Team[]).map(team => (
           <aside key={team} className={`dl-team t${team}`} aria-label={match.names[team]}>
             <div className="dl-team-head" style={{ color: TEAM_COLOR[team] }}>{match.names[team]}{match.winner === team && time >= match.duration ? ' · won' : ''}</div>
+            <TeamGold match={match} team={team} time={time} />
             {match.players.filter(p => p.team === team).map(p => {
               const h = heroOf(p.hero), kd = kdAt(match, p.slot, time), dead = deadAt(match, p.slot, time);
               const slots = tracks ? itemsAt(tracks, p.hero, time) : null, hp = tracks ? heroAt(tracks, p.hero, time)?.hp : undefined;
               const vitals = tracks ? vitalsAt(tracks, p.hero, time) : null, skills = tracks ? skillsAt(tracks, p.hero, time) : [];
               const itemCd = (s: string | null | undefined) => (tracks && s ? itemCooldownAt(tracks, p.hero, s, time) : null);
               return (
-                <button key={p.slot} className={`dl-player ${dead ? 'dead' : ''} ${selected === p.slot ? 'on' : ''}`} onClick={() => useD2.getState().select(selected === p.slot ? null : p.slot)} title="Show what this hero carries right now, and their way">
+                <button key={p.slot} className={`dl-player ${dead ? 'dead' : ''} ${selected === p.slot ? 'on' : ''} ${moment?.slot === p.slot ? 'd2-row-moment' : ''}`} style={moment?.slot === p.slot ? { '--grade': NOTE_INFO[moment.note].color } as CSSProperties : undefined} onClick={() => useD2.getState().select(selected === p.slot ? null : p.slot)} title="Show what this hero carries right now, and their way">
                   {h.icon ? <img className="d2-row-hero" src={h.icon} alt="" width={32} height={32} /> : <span className="dl-hero-dot" style={{ background: TEAM_COLOR[team] }} />}
                   <span className="dl-player-name" title={h.name}>
                     <b>{p.name ?? h.name}</b>
@@ -121,31 +127,46 @@ export function D2Board() {
                   {hp !== undefined && <span className="d2-row-hp"><i style={{ width: `${hp}%`, background: hp <= 30 ? 'var(--bad)' : TEAM_COLOR[team] }} /></span>}
                   {vitals && <span className="d2-row-mana"><i style={{ width: `${vitals.mana}%` }} /></span>}
                   {dead && <span className="dl-respawn num">{Math.ceil(dead.t + dead.respawn - time)}</span>}
+                  {moment?.slot === p.slot && <b className="d2-row-grade" title={NOTE_INFO[moment.note].label}>{NOTE_INFO[moment.note].mark}</b>}
                 </button>
               );
             })}
             {/* under the team, in its column: if there's no room the column scrolls, nobody is covered for good */}
             {team === 0 && selected !== null && <div className="d2-under"><D2Items match={match} slot={selected} time={time} /></div>}
-            {team === 1 && (
-              <div className="d2-under">
-                <D2Card moves={graded} time={time} canMine={coach.canMine} />
-                <ol className="dl-feed" aria-label="Kills and events">
-                  {news.map((e, i) => <li key={`e${e.t}-${i}`} className="d2-feed-event">{e.kind === 'rune' && runeIcon(e.rune) && <img src={runeIcon(e.rune)!} alt="" width={16} height={16} />}{newsText(e)}</li>)}
-                  {feed.map((d, i) => (
-                    <li key={`${d.t}-${d.slot}-${i}`}>
-                      <span style={{ color: d.killer !== null ? TEAM_COLOR[match.players[d.killer].team] : 'var(--text-3)' }}>{nameOf(d.killer)}</span>
-                      <Icon name="close" size={10} />
-                      <span style={{ color: TEAM_COLOR[match.players[d.slot].team] }}>{nameOf(d.slot)}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
           </aside>
         ))}
-        <BoardMap match={match} time={time} selected={selected} show={show} overlay={<ReplayNote />} />
+        <BoardMap match={match} time={time} selected={selected} show={show} moment={moment} overlay={<>
+          {moment && moment !== closed && (
+            <article className="d2-moment" style={{ '--grade': NOTE_INFO[moment.note].color } as CSSProperties}>
+              <header>
+                <b>{NOTE_INFO[moment.note].mark}</b>
+                <strong>{NOTE_INFO[moment.note].label}</strong>
+                <span className="num muted small">{mins(moment.t)}</span>
+                <button className="verdict-undo" onClick={() => setClosed(moment)} aria-label="Close this move's window" title="Close"><Icon name="close" size={12} /></button>
+              </header>
+              <p>{moment.title}</p>
+              {moment.why.length > 0 && <ul>{moment.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+            </article>
+          )}
+          <ol className="dl-feed" aria-label="Kills and events">
+            {chatNow.map((c, i) => (
+              <li key={`c${c.t}-${i}`} className={`d2-feed-chat ${c.wheel ? 'wheel' : ''}`}>
+                <b style={{ color: c.slot !== null ? TEAM_COLOR[match.players[c.slot].team] : 'var(--text-3)' }}>{c.slot !== null ? nameOf(c.slot) : c.who ?? 'Someone'}:</b> {c.text}
+              </li>
+            ))}
+            {news.map((e, i) => <li key={`e${e.t}-${i}`} className="d2-feed-event">{e.kind === 'rune' && runeIcon(e.rune) && <img src={runeIcon(e.rune)!} alt="" width={16} height={16} />}{newsText(e)}</li>)}
+            {feed.map((d, i) => (
+              <li key={`${d.t}-${d.slot}-${i}`}>
+                <span style={{ color: d.killer !== null ? TEAM_COLOR[match.players[d.killer].team] : 'var(--text-3)' }}>{nameOf(d.killer)}</span>
+                <Icon name="close" size={10} />
+                <span style={{ color: TEAM_COLOR[match.players[d.slot].team] }}>{nameOf(d.slot)}</span>
+              </li>
+            ))}
+          </ol>
+          <ReplayNote />
+        </>} />
       </div>
-      <Playbar match={match} time={time} playing={playing} speed={speed} graded={graded}>
+      <Playbar match={match} time={time} playing={playing} speed={speed} graded={graded} slow={slow} setSlow={setSlow} canMine={coach.canMine}>
         <span className="d2-layers" role="group" aria-label="Show on the map">
           {(Object.keys(SHOW_LABEL) as (keyof Show)[]).map(key => (
             <label key={key} className="dl-layer"><input type="checkbox" checked={show[key]} onChange={e => setShow({ ...show, [key]: e.target.checked })} /> {SHOW_LABEL[key]}</label>
@@ -189,7 +210,42 @@ function NotParsed({ match }: { match: D2Match }) {
   );
 }
 
-function BoardMap({ match, time, selected, show, overlay }: { match: D2Match; time: number; selected: number | null; show: Show; overlay: ReactNode }) {
+/**
+ * A team's side of the gold lead over the match: the chart shows only the stretches this team was ahead, so the two sides
+ * read as a tug of war. Same scale on both. Point at it for any minute; click goes there.
+ */
+function TeamGold({ match, team, time }: { match: D2Match; team: D2Team; time: number }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const series = match.goldAdv, sign = team === 0 ? 1 : -1;
+  const span = match.duration - match.start || 1, W = 240, H = 34;
+  const top = Math.max(1, ...series.map(Math.abs));
+  const x = (t: number) => ((t - match.start) / span) * W, y = (v: number) => H - (Math.max(0, v * sign) / top) * (H - 2);
+  const area = series.length ? `M${x(0)},${H} ${series.map((v, i) => `L${x(i * 60).toFixed(1)},${y(v).toFixed(1)}`).join(' ')} L${x((series.length - 1) * 60).toFixed(1)},${H} Z` : '';
+  const shown = hover ?? time, lead = series.length ? seriesAt(series, shown) * sign : 0;
+  const worth = match.players.filter(p => p.team === team).reduce((a, p) => a + netWorthAt(match, p.slot, shown), 0);
+  const at = (e: MouseEvent<SVGSVGElement>) => { const r = e.currentTarget.getBoundingClientRect(); return match.start + ((e.clientX - r.left) / r.width) * span; };
+  const clip = `d2-gold-${team}`;
+  return (
+    <div className="d2-gold">
+      <div className="d2-gold-read num">
+        <span className="d2-gold-lead">{lead >= 1 ? <>+{Math.round(lead).toLocaleString()}<small> gold ahead</small></> : lead <= -1 ? <small>behind</small> : <small>even</small>}</span>
+        <span className="muted small" title="The team's total net worth">{hover !== null ? `${mins(hover)} · ` : ''}{(worth / 1000).toFixed(1)}k</span>
+      </div>
+      {series.length > 1 && (
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={`${match.names[team]}'s gold lead over the match`}
+          onMouseMove={e => setHover(at(e))} onMouseLeave={() => setHover(null)} onClick={e => useD2.getState().setTime(at(e))}>
+          <clipPath id={clip}><rect x={0} y={0} width={Math.max(0, x(time))} height={H} /></clipPath>
+          <line x1={0} x2={W} y1={H - 0.5} y2={H - 0.5} className="d2-gold-base" vectorEffect="non-scaling-stroke" />
+          <path d={area} fill={TEAM_COLOR[team]} opacity={0.18} />
+          <path d={area} fill={TEAM_COLOR[team]} opacity={0.8} clipPath={`url(#${clip})`} />
+          <line x1={x(shown)} x2={x(shown)} y1={0} y2={H} className="d2-gold-now" vectorEffect="non-scaling-stroke" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+function BoardMap({ match, time, selected, show, overlay, moment }: { match: D2Match; time: number; selected: number | null; show: Show; overlay: ReactNode; moment: D2Move | null }) {
   const replay = useD2(s => s.replay);
   const tracks = replay.status === 'ready' ? replay.tracks : null;
   const wards = match.wards.filter(w => time >= w.t && time < w.until);
@@ -277,6 +333,20 @@ function BoardMap({ match, time, selected, show, overlay }: { match: D2Match; ti
               </Group>
             );
           })}
+          {/* the moment the coach is talking about: rings going out from the hero, and its grade over them */}
+          {moment && spots.filter(s => s.p.slot === moment.slot).map(s => {
+            const info = NOTE_INFO[moment.note], beat = ((time * 1.2) % 1 + 1) % 1, badge = 13 * k;
+            return (
+              <Group key="moment" x={s.at.x * S} y={s.at.y * S}>
+                <Circle radius={(17 + beat * 16) * k} stroke={info.color} strokeWidth={2.4 * k} opacity={1 - beat} />
+                <Circle radius={16 * k} stroke={info.color} strokeWidth={2.6 * k} />
+                <Group y={-29 * k}>
+                  <Circle radius={badge} fill={info.color} stroke="#0b0e12" strokeWidth={1.6 * k} />
+                  <Text text={info.mark} x={-badge} y={-badge} width={badge * 2} height={badge * 2} align="center" verticalAlign="middle" fontSize={13 * k} fontStyle="bold" fill="#0b0e12" />
+                </Group>
+              </Group>
+            );
+          })}
           {fight && (
             <Group x={fight.at!.x * S} y={fight.at!.y * S}>
               <Circle radius={34 * k} stroke="#fff" strokeWidth={1.2 * k} dash={[5 * k, 4 * k]} opacity={0.7} />
@@ -327,8 +397,9 @@ function HeroMark({ k, icon, name, team, selected, hp, dead }: { k: number; icon
 function Label({ text, k, fill, y }: { text: string; k: number; fill: string; y: number }) {
   return <Text text={text} x={-LABEL_W / 2} y={y} width={LABEL_W} align="center" wrap="none" fontSize={Math.max(8.5, 9.5 * k)} fontStyle="bold" fill={fill} stroke="#000" strokeWidth={2.2 * k} fillAfterStrokeEnabled />;
 }
-function Playbar({ match, time, playing, speed, graded, children }: { match: D2Match; time: number; playing: boolean; speed: number; graded: D2Move[]; children: ReactNode }) {
+function Playbar({ match, time, playing, speed, graded, slow, setSlow, canMine, children }: { match: D2Match; time: number; playing: boolean; speed: number; graded: D2Move[]; slow: boolean; setSlow: (on: boolean) => void; canMine: boolean; children: ReactNode }) {
   const s = useD2.getState();
+  const scope = useD2(x => x.scope);
   const span = match.duration - match.start || 1;
   const left = (t: number) => `${((t - match.start) / span) * 100}%`;
   const marks = useMemo(() => [
@@ -344,11 +415,21 @@ function Playbar({ match, time, playing, speed, graded, children }: { match: D2M
       <select value={speed} onChange={e => s.setSpeed(Number(e.target.value))} aria-label="Speed">
         {SPEEDS.map(x => <option key={x} value={x}>{x}×</option>)}
       </select>
+      <button className={`chip d2-slow ${slow ? 'on' : ''}`} aria-pressed={slow} onClick={e => { setSlow(!slow); e.currentTarget.blur(); }}
+        title={slow ? 'Playback drops to 1× around each graded moment. Click to keep your speed.' : 'Playback keeps your speed. Click to drop to 1× around each graded moment.'}>
+        <Icon name="slow" size={13} /> {playing && speedAt(graded, time, speed, slow) !== speed ? '1× now' : 'Slow'}
+      </button>
       <div className="dl-step" role="group" aria-label="Graded moments">
         <button onClick={() => stepMoment(graded, -1)} disabled={!graded.length} title="Previous graded moment (←)" aria-label="Previous graded moment"><Icon name="prev" size={14} /></button>
         <span className="num muted small">{graded.filter(m => m.t <= time).length}/{graded.length}</span>
         <button onClick={() => stepMoment(graded, 1)} disabled={!graded.length} title="Next graded moment (→)" aria-label="Next graded moment"><Icon name="prev" size={14} className="flip-x" /></button>
       </div>
+      {canMine && (
+        <div className="seg-mini" role="group" aria-label="Whose moves">
+          <button className={scope === 'all' ? 'on' : ''} onClick={() => s.setScope('all')}>All</button>
+          <button className={scope === 'mine' ? 'on' : ''} onClick={() => s.setScope('mine')}>Mine</button>
+        </div>
+      )}
       <div className="dl-phases" role="group" aria-label="Jump to">
         {PHASES.filter(p => p.t < match.duration).map(p => <button key={p.label} className="chip" onClick={() => s.setTime(p.t)}>{p.label}</button>)}
       </div>
@@ -461,6 +542,7 @@ function D2Items({ match, slot, time }: { match: D2Match; slot: number; time: nu
             {vitals && <span><b>{vitals.level}</b> <i>lvl</i></span>}
           </div>
           {skills.length > 0 && <div className="d2-panel-skills">{skills.map(s => <SkillCell key={s.name} skill={s} heroKey={h.key} large />)}</div>}
+          <TalentTree hero={p.hero} upgrades={p.upgrades} level={vitals ? vitals.level : undefined} at={vitals ? time : undefined} />
           <div className="d2-slots">
             {range(6, 8).map(i => <span key={i} className="d2-back" title="Backpack"><ItemCell slot={slots[i]} /></span>)}
             <span title="Town Portal"><ItemCell slot={slots[15]} cooldown={itemCd(slots[15])} /></span>
@@ -479,29 +561,3 @@ function D2Items({ match, slot, time }: { match: D2Match; slot: number; time: nu
   );
 }
 
-/** The coach's card for the latest graded moment. */
-function D2Card({ moves, time, canMine }: { moves: D2Move[]; time: number; canMine: boolean }) {
-  const scope = useD2(s => s.scope);
-  const m = [...moves].reverse().find(x => time >= x.t - LEAD && time <= x.t + 24);
-  return (
-    <div className="dl-card-slot">
-      {canMine && (
-        <div className="seg-mini dl-scope" role="group" aria-label="Whose moves">
-          <button className={scope === 'all' ? 'on' : ''} onClick={() => useD2.getState().setScope('all')}>All</button>
-          <button className={scope === 'mine' ? 'on' : ''} onClick={() => useD2.getState().setScope('mine')}>Mine</button>
-        </div>
-      )}
-      {m && (
-        <article className="dl-card" style={{ borderColor: NOTE_INFO[m.note].color }}>
-          <header>
-            <b className="dl-card-mark" style={{ background: NOTE_INFO[m.note].color }}>{NOTE_INFO[m.note].mark}</b>
-            <span>{NOTE_INFO[m.note].label}</span>
-            <span className="muted small num">{mins(m.t)}</span>
-          </header>
-          <p className="dl-card-title">{m.title}</p>
-          <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>
-        </article>
-      )}
-    </div>
-  );
-}

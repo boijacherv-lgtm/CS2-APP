@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDINGS, CAMP_REACH, CAMPS, cellToMap, isNight, mins, nextDawnOrDusk, roshanOnMap, TREES, visionShape } from '../data';
-import { autoPick, bestPair, counterEdge, countersOf, synergy, type HeroPairs } from '../draft';
+import { speedAt } from '../coach';
+import { assignPositions, autoPick, bestPair, counterEdge, countersOf, POSITION_INFO, synergy, type HeroPairs } from '../draft';
+import { talentPicks } from '../D2Talents';
+import ABILITIES from '../generated/abilities.json';
+import CHAT_WHEEL from '../generated/chatwheel.json';
+import TALENTS from '../generated/talents.json';
 import { campsNow } from '../tracks';
 import { bestWards, placeOf } from '../wardSpots';
 import { coachMatch } from '../coach';
@@ -137,6 +142,53 @@ describe('Dota 2 match', () => {
     expect(new Set(rest).size).toBe(rest.length);
     expect(autoPick(pairsData, [1, 2, 3, 4], [])).toEqual([]);
     expect(autoPick(pairsData, [], [], () => 0)).toHaveLength(4);
+  });
+  it('gives each hero a position of their own, the one their tags suit', () => {
+    const five: HeroPairs = { ...pairsData, ids: [1, 2, 3, 4, 5], roles: [['Support', 'Disabler'], ['Carry'], ['Durable', 'Initiator'], ['Nuker', 'Escape'], ['Support', 'Nuker']] };
+    const plan = assignPositions(five, [1, 2, 3, 4, 5]);
+    expect(plan.map(p => p.position)).toEqual([1, 2, 3, 4, 5]);
+    expect(plan.map(p => p.hero)).toEqual([2, 4, 3, 5, 1]);
+    expect(POSITION_INFO[1].lane(0)).toBe(1);
+    expect(POSITION_INFO[1].lane(1)).toBe(3);
+    expect(assignPositions(five, [])).toEqual([]);
+  });
+  it('slows to 1× around a graded moment, and only if asked', () => {
+    const moves = [{ t: 100 }];
+    expect(speedAt(moves, 99, 16, true)).toBe(1);
+    expect(speedAt(moves, 104, 16, true)).toBe(1);
+    expect(speedAt(moves, 90, 16, true)).toBe(16);
+    expect(speedAt(moves, 110, 16, true)).toBe(16);
+    expect(speedAt(moves, 100, 16, false)).toBe(16);
+    expect(speedAt(moves, 100, 1, true)).toBe(1);
+  });
+  it('finds the talents in a skill order, and the hero level each came by', () => {
+    const [id, talent] = Object.entries(ABILITIES).find(([, a]) => a.talent)!, [skill] = Object.entries(ABILITIES).find(([, a]) => !a.talent)!;
+    const order = [...Array<number>(9).fill(Number(skill)), Number(id)];
+    expect(talentPicks(order).get(talent.key)).toBe(10);
+    expect(talentPicks([...Array<number>(17).fill(Number(skill)), Number(id)]).get(talent.key)).toBe(20);
+    expect(talentPicks([Number(skill)]).size).toBe(0);
+  });
+  it('knows every hero\'s eight talents, numbers filled in', () => {
+    const trees = Object.values(TALENTS) as [string, string][][];
+    expect(trees.length).toBeGreaterThan(100);
+    expect(trees.every(t => t.length === 8)).toBe(true);
+    expect(trees.flat().filter(([, text]) => text.includes('{s:')).length).toBe(0);
+  });
+  it('reads the chat: who said what and when, wheel phrases in words, nothing wordless', () => {
+    const m = matchFromOpenDota({ ...raw, chat: [
+      { time: 90, type: 'chatwheel', key: '75', slot: 5, player_slot: 128 },
+      { time: 30, type: 'chat', key: ' gl hf ', slot: 0, player_slot: 0 },
+      { time: 40, type: 'chatwheel', key: '137', slot: 1, player_slot: 1 },
+      { time: 50, type: 'chat', key: 'hi', unit: 'A coach' },
+      { time: 60, type: 'other', key: 'x', slot: 0, player_slot: 0 },
+    ] });
+    expect(m.chat).toEqual([
+      { t: 30, slot: 0, who: null, text: 'gl hf', wheel: false },
+      { t: 50, slot: null, who: 'A coach', text: 'hi', wheel: false },
+      { t: 90, slot: 5, who: null, text: 'Good game', wheel: true },
+    ]);
+    expect(matchFromOpenDota(raw).chat).toEqual([]);
+    expect(Object.values(CHAT_WHEEL).filter(text => /dota_|#/.test(text))).toEqual([]);
   });
   it('keeps every camp and tree on the map', () => {
     for (const c of CAMPS) expect(Math.min(c.x, c.y, 1 - c.x, 1 - c.y)).toBeGreaterThan(0);
