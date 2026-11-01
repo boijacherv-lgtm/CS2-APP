@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NOTE_INFO } from '../engine/recap';
+import { LETTER_COLOR, LETTERS, NOTE_INFO, type Letter } from '../engine/recap';
 import { navigate } from '../shell/router';
 import { AreaChart, BarList } from '../site/charts';
 import { Icon, type IconName } from '../ui/Icon';
@@ -7,15 +7,17 @@ import { itemTimings, TIMING_MARGIN, typicalTiming } from './api';
 import type { D2Move, D2Tag } from './coach';
 import { abilityById, buildingOf, heroOf, itemById, itemByKey, mins, skillLook, TEAM_COLOR, TEAM_NAME, type D2Team } from './data';
 import { TalentTree } from './D2Talents';
+import { GRADE_LEGEND, gradeMatch, type ChapterKind, type MatchGrades } from './grades';
+import { NORM_SAMPLE, supportNumbers, supportsOf, teamPlayLetter, visionLetter } from './support';
 import { clashes, keyFacts, laneResults, SWING_MINUTES, type D2Match } from './match';
 import { useD2 } from './store';
 import { useCoach } from './useCoach';
 import '../deadlock/dl.css';
 import './d2.css';
 
-type Tab = 'overview' | 'coach' | 'draft' | 'fights' | 'objectives' | 'items' | 'skills' | 'chat' | 'scoreboard';
+type Tab = 'overview' | 'grades' | 'coach' | 'draft' | 'fights' | 'objectives' | 'items' | 'skills' | 'chat' | 'scoreboard';
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
-  { id: 'overview', label: 'Overview', icon: 'star' }, { id: 'coach', label: 'Coach', icon: 'target' },
+  { id: 'overview', label: 'Overview', icon: 'star' }, { id: 'grades', label: 'Grades', icon: 'list' }, { id: 'coach', label: 'Coach', icon: 'target' },
   { id: 'draft', label: 'Draft & lanes', icon: 'grid' }, { id: 'fights', label: 'Fights', icon: 'swords' },
   { id: 'objectives', label: 'Objectives', icon: 'map' }, { id: 'items', label: 'Items', icon: 'trendUp' },
   { id: 'skills', label: 'Skills', icon: 'bolt' }, { id: 'chat', label: 'Chat', icon: 'chat' }, { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
@@ -37,6 +39,8 @@ export function D2Report() {
   const match = useD2(s => s.match);
   const coach = useCoach();
   const [tab, setTab] = useState<Tab>('overview');
+  const tracks = useD2(s => (s.replay.status === 'ready' ? s.replay.tracks : null));
+  const grades = useMemo(() => (match?.parsed ? gradeMatch(match, coach.all, tracks) : null), [match, coach.all, tracks]);
   if (!match) return <div className="page"><p className="muted">No match open. <a href="#/dota2/review">Pick one</a></p></div>;
   const me = coach.mine !== null ? match.players[coach.mine] : null;
   const watch = (t: number) => { useD2.getState().setTime(t - 8); useD2.getState().setPlaying(false); navigate({ page: 'dota2', mode: 'review' }); };
@@ -64,7 +68,8 @@ export function D2Report() {
       </nav>
 
       {!match.parsed && tab !== 'scoreboard' && <p className="muted">This match hasn't been parsed: only the scoreboard is available. You can ask OpenDota to parse it in Review.</p>}
-      {match.parsed && tab === 'overview' && <Overview match={match} me={me?.slot ?? null} moves={myMoves} watch={watch} />}
+      {match.parsed && tab === 'overview' && <Overview match={match} me={me?.slot ?? null} moves={myMoves} watch={watch} grades={grades} openGrades={() => setTab('grades')} />}
+      {grades && tab === 'grades' && <Grades match={match} grades={grades} mine={coach.mine} watch={watch} />}
       {match.parsed && tab === 'coach' && <Coach moves={myMoves} watch={watch} who={me ? 'you' : 'everyone'} />}
       {match.parsed && tab === 'draft' && <DraftAndLanes match={match} />}
       {tab === 'skills' && <Skills match={match} mine={coach.mine} />}
@@ -77,7 +82,106 @@ export function D2Report() {
   );
 }
 
-function Overview({ match, me, moves, watch }: { match: D2Match; me: number | null; moves: D2Move[]; watch: (t: number) => void }) {
+const CHAPTER_MARK: Record<ChapterKind, string> = { vision: 'V', team: 'T', lane: 'L', fight: 'F', pick: 'P' };
+
+function LetterChip({ letter, why }: { letter: Letter; why?: string }) {
+  return <span className="letter" style={{ background: LETTER_COLOR[letter] }} title={why}>{letter}</span>;
+}
+
+/** Everyone's grades: how many of each letter and the match grade, then every moment of the match, as CS2's round grid. */
+function Grades({ match, grades, mine, watch }: { match: D2Match; grades: MatchGrades; mine: number | null; watch: (t: number) => void }) {
+  const [focus, setFocus] = useState<number | null>(mine ?? grades.best);
+  const byTeam = (team: D2Team) => grades.players.filter(g => match.players[g.slot].team === team).sort((a, b) => b.score - a.score);
+  const name = (slot: number) => { const p = match.players[slot]; return p.name ?? heroOf(p.hero).name; };
+  const ordered = [...byTeam(0), ...byTeam(1)];
+  return (
+    <>
+      <section className="recap-card">
+        <h3>Match grades</h3>
+        <div className="d2-table-wrap">
+          <table className="site-table d2-tier-table">
+            <thead>
+              <tr>
+                <th>Player</th><th>Grade</th>
+                {LETTERS.map(l => <th key={l}><LetterChip letter={l} /></th>)}
+                <th>Moments</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ordered.map((g, i) => {
+                const p = match.players[g.slot], h = heroOf(p.hero);
+                return (
+                  <tr key={g.slot} className={`${g.slot === focus ? 'me' : ''} ${i === byTeam(0).length ? 'd2-team-start' : ''}`} onClick={() => setFocus(g.slot)}>
+                    <td><span className="dl-sb-hero">{h.icon && <img src={h.icon} alt="" width={22} height={22} />}<b style={{ color: TEAM_COLOR[p.team] }}>{name(g.slot)}</b><span className="muted small">{h.name}</span>{g.slot === grades.best && <span className="d2-mvp">MVP</span>}</span></td>
+                    <td><span className="d2-match-letter display" style={{ background: LETTER_COLOR[g.letter] }}>{g.letter}</span></td>
+                    {LETTERS.map(l => <td key={l} className={`num ${g.counts[l] ? '' : 'muted'}`}>{g.counts[l] || '·'}</td>)}
+                    <td className="num muted">{g.graded}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted small">The match grade is the average of a player's moments, plus their KDA and a little for winning. Supports also get grades for vision and team play{NORM_SAMPLE.matches ? `, measured against supports in ${NORM_SAMPLE.matches} pro matches, where a typical pro is a B` : ''}; those count for half their match grade, which then compares them with other supports, so an S is as hard to get on a support as on a carry.</p>
+      </section>
+      <section className="recap-card">
+        <h3>Support play</h3>
+        <div className="d2-support-cards">
+          {([0, 1] as D2Team[]).flatMap(team => supportsOf(match, team)).map(slot => {
+            const p = match.players[slot], h = heroOf(p.hero), n = supportNumbers(match, slot), pct = (v: number) => `${Math.round(v * 100)}%`;
+            return (
+              <article key={slot} className="d2-support-card">
+                <header>{h.icon && <img src={h.icon} alt="" width={22} height={22} />}<b style={{ color: TEAM_COLOR[p.team] }}>{name(slot)}</b><span className="muted small">{h.name}</span></header>
+                <p><LetterChip letter={visionLetter(n)} /> <b>Vision</b> <span className="muted small">{p.obs} observers, {p.sen} sentries · stood {pct(n.wardLife)} of their life · {pct(n.onSpot)} on pro spots · {p.dewards} enemy wards killed</span></p>
+                <p><LetterChip letter={teamPlayLetter(n)} /> <b>Team play</b> <span className="muted small">in {pct(n.killShare)} of kills · {Math.round(p.stuns)} s of stuns · {p.allyCasts} skills on teammates · {p.helpItems} helping items · {p.stacks} stacks</span></p>
+              </article>
+            );
+          })}
+        </div>
+        <p className="muted small">OpenDota records who a skill was cast on but not who an item was used on, so items count as used, not as saves. Ganks show as an A among the moments once the replay is read: only it says who was where.</p>
+      </section>
+      <section className="recap-card">
+        <h3>Every moment</h3>
+        <p className="muted small">Click a name to focus that player · click a grade to watch that moment in Review. <b>V</b> and <b>T</b> are a support's vision and team play, <b>L</b> the lane, <b>F</b> a teamfight, <b>P</b> a pick-off outside one.</p>
+        <p className="rg-legend muted">{GRADE_LEGEND.map(([l, t]) => <span key={l}><LetterChip letter={l} /> {t}</span>)}</p>
+        <div className="sb-wrap">
+          <table className="rg d2-rg">
+            <thead>
+              <tr>
+                <th />
+                {grades.chapters.map((c, i) => (
+                  <th key={i} style={c.winner !== null ? { borderBottomColor: TEAM_COLOR[c.winner] } : undefined} title={c.title}>
+                    <span>{CHAPTER_MARK[c.kind]}</span><i className="num">{c.kind === 'fight' || c.kind === 'pick' ? Math.max(0, Math.floor(c.t / 60)) : ''}</i>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ordered.map(g => {
+                const p = match.players[g.slot];
+                return (
+                  <tr key={g.slot} className={g.slot === focus ? 'focus' : ''}>
+                    <td className="name" onClick={() => setFocus(g.slot)}><span style={{ color: TEAM_COLOR[p.team] }}>{name(g.slot)}</span></td>
+                    {grades.chapters.map((c, i) => {
+                      const x = c.grades[g.slot];
+                      return (
+                        <td key={i} className="cell" onClick={() => { if (c.kind !== 'vision' && c.kind !== 'team') watch(c.kind === 'lane' ? 600 : c.t); }} title={x ? `${c.title}. ${x.why}` : `${c.title}. Not part of it.`}>
+                          {x ? <LetterChip letter={x.letter} /> : <span className="muted">·</span>}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function Overview({ match, me, moves, watch, grades, openGrades }: { match: D2Match; me: number | null; moves: D2Move[]; watch: (t: number) => void; grades: MatchGrades | null; openGrades: () => void }) {
   const team = me !== null ? match.players[me].team : 0;
   const lead = useMemo(() => match.goldAdv.map((v, i) => ({ label: `${i}:00`, value: team === 0 ? v : -v })), [match, team]);
   const bad = moves.filter(m => m.note === '?' || m.note === '??'), good = moves.filter(m => m.note === '!' || m.note === '!!');
@@ -87,6 +191,16 @@ function Overview({ match, me, moves, watch }: { match: D2Match; me: number | nu
   return (
     <>
       <section className="d2-facts" aria-label="The match at a glance">
+        {grades && grades.best !== null && (() => {
+          const shown = grades.players[me ?? grades.best], top = LETTERS.slice(0, 3).reduce((a, l) => a + shown.counts[l], 0);
+          return (
+            <button className="d2-fact d2-fact-grade" onClick={openGrades} title="See everyone's grades">
+              <span className="d2-fact-label">{me !== null ? 'Your grade' : 'MVP'}</span>
+              <b className="d2-fact-grade-row"><span className="d2-match-letter display" style={{ background: LETTER_COLOR[shown.letter] }}>{shown.letter}</span>{heroOf(match.players[shown.slot].hero).name}</b>
+              <span className="small muted">{top} of {shown.graded} moments at A or better</span>
+            </button>
+          );
+        })()}
         {f.swing && (
           <button className="d2-fact" onClick={() => watch(f.swing!.t)} title="Watch this moment">
             <span className="d2-fact-label">Turning point</span>

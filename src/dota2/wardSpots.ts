@@ -36,6 +36,14 @@ export function placeOf(at: Pt): string {
   return `${WAYS[(eighth + 8) % 8]} of ${best.name}`;
 }
 
+/** A ward this near a spot pros use (of the map's width) counts as on it. */
+const ON_SPOT = 0.035;
+/** Whether a ward stands where pros of that side put that kind of ward at that part of the match. */
+export function onProSpot(team: D2Team, t: number, kind: WardKind, at: Pt): boolean {
+  const phase = phaseAt(t);
+  return DATA.spots.some(s => s.team === team && s.phase === phase && s.kind === kind && Math.hypot(s.x / 1000 - at.x, s.y / 1000 - at.y) < ON_SPOT);
+}
+
 /** How many spots to offer at once: more only hide each other. */
 const SHOWN = 8;
 /**

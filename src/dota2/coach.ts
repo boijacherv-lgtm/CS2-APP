@@ -14,6 +14,8 @@ export interface D2Move {
   t: number; slot: number; team: D2Team;
   kind: 'death' | 'kill' | 'laning';
   note: Annotation; title: string; why: string[]; tags: D2Tag[];
+  /** Laning: net worth at the end of it against the opposite number. */
+  laneGold?: number;
 }
 
 /** Seconds before and after a graded moment that playback slows to 1× for, so it can be seen and read. */
@@ -132,7 +134,7 @@ export function coachMatch(m: D2Match, tracks: ReplayTracks | null = null): D2Mo
           const a = netWorthAt(m, p.slot, LANE_END), b = netWorthAt(m, o.slot, LANE_END), diff = a - b;
           const lh = seriesAt(m.minutes[p.slot].lh, LANE_END), dn = seriesAt(m.minutes[p.slot].dn, LANE_END);
           const note: Annotation = diff <= -1000 ? '?' : diff <= -500 ? '?!' : diff >= 1000 ? '!!' : diff >= 500 ? '!' : 'book';
-          moves.push({ t: LANE_END, slot: p.slot, team: p.team, kind: 'laning', note,
+          moves.push({ t: LANE_END, slot: p.slot, team: p.team, kind: 'laning', note, laneGold: diff,
             tags: diff <= -500 ? ['LANE LOST'] : diff >= 500 ? ['LANE WON'] : [],
             why: [`${Math.round(a).toLocaleString()} net worth at ${mins(LANE_END)}; ${nameOf(o.slot)}: ${Math.round(b).toLocaleString()}.`, `${Math.round(lh)} last hits, ${Math.round(dn)} denies.`],
             title: `${nameOf(p.slot)}'s lane: ${diff >= 0 ? '+' : '−'}${Math.abs(Math.round(diff)).toLocaleString()} gold vs ${nameOf(o.slot)}` });

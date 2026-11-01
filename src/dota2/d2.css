@@ -65,6 +65,21 @@ button.d2-fact:hover { border-color: var(--border-strong); background: var(--sur
 .d2-verdict.late { color: #fff; background: var(--bad); }
 .d2-verdict.on-time { color: var(--text-2); background: rgba(255, 255, 255, .08); }
 
+/* Letter grades, as CS2's */
+.d2-tier-table th, .d2-tier-table td { text-align: center; padding: 5px 7px; }
+.d2-tier-table th:first-child, .d2-tier-table td:first-child { text-align: left; }
+.d2-tier-table tbody tr { cursor: pointer; }
+.d2-tier-table tr.d2-team-start td { border-top: 2px solid var(--border-strong); }
+.d2-match-letter { display: inline-grid; place-items: center; min-width: 30px; height: 26px; padding: 0 5px; border-radius: 6px; color: #111; font-weight: 800; font-size: 15px; }
+.d2-mvp { padding: 1px 5px; border-radius: 4px; background: #f5c542; color: #111; font-size: 10px; font-weight: 800; }
+.d2-rg thead th { border-bottom-color: var(--surface-3); min-width: 26px; }
+.d2-fact-grade-row { display: flex; align-items: center; gap: 8px; }
+
+.d2-support-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px; margin-bottom: 8px; }
+.d2-support-card { display: grid; gap: 5px; padding: 8px 10px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border); }
+.d2-support-card header { display: flex; align-items: center; gap: 7px; }
+.d2-support-card p { margin: 0; font-size: 13px; }
+
 /* The match's chat */
 .d2-chat { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
 .d2-chat li { display: grid; grid-template-columns: 58px 22px minmax(0, 150px) minmax(0, 1fr); gap: 8px; align-items: center; font-size: 13px; }

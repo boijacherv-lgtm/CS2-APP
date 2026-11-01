@@ -10,13 +10,22 @@ import CHAT_WHEEL from './generated/chatwheel.json';
 const WHEEL = CHAT_WHEEL as Record<string, string>;
 
 interface RawLog { time: number; key?: string; x?: number; y?: number; time_dead?: number; gold_lost?: number; gold_fed?: number }
-interface RawFightPlayer { deaths_pos?: Record<string, Record<string, number>>; ability_uses?: Record<string, number>; damage?: number; gold_delta?: number }
+interface RawFightPlayer { deaths_pos?: Record<string, Record<string, number>>; ability_uses?: Record<string, number>; ability_targets?: Record<string, Record<string, number>>; item_uses?: Record<string, number>; damage?: number; healing?: number; deaths?: number; killed?: Record<string, number>; gold_delta?: number }
+
+/** Items used mostly for someone else's sake. OpenDota doesn't say who an item was used on, only that it was. */
+const HELP_ITEMS = new Set(['glimmer_cape', 'force_staff', 'hurricane_pike', 'lotus_orb', 'solar_crest', 'pavise', 'mekansm', 'guardian_greaves', 'pipe', 'crimson_guard', 'holy_locket', 'arcane_boots', 'medallion_of_courage', 'drum', 'ancient_janggo', 'boots_of_bearing', 'wind_waker', 'cyclone', 'smoke_of_deceit', 'shivas_guard', 'vladmir', 'spirit_vessel', 'urn_of_shadows']);
+const helpItems = (uses: Record<string, number> | undefined) => Object.entries(uses ?? {}).filter(([k]) => HELP_ITEMS.has(k)).reduce((a, [, n]) => a + n, 0);
+/** How many times a player's skills were cast on a teammate (not on themselves or an enemy). */
+function castsOnAllies(targets: Record<string, Record<string, number>> | undefined, allies: Set<string>): number {
+  return Object.values(targets ?? {}).reduce((a, by) => a + Object.entries(by).filter(([hero]) => allies.has(hero)).reduce((x, [, n]) => x + n, 0), 0);
+}
 interface RawPlayer {
   account_id?: number | null; personaname?: string | null; name?: string | null; hero_id: number; isRadiant?: boolean; player_slot: number;
   lane?: number | null; kills: number; deaths: number; assists: number; last_hits: number; denies: number; level: number; net_worth?: number;
   gold_per_min: number; xp_per_min: number; hero_damage?: number; tower_damage?: number; hero_healing?: number;
   item_0?: number; item_1?: number; item_2?: number; item_3?: number; item_4?: number; item_5?: number;
-  obs_placed?: number; sen_placed?: number; camps_stacked?: number; buyback_count?: number;
+  obs_placed?: number; sen_placed?: number; camps_stacked?: number; buyback_count?: number; stuns?: number | null; observer_kills?: number | null; sentry_kills?: number | null;
+  item_uses?: Record<string, number>; ability_targets?: Record<string, Record<string, number>>;
   benchmarks?: Record<string, { pct?: number }>; gold_t?: number[]; networth_t?: number[]; lh_t?: number[]; dn_t?: number[]; xp_t?: number[];
   deaths_log?: RawLog[]; kills_log?: RawLog[]; obs_log?: RawLog[]; sen_log?: RawLog[]; obs_left_log?: RawLog[]; sen_left_log?: RawLog[];
   purchase_log?: RawLog[]; runes_log?: RawLog[]; lane_pos?: Record<string, Record<string, number>>; ability_upgrades_arr?: number[] | null;
@@ -37,6 +46,8 @@ export interface D2Player {
   lane: number | null;
   kills: number; deaths: number; assists: number; lastHits: number; denies: number; level: number; netWorth: number; gpm: number; xpm: number;
   heroDamage: number; towerDamage: number; healing: number; items: number[]; obs: number; sen: number; stacks: number; buybacks: number;
+  /** Seconds of enemies stunned; enemy wards killed; skills cast on teammates; uses of items meant to help others. */
+  stuns: number; dewards: number; allyCasts: number; helpItems: number;
   /** What they took at each level: skill and talent numbers (see abilityById). */
   upgrades: number[];
   /** Share of players on this hero this player beat (0–1), per stat. */
@@ -45,7 +56,8 @@ export interface D2Player {
 export interface D2Death { t: number; slot: number; killer: number | null; respawn: number; goldLost: number; goldFed: number; fight: number | null; at: Pt | null }
 export interface D2Ward { kind: 'obs' | 'sen'; slot: number; team: D2Team; t: number; until: number; at: Pt }
 export interface D2Down { uid: string; t: number }
-export interface D2Fight { start: number; end: number; deaths: number; at: Pt | null; present: Record<D2Team, number[]>; gold: Record<D2Team, number> }
+export interface D2FightPlayer { kills: number; deaths: number; damage: number; healing: number; gold: number; /** Skills cast on teammates and items meant to help others, used in this fight. */ help: number }
+export interface D2Fight { start: number; end: number; deaths: number; at: Pt | null; present: Record<D2Team, number[]>; gold: Record<D2Team, number>; /** What each player did in it, by slot. */ players: D2FightPlayer[] }
 export interface D2Buy { t: number; slot: number; item: string }
 /** Something the whole map hears about, for the feed on the board. */
 export type D2Event = { t: number } & ({ kind: 'rune'; slot: number; rune: number } | { kind: 'roshan' | 'tormentor' | 'aegis'; team: D2Team } | { kind: 'building'; uid: string });
@@ -84,10 +96,17 @@ export function matchFromOpenDota(raw: RawMatch): D2Match {
   const slotOfKey = new Map<string, number>();
   raw.players.forEach((p, slot) => slotOfKey.set(heroOf(p.hero_id).key, slot));
   const slotOf = (key: string | undefined) => { const h = heroByKey(key); return h ? slotOfKey.get(h.key) ?? null : null; };
+  /** The hero keys of a player's teammates, themselves not included. */
+  const alliesOf = (slot: number) => new Set(raw.players.filter((p, i) => i !== slot && teamOf(p) === teamOf(raw.players[slot])).map(p => heroOf(p.hero_id).key));
 
   const fights: D2Fight[] = (raw.teamfights ?? []).map(f => {
     const at = f.players.flatMap(p => cells(p.deaths_pos));
     const present: Record<D2Team, number[]> = { 0: [], 1: [] }, gold: Record<D2Team, number> = { 0: 0, 1: 0 };
+    const players = f.players.map((p, slot) => ({
+      kills: Object.values(p.killed ?? {}).reduce((a, n) => a + n, 0), deaths: p.deaths ?? cells(p.deaths_pos).length,
+      damage: p.damage ?? 0, healing: p.healing ?? 0, gold: p.gold_delta ?? 0,
+      help: helpItems(p.item_uses) + (raw.players[slot] ? castsOnAllies(p.ability_targets, alliesOf(slot)) : 0),
+    }));
     f.players.forEach((p, slot) => {
       const rp = raw.players[slot];
       if (!rp) return;
@@ -95,7 +114,7 @@ export function matchFromOpenDota(raw: RawMatch): D2Match {
       gold[team] += p.gold_delta ?? 0;
       if ((p.damage ?? 0) > 0 || Object.keys(p.ability_uses ?? {}).length || cells(p.deaths_pos).length) present[team].push(slot);
     });
-    return { start: f.start, end: f.end, deaths: f.deaths ?? at.length, present, gold,
+    return { start: f.start, end: f.end, deaths: f.deaths ?? at.length, present, gold, players,
       at: at.length ? { x: at.reduce((a, q) => a + q.x, 0) / at.length, y: at.reduce((a, q) => a + q.y, 0) / at.length } : null };
   });
 
@@ -163,6 +182,8 @@ export function matchFromOpenDota(raw: RawMatch): D2Match {
       netWorth: p.net_worth ?? 0, gpm: p.gold_per_min, xpm: p.xp_per_min, heroDamage: p.hero_damage ?? 0, towerDamage: p.tower_damage ?? 0, healing: p.hero_healing ?? 0,
       items: [p.item_0, p.item_1, p.item_2, p.item_3, p.item_4, p.item_5].filter((i): i is number => !!i),
       obs: p.obs_placed ?? 0, sen: p.sen_placed ?? 0, stacks: p.camps_stacked ?? 0, buybacks: p.buyback_count ?? 0,
+      stuns: p.stuns ?? 0, dewards: (p.observer_kills ?? 0) + (p.sentry_kills ?? 0), helpItems: helpItems(p.item_uses),
+      allyCasts: castsOnAllies(p.ability_targets, alliesOf(slot)),
       upgrades: p.ability_upgrades_arr ?? [],
       bench: Object.fromEntries(Object.entries(p.benchmarks ?? {}).filter(([, v]) => typeof v.pct === 'number').map(([k, v]) => [k, v.pct!])),
     })),

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { BUILDINGS, CAMP_REACH, CAMPS, cellToMap, isNight, mins, nextDawnOrDusk, roshanOnMap, TREES, visionShape } from '../data';
+import { BUILDINGS, CAMP_REACH, CAMPS, cellToMap, heroOf, isNight, mins, nextDawnOrDusk, roshanOnMap, TREES, visionShape } from '../data';
+import { LETTERS } from '../../engine/recap';
 import { speedAt } from '../coach';
+import { fightLetter, gradeMatch, laneLetter, letterOfScore, matchScore, supportScore } from '../grades';
 import { assignPositions, autoPick, bestPair, counterEdge, countersOf, POSITION_INFO, synergy, type HeroPairs } from '../draft';
+import { letterOfStanding, supportNumbers, supportsOf } from '../support';
 import { talentPicks } from '../D2Talents';
 import ABILITIES from '../generated/abilities.json';
 import CHAT_WHEEL from '../generated/chatwheel.json';
@@ -189,6 +192,60 @@ describe('Dota 2 match', () => {
     ]);
     expect(matchFromOpenDota(raw).chat).toEqual([]);
     expect(Object.values(CHAT_WHEEL).filter(text => /dota_|#/.test(text))).toEqual([]);
+  });
+  it('grades a fight: kills and clean wins on top, feeding at the bottom', () => {
+    expect(fightLetter(4, 1, 0.3, false)).toBe('S+');
+    expect(fightLetter(3, 0, 0.3, true)).toBe('S+');
+    expect(fightLetter(3, 1, 0.3, true)).toBe('S');
+    expect(fightLetter(0, 0, 0.5, true)).toBe('S');
+    expect(fightLetter(2, 1, 0.2, false)).toBe('A');
+    expect(fightLetter(1, 1, 0.1, false)).toBe('B');
+    expect(fightLetter(0, 1, 0.25, false)).toBe('B');
+    expect(fightLetter(0, 0, 0.05, false)).toBe('C');
+    expect(fightLetter(0, 1, 0.1, true)).toBe('D');
+    expect(fightLetter(0, 1, 0.01, false)).toBe('F');
+    expect([1500, 1000, 500, 0, -400, -800, -1500].map(laneLetter)).toEqual(['S+', 'S', 'A', 'B', 'C', 'D', 'F']);
+  });
+  it('grades a match: every moment counted once per player, the best named', () => {
+    const m = matchFromOpenDota({ ...raw, teamfights: [{ start: 100, end: 130, deaths: 1, players: raw.players.map((_, i) => ({ damage: i === 0 ? 3000 : i === 5 ? 1 : 100, healing: 0, deaths: i === 5 ? 1 : 0, gold_delta: i === 0 ? 500 : 0, killed: i === 0 ? { [heroOf(raw.players[5].hero_id).key]: 1 } : {}, ability_uses: { x: 1 } })) }] });
+    const g = gradeMatch(m, coachMatch(m, null));
+    const fight = g.chapters.find(c => c.kind === 'fight')!;
+    expect(fight.winner).toBe(0);
+    expect(fight.grades[0]!.letter).toBe('S');
+    expect(fight.grades[5]!.letter).toBe('F');
+    for (const p of g.players) expect(LETTERS.reduce((a, l) => a + p.counts[l], 0)).toBe(p.graded);
+    expect(g.best).not.toBeNull();
+  });
+  it('lifts a fight a step for helping teammates', () => {
+    expect(fightLetter(0, 0, 0.05, false, 2)).toBe('B');
+    expect(fightLetter(0, 1, 0.1, true, 2)).toBe('C');
+    expect(fightLetter(0, 1, 0.1, true, 1)).toBe('D');
+    expect(fightLetter(4, 0, 0.3, true, 5)).toBe('S+');
+  });
+  it('reads a support\'s numbers: skills on teammates count, on themselves and on enemies don\'t', () => {
+    const ally = heroOf(raw.players[1].hero_id).key, self = heroOf(raw.players[0].hero_id).key, foe = heroOf(raw.players[5].hero_id).key;
+    const m = matchFromOpenDota({ ...raw, players: raw.players.map((p, i) => (i === 0 ? { ...p, stuns: 60.5, observer_kills: 2, sentry_kills: 1, camps_stacked: 3, item_uses: { glimmer_cape: 4, blink: 9 }, ability_targets: { a: { [ally]: 3, [self]: 7, [foe]: 9 } } } : p)) });
+    const p = m.players[0];
+    expect([p.allyCasts, p.helpItems, p.stuns, p.dewards]).toEqual([3, 4, 60.5, 3]);
+    const n = supportNumbers(m, 0), minutes = m.duration / 60;
+    expect(n.helpPerMin).toBeCloseTo(7 / minutes);
+    expect(n.stunsPerMin).toBeCloseTo(60.5 / minutes);
+    expect(supportsOf(m, 0)).toHaveLength(2);
+    expect(['S+', 'S', 'A', 'B', 'C', 'D', 'F']).toEqual([0.95, 0.8, 0.7, 0.5, 0.3, 0.15, 0.05].map(letterOfStanding));
+  });
+  it('lets a support earn an S for doing their job, and not for doing it badly', () => {
+    expect(letterOfScore(supportScore(3.6, 'A', 'A', true))).toBe('S');
+    expect(letterOfScore(supportScore(4.5, 'S', 'S', true))).toBe('S+');
+    expect(letterOfScore(supportScore(3.6, 'B', 'B', false))).toBe('B');
+    expect(['D', 'F']).toContain(letterOfScore(supportScore(2.8, 'D', 'D', false)));
+    expect(letterOfScore(supportScore(1, 'F', 'F', true))).toBe('D');
+  });
+  it('lifts a match grade for a great game overall, within limits', () => {
+    expect(matchScore(4, 13, 8, 2, true)).toBeCloseTo(4.75);
+    expect(matchScore(4, 30, 30, 0, false)).toBeCloseTo(4.6);
+    expect(matchScore(2, 0, 2, 10, false)).toBeCloseTo(2.012);
+    expect(letterOfScore(matchScore(1, 0, 2, 10, true))).toBe('D');
+    expect([5.5, 5, 4.5, 4, 3.2, 2.5, 1].map(letterOfScore)).toEqual(['S+', 'S', 'A', 'B', 'C', 'D', 'F']);
   });
   it('keeps every camp and tree on the map', () => {
     for (const c of CAMPS) expect(Math.min(c.x, c.y, 1 - c.x, 1 - c.y)).toBeGreaterThan(0);
