@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Arc, Circle, Group, Image as KImage, Line, Rect, RegularPolygon, Star, Text } from 'react-konva';
-import { DL_MAP, DL_MAP_IMAGE, TEAM_COLOR, type DlTeam } from './data';
+import { campTier, DL_MAP, DL_MAP_IMAGE, TEAM_COLOR, type DlTeam } from './data';
 import { clock, RULES, urnLane } from './timings';
 import { upAt, type DlDemo, type riftAt } from './demo';
 
 /**
  * The Deadlock map drawn like the game's own minimap (Oct 2026): a dark round map with the two bases, each lane a
  * chain of objectives from the patron out (base guardian, walker, guardian) in that lane's colour for your team and
- * red for the other, the mid boss in the middle, camps as stacked triangles by how strong they are. Shared by
+ * red for the other, the mid boss in the middle, camps as triangles with a line under them for each tier (T1–T3) as in the game. Shared by
  * Review (DlBoard) and Tactical (MapBase); everything is in Konva nodes for a Layer, in map units 0–1 times S.
  */
 
@@ -150,17 +150,21 @@ export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down,
           return <Line key={`l${team}${lane}`} points={pts.flatMap(o => [o.x * S, o.y * S])} stroke={lineOf(team, lane)} strokeWidth={1.6 * k} opacity={0.9} lineJoin="round" />;
         }))}
 
-        {/* neutral camps: one triangle for a small camp, with a bar for each step stronger; a vault as a box */}
+        {/* neutral camps as in the game: a triangle with a line under it for each tier (T1 one, T2 two, T3 three);
+            Sinner's Sacrifice (a vault) as a box */}
         {L && layers.has('camps') && DL_MAP.camps.map((c, i) => {
-          const tier = c.kind === 'strong' ? 2 : c.kind === 'medium' ? 1 : 0;
-          // camps come at 2 / 5 / 8 min by size, Sinner's Sacrifice (the vaults) at 8
+          const tier = campTier(c.kind);
+          // camps come at 2 / 5 / 8 min by tier, Sinner's Sacrifice (the vaults) at 8
           if (demo && tm !== undefined ? !upAt(demo.camps[i] ?? [], tm)
-            : !up(c.kind === 'vault' ? RULES.sinners.spawn : c.kind === 'strong' ? RULES.camps.strong.spawn : c.kind === 'medium' ? RULES.camps.medium.spawn : RULES.camps.small.spawn)) return null;
-          if (c.kind === 'vault') return <Group key={`c${i}`} {...P(c)}><Rect x={-3.6 * k} y={-3.6 * k} width={7.2 * k} height={7.2 * k} stroke="#9cc4b9" strokeWidth={1 * k} cornerRadius={1 * k} /><Circle radius={1.6 * k} stroke="#9cc4b9" strokeWidth={1 * k} /></Group>;
+            : !up(tier === null ? RULES.sinners.spawn : tier === 3 ? RULES.camps.strong.spawn : tier === 2 ? RULES.camps.medium.spawn : RULES.camps.small.spawn)) return null;
+          if (tier === null) return <Group key={`c${i}`} {...P(c)}><Rect x={-3.6 * k} y={-3.6 * k} width={7.2 * k} height={7.2 * k} stroke="#9cc4b9" strokeWidth={1 * k} cornerRadius={1 * k} /><Circle radius={1.6 * k} stroke="#9cc4b9" strokeWidth={1 * k} /></Group>;
+          // the triangle on top, the lines stacked under it; the whole mark centred on the camp
+          // (a triangle of radius 3.4 spans 3.4 above its centre and 1.7 below)
+          const top = -(6 + (tier - 1) * 2.1 + 1.2) * k / 2;
           return (
             <Group key={`c${i}`} {...P(c)}>
-              <RegularPolygon sides={3} radius={3.4 * k} y={-tier * 1.4 * k} fill="#9cc4b9" />
-              {Array.from({ length: tier }, (_, b) => <Rect key={b} x={-3.4 * k} y={(1.4 + b * 2.2 - tier * 1.4) * k} width={6.8 * k} height={1.3 * k} fill="#9cc4b9" />)}
+              <RegularPolygon sides={3} radius={3.4 * k} y={top + 3.4 * k} fill="#9cc4b9" />
+              {Array.from({ length: tier }, (_, n) => <Rect key={n} x={-3.2 * k} y={top + (6 + n * 2.1) * k} width={6.4 * k} height={1.2 * k} fill="#9cc4b9" />)}
             </Group>
           );
         })}

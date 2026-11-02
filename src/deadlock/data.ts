@@ -14,6 +14,8 @@ const byId = new Map(DL_HEROES.map(h => [h.id, h]));
 export const heroOf = (id: number): DlHero => byId.get(id) ?? { id, name: `Hero ${id}`, color: '#888888', icon: null, card: null };
 
 export const DL_MAP = MAP;
+/** A neutral camp's tier as the game shows it: T1 small, T2 medium, T3 large; null for Sinner's Sacrifice (the vaults). */
+export const campTier = (kind: string): 1 | 2 | 3 | null => (kind === 'weak' ? 1 : kind === 'medium' ? 2 : kind === 'strong' ? 3 : null);
 export const DL_MAP_IMAGE = '/images/maps/deadlock.png';
 export const DL_MAP_FRAME = '/images/maps/deadlock-frame.png';
 
