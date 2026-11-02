@@ -169,7 +169,7 @@ function Coach({ moves, watch, who }: { moves: DlMove[]; watch: (t: number) => v
             <li key={l.tag}>
               <b>{l.title}: {l.hits.length}×</b>
               <p className="muted">{l.fix}</p>
-              <span className="coach-rounds">Watch: {l.hits.slice(0, 6).map(h => <button key={h.t} onClick={() => watch(h.t)}>{mins(h.t)}</button>)}</span>
+              <span className="coach-rounds">Watch: {l.hits.slice(0, 6).map((h, i) => <button key={`${h.t}-${h.slot}-${i}`} onClick={() => watch(h.t)}>{mins(h.t)}</button>)}</span>
             </li>
           ))}
         </ol>
