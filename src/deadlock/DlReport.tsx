@@ -10,7 +10,7 @@ import { heroOf, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import type { DlMatch } from './match';
 import { useDl } from './store';
 import { useCoach } from './useCoach';
-import { abilityUse, reportCard, type ReportCard } from './grade';
+import { abilityUse, reportCard, type GradeKey, type ReportCard } from './grade';
 import { BENCH_SOURCE } from './bench';
 import { Economy, Items, Objectives, Scoreboard, TeamSouls } from './DlRecap';
 import { openLatest } from './open';
@@ -108,7 +108,7 @@ export function DlReport() {
           <Moments moves={myMoves} watch={watch} />
         </>
       )}
-      {tab === 'grades' && card && who && <Grades card={card} name={nameOf(who.slot)} hero={heroOf(who.hero).name} watch={watch} />}
+      {tab === 'grades' && card && who && <Grades card={card} match={match} name={nameOf(who.slot)} hero={heroOf(who.hero).name} moves={coach.all} watch={watch} />}
       {tab === 'economy' && who && <Economy match={match} slot={who.slot} watch={watch} />}
       {tab === 'items' && who && <Items match={match} slot={who.slot} />}
       {tab === 'abilities' && who && <Abilities match={match} slot={who.slot} card={card} watch={watch} />}
@@ -185,43 +185,106 @@ function MoveList({ moves, watch }: { moves: DlMove[]; watch: (t: number) => voi
 const sign = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v)).toLocaleString()}`;
 const TONE_COLOR = { up: 'var(--good)', down: 'var(--bad)', flat: 'var(--text-3)' } as const;
 
-/** The report card: each part's score against the same hero in the same position, with the moments behind it. */
-function Grades({ card, name, hero, watch }: { card: ReportCard; name: string; hero: string; watch: (t: number) => void }) {
+/** What to do about each part when it's the weakest. */
+const FOCUS: Record<GradeKey, string> = {
+  kills: 'Pick fights on their richest heroes and turn each kill into something: push a Guardian or take the Mid Boss right after.',
+  map: 'Between waves, clear a camp on your way, break crates and statues, and be at objectives when they fall.',
+  abilities: 'Use your ultimate whenever it\'s up and a fight starts; holding it for the perfect moment loses more than it wins.',
+  rotations: 'When your lane is pushed in, walk to the next lane for a gank, then come back for your next wave.',
+  survival: 'Stay where a teammate can reach you, and back off when two or more enemies are missing from the map.',
+};
+const PRAISE: Record<GradeKey, string> = {
+  kills: 'your kills were worth more than usual', map: 'you made good use of the map', abilities: 'your abilities did their job',
+  rotations: 'your ganks paid off', survival: 'you stayed alive',
+};
+const ORD = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
+
+/**
+ * The report card: the overall grade with a verdict and rank in the match, the five parts as tiles, what to focus on
+ * next game, then each part's numbers and moments. Every score is against players of the same hero in the same position.
+ */
+function Grades({ card, match, name, hero, moves, watch }: { card: ReportCard; match: DlMatch; name: string; hero: string; moves: DlMove[]; watch: (t: number) => void }) {
+  const demo = useDl(s => s.demo);
+  // everyone's cards, for the rank in this match
+  const all = useMemo(() => match.players.map(p => reportCard(match, p.slot, demo, moves)), [match, demo, moves]);
+  const rankOf = (score: number | null, pick: (c: ReportCard) => number | null) => {
+    if (score === null) return null;
+    const xs = all.map(pick).filter((x): x is number => x !== null);
+    return { n: xs.filter(x => x > score).length + 1, of: xs.length };
+  };
+  const scored = card.parts.filter(p => p.score !== null);
+  const best = [...scored].sort((a, b) => b.score! - a.score!)[0], worst = [...scored].sort((a, b) => a.score! - b.score!)[0];
+  const overallRank = rankOf(card.overall, c => c.overall);
+  const verdict = !best ? 'Not enough data to grade this match.'
+    : card.overall! >= 62 ? `A strong game: ${PRAISE[best.key]}.` : card.overall! >= 45 ? `An average game: ${PRAISE[best.key]}, ${worst.label.toLowerCase()} held it back.` : `A rough game: ${worst.label.toLowerCase()} cost the most${best.score! >= 55 ? `, though ${PRAISE[best.key]}` : ''}.`;
+  const jump = (key: GradeKey) => document.getElementById(`grade-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   return (
     <>
-      <section className="recap-card dl-grade-head">
-        <div>
-          <h3>{name}'s report card</h3>
-          <p className="muted">{hero}{card.pos ? ` · played Pos ${card.pos}` : ''} · graded against players of the same hero in the same position ({BENCH_SOURCE.matches.toLocaleString()} public matches since the patch); 50 is average.</p>
-          <div className="dl-grade-overall">
-            <ScoreRing score={card.overall} note={card.note} size={84} />
-            <div><b>Overall</b><span className="muted small">{NOTE_INFO[card.note].label}</span></div>
-          </div>
-          <div className="dl-grade-chips">
-            {card.parts.map(p => <span key={p.key}><ScoreRing score={p.score} note={p.note} size={40} />{p.label}</span>)}
+      <section className="recap-card dl-rc-head">
+        <div className="dl-rc-main">
+          <ScoreRing score={card.overall} note={card.note} size={104} />
+          <div>
+            <span className="muted small">{name}'s report card · {hero}{card.pos ? ` · Pos ${card.pos}` : ''}</span>
+            <h3 className="dl-rc-verdict">{verdict}</h3>
+            <span className="muted small">{overallRank ? `${ORD(overallRank.n)} of ${overallRank.of} in this match · ` : ''}50 is an average game for {hero} in this position ({BENCH_SOURCE.matches.toLocaleString()} public matches since the patch)</span>
           </div>
         </div>
         <Radar axes={card.parts.map(p => ({ label: p.label, you: p.z, tip: `${p.label}: ${p.score ?? 'not graded'}` }))} refLabel="Average for the position" />
       </section>
-      {card.parts.map(p => (
-        <section key={p.key} className="recap-card dl-grade">
-          <h3>
-            <ScoreRing score={p.score} note={p.note} size={36} />
-            {p.label}
-            {p.note !== 'book' && <b className="dl-card-mark" style={{ background: NOTE_INFO[p.note].color }}>{NOTE_INFO[p.note].mark}</b>}
-          </h3>
-          <p className="muted small">{p.summary}</p>
-          <ul className="dl-grade-lines">
-            {p.lines.map((l, i) => (
-              <li key={i}>
-                <i style={{ background: TONE_COLOR[l.tone ?? 'flat'] }} />
-                <span>{l.text}</span>
-                {l.t !== undefined && <button className="chip" onClick={() => watch(l.t!)}>Watch</button>}
-              </li>
-            ))}
-          </ul>
+
+      <div className="dl-rc-tiles">
+        {card.parts.map(p => {
+          const r = rankOf(p.score, c => c.parts.find(x => x.key === p.key)?.score ?? null);
+          return (
+            <button key={p.key} className="dl-rc-tile" onClick={() => jump(p.key)} title={p.summary}>
+              <span className="dl-rc-tile-top"><ScoreRing score={p.score} note={p.note} size={44} /><b>{p.label}</b></span>
+              <span className="dl-rc-bar"><i style={{ width: `${p.score ?? 0}%`, background: p.score === null ? 'transparent' : p.note === 'book' ? 'var(--text-2)' : NOTE_INFO[p.note].color }} /></span>
+              <span className="muted small">{p.score === null ? 'not graded' : r ? `${ORD(r.n)} of ${r.of} in the match` : ''}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {worst && (
+        <section className="recap-card dl-rc-focus">
+          <div><span className="muted small">Focus next game</span><b>{worst.label}</b><p>{FOCUS[worst.key]}</p></div>
+          {best && best.key !== worst.key && <div><span className="muted small">Keep doing</span><b>{best.label}</b><p>{PRAISE[best.key][0].toUpperCase() + PRAISE[best.key].slice(1)}: {best.score} against an average of 50.</p></div>}
         </section>
-      ))}
+      )}
+
+      {card.parts.map(p => {
+        const facts = p.lines.filter(l => l.t === undefined), moments = p.lines.filter(l => l.t !== undefined);
+        const r = rankOf(p.score, c => c.parts.find(x => x.key === p.key)?.score ?? null);
+        return (
+          <section key={p.key} id={`grade-${p.key}`} className="recap-card dl-grade">
+            <h3>
+              <ScoreRing score={p.score} note={p.note} size={40} />
+              <span className="dl-grade-title">{p.label}<span className="muted small">{p.summary}</span></span>
+              {p.note !== 'book' && <b className="dl-card-mark" style={{ background: NOTE_INFO[p.note].color }}>{NOTE_INFO[p.note].mark}</b>}
+              {r && <span className="dl-grade-rank muted small">{ORD(r.n)} of {r.of}</span>}
+            </h3>
+            {facts.length > 0 && (
+              <ul className="dl-grade-facts">
+                {facts.map((l, i) => <li key={i} className={`t-${l.tone ?? 'flat'}`}>{l.text}</li>)}
+              </ul>
+            )}
+            {moments.length > 0 && (
+              <>
+                <h4>Moments</h4>
+                <ul className="dl-grade-lines">
+                  {moments.map((l, i) => (
+                    <li key={i}>
+                      <i style={{ background: TONE_COLOR[l.tone ?? 'flat'] }} />
+                      <span>{l.text}</span>
+                      <button className="chip" onClick={() => watch(l.t!)}>Watch</button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        );
+      })}
     </>
   );
 }
@@ -270,7 +333,7 @@ function ScoreRing({ score, note, size }: { score: number | null; note: keyof ty
         {score !== null && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={size > 60 ? 7 : 4} strokeLinecap="round"
           strokeDasharray={`${(score / 100) * c} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />}
       </svg>
-      <b className="num" style={{ fontSize: size > 60 ? 26 : size > 38 ? 13 : 12 }}>{score ?? '–'}</b>
+      <b className="num" style={{ fontSize: size > 90 ? 32 : size > 60 ? 26 : size > 38 ? 13 : 12 }}>{score ?? '–'}</b>
     </span>
   );
 }
