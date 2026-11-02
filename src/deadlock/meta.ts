@@ -18,13 +18,13 @@ export const RANKS: RankBand[] = [
 export const rankOf = (id: string) => RANKS.find(r => r.id === id) ?? RANKS[0];
 
 const DAY = 86400e3;
-async function cached<T>(key: string, url: string): Promise<T> {
+async function cached<T>(key: string, url: string, slim: (v: T) => T = v => v): Promise<T> {
   const k = `stratboard.dlmeta.${key}`;
   try { const c = JSON.parse(localStorage.getItem(k) ?? 'null'); if (c && Date.now() - c.at < DAY) return c.v as T; } catch { /* read it again */ }
   const res = await fetch(API + url);
   if (res.status === 429) throw new Error('deadlock-api is busy: try again in a minute.');
   if (!res.ok) throw new Error(`deadlock-api answered ${res.status}.`);
-  const v = (await res.json()) as T;
+  const v = slim((await res.json()) as T);
   try { localStorage.setItem(k, JSON.stringify({ at: Date.now(), v })); } catch { /* full or private mode: just not kept */ }
   return v;
 }
@@ -201,4 +201,32 @@ function fitPositions(team: number[], s: { spreadOf: (h: number) => number[] | n
   };
   go(0, [], 0);
   return Object.fromEntries(team.map((h, i) => [h, best[i]]));
+}
+
+export interface CounterItem { item: number; lift: number; matches: number; vs: { hero: number; lift: number }[] }
+/**
+ * Items that do better than usual on a hero against these enemies: for each enemy, every item's win rate in games
+ * against that enemy minus its win rate overall (less the typical shift for all items, which is just how the hero
+ * fares against that enemy), shrunk toward 0 when there are few games; averaged over the enemies. Best first.
+ */
+export async function counterItems(hero: number, enemies: number[], band: RankBand): Promise<CounterItem[]> {
+  const since = await patchStart(), f = filters(since, band);
+  type I = { item_id: number; wins: number; matches: number };
+  const slim = (xs: I[]) => xs.map(i => ({ item_id: i.item_id, wins: i.wins, matches: i.matches }));
+  const base = await cached<I[]>(`items.${hero}.${band.id}.${since}`, `/v1/analytics/item-stats?hero_id=${hero}&min_matches=100&${f}`);
+  const per = await Promise.all(enemies.map(e => cached<I[]>(`itemsvs.${hero}.${e}.${band.id}.${since}`,
+    `/v1/analytics/item-stats?hero_id=${hero}&enemy_hero_ids=${e}&min_matches=50&${f}`, slim).then(r => [e, r] as const).catch(() => [e, [] as I[]] as const)));
+  const wr = new Map(base.map(i => [i.item_id, i.wins / i.matches]));
+  const lifts = new Map<number, { hero: number; lift: number; n: number }[]>();
+  for (const [e, rows] of per) {
+    const raw = rows.filter(r => wr.has(r.item_id) && r.matches >= 50).map(r => ({ id: r.item_id, n: r.matches, d: r.wins / r.matches - wr.get(r.item_id)! }));
+    if (!raw.length) continue;
+    const ds = raw.map(x => x.d).sort((a, b) => a - b), shift = ds[ds.length >> 1];
+    for (const x of raw) { const l = ((x.d - shift) * x.n) / (x.n + 400); const arr = lifts.get(x.id) ?? []; arr.push({ hero: e, lift: l, n: x.n }); lifts.set(x.id, arr); }
+  }
+  return [...lifts.entries()].map(([item, xs]) => ({
+    item, matches: xs.reduce((a, x) => a + x.n, 0),
+    lift: xs.reduce((a, x) => a + x.lift, 0) / Math.max(1, enemies.length),
+    vs: xs.filter(x => x.lift > 0.01).sort((a, b) => b.lift - a.lift).map(x => ({ hero: x.hero, lift: x.lift })),
+  })).filter(x => x.lift > 0.005).sort((a, b) => b.lift - a.lift);
 }

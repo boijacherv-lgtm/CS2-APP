@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './dl.css';
 import { STEAM_AVAILABLE } from '../env';
 import { useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { Icon } from '../ui/Icon';
-import { loadMatch, matchHistory, steamId3, steamNames, type DlHistoryRow } from './api';
-import { demoState, loadDemo, NoDemo, readDemo } from './demo';
+import { loadMatch, matchHistory, steamId3, type DlHistoryRow } from './api';
+import { demoState, loadDemo, NoDemo } from './demo';
 import { heroOf } from './data';
 import { DlBoard } from './DlBoard';
-import { loadBenchmarks } from './coach';
+import { openMatch } from './open';
 import { useDl } from './store';
+
+/** How often the match list asks deadlock-api for new matches while it's open (a match shows up minutes to an hour
+ * after it ends). */
+const REFRESH_MS = 120_000;
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const ago = (unix: number) => {
@@ -31,10 +35,23 @@ function DlStart() {
   const [rows, setRows] = useState<DlHistoryRow[] | null>(null);
   const [histErr, setHistErr] = useState<string | null>(null);
   const account = me?.steamId ? steamId3(me.steamId) : null;
+  // the list, then again every couple of minutes: new matches come in on their own (marked New)
+  const [checked, setChecked] = useState<number | null>(null);
+  const [fresh, setFresh] = useState<Set<number>>(new Set());
+  const [, tick] = useState(0);
   useEffect(() => {
-    setRows(null); setHistErr(null);
+    setRows(null); setHistErr(null); setFresh(new Set());
     if (!account) return;
-    matchHistory(account).then(setRows).catch(e => setHistErr(e instanceof Error ? e.message : String(e)));
+    let live = true, first: Set<number> | null = null;
+    const load = () => matchHistory(account).then(r => {
+      if (!live) return;
+      if (first) { const added = r.filter(x => !first!.has(x.match_id)).map(x => x.match_id); if (added.length) setFresh(f => new Set([...f, ...added])); }
+      first = new Set([...(first ?? []), ...r.map(x => x.match_id)]);
+      setRows(r); setChecked(Date.now()); setHistErr(null);
+    }).catch(e => { if (live) setHistErr(e instanceof Error ? e.message : String(e)); });
+    void load();
+    const t = setInterval(load, REFRESH_MS), clock = setInterval(() => tick(n => n + 1), 30_000);
+    return () => { live = false; clearInterval(t); clearInterval(clock); };
   }, [account]);
 
   // which of them have a demo (full detail): checked once per list. One that has a replay but isn't kept here yet
@@ -42,13 +59,18 @@ function DlStart() {
   // so a demo saved now still works after that
   type DemoMark = 'read' | 'listed' | 'saving' | 'none';
   const [demos, setDemos] = useState<Record<number, DemoMark>>({});
+  const demosRef = useRef(demos);
+  demosRef.current = demos;
   useEffect(() => {
     if (!rows) return;
     let live = true;
     (async () => {
-      const xs = await Promise.all(rows.slice(0, 30).map(async r => [r.match_id, await demoState(r.match_id)] as const));
+      // each refresh: the new ones, and recent ones without a demo yet (a replay can be listed a while after)
+      const recent = (r: DlHistoryRow) => Date.now() / 1000 - r.start_time < 3 * 3600;
+      const todo = rows.slice(0, 30).filter(r => !demosRef.current[r.match_id] || (demosRef.current[r.match_id] === 'none' && recent(r)));
+      const xs = await Promise.all(todo.map(async r => [r.match_id, await demoState(r.match_id)] as const));
       if (!live) return;
-      setDemos(Object.fromEntries(xs));
+      setDemos(d => ({ ...d, ...Object.fromEntries(xs) }));
       for (const [id, st] of xs) {
         if (!live || st !== 'listed') continue;
         setDemos(d => ({ ...d, [id]: 'saving' }));
@@ -68,13 +90,7 @@ function DlStart() {
   const open = async (matchId: number) => {
     setBusy(matchId); setErr(null);
     try {
-      const m = await loadMatch(matchId);
-      useDl.getState().open(m);
-      steamNames(m.players.map(p => p.account)).then(names => useDl.setState({ names })).catch(() => {});
-      // the average player on each hero, for the laning grade
-      loadBenchmarks(m.players.map(p => p.hero)).then(bench => { if (useDl.getState().match?.id === m.id) useDl.setState({ bench }); });
-      // the demo, read by deadlock-api (about a minute the first time): exact camps, urn, buffs, casts
-      readDemo(m);
+      await openMatch(matchId);
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)); }
     setBusy(null);
   };
@@ -94,7 +110,7 @@ function DlStart() {
       {err && <p className="warn-text">{err}</p>}
 
       <section className="site-card dl-history">
-        <div className="card-head"><h2>Your matches</h2>{rows && <span className="muted small">{rows.length} found</span>}</div>
+        <div className="card-head"><h2>Your matches</h2>{rows && <span className="muted small">{rows.length} found{checked ? ` · checked ${Date.now() - checked < 60_000 ? 'just now' : `${Math.round((Date.now() - checked) / 60_000)} min ago`}, again every 2 min` : ''}</span>}</div>
         {!account ? (
           STEAM_AVAILABLE
             ? <div className="dl-login"><span className="muted">Log in with Steam to see your Deadlock matches here.</span><SteamLoginButton compact /></div>
@@ -109,7 +125,7 @@ function DlStart() {
                 <li key={r.match_id}>
                   <button className={`dl-row ${won ? 'win' : 'loss'}`} onClick={() => open(r.match_id)} disabled={busy !== null}>
                     {h.card ? <img src={h.card} alt="" width={36} height={36} loading="lazy" /> : <span className="dl-hero-dot" style={{ background: h.color }} />}
-                    <span className="dl-row-hero"><b>{h.name}{demos[r.match_id] && <span className={`dl-row-demo ${demos[r.match_id]}`} title={DEMO_LABEL[demos[r.match_id]][1]}>{DEMO_LABEL[demos[r.match_id]][0]}</span>}</b>
+                    <span className="dl-row-hero"><b>{h.name}{fresh.has(r.match_id) && <span className="dl-row-new">New</span>}{demos[r.match_id] && <span className={`dl-row-demo ${demos[r.match_id]}`} title={DEMO_LABEL[demos[r.match_id]][1]}>{DEMO_LABEL[demos[r.match_id]][0]}</span>}</b>
                       <span className="muted small">{ago(r.start_time)} · {mins(r.match_duration_s)}</span></span>
                     <span className={`dl-row-result ${won ? 'win' : 'loss'}`}>{won ? 'Win' : 'Loss'}</span>
                     <span className="dl-row-kda num">{r.player_kills}/{r.player_deaths}/{r.player_assists}</span>
