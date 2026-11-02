@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Loading } from './Loading';
 import type { DemoData } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { useStore } from '../store';
@@ -241,7 +242,7 @@ export function DemoFolder() {
         <div className="row"><button className="primary" onClick={reconnect}>Reconnect "{dir.name}"</button><span className="muted">the browser asks once per visit</span></div>
       )}
       {msg && <p className="warn-text">{msg}</p>}
-      {reading && <p className="muted">Reading {reading.name}… step {reading.pass} of ~{DEMO_PASSES}</p>}
+      {reading && <Loading>Reading {reading.name}… step {reading.pass} of ~{DEMO_PASSES}</Loading>}
 
       {dir && perm === 'granted' && (files.length === 0
         ? <p className="muted">No demos in "{dir.name}" yet. Download one in CS2 and it appears here.</p>

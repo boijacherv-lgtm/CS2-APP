@@ -31,6 +31,29 @@ export const T = {
   highlight: '#FFD166',
 } as const;
 
+/**
+ * Each game's accent (the site takes on the colour of the game you're in): buttons, links, tabs, focus, charts, glows
+ * and a faint tint in backgrounds and cards. Team, grenade and mark colours don't change. `ink` is text on the accent.
+ */
+export type GameId = 'cs2' | 'deadlock';
+export const GAME_THEME: Record<GameId, { accent: string; ink: string; name: string }> = {
+  cs2: { accent: '#F2A23A', ink: '#1A1206', name: 'Counter-Strike 2' }, // CS2's menus: warm amber
+  deadlock: { accent: '#3FC9A3', ink: '#06170F', name: 'Deadlock' }, // Deadlock's art deco: jade
+};
+const GAME_KEY = 'stratboard.game';
+/** The game the site is dressed in: the page's game, else the last one you were in (CS2 at first). */
+export function gameOf(page: string): GameId {
+  if (page === 'cs2' || page === 'deadlock') { try { localStorage.setItem(GAME_KEY, page); } catch { /* private mode */ } return page; }
+  try { const g = localStorage.getItem(GAME_KEY); if (g === 'cs2' || g === 'deadlock') return g; } catch { /* private mode */ }
+  return 'cs2';
+}
+/** Dresses the page in a game's colours (CSS --theme / --theme-ink, html[data-game]); the stylesheet fades between them. */
+export function applyGame(game: GameId, root: HTMLElement = document.documentElement) {
+  root.dataset.game = game;
+  root.style.setProperty('--theme', GAME_THEME[game].accent);
+  root.style.setProperty('--theme-ink', GAME_THEME[game].ink);
+}
+
 /** Overlay surface over the map: solid enough to read on a busy radar (no blur: the canvas repaints every frame). */
 export const OVERLAY = 'rgba(10, 12, 16, 0.88)';
 

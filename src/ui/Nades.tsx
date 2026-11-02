@@ -1,4 +1,5 @@
 import { Arc, Arrow, Circle, Group, Line, Path, Star, Text } from 'react-konva';
+import { KonvaFace } from './KonvaFace';
 import { HE_RADIUS_U } from '../engine/combat';
 import { lifeOf, popAt, SMOKE_RADIUS_UNITS } from '../engine/grid';
 import { NOTE_INFO, type Annotation } from '../engine/recap';
@@ -305,7 +306,7 @@ function GradeMark({ grade, x, y, k }: { grade: Annotation; x: number; y: number
   return (
     <Group x={x} y={y} listening={false}>
       <Circle radius={(grade === 'book' ? 3.5 : 7) * k} fill={g.color} stroke="#000" strokeWidth={1.2 * k} />
-      {grade !== 'book' && <Text text={g.mark} fontSize={(g.mark.length > 1 ? 7.5 : 9.5) * k} fontStyle="bold" fill="#111" width={14 * k} x={-7 * k} y={-4.4 * k} align="center" />}
+      {grade !== 'book' && <KonvaFace note={grade} radius={7 * k} />}
     </Group>
   );
 }

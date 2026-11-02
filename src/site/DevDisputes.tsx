@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Loading } from '../ui/Loading';
 import type { DemoData } from '../engine/recap';
 import { VERDICT_LABEL } from '../engine/profile';
 import { Icon } from '../ui/Icon';
@@ -87,7 +88,7 @@ export function DevDisputes({ myId }: { myId: string | null }) {
         </span>
       </div>
       {err && <p className="warn-text small">{err}</p>}
-      {!clips ? <p className="muted">Loading…</p> : !rows.length ? <p className="muted">{show === 'open' ? 'Nothing to check.' : show === 'asks' ? 'No questions from the coach: run npm run ask:coach to send some.' : 'Nothing checked yet.'}</p> : (
+      {!clips ? <Loading>Loading…</Loading> : !rows.length ? <p className="muted">{show === 'open' ? 'Nothing to check.' : show === 'asks' ? 'No questions from the coach: run npm run ask:coach to send some.' : 'Nothing checked yet.'}</p> : (
         <ul className="dispute-list">
           {rows.map(c => {
             const v = c.verdict;

@@ -1,5 +1,6 @@
 import { NOTE_INFO, type Annotation, type Move } from '../engine/recap';
 import { Icon, type IconName } from './Icon';
+import { MarkFace } from './MarkFace';
 
 /** Plain kills and deaths aren't "book" (that's for set plays like a standard smoke): they're just a kill or a death. */
 const PLAIN = '#8a919c';
@@ -14,9 +15,10 @@ export function moveLook(m: Pick<Move, 'note' | 'kind'>): { label: string; color
   return { label: m.kind === 'objective' ? 'Standard' : 'Book', color: n.color, mark: '', icon: 'book', tip: n.tip };
 }
 
-/** A move's chess-style annotation as a chip: !! ! ? ?? in their colour, an icon for plain moves. */
+/** A move's mark: its face (MarkFace) for annotated moves, an icon chip for plain ones. */
 export function NoteMark({ m, className = 'badge', size = 11, title }: { m: Pick<Move, 'note' | 'kind'>; className?: string; size?: number; title?: string }) {
   const l = moveLook(m);
+  if (!l.icon && m.note !== 'book') return <span className={`${className} note-face`} title={title ?? `${l.label}: ${l.tip}`}><MarkFace note={m.note} size={size + 8} title={title ?? `${l.label}: ${l.tip}`} /></span>;
   return (
     <span className={`${className} note-${m.note === 'book' ? 'book' : 'mark'}`} style={{ background: l.color }} title={title ?? `${l.label}: ${l.tip}`}>
       {l.icon ? <Icon name={l.icon} size={size} /> : l.mark}

@@ -12,6 +12,7 @@ import { kdaAt, playerAt, statAt, type DlMatch } from './match';
 import { useDl } from './store';
 import { useCoach, useMySlot } from './useCoach';
 import type { DlMove } from './coach';
+import { MarkFace } from '../ui/MarkFace';
 import { NOTE_INFO } from '../engine/recap';
 
 /** The shop's items by id (icons for the inventories). */
@@ -330,7 +331,7 @@ function DlCard({ moves, time, canMine }: { moves: DlMove[]; time: number; canMi
       {m && (
         <article className="dl-card" style={{ borderColor: NOTE_INFO[m.note].color }}>
           <header>
-            <b className="dl-card-mark" style={{ background: NOTE_INFO[m.note].color }}>{NOTE_INFO[m.note].mark}</b>
+            <MarkFace note={m.note} size={24} className="dl-card-mark" />
             <span>{NOTE_INFO[m.note].label}</span>
             <span className="muted small num">{mins(m.t)}</span>
           </header>

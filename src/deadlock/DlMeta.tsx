@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Loading } from '../ui/Loading';
 import { DL_HEROES, heroOf } from './data';
 import ITEMS from './generated/items.json';
 import { draftStats, heroBuilds, heroMeta, rankOf, RANKS, readDraft, suggest, type HeroMeta, type RankBand } from './meta';
@@ -79,7 +80,7 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
         {data && <span className="muted small">Since the patch of {day(data.since)} · {Math.round(data.rows.reduce((a, r) => a + r.matches, 0) / 12).toLocaleString()} matches</span>}
       </div>
       {err && <p className="warn-text">{err}</p>}
-      {!data && !err && <p className="muted">Loading the meta…</p>}
+      {!data && !err && <Loading>Loading the meta…</Loading>}
       {data && (
         <table className="site-table dl-meta-table">
           <thead><tr>
@@ -128,7 +129,7 @@ export function HeroBuilds({ hero, setHero }: { hero: number; setHero: (h: numbe
         {data && <span className="muted small">Wins {pct(data.base)} of {data.games.toLocaleString()} games since {day(data.since)}</span>}
       </div>
       {err && <p className="warn-text">{err}</p>}
-      {!data && !err && <p className="muted">Loading builds…</p>}
+      {!data && !err && <Loading>Loading builds…</Loading>}
       {data && (
         <>
           <div className="site-card">
@@ -263,7 +264,7 @@ export function Draft() {
           ))}
         </div>
       </div>
-      {!data && !err && <p className="muted">Loading matchups…</p>}
+      {!data && !err && <Loading>Loading matchups…</Loading>}
     </section>
   );
 }

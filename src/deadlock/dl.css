@@ -294,7 +294,7 @@
 .dl-itemrows li.missing { opacity: .7; }
 @media (max-width: 640px) { .dl-itemrows li { grid-template-columns: 28px minmax(0, 1fr) auto; } .dl-itemrows li > .muted { grid-column: 2 / -1; } }
 .dl-abil-bar { position: relative; width: 140px; height: 16px; border-radius: 4px; background: var(--surface-2, var(--border)); overflow: hidden; }
-.dl-abil-bar i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--ct) 45%, transparent); }
+.dl-abil-bar i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--theme) 45%, transparent); }
 .dl-abil-bar .num { position: relative; font-size: 11px; padding-left: 6px; }
 
 /* Tactical tables: a readable width, a bar under each rate */
@@ -335,8 +335,8 @@
 .dl-sb-table td { padding: 6px 8px; border-top: 1px solid var(--border); white-space: nowrap; }
 .dl-sb-table tbody tr { cursor: pointer; transition: background .12s; }
 .dl-sb-table tbody tr:hover { background: rgba(255,255,255,0.03); }
-.dl-sb-table tbody tr.on { background: color-mix(in srgb, var(--ct) 10%, transparent); }
-.dl-sb-table tbody tr.me td:first-child { box-shadow: inset 3px 0 0 var(--ct); }
+.dl-sb-table tbody tr.on { background: color-mix(in srgb, var(--theme) 10%, transparent); }
+.dl-sb-table tbody tr.me td:first-child { box-shadow: inset 3px 0 0 var(--theme); }
 .dl-sb-who { display: inline-flex; align-items: center; gap: 8px; }
 .dl-sb-who > span { display: grid; }
 .dl-sb-who .muted { display: inline-flex; align-items: center; gap: 6px; }
@@ -363,7 +363,7 @@
 .dl-src li > .num { text-align: right; }
 .dl-src-bars { display: grid; gap: 3px; }
 .dl-src-bars i { display: block; height: 8px; border-radius: 4px; min-width: 2px; }
-.dl-src-bars i.you { background: var(--ct); } .dl-src-bars i.avg { height: 5px; background: color-mix(in srgb, var(--text-3) 55%, transparent); }
+.dl-src-bars i.you { background: var(--theme); } .dl-src-bars i.avg { height: 5px; background: color-mix(in srgb, var(--text-3) 55%, transparent); }
 
 /* Items */
 .dl-enemies { display: flex; gap: 6px; margin: 4px 0 12px; }
@@ -446,11 +446,11 @@
 @media (max-width: 900px) { .dl-rc-tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } .dl-rc-head { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .dl-rc-main { flex-direction: column; align-items: flex-start; } }
 .dl-history-note { margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; background: rgba(242,194,48,0.07); border: 1px solid rgba(242,194,48,0.25); line-height: 1.5; }
-.dl-bot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--ct) 8%, transparent); border: 1px solid color-mix(in srgb, var(--ct) 30%, var(--border)); line-height: 1.5; }
+.dl-bot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--theme) 8%, transparent); border: 1px solid color-mix(in srgb, var(--theme) 30%, var(--border)); line-height: 1.5; }
 .dl-bot > span { flex: 1 1 280px; }
 .dl-bot.on { background: color-mix(in srgb, var(--good) 7%, transparent); border-color: color-mix(in srgb, var(--good) 30%, var(--border)); }
 .dl-folder { margin-bottom: 16px; transition: border-color .12s, background .12s; }
-.dl-folder.drag { border-color: var(--ct); background: color-mix(in srgb, var(--ct) 6%, transparent); }
+.dl-folder.drag { border-color: var(--theme); background: color-mix(in srgb, var(--theme) 6%, transparent); }
 .dl-folder .card-head { display: flex; align-items: center; gap: 8px; }
 .dl-folder .card-head h2 { margin-right: auto; }
 .dl-folder-intro { display: grid; gap: 8px; }
@@ -458,4 +458,4 @@
 .dl-folder-intro .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .dl-folder-intro .row .cta { width: auto; flex: none; padding: 8px 16px; }
 .dl-folder-where { margin: 0 0 10px; line-height: 1.6; }
-.link-btn { background: none; border: none; padding: 0; font: inherit; color: var(--ct); text-decoration: underline; cursor: pointer; }
+.link-btn { background: none; border: none; padding: 0; font: inherit; color: var(--theme); text-decoration: underline; cursor: pointer; }

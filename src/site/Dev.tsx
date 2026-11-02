@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Loading } from '../ui/Loading';
 import { API_URL, BUILD, ONLINE, STEAM_AVAILABLE } from '../env';
 import { COACH_MODEL, PRO_MODEL } from '../engine/coachModels';
 import { FREE_HISTORY, MAX_HISTORY, PRO_EARLY_ACCESS } from '../engine/profile';
@@ -61,7 +62,7 @@ export function Dev() {
   const [tab, setTab] = useState<DevTab>(() => { try { const t = localStorage.getItem('stratboard.devTab') as DevTab | null; return t && DEV_TABS.some(x => x.id === t) ? t : 'users'; } catch { return 'users'; } });
   const pickTab = (t: DevTab) => { setTab(t); try { localStorage.setItem('stratboard.devTab', t); } catch { /* private mode */ } };
 
-  if (!loaded && !LOCAL) return <div className="page"><p className="muted">Loading…</p></div>;
+  if (!loaded && !LOCAL) return <div className="page"><Loading>Loading…</Loading></div>;
   if (!allowed) return <div className="page"><h1>Not found</h1><p className="muted">There's nothing here. <a href="#/">Go home</a></p></div>;
 
   const storage = (() => {

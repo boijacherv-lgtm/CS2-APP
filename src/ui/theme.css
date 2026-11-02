@@ -1,0 +1,94 @@
+/*
+ * The game theme: the site takes on the colour of the game you're in (tokens.ts GAME_THEME → --theme, --theme-ink and
+ * html[data-game]). Accents (buttons, links, tabs, focus, glows) and a faint tint in backgrounds and cards; team,
+ * grenade and mark colours stay as they are. Loaded after the other stylesheets, so these win.
+ */
+
+/* registered, so a game switch fades instead of jumping */
+@property --theme { syntax: '<color>'; inherits: true; initial-value: #F2A23A; }
+@property --theme-ink { syntax: '<color>'; inherits: true; initial-value: #1A1206; }
+:root { transition: --theme .35s ease, --theme-ink .35s ease; }
+
+/* ---- tinted backgrounds -------------------------------------------------------------------------------------- */
+body {
+  background:
+    radial-gradient(1200px 480px at 50% -140px, color-mix(in srgb, var(--theme) 20%, transparent), transparent 72%),
+    radial-gradient(900px 700px at 100% 0, color-mix(in srgb, var(--theme) 8%, transparent), transparent 70%),
+    radial-gradient(800px 600px at 0 100%, color-mix(in srgb, var(--theme) 5%, transparent), transparent 70%),
+    var(--bg-0);
+  background-attachment: fixed;
+}
+.site-card, .recap-card, .feature, .steam {
+  background: color-mix(in srgb, var(--theme) 5%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--theme) 14%, var(--border));
+}
+.navbar { border-bottom-color: color-mix(in srgb, var(--theme) 22%, var(--border)) !important; }
+
+/* ---- accents ------------------------------------------------------------------------------------------------- */
+.cta.primary, button.primary { background: var(--theme); border-color: var(--theme); color: var(--theme-ink); }
+.cta.primary:hover:not(:disabled), button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--theme) 82%, #fff); border-color: color-mix(in srgb, var(--theme) 82%, #fff);
+}
+:focus-visible { outline-color: var(--theme); }
+.chip.on { background: var(--theme); border-color: var(--theme); color: var(--theme-ink); }
+.recap-tabs-list button.on {
+  color: var(--text-1); background: color-mix(in srgb, var(--theme) 14%, var(--surface-3));
+  border-color: color-mix(in srgb, var(--theme) 45%, var(--border-strong)); box-shadow: inset 0 -2px 0 var(--theme);
+}
+.modes button.on { box-shadow: inset 0 -2px 0 var(--theme); }
+.game-btn.live.on { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme) 55%, transparent); background: color-mix(in srgb, var(--theme) 12%, var(--surface-3)); }
+.page a:not(.cta):not(.chip):not(.game-btn):not([class*="btn"]), .site-card p a, .muted a, .link-btn { color: var(--theme); }
+.dot-live { background: var(--theme) !important; }
+.radar-you { fill: color-mix(in srgb, var(--theme) 22%, transparent); stroke: var(--theme); }
+.radar-legend span::before { border-top-color: var(--theme); }
+
+/* ---- hover glow on cards ------------------------------------------------------------------------------------- */
+.site-card, .feature, .dl-row, .dl-rc-tile, .dl-counters li, .dl-rc-item, .dl-phases > div, .steam-list tr, .hero-games-live {
+  transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+}
+.site-card:hover, .feature:hover, .dl-row:hover:not(:disabled), .dl-rc-tile:hover, .dl-counters li:hover, .dl-rc-item:hover, .hero-games-live:hover {
+  border-color: color-mix(in srgb, var(--theme) 40%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--theme) 18%, transparent), 0 10px 34px -14px color-mix(in srgb, var(--theme) 55%, transparent);
+}
+
+/* ---- the game's pattern behind page headers (a mask, so it's drawn in the game's colour) --------------------------- */
+.recap-head, .rs-head, .hero, .dl-hero, .dev-head { position: relative; isolation: isolate; }
+.recap-head::after, .rs-head::after, .hero::after, .dl-hero::after, .dev-head::after {
+  content: ''; position: absolute; inset: -24px -24px auto; height: calc(100% + 48px); z-index: -1; pointer-events: none;
+  background: var(--theme); opacity: .09;
+  -webkit-mask: var(--theme-pattern) repeat, linear-gradient(to bottom, #000 0%, transparent 85%);
+  -webkit-mask-composite: source-in; mask: var(--theme-pattern) repeat, linear-gradient(to bottom, #000 0%, transparent 85%);
+  mask-composite: intersect;
+}
+/* CS2: a tactical map grid with crosshair ticks */
+:root[data-game="cs2"] { --theme-pattern: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><path d='M0 .5H44M.5 0V44' stroke='black' stroke-width='1'/><path d='M22 18v8M18 22h8' stroke='black' stroke-width='1.4'/></svg>"); }
+/* Deadlock: art deco fans and diamonds */
+:root[data-game="deadlock"] { --theme-pattern: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='56'><g fill='none' stroke='black' stroke-width='1.2'><path d='M0 56A28 28 0 0 1 56 56M8 56A20 20 0 0 1 48 56M16 56A12 12 0 0 1 40 56'/><path d='M28 0L34 8L28 16L22 8Z'/></g></svg>"); }
+
+/* ---- loading and empty states in the game's style ------------------------------------------------------------- */
+.game-loading { display: flex; align-items: center; gap: 10px; color: var(--text-2); margin: 8px 0; }
+.game-loader { position: relative; width: 22px; height: 22px; flex: none; }
+.game-loader::before, .game-loader::after { content: ''; position: absolute; inset: 0; border-radius: 50%; }
+/* CS2: a crosshair turning */
+:root[data-game="cs2"] .game-loader::before { border: 2px solid color-mix(in srgb, var(--theme) 25%, transparent); border-top-color: var(--theme); animation: game-spin .8s linear infinite; }
+:root[data-game="cs2"] .game-loader::after { inset: 9px; background: var(--theme); box-shadow: 0 -8px 0 -3px var(--theme), 0 8px 0 -3px var(--theme), -8px 0 0 -3px var(--theme), 8px 0 0 -3px var(--theme); }
+/* Deadlock: two deco rings turning against each other */
+:root[data-game="deadlock"] .game-loader::before { border: 2px dashed var(--theme); animation: game-spin 2.4s linear infinite; }
+:root[data-game="deadlock"] .game-loader::after { inset: 5px; border: 2px solid var(--theme); border-left-color: transparent; border-right-color: transparent; animation: game-spin 1.2s linear infinite reverse; }
+@keyframes game-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .game-loader::before, .game-loader::after { animation-duration: 6s; } :root { transition: none; } }
+
+.empty-state {
+  position: relative; isolation: isolate; overflow: hidden; margin: 6px 0; padding: 16px 18px; border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--theme) 35%, var(--border)); color: var(--text-2); text-align: center;
+}
+.empty-state::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; background: var(--theme); opacity: .06;
+  -webkit-mask: var(--theme-pattern) repeat; mask: var(--theme-pattern) repeat;
+}
+
+/* ---- the marks as faces (MarkFace) where text marks used to sit ---------------------------------------------------- */
+.mark-face { display: inline-block; vertical-align: middle; flex: none; filter: drop-shadow(0 1px 1px #0008); }
+.note-face { background: none !important; padding: 0 !important; min-width: 0 !important; line-height: 0; border: none !important; }
+.dl-card-mark.mark-face { padding: 0; min-width: 0; border-radius: 50%; }
+.timeline .tl-mark:has(.mark-face) { border: none; padding: 0; min-width: 0; width: 15px; height: 15px; background: none; }

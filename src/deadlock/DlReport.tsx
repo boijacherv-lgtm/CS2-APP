@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MarkFace } from '../ui/MarkFace';
 import { NOTE_INFO } from '../engine/recap';
 import { navigate } from '../shell/router';
 import { Radar } from '../site/charts';
@@ -135,11 +136,11 @@ function Moments({ moves, watch }: { moves: DlMove[]; watch: (t: number) => void
     <div className="dl-moments">
       <section className="recap-card">
         <h3>Worst moments</h3>
-        {bad.length ? <MoveList moves={bad.slice(0, 5)} watch={watch} /> : <p className="muted">No real mistakes marked.</p>}
+        {bad.length ? <MoveList moves={bad.slice(0, 5)} watch={watch} /> : <p className="empty-state">No real mistakes marked.</p>}
       </section>
       <section className="recap-card">
         <h3>Best moments</h3>
-        {good.length ? <MoveList moves={good.slice(0, 5)} watch={watch} /> : <p className="muted">No standout plays marked.</p>}
+        {good.length ? <MoveList moves={good.slice(0, 5)} watch={watch} /> : <p className="empty-state">No standout plays marked.</p>}
       </section>
     </div>
   );
@@ -152,7 +153,7 @@ function Coach({ moves, watch, who }: { moves: DlMove[]; watch: (t: number) => v
   return (
     <section className="recap-card">
       <h3>What to work on ({who})</h3>
-      {!lessons.length ? <p className="muted">Nothing that comes back: no repeated mistakes in this match.</p> : (
+      {!lessons.length ? <p className="empty-state">Nothing that comes back: no repeated mistakes in this match.</p> : (
         <ol className="ov-list">
           {lessons.map(l => (
             <li key={l.tag}>
@@ -168,12 +169,12 @@ function Coach({ moves, watch, who }: { moves: DlMove[]; watch: (t: number) => v
 }
 
 function MoveList({ moves, watch }: { moves: DlMove[]; watch: (t: number) => void }) {
-  if (!moves.length) return <p className="muted">Nothing here.</p>;
+  if (!moves.length) return <p className="empty-state">Nothing here.</p>;
   return (
     <ul className="dl-moves">
       {moves.map(m => (
         <li key={`${m.kind}-${m.t}-${m.slot}`}>
-          <b className="dl-card-mark" style={{ background: NOTE_INFO[m.note].color }}>{m.note === 'book' ? '·' : NOTE_INFO[m.note].mark}</b>
+          <MarkFace note={m.note} size={24} className="dl-card-mark" />
           <span className="dl-move-text"><b>{m.title}</b>{m.why.length > 1 && <span className="muted small">{m.why.slice(0, -1).join(' ')}</span>}</span>
           <button className="chip" onClick={() => watch(m.t)}>Watch</button>
         </li>
@@ -260,7 +261,7 @@ function Grades({ card, match, name, hero, moves, watch }: { card: ReportCard; m
             <h3>
               <ScoreRing score={p.score} note={p.note} size={40} />
               <span className="dl-grade-title">{p.label}<span className="muted small">{p.summary}</span></span>
-              {p.note !== 'book' && <b className="dl-card-mark" style={{ background: NOTE_INFO[p.note].color }}>{NOTE_INFO[p.note].mark}</b>}
+              {p.note !== 'book' && <MarkFace note={p.note} size={22} className="dl-card-mark" />}
               {r && <span className="dl-grade-rank muted small">{ORD(r.n)} of {r.of}</span>}
             </h3>
             {facts.length > 0 && (
