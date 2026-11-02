@@ -15,7 +15,7 @@ import { playerAt, type DlMatch } from './match';
 const API = 'https://api.deadlock-api.com';
 const TICKS = 64;
 /** Bump when what's read or how it's put together changes: demos read before are read again. */
-const DEMO_V = 3;
+const DEMO_V = 4;
 
 export interface DlDemo {
   v: number;
@@ -36,7 +36,20 @@ export interface DlDemo {
   /** Every hero 4 times a second (smooth movement, fast heroes too): map x / y, and height in game units (below 0:
    * in the tunnels or the mid boss pit); NaN while dead. Sample i is at time i × TRACK_DT. */
   tracks: Record<number, { x: number[]; y: number[]; z: number[] }>;
+  /** Each player every 2 s (sample i at i × STAT_DT): net worth, last hits, denies, level. */
+  stats: Record<number, { nw: number[]; lh: number[]; dn: number[]; lvl: number[] }>;
+  /** Each player's ultimate: when they first could use it, and every cooldown (from, to). */
+  ults: Record<number, { from: number | null; cds: [number, number][] }>;
+  /** Lane creeps every 2 s (key: sample index): groups as flat [team, x, y, how many, …]. */
+  creeps: Record<number, number[]>;
+  /** Lane creeps dying: when, whose, where. */
+  creepDeaths: { t: number; team: 0 | 1; x: number; y: number }[];
+  /** Each Unstable Rift: when it showed on its bridge and where, when the point opened, the capture (each team's
+   * progress and players on the point, by second), and who took it and when (null: not taken before the end). */
+  rifts: { from: number; x: number; y: number; opens: number; taken: number | null; team: 0 | 1 | null; progress: { t: number; p: [number, number]; n: [number, number] }[] }[];
 }
+/** Seconds between two stats / creep samples. */
+export const STAT_DT = 2;
 /** Seconds between two hero samples. */
 export const TRACK_DT = 0.25;
 /** Below this height a hero is underground (the tunnels, the mid boss pit): the streets are mostly 100–500. */
@@ -51,7 +64,22 @@ const POS = `"CBodyComponent__m_cellX" AS cx, "CBodyComponent__m_cellY" AS cy, "
 const NUL = (t: string) => `CAST(NULL AS ${t})`;
 const QUERIES = {
   players: `SELECT entity_index, last_value("m_unLobbyPlayerSlot" ORDER BY tick) AS slot, last_value("m_hHeroPawn" ORDER BY tick) AS pawn,
-    last_value("m_PlayerDataGlobal__m_nHeroID" ORDER BY tick) AS hero FROM CCitadelPlayerController GROUP BY entity_index`,
+    last_value("m_PlayerDataGlobal__m_nHeroID" ORDER BY tick) AS hero, last_value("m_iTeamNum" ORDER BY tick) AS team FROM CCitadelPlayerController GROUP BY entity_index`,
+  stats: `SELECT tick / ${TICKS * STAT_DT} AS b, last_value("m_unLobbyPlayerSlot" ORDER BY tick) AS slot, last_value("m_PlayerDataGlobal__m_iGoldNetWorth" ORDER BY tick) AS nw,
+    last_value("m_PlayerDataGlobal__m_iLastHits" ORDER BY tick) AS lh, last_value("m_PlayerDataGlobal__m_iDenies" ORDER BY tick) AS dn, last_value("m_PlayerDataGlobal__m_iLevel" ORDER BY tick) AS lvl,
+    last_value("m_PlayerDataGlobal__m_bUltimateTrained" ORDER BY tick) AS ut, last_value("m_PlayerDataGlobal__m_flUltimateCooldownStart" ORDER BY tick) AS us,
+    last_value("m_PlayerDataGlobal__m_flUltimateCooldownEnd" ORDER BY tick) AS ue FROM CCitadelPlayerController GROUP BY tick / ${TICKS * STAT_DT}, entity_index ORDER BY b`,
+  // lane creeps alive, grouped by team and map cell (512 units) every 2 s, and each one's death
+  creeps: `SELECT tick / ${TICKS * STAT_DT} AS b, "m_iTeamNum" AS team, "CBodyComponent__m_cellX" AS cx, "CBodyComponent__m_cellY" AS cy, avg("CBodyComponent__m_vecX") AS vx,
+    avg("CBodyComponent__m_vecY") AS vy, count(DISTINCT entity_index) AS n FROM CNPC_Trooper WHERE "m_lifeState" = 0 GROUP BY 1, 2, 3, 4 ORDER BY b`,
+  creepDeaths: `SELECT tick, team, cx, cy, vx, vy FROM (SELECT tick, "m_iTeamNum" AS team, "m_lifeState" AS ls, lag("m_lifeState") OVER (PARTITION BY entity_index ORDER BY tick) AS prev,
+    ${POS} FROM CNPC_Trooper) WHERE ls <> 0 AND prev = 0 ORDER BY tick`,
+  // the Unstable Rift: its spawner while it can be captured (then the cash-in), and each team's capture
+  rift: `SELECT tick, entity_index AS e, delta_type AS d, 'open' AS k, ${POS} FROM CCitadelItemKothSpawner WHERE delta_type <> 'update'
+    UNION ALL SELECT tick, entity_index, delta_type, 'cash', ${POS} FROM CCitadel_KothCashIn WHERE delta_type <> 'update' ORDER BY tick`,
+  koth: `SELECT tick / ${TICKS} AS s, last_value("m_pGameRules__m_vecTeamKothStates__m_flCaptureProgressFrac" ORDER BY tick) AS p,
+    last_value("m_pGameRules__m_vecTeamKothStates__m_nCapturerCount" ORDER BY tick) AS n, last_value("m_pGameRules__m_nKothScoringTeam" ORDER BY tick) AS team
+    FROM CCitadelGameRulesProxy GROUP BY tick / ${TICKS} ORDER BY s`,
   events: `SELECT tick, 'kill' AS k, CAST(entindex_victim AS BIGINT) AS a, CAST(entindex_attacker AS BIGINT) AS b, CAST(killer_ability_id AS BIGINT) AS c, ${NUL('VARCHAR')} AS s FROM HeroKilledEvent
     UNION ALL SELECT tick, 'cast', CAST(caster AS BIGINT), CAST(player AS BIGINT), ${NUL('BIGINT')}, ability_name FROM ImportantAbilityUsedEvent
     UNION ALL SELECT tick, 'midboss', ${NUL('BIGINT')}, ${NUL('BIGINT')}, ${NUL('BIGINT')}, ${NUL('VARCHAR')} FROM MidBossSpawnedEvent
@@ -143,6 +171,12 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
   for (const r of q.players) {
     const slot = parseInt(String(r.slot ?? '').slice(0, 2), 16), pawn = Number(r.pawn) & 0x3fff;
     if (Number.isFinite(slot) && pawn && pawn !== 0x3fff && m.players.some(p => p.slot === slot)) slotOfPawn.set(pawn, slot);
+  }
+  // the demo's team numbers (2, 3) as the match's teams, from where its players are
+  const teamOfNum = new Map<number, 0 | 1>();
+  for (const r of q.players) {
+    const slot = parseInt(String(r.slot ?? '').slice(0, 2), 16), p = m.players.find(x => x.slot === slot);
+    if (p && r.team != null) teamOfNum.set(Number(r.team), p.team as 0 | 1);
   }
   const slotOf = (handleOrIndex: Row[string]) => (handleOrIndex == null ? null : slotOfPawn.get(Number(handleOrIndex) & 0x3fff) ?? null);
   const sec = (tick: Row[string]) => Number(tick) / TICKS;
@@ -247,7 +281,51 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     } else if (r.k === 'midboss') midBossSpawns.push(t);
     else if (r.k === 'rejuv') rejuv.push({ t, slot: slotOf(r.a) });
   }
-  return { v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv, tracks };
+  // each player every 2 s, and their ultimate (unlocked when, every cooldown)
+  const ns = Math.ceil(m.duration / STAT_DT) + 1;
+  const stats: DlDemo['stats'] = {}, ults: DlDemo['ults'] = {};
+  for (const p of m.players) { stats[p.slot] = { nw: new Array(ns).fill(0), lh: new Array(ns).fill(0), dn: new Array(ns).fill(0), lvl: new Array(ns).fill(0) }; ults[p.slot] = { from: null, cds: [] }; }
+  for (const r of q.stats) {
+    const slot = parseInt(String(r.slot ?? '').slice(0, 2), 16), b = Number(r.b), st = stats[slot];
+    if (!st || b >= ns) continue;
+    st.nw[b] = Number(r.nw) || 0; st.lh[b] = Number(r.lh) || 0; st.dn[b] = Number(r.dn) || 0; st.lvl[b] = Number(r.lvl) || 0;
+    const u = ults[slot];
+    if (r.ut === true && u.from === null) u.from = b * STAT_DT;
+    const us = Number(r.us), ue = Number(r.ue);
+    if (us > 0 && ue > us && !u.cds.some(([a]) => Math.abs(a - us) < 0.5)) u.cds.push([+us.toFixed(1), +ue.toFixed(1)]);
+  }
+  // carry each number on through samples the demo didn't send (nothing changed)
+  for (const st of Object.values(stats)) for (const k of ['nw', 'lh', 'dn', 'lvl'] as const) for (let b = 1; b < ns; b++) if (!st[k][b]) st[k][b] = st[k][b - 1];
+  // lane creeps: each group's spot (the cell plus their average offset), team as the match's
+  const creeps: DlDemo['creeps'] = {};
+  for (const r of q.creeps) {
+    const team = teamOfNum.get(Number(r.team));
+    if (team === undefined) continue;
+    const p = spot(r), b = Number(r.b);
+    (creeps[b] ??= []).push(team, +p.x.toFixed(4), +p.y.toFixed(4), Number(r.n));
+  }
+  const creepDeaths: DlDemo['creepDeaths'] = [];
+  for (const r of q.creepDeaths) { const team = teamOfNum.get(Number(r.team)); if (team !== undefined && r.cx != null) creepDeaths.push({ t: +sec(r.tick).toFixed(2), team, ...spot(r) }); }
+  // the rift: it shows on its bridge (the spawner), the point opens when the spawner goes (the cash-in appears), and
+  // it's taken when the cash-in goes, by the team the game says scored
+  const rifts: DlDemo['rifts'] = [];
+  const cashes = lives(q.rift.filter(r => r.k === 'cash'), end);
+  const nums = [...teamOfNum.entries()].sort((a, b) => a[0] - b[0]);
+  for (const l of lives(q.rift.filter(r => r.k === 'open'), end)) {
+    const from = sec(l.from), opens = sec(l.to), p = spot(l.at);
+    const cash = cashes.find(c => Math.abs(sec(c.from) - opens) < 3);
+    const shut = cash && cash.to < end ? sec(cash.to) : null;
+    const scorer = shut === null ? undefined : q.koth.filter(r => Number(r.s) >= shut - 2 && Number(r.s) <= shut + 30).map(r => Number(r.team)).find(x => x >= 2);
+    const progress = q.koth.filter(r => Number(r.s) >= opens && Number(r.s) <= (shut ?? m.duration)).map(r => {
+      const pr = (r.p as unknown as number[] | null) ?? [], nn = (r.n as unknown as number[] | null) ?? [];
+      // the game lists the teams in number order (2, 3): put them in the match's order
+      const pp: [number, number] = [0, 0], cc: [number, number] = [0, 0];
+      nums.forEach(([, team], i) => { pp[team] = +(pr[i] ?? 0).toFixed(3); cc[team] = Number(nn[i] ?? 0); });
+      return { t: Number(r.s), p: pp, n: cc };
+    });
+    rifts.push({ from, ...p, opens, taken: scorer !== undefined ? shut : null, team: scorer !== undefined ? teamOfNum.get(scorer) ?? null : null, progress });
+  }
+  return { v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv, tracks, stats, ults, creeps, creepDeaths, rifts };
 }
 
 const KEY = (id: number) => `dldemo${DEMO_V}:${id}`;
@@ -273,4 +351,31 @@ export function heroAt(demo: DlDemo, slot: number, t: number): { x: number; y: n
   if (!ok(i)) return ok(j) && w > 0.5 ? { x: tr.x[j], y: tr.y[j], z: tr.z[j] } : null;
   if (!ok(j) || Math.hypot(tr.x[j] - tr.x[i], tr.y[j] - tr.y[i]) > 0.04) return { x: tr.x[i], y: tr.y[i], z: tr.z[i] };
   return { x: tr.x[i] + (tr.x[j] - tr.x[i]) * w, y: tr.y[i] + (tr.y[j] - tr.y[i]) * w, z: tr.z[i] + (tr.z[j] - tr.z[i]) * w };
+}
+
+/** A player's numbers at time t from the demo (null without one). */
+export function statsAt(demo: DlDemo | null, slot: number, t: number) {
+  const st = demo?.stats?.[slot];
+  if (!st) return null;
+  const b = Math.max(0, Math.min(st.nw.length - 1, Math.floor(t / STAT_DT)));
+  return { nw: st.nw[b], lh: st.lh[b], dn: st.dn[b], lvl: st.lvl[b] };
+}
+/** A player's ultimate at time t: not unlocked yet, cooling down (seconds left), or ready; null without a demo. */
+export function ultAt(demo: DlDemo | null, slot: number, t: number): { state: 'locked' } | { state: 'cooldown'; left: number; of: number } | { state: 'ready' } | null {
+  const u = demo?.ults?.[slot];
+  if (!u) return null;
+  if (u.from === null || t < u.from) return { state: 'locked' };
+  const cd = u.cds.find(([a, b]) => t >= a && t < b);
+  return cd ? { state: 'cooldown', left: cd[1] - t, of: cd[1] - cd[0] } : { state: 'ready' };
+}
+
+/** The rift at time t: showing (not open yet), being contested (each team's progress, players on the point), or just
+ * taken (for 10 s after); null when there's none. */
+export function riftAt(demo: DlDemo | null, t: number) {
+  const r = demo?.rifts?.find(x => t >= x.from && t < (x.taken ?? Infinity) + 10);
+  if (!r) return null;
+  if (t < r.opens) return { ...r, phase: 'showing' as const, p: [0, 0] as [number, number], n: [0, 0] as [number, number] };
+  if (r.taken !== null && t >= r.taken) return { ...r, phase: 'taken' as const, p: [0, 0] as [number, number], n: [0, 0] as [number, number] };
+  const now = [...r.progress].reverse().find(s => s.t <= t);
+  return { ...r, phase: 'contest' as const, p: now?.p ?? [0, 0], n: now?.n ?? [0, 0] };
 }

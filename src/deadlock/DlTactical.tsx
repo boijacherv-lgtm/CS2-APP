@@ -85,7 +85,8 @@ function Roster() {
 function LayerToggles({ layers, setLayers }: { layers: Set<MapLayer>; setLayers: (l: Set<MapLayer>) => void }) {
   return (
     <div className="dl-layers" role="group" aria-label="Map layers">
-      {(Object.keys(LAYER_LABEL) as MapLayer[]).map(l => (
+      {/* (lane creeps come from a match's demo: Review only) */}
+      {(Object.keys(LAYER_LABEL) as MapLayer[]).filter(l => l !== 'creeps').map(l => (
         <label key={l} className="dl-layer"><input type="checkbox" checked={layers.has(l)} onChange={e => { const n = new Set(layers); if (e.target.checked) n.add(l); else n.delete(l); setLayers(n); }} /> {LAYER_LABEL[l]}</label>
       ))}
     </div>
