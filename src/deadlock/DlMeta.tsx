@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DL_HEROES, heroOf } from './data';
 import ITEMS from './generated/items.json';
 import { draftStats, heroBuilds, heroMeta, rankOf, RANKS, readDraft, suggest, type HeroMeta, type RankBand } from './meta';
+import { POS_JOB, POS_NAME, positionOf, POSITIONS_SOURCE, spreadOf, type Pos } from './positions';
 
 /**
  * Tactical's meta tabs: the heroes on this patch (a tier list), one hero's builds (core items in buy order, the most
@@ -39,6 +40,12 @@ const HeroIcon = ({ id, size = 28 }: { id: number; size?: number }) => {
   const h = heroOf(id);
   return h.card ? <img className="dl-meta-hero" src={h.card} alt="" width={size} height={size} loading="lazy" /> : <span className="dl-hero-dot" style={{ background: h.color, width: size, height: size }} />;
 };
+/** A hero's usual position, with how often they really end up in each. */
+const PosChip = ({ hero }: { hero: number }) => {
+  const p = positionOf(hero), sp = spreadOf(hero);
+  const tip = `Pos ${p} ${POS_NAME[p]}: ${POS_JOB[p]}${sp ? `. In real games: ${sp.map((x, i) => `Pos ${i + 1} ${Math.round(x * 100)}%`).join(', ')}` : ''}`;
+  return <span className={`dl-pos p${p}`} title={tip}>Pos {p} <span className="muted">{POS_NAME[p]}</span></span>;
+};
 const ItemIcon = ({ id, size = 26 }: { id: number; size?: number }) => {
   const it = ITEM.get(id);
   return it?.icon ? <img className={`dl-meta-item tier${it.tier}`} src={it.icon} alt={it.name} title={`${it.name} (${it.cost.toLocaleString()})`} width={size} height={size} loading="lazy" /> : null;
@@ -49,6 +56,7 @@ type SortKey = 'tier' | 'win' | 'pick' | 'ban';
 export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
   const [band, setBand] = useRank();
   const [sort, setSort] = useState<SortKey>('tier');
+  const [pos, setPos] = useState<number>(0);
   const { data, err } = useLoad(() => heroMeta(band), [band.id]);
   const rows = useMemo(() => {
     if (!data) return [];
@@ -57,13 +65,17 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
       tier: (a, b) => order[a.tier] - order[b.tier] || b.winRate - a.winRate, win: (a, b) => b.winRate - a.winRate,
       pick: (a, b) => b.pickRate - a.pickRate, ban: (a, b) => (b.banRate ?? 0) - (a.banRate ?? 0),
     };
-    return [...data.rows].sort(by[sort]);
-  }, [data, sort]);
+    return data.rows.filter(r => !pos || positionOf(r.hero) === pos).sort(by[sort]);
+  }, [data, sort, pos]);
   return (
     <section className="dl-meta">
       <div className="dl-meta-head">
         <h2>Heroes on this patch</h2>
         <RankPick band={band} set={setBand} />
+        <select className="dl-rank" value={pos} onChange={e => setPos(Number(e.target.value))} aria-label="Position">
+          <option value={0}>All positions</option>
+          {([1, 2, 3, 4, 5, 6] as Pos[]).map(p => <option key={p} value={p}>Pos {p} · {POS_NAME[p]}</option>)}
+        </select>
         {data && <span className="muted small">Since the patch of {day(data.since)} · {Math.round(data.rows.reduce((a, r) => a + r.matches, 0) / 12).toLocaleString()} matches</span>}
       </div>
       {err && <p className="warn-text">{err}</p>}
@@ -80,7 +92,7 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
           <tbody>
             {rows.map(r => (
               <tr key={r.hero}>
-                <td><span className="dl-meta-name"><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b><span className="muted small">{heroOf(r.hero).role ?? ''}</span></span></td>
+                <td><span className="dl-meta-name"><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b><PosChip hero={r.hero} /></span></td>
                 <td><span className={`dl-tier t${r.tier}`}>{r.tier}</span></td>
                 <td className={`num ${r.winRate >= 0.51 ? 'up' : r.winRate < 0.49 ? 'down' : ''}`}>{pct(r.winRate)}</td>
                 <td className="num">{pct(r.pickRate)}</td>
@@ -93,7 +105,8 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
           </tbody>
         </table>
       )}
-      <p className="muted small">Tier from the win rate, pulled toward 50% for heroes with fewer games: S 52.5%+, A 51%+, B 49%+, C 47.5%+, D below. Pick rate: share of matches with the hero. Data: deadlock-api.</p>
+      <p className="muted small">Tier from the win rate, pulled toward 50% for heroes with fewer games: S 52.5%+, A 51%+, B 49%+, C 47.5%+, D below. Pick rate: share of matches with the hero.
+        Position: by farm priority (Pos 1 farms most), from how each hero farmed in {POSITIONS_SOURCE.matches.toLocaleString()} games since {POSITIONS_SOURCE.since.slice(0, 10)}; hover for how often they play each. Data: deadlock-api.</p>
     </section>
   );
 }
@@ -179,7 +192,7 @@ export function Draft() {
   const [side, setSide] = useState<0 | 1>(0);
   const [q, setQ] = useState('');
   const { data, err } = useLoad(() => draftStats(band), [band.id]);
-  const stats = useMemo(() => data && { ...data, roleOf: (h: number) => heroOf(h).role ?? null, nameOf: (h: number) => heroOf(h).name }, [data]);
+  const stats = useMemo(() => data && { ...data, spreadOf, posOf: positionOf, nameOf: (h: number) => heroOf(h).name }, [data]);
   const read = useMemo(() => stats && (teams[0].length || teams[1].length) ? readDraft(teams, stats) : null, [stats, teams]);
   const pool = DL_HEROES.map(h => h.id);
   const ideas = useMemo(() => stats && teams[side].length < 6 ? suggest(teams, side, pool, stats) : [], [stats, teams, side]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -213,8 +226,8 @@ export function Draft() {
             </div>
             {read && (
               <div className="muted small">
-                {Object.entries(read.roles[t].count).map(([r, n]) => `${n} ${r}`).join(' · ')}
-                {read.roles[t].missing.length > 0 && <span className="warn-text"> · no {read.roles[t].missing.join(', ')}</span>}
+                {teams[t].map(h => `${heroOf(h).name} Pos ${read.roles[t].pos[h]}`).join(' · ')}
+                {read.roles[t].missing.length > 0 && <span className="warn-text"> · no {read.roles[t].missing.map(p => `Pos ${p} ${POS_NAME[p as Pos]}`).join(', ')}</span>}
               </div>
             )}
           </div>
@@ -242,7 +255,7 @@ export function Draft() {
         <div className="card-head"><h3>Heroes</h3><input className="dl-draft-search" placeholder="Search" value={q} onChange={e => setQ(e.target.value)} /></div>
         <div className="dl-draft-pool">
           {[...DL_HEROES].sort((a, b) => a.name.localeCompare(b.name)).filter(h => h.name.toLowerCase().includes(q.toLowerCase())).map(h => (
-            <button key={h.id} className="dl-draft-hero" disabled={taken.has(h.id)} onClick={() => add(h.id)} title={`${h.name}${h.role ? ` (${h.role})` : ''}`}>
+            <button key={h.id} className="dl-draft-hero" disabled={taken.has(h.id)} onClick={() => add(h.id)} title={`${h.name}: usually Pos ${positionOf(h.id)} ${POS_NAME[positionOf(h.id)]}`}>
               <HeroIcon id={h.id} size={36} /><span className="small">{h.name}</span>
             </button>
           ))}

@@ -131,16 +131,16 @@ export interface DraftRead {
   parts: { meta: number; synergy: number; counters: number }[];
   /** Notable matchups and pairs, the biggest first. */
   notes: { team: 0 | 1; text: string; size: number }[];
-  /** What each team has of each role, and what's missing. */
-  roles: { count: Record<string, number>; missing: string[] }[];
+  /** Each team's heroes fitted to positions (Pos 1–6, one hero each: the fit their real games make likeliest), and
+   * the positions nobody fills. */
+  roles: { pos: Record<number, number>; missing: number[] }[];
 }
-const ROLES = ['brawler', 'marksman', 'mystic', 'assassin'];
 /**
  * Reads a draft (6 or fewer heroes a side): each hero's patch strength, each pair of teammates' synergy (how much more
  * they win together than their own rates say) and each hero's matchups against the enemy (how much better or worse
  * than the two heroes' strengths say), added up in log-odds. A model, not a promise: drafts decide part of a match.
  */
-export function readDraft(teams: [number[], number[]], s: { counters: PairStat[]; synergy: PairStat[]; heroes: HeroMeta[]; roleOf: (h: number) => string | null; nameOf: (h: number) => string }): DraftRead {
+export function readDraft(teams: [number[], number[]], s: { counters: PairStat[]; synergy: PairStat[]; heroes: HeroMeta[]; spreadOf: (h: number) => number[] | null; posOf: (h: number) => number; nameOf: (h: number) => string }): DraftRead {
   const wr = (h: number) => { const r = s.heroes.find(x => x.hero === h); return r ? shrink(r.wins, r.matches, 0.5, 1500) : 0.5; };
   const parts = [0, 1].map(() => ({ meta: 0, synergy: 0, counters: 0 }));
   const notes: DraftRead['notes'] = [];
@@ -172,9 +172,9 @@ export function readDraft(teams: [number[], number[]], s: { counters: PairStat[]
   // the meta part as the average hero (a 6-hero team isn't 6 times as strong): synergy and counters as they add up
   const total = (t: number) => (teams[t].length ? parts[t].meta / teams[t].length : 0) + parts[t].synergy + parts[t].counters / Math.max(1, teams[1 - t].length) * 2;
   const roles = teams.map(team => {
-    const count: Record<string, number> = {};
-    for (const h of team) { const r = s.roleOf(h) ?? 'none'; count[r] = (count[r] ?? 0) + 1; }
-    return { count, missing: team.length >= 4 ? ROLES.filter(r => !count[r]) : [] };
+    const pos = fitPositions(team, s);
+    const used = new Set(Object.values(pos));
+    return { pos, missing: team.length >= 4 ? [1, 2, 3, 4, 5, 6].filter(p => !used.has(p)) : [] };
   });
   return { p: sigmoid(total(0) - total(1)), parts, notes: notes.sort((a, b) => b.size - a.size).slice(0, 8), roles };
 }
@@ -188,4 +188,17 @@ export function suggest(teams: [number[], number[]], side: 0 | 1, pool: number[]
     const p = readDraft(next, s).p;
     return { hero: h, p: side === 0 ? p - now : now - p };
   }).sort((a, b) => b.p - a.p).slice(0, 6);
+}
+
+/** A team's heroes on positions 1–6, one each: the fit with the highest chance by how often each hero plays each
+ * position (every order of up to 6 heroes is tried: 720 at most). */
+function fitPositions(team: number[], s: { spreadOf: (h: number) => number[] | null; posOf: (h: number) => number }): Record<number, number> {
+  const odds = (h: number, p: number) => { const sp = s.spreadOf(h); return Math.log(sp ? Math.max(0.01, sp[p - 1]) : p === s.posOf(h) ? 0.5 : 0.1); };
+  let best: number[] = [], bestScore = -Infinity;
+  const go = (i: number, used: number[], score: number) => {
+    if (i === team.length) { if (score > bestScore) { bestScore = score; best = [...used]; } return; }
+    for (let p = 1; p <= 6; p++) if (!used.includes(p)) { used.push(p); go(i + 1, used, score + odds(team[i], p)); used.pop(); }
+  };
+  go(0, [], 0);
+  return Object.fromEntries(team.map((h, i) => [h, best[i]]));
 }
