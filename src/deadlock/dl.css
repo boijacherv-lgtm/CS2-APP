@@ -496,3 +496,8 @@
 .dl-pl { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 6px; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
 .dl-pl i { font-style: normal; font-weight: 800; text-align: center; }
 .dl-pl.buff i { color: var(--good); } .dl-pl.nerf i { color: var(--bad); } .dl-pl.change i { color: var(--text-3); }
+.dl-meta-search { font: inherit; font-size: 13px; color: var(--text-1); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; min-width: 180px; }
+.dl-meta-search:focus { border-color: var(--theme); outline: none; }
+.dl-meta-table tr.dl-meta-group td { padding: 14px 8px 6px; border-bottom: 1px solid color-mix(in srgb, var(--theme) 30%, var(--border)); background: none; }
+.dl-meta-table tr.dl-meta-group:hover { background: none; }
+.dl-meta-group b { margin: 0 6px; font-size: 14px; }
