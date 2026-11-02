@@ -459,3 +459,18 @@
 .dl-folder-intro .row .cta { width: auto; flex: none; padding: 8px 16px; }
 .dl-folder-where { margin: 0 0 10px; line-height: 1.6; }
 .link-btn { background: none; border: none; padding: 0; font: inherit; color: var(--theme); text-decoration: underline; cursor: pointer; }
+
+/* Profile → Deadlock */
+.profile-games { margin-bottom: 14px; }
+.dl-pf-parts { display: grid; grid-template-columns: minmax(120px, auto) repeat(5, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.dl-pf-overall, .dl-pf-part { display: grid; justify-items: center; align-content: start; gap: 6px; padding: 10px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); text-align: center; }
+.dl-pf-part b { font-size: 13px; }
+.dl-pf-overall .mini-line, .dl-pf-part .mini-line { width: 100%; }
+.dl-pf-mistakes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.dl-pf-mistakes li { padding: 6px 10px; border-radius: 999px; background: color-mix(in srgb, var(--bad) 10%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--border)); font-size: 13px; }
+.dl-pf-bestworst { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-top: 14px; }
+.dl-pf-game { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px;
+  background: var(--surface-2); border: 1px solid var(--border); font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.dl-pf-game > .muted:first-child { grid-column: 1 / -1; }
+.dl-pf-heroes td, .dl-pf-heroes th { padding: 6px 8px; }
+@media (max-width: 900px) { .dl-pf-parts { grid-template-columns: repeat(3, minmax(0, 1fr)); } .dl-pf-overall { grid-column: 1 / -1; } }
