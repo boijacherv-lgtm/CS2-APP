@@ -3,6 +3,8 @@ import { Arc, Circle, Group, Image as KImage, Layer, Line, Rect, RegularPolygon,
 import { Icon } from '../ui/Icon';
 import { heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { MapArt, useGameMap, useTunnels } from './MapArt';
+import { matchPosition } from './bench';
+import { POS_NAME, type Pos } from './positions';
 import { heroAt, readDemo, riftAt, STAT_DT, statsAt, ultAt, UNDERGROUND_Z, upAt } from './demo';
 import ITEMS from './generated/items.json';
 import { RULES, TIMINGS_SOURCE, timersAt } from './timings';
@@ -79,6 +81,8 @@ export function DlBoard() {
   const [full, setFull] = useState(false);
   useEffect(() => { const on = () => setFull(!!document.fullscreenElement); document.addEventListener('fullscreenchange', on); return () => document.removeEventListener('fullscreenchange', on); }, []);
   const demo = useDl(s => s.demo);
+  // the position each player played this match (by souls on their team at the end)
+  const positions = useMemo(() => Object.fromEntries(match.players.map(p => [p.slot, matchPosition(match, p.slot)])) as Record<number, Pos | null>, [match]);
   const teams: DlTeam[] = [0, 1];
   const kills = (team: DlTeam) => match.deaths.filter(d => d.t <= time && d.killer !== null && match.players.find(p => p.slot === d.killer)?.team === team && d.killer !== d.slot).length;
   const souls = (team: DlTeam) => match.players.filter(p => p.team === team).reduce((a, p) => a + (statAt(match, p.slot, time)?.netWorth ?? 0), 0);
@@ -121,7 +125,7 @@ export function DlBoard() {
               return (
                 <button key={p.slot} className={`dl-player ${dead ? 'dead' : ''} ${selected === p.slot ? 'on' : ''}`} onClick={() => useDl.getState().select(selected === p.slot ? null : p.slot)}>
                   {h.card ? <img src={h.card} alt="" width={32} height={32} /> : <span className="dl-hero-dot" style={{ background: h.color }} />}
-                  <span className="dl-player-name"><b>{names[p.account]?.name ?? h.name}</b><span className="muted small">{h.name}</span></span>
+                  <span className="dl-player-name"><b>{names[p.account]?.name ?? h.name}</b><span className="muted small">{h.name}{positions[p.slot] && <span className={`dl-pos p${positions[p.slot]}`} title={`Played Pos ${positions[p.slot]} ${POS_NAME[positions[p.slot]!]} this match (by souls on the team at the end)`}>Pos {positions[p.slot]}</span>}</span></span>
                   <span className="dl-player-kda num">{kda.k}/{kda.d}/{kda.a}</span>
                   <span className="dl-player-souls num muted small" title={live ? `Net worth ${live.nw.toLocaleString()} · last hits ${live.lh} · denies ${live.dn} · level ${live.lvl}` : 'Net worth (from the match\'s snapshots)'}>
                     {worth !== null ? `${(worth / 1000).toFixed(1)}k` : ''}{live ? <> · <b>{live.lh}</b>/{live.dn}</> : ''}

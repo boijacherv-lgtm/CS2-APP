@@ -8,6 +8,8 @@ import { MAP_UNITS, heroOf, objectiveSpot, type DlTeam } from './data';
 import { playerAt, statAt, type DlMatch } from './match';
 import type { Annotation } from '../engine/recap';
 import type { DlDemo } from './demo';
+import { benchAt, matchPosition } from './bench';
+import { POS_NAME } from './positions';
 
 export type DlTag = 'ISOLATED' | 'OUTNUMBERED' | 'OVEREXTENDED' | 'TRADED' | 'COST OBJECTIVE' | 'SOLO KILL' | 'MULTI-KILL' | 'UPSET' | 'LANE LOST' | 'LANE WON' | 'FIRST BLOOD' | 'ULT UNUSED';
 export interface DlMove {
@@ -93,20 +95,27 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     moves.push({ t: d.t, slot: d.killer, team, kind: 'kill', note, tags, why, title: `${nameOf(d.killer)} killed ${nameOf(d.slot)} at ${mins(d.t)}` });
   }
 
-  // ---- laning: souls at the end of the laning phase against the average on the hero ------------------------------
+  // ---- laning: souls at the end of the laning phase against players of the same hero in the same position --------
+  // (bench.ts, from everyone's recent public matches; else the hero's average from deadlock-api's performance curve)
   const LANE_END = 720;
   for (const p of m.players) {
-    const b = bench[p.hero]?.find(x => x.t === LANE_END);
     const s = statAt(m, p.slot, LANE_END);
-    if (!b || !s || s.t !== LANE_END || m.duration < LANE_END) continue;
+    if (!s || s.t !== LANE_END || m.duration < LANE_END) continue;
+    const pos = matchPosition(m, p.slot);
+    const learned = benchAt(p.hero, pos, LANE_END / 60, 'nw'), curve = bench[p.hero]?.find(x => x.t === LANE_END);
+    const b = learned ? { avg: learned.mean, std: learned.sd } : curve ? { avg: curve.avg, std: curve.std } : null;
+    if (!b) continue;
+    const who = learned?.of === 'hero+pos' ? `Pos ${pos} ${heroOf(p.hero).name}` : learned?.of === 'pos' ? `Pos ${pos} player` : heroOf(p.hero).name;
     const z = (s.netWorth - b.avg) / (b.std || 1);
     const cs = s.possibleCreeps ? s.lastHits / s.possibleCreeps : null;
-    const why = [`${s.netWorth.toLocaleString()} souls at ${mins(LANE_END)}; the average ${heroOf(p.hero).name}: ${Math.round(b.avg).toLocaleString()}.`,
-      ...(cs !== null ? [`Last hits: ${s.lastHits} of ${s.possibleCreeps} possible (${Math.round(cs * 100)}%).`] : [])];
+    const lhBench = benchAt(p.hero, pos, LANE_END / 60, 'lh');
+    const why = [`${s.netWorth.toLocaleString()} souls at ${mins(LANE_END)}; the average ${who}: ${Math.round(b.avg).toLocaleString()}.`,
+      ...(cs !== null ? [`Last hits: ${s.lastHits} of ${s.possibleCreeps} possible (${Math.round(cs * 100)}%)${lhBench ? `; the average ${who}: ${Math.round(lhBench.mean)}` : ''}.`] : []),
+      ...(pos ? [`Played Pos ${pos} ${POS_NAME[pos]} this match (by souls on the team at the end).`] : [])];
     const note: Annotation = z <= -1.5 ? '?' : z <= -0.8 ? '?!' : z >= 1.5 ? '!!' : z >= 0.8 ? '!' : 'book';
     const tags: DlTag[] = z <= -0.8 ? ['LANE LOST'] : z >= 0.8 ? ['LANE WON'] : [];
     moves.push({ t: LANE_END, slot: p.slot, team: p.team, kind: 'laning', note, tags, why,
-      title: `${nameOf(p.slot)}'s laning: ${z >= 0 ? '+' : '−'}${Math.abs(Math.round(s.netWorth - b.avg)).toLocaleString()} souls vs the average` });
+      title: `${nameOf(p.slot)}'s laning: ${z >= 0 ? '+' : '−'}${Math.abs(Math.round(s.netWorth - b.avg)).toLocaleString()} souls vs the average ${who}` });
   }
   return moves.sort((a, b) => a.t - b.t);
 }
