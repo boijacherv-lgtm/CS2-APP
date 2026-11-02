@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Arc, Circle, Group, Image as KImage, Layer, Line, Rect, RegularPolygon, Stage, Text } from 'react-konva';
 import { Icon } from '../ui/Icon';
-import { heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
+import { campTier, DL_MAP, heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { MapArt, useGameMap, useTunnels } from './MapArt';
 import { matchPosition } from './bench';
 import { POS_NAME, type Pos } from './positions';
@@ -355,7 +355,10 @@ function DlTimers({ match, time }: { match: DlMatch; time: number }) {
       : u.until !== null && time < u.until ? `carried${carrier ? ` by ${carrier}` : ''} since ${mins(u.taken)}` : 'none out');
     const side = (i: number) => { const on = demo.buffs[i]?.find(([a, z]) => time >= a && time < z); return on ? `up since ${mins(on[0])}` : 'taken'; };
     if (time >= RULES.bridgeBuffs.spawn) set('Bridge buffs', `left ${side(0)} · right ${side(1)}`);
-    set('Camps', `${demo.camps.filter(xs => upAt(xs, time)).length} of ${demo.camps.length} up`);
+    // up now / all, by tier (T1 small, T2 medium, T3 large) and Sinner's Sacrifice
+    const byTier = ([1, 2, 3, null] as const).map(tr => { const ix = DL_MAP.camps.map((c, i) => [c, i] as const).filter(([c]) => campTier(c.kind) === tr).map(([, i]) => i);
+      return `${tr === null ? "Sinner's" : `T${tr}`} ${ix.filter(i => upAt(demo.camps[i] ?? [], time)).length}/${ix.length}`; });
+    set('Camps', byTier.join(' · '));
     const r = riftAt(demo, time), riftSide = r && (r.x < 0.5 ? 'Yellow' : 'Green');
     set('Unstable Rift', !r ? 'none out' : r.phase === 'showing' ? `on the ${riftSide} bridge, opens ${mins(r.opens)}`
       : r.phase === 'contest' ? `${TEAM_NAME[0]} ${Math.round(r.p[0] * 100)}% · ${TEAM_NAME[1]} ${Math.round(r.p[1] * 100)}% (${r.n[0]} v ${r.n[1]})`
