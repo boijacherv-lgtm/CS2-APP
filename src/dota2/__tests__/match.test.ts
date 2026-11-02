@@ -3,7 +3,7 @@ import { BUILDINGS, CAMP_REACH, CAMPS, cellToMap, heroOf, isNight, mins, nextDaw
 import { LETTERS } from '../../engine/recap';
 import { speedAt } from '../coach';
 import { fightLetter, gradeMatch, laneLetter, letterOfScore, matchScore, supportScore } from '../grades';
-import { assignPositions, autoPick, bestPair, counterEdge, countersOf, POSITION_INFO, synergy, type HeroPairs } from '../draft';
+import { assignPositions, autoPick, bestPair, counterEdge, countersOf, picksByRole, POSITION_INFO, positionsOfTeam, synergy, type HeroPairs } from '../draft';
 import { letterOfStanding, supportNumbers, supportsOf } from '../support';
 import { talentPicks } from '../D2Talents';
 import ABILITIES from '../generated/abilities.json';
@@ -154,6 +154,36 @@ describe('Dota 2 match', () => {
     expect(POSITION_INFO[1].lane(0)).toBe(1);
     expect(POSITION_INFO[1].lane(1)).toBe(3);
     expect(assignPositions(five, [])).toEqual([]);
+  });
+  it('reads positions from lanes and net worth, the leftover taking what is free', () => {
+    const plan = positionsOfTeam([
+      { hero_id: 1, lane_role: 1, net_worth: 20000 }, { hero_id: 2, lane_role: 1, net_worth: 7000 },
+      { hero_id: 3, lane_role: 2, net_worth: 15000 }, { hero_id: 4, lane_role: 3, net_worth: 12000 },
+      { hero_id: 5, lane_role: 1, net_worth: 6000 },
+    ]);
+    expect(Object.fromEntries(plan.map(p => [p.hero, p.position]))).toEqual({ 1: 1, 2: 5, 3: 2, 4: 3, 5: 4 });
+  });
+  it('real games outweigh the tags, and suggestions fill only the free roles', () => {
+    const five: HeroPairs = {
+      ...pairsData, ids: [1, 2, 3, 4, 5], roles: [['Carry'], ['Support'], ['Support'], ['Durable'], ['Nuker']],
+      games: [1000, 1000, 1000, 1000, 1000], wins: [500, 500, 500, 500, 500],
+      withGames: Array(10).fill(500), withWins: Array(10).fill(250), vsGames: Array(10).fill(500), vsWins: Array(10).fill(250),
+      // tagged a carry, but played only as a hard support
+      positions: { 1: [0, 0, 0, 0, 50], 2: [50, 0, 0, 0, 0] },
+    };
+    expect(assignPositions(five, [1, 2])).toEqual([{ hero: 2, position: 1 }, { hero: 1, position: 5 }]);
+    const roles = picksByRole(five, [1, 2], [4], 3);
+    expect(roles.map(r => r.position)).toEqual([2, 3, 4]);
+    for (const r of roles) for (const p of r.picks) expect([1, 2, 4]).not.toContain(p.hero);
+    // nobody who plays only hard support is offered as a carry
+    expect(picksByRole(five, [], [], 5).find(r => r.position === 1)?.picks.map(p => p.hero)).toEqual([2]);
+    expect(picksByRole(five, [1, 2, 3, 4, 5], [], 3)).toEqual([]);
+  });
+  it('says which enemy a suggestion beats', () => {
+    const roles = picksByRole({ ...pairsData, roles: [['Carry'], ['Support'], ['Support'], ['Durable']] }, [], [4], 4);
+    const three = roles.flatMap(r => r.picks).find(p => p.hero === 3);
+    expect(three?.beats?.hero).toBe(4);
+    expect(three?.beats?.edge).toBeGreaterThan(0);
   });
   it('slows to 1× around a graded moment, and only if asked', () => {
     const moves = [{ t: 100 }];

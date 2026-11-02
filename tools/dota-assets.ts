@@ -4,6 +4,7 @@
 //   npm run dota:assets
 import fs from 'node:fs';
 import path from 'node:path';
+import TALENT_TREES from '../src/dota2/generated/talents.json';
 
 const API = 'https://api.opendota.com/api/constants';
 const CDN = 'https://cdn.cloudflare.steamstatic.com';
@@ -26,9 +27,11 @@ type Ability = { dname?: string };
 const abilityIds = (await get('ability_ids')) as Record<string, string>;
 const abilityInfo = (await get('abilities')) as Record<string, Ability>;
 const heroAbilities = (await get('hero_abilities')) as Record<string, { abilities: string[]; talents: { name: string }[] }>;
-const talents = new Set(Object.values(heroAbilities).flatMap(h => h.talents.map(t => t.name)));
+// the talent trees know talents hero_abilities hasn't caught up with yet, and what they do
+const treeWords = new Map(Object.values(TALENT_TREES as Record<string, [string, string][]>).flat());
+const talents = new Set([...Object.values(heroAbilities).flatMap(h => h.talents.map(t => t.name)), ...treeWords.keys()]);
 const skills = new Set(Object.values(heroAbilities).flatMap(h => h.abilities).filter(a => a !== 'generic_hidden'));
-const pretty = (key: string) => (abilityInfo[key]?.dname ?? key).replace(/\{s:[^}]+\}/g, 'X').replace(/\s+/g, ' ').trim();
+const pretty = (key: string) => (treeWords.get(key) ?? abilityInfo[key]?.dname ?? key).replace(/\{s:[^}]+\}/g, 'X').replace(/\s+/g, ' ').trim();
 const abilities = Object.fromEntries(Object.entries(abilityIds).filter(([, key]) => skills.has(key) || talents.has(key))
   .map(([id, key]) => [id, { key, name: pretty(key), talent: talents.has(key) }]));
 

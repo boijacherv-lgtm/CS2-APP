@@ -50,6 +50,14 @@ export function D2Board() {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [playing, match.duration, graded, slow]);
+  // the panel below a team sticks to the column's bottom: don't let it cover the player it's about
+  useEffect(() => {
+    const row = document.querySelector('.d2-board .dl-player.on'), column = row?.closest('.dl-team');
+    const panel = column?.querySelector('.d2-under');
+    if (!row || !column || !panel) return;
+    const covered = row.getBoundingClientRect().bottom - panel.getBoundingClientRect().top;
+    if (covered > 0) column.scrollBy({ top: covered + 4 });
+  }, [selected]);
   // the moment being talked about: shown on the map and on its hero's row
   const moment = [...graded].reverse().find(m => time >= m.t - LEAD && time <= m.t + MOMENT_AFTER) ?? null;
   /** The move whose window was closed: the next one opens its own. */
@@ -132,7 +140,7 @@ export function D2Board() {
               );
             })}
             {/* under the team, in its column: if there's no room the column scrolls, nobody is covered for good */}
-            {team === 0 && selected !== null && <div className="d2-under"><D2Items match={match} slot={selected} time={time} /></div>}
+            {selected !== null && match.players[selected].team === team && <div className="d2-under"><D2Items match={match} slot={selected} time={time} /></div>}
           </aside>
         ))}
         <BoardMap match={match} time={time} selected={selected} show={show} moment={moment} overlay={<>

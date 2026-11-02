@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Arrow, Circle, Group, Image as KImage, Layer, Line, Shape, Text } from 'react-konva';
 import { Icon, type IconName } from '../ui/Icon';
 import { heroMatchups, matchupRate, type HeroMatchup } from './api';
-import { assignPositions, autoPick, bestPair, countersOf, LANE_NAME, POSITION_INFO, type HeroPairs } from './draft';
+import { assignPositions, autoPick, bestPair, countersOf, LANE_NAME, picksByRole, POSITION_INFO, type HeroPairs, type Position } from './draft';
 import { bestWards, phaseAt, WARD_ICON, WARD_PHASES, WARD_SAMPLE } from './wardSpots';
 import { BOUNTY_SPOTS, buildingOf, CAMP_ICONS, cellToMap, D2_HEROES, heroOf, LAIRS, LANE_TOWER, MAP_UNITS, mins, OBS_VISION, POWER_SPOTS, roshanOnMap, runeIcon, TEAM_COLOR, TEAM_NAME, TORMENTOR_SPOTS, visionShape, type D2Team, type MapStyle, type Pt } from './data';
 import { DayNight } from './D2Board';
@@ -39,10 +39,49 @@ function Landmarks({ S, k, style }: { S: number; k: number; style: MapStyle }) {
   );
 }
 
-/** How many picks to suggest for a side. */
-const SUGGESTED = 12;
+/** How many picks to suggest for each position. */
+const ROLE_PICKS = 4;
 /** How many heroes to list on each side of a counter-pick lookup. */
 const COUNTERS = 8;
+
+/** Type part of a name, or just scroll, to choose a hero who isn't taken. */
+function HeroSearch({ placeholder, taken, onPick }: { placeholder: string; taken: Set<number>; onPick: (hero: number) => void }) {
+  const [query, setQuery] = useState('');
+  const found = D2_HEROES.filter(h => !taken.has(h.id) && h.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const choose = (hero: number) => { onPick(hero); setQuery(''); };
+  return (
+    <div className="d2-hero-search">
+      <input
+        value={query} placeholder={placeholder} aria-label={placeholder}
+        onChange={e => setQuery(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter' && found[0]) choose(found[0].id); if (e.key === 'Escape') { setQuery(''); e.currentTarget.blur(); } }}
+      />
+      <ul onMouseDown={e => e.preventDefault()}>
+        {found.map(h => <li key={h.id}><button onClick={() => choose(h.id)}>{h.icon && <img src={h.icon} alt="" width={24} height={24} />}{h.name}</button></li>)}
+        {!found.length && <li className="muted small">No hero by that name</li>}
+      </ul>
+    </div>
+  );
+}
+
+/** A team's picks so far, with a box to add the next. */
+function PickRow({ title, color, list, taken, onAdd }: { title: string; color: string; list: TacHero[]; taken: Set<number>; onAdd: (hero: number) => void }) {
+  return (
+    <div className="d2-pick-row">
+      <b style={{ color }}>{title} <span className="muted small num">{list.length}/5</span></b>
+      <div className="d2-pick-slots">
+        {list.map(h => (
+          <span key={h.id} className="d2-pick-slot">
+            {heroOf(h.hero).icon && <img src={heroOf(h.hero).icon!} alt="" width={24} height={24} />}
+            {heroOf(h.hero).name}
+            <button className="verdict-undo" onClick={() => useTac.getState().removeHero(h.id)} aria-label={`Remove ${heroOf(h.hero).name}`}><Icon name="close" size={11} /></button>
+          </span>
+        ))}
+        {list.length < 5 && <HeroSearch placeholder="Add a hero…" taken={taken} onPick={onAdd} />}
+      </div>
+    </div>
+  );
+}
 
 /** Both teams' heroes, who counters whom and what to pick against the other side, from OpenDota's matchups. */
 function Draft() {
@@ -71,17 +110,13 @@ function Draft() {
   };
   const side = (team: D2Team) => heroes.filter(h => h.team === team);
   const picked = new Set(heroes.map(h => h.hero));
-  const suggest = (team: D2Team) => {
-    const enemies = side((1 - team) as D2Team).filter(e => tables[e.hero]);
-    if (!enemies.length) return [];
-    return D2_HEROES.filter(h => !picked.has(h.id))
-      .map(h => ({ hero: h, edge: enemies.reduce((a, e) => a + (rate(h.id, e.hero) - 0.5), 0) / enemies.length }))
-      .sort((a, b) => b.edge - a.edge).slice(0, SUGGESTED);
-  };
   const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1)}%`;
   const radiant = side(0), dire = side(1);
   const [pairs, setPairs] = useState<HeroPairs | null>(null);
-  useEffect(() => { void import('./generated/heroPairs.json').then(m => setPairs(m.default)); }, []);
+  useEffect(() => {
+    void Promise.all([import('./generated/heroPairs.json'), import('./generated/heroPositions.json')])
+      .then(([p, positions]) => setPairs({ ...p.default, positions: positions.default.heroes }));
+  }, []);
   const addTo = (team: D2Team, hero: number, already = side(team).length) => t.addHero(team, hero, { x: SPAWN[team].x + (already - 2) * 0.035, y: SPAWN[team].y });
   const fill = (team: D2Team) => {
     if (!pairs) return;
@@ -100,6 +135,14 @@ function Draft() {
   };
   const [target, setTarget] = useState<number | null>(null), [counterFor, setCounterFor] = useState<D2Team>(0);
   const countered = pairs && target !== null ? countersOf(pairs, target, COUNTERS) : null;
+  const [us, setUs] = useState<D2Team>(0), [role, setRole] = useState<Position | null>(null);
+  const them = (1 - us) as D2Team;
+  const ourIds = side(us).map(h => h.hero).join(), theirIds = side(them).map(h => h.hero).join();
+  const byRole = useMemo(() => {
+    const list = (ids: string) => (ids ? ids.split(',').map(Number) : []);
+    return pairs ? picksByRole(pairs, list(ourIds), list(theirIds), ROLE_PICKS) : [];
+  }, [pairs, ourIds, theirIds]);
+  const shown = byRole.filter(r => role === null || r.position === role);
   return (
     <div className="d2-draft-tab">
       <aside className="d2-draft-side">
@@ -108,6 +151,54 @@ function Draft() {
       </aside>
       <div className="d2-draft-main">
         {failed && <p className="warn-text small">{failed}</p>}
+        <section className="recap-card">
+          <div className="d2-helper-head">
+            <h3>Pick into the enemy</h3>
+            <div className="d2-ward-tools" role="group" aria-label="Your side">
+              <span className="muted small">We are</span>
+              {([0, 1] as D2Team[]).map(team => <button key={team} className={`chip ${us === team ? 'on' : ''}`} aria-pressed={us === team} style={{ color: TEAM_COLOR[team] }} onClick={() => setUs(team)}>{TEAM_NAME[team]}</button>)}
+            </div>
+          </div>
+          <div className="d2-pick-rows">
+            <PickRow title="Enemy picks" color={TEAM_COLOR[them]} list={side(them)} taken={picked} onAdd={hero => addTo(them, hero)} />
+            <PickRow title="Our picks" color={TEAM_COLOR[us]} list={side(us)} taken={picked} onAdd={hero => addTo(us, hero)} />
+          </div>
+          {pairs && !byRole.length && <p className="muted small">Our five are picked.</p>}
+          {byRole.length > 0 && (
+            <>
+              <div className="d2-ward-tools" role="group" aria-label="Show a role">
+                <span className="muted small">Role</span>
+                <button className={`chip ${role === null || !byRole.some(r => r.position === role) ? 'on' : ''}`} onClick={() => setRole(null)}>All free</button>
+                {byRole.map(r => <button key={r.position} className={`chip ${role === r.position ? 'on' : ''}`} aria-pressed={role === r.position} onClick={() => setRole(r.position)}>{POSITION_INFO[r.position].name}</button>)}
+              </div>
+              {(shown.length ? shown : byRole).map(({ position, picks }) => {
+                const info = POSITION_INFO[position];
+                return (
+                  <div key={position} className="d2-role">
+                    <h4><span className="num">{position}</span> {info.name} <small>{LANE_NAME[info.lane(us)]} — {info.job}</small></h4>
+                    <div className="d2-role-picks">
+                      {picks.map(p => (
+                        <button key={p.hero} className="d2-role-pick" title={`Add ${heroOf(p.hero).name} to ${TEAM_NAME[us]}`} onClick={() => addTo(us, p.hero)}>
+                          {heroOf(p.hero).icon && <img src={heroOf(p.hero).icon!} alt="" width={30} height={30} />}
+                          <span>
+                            <b>{heroOf(p.hero).name}</b>
+                            <small>
+                              {p.beats ? <>Beats {heroOf(p.beats.hero).name} <span className="num">{pct(p.beats.edge)}</span></> : p.with ? null : 'Solid overall'}
+                              {p.beats && p.with ? ' · ' : ''}
+                              {p.with && <>With {heroOf(p.with.hero).name} <span className="num">{pct(p.with.gain)}</span></>}
+                            </small>
+                          </span>
+                          <span className={`num ${p.gain >= 0 ? 'up' : 'down'}`}>{pct(p.gain)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              <p className="muted small">The number on the right is how much the hero should add to your win rate with these picks, added up from each pair's results{pairs ? ` in ${pairs.matches.toLocaleString()} high-rank games` : ''}: a guide, not a promise. Roles come from where pros play each hero, and from the game's tags for heroes pros rarely pick.</p>
+            </>
+          )}
+        </section>
         <section className="recap-card">
           <h3>Auto-pick</h3>
           <div className="d2-auto-teams">
@@ -140,7 +231,7 @@ function Draft() {
               );
             })}
           </div>
-          <p className="muted small">Each hero is chosen to win more with the heroes already on the team and against the enemy's, and to cover the roles still missing. {pairs ? `From ${pairs.matches.toLocaleString()} high-rank ranked games of the last ${pairs.days} days.` : ''} Positions go by each hero's tags in the game, a rule of thumb: check them against how you play. A starting point for your draft, not a verdict.</p>
+          <p className="muted small">Each hero is chosen to win more with the heroes already on the team and against the enemy's, and to cover the roles still missing. {pairs ? `From ${pairs.matches.toLocaleString()} high-rank ranked games of the last ${pairs.days} days.` : ''} Positions go by where pros play each hero, and by the game's tags for heroes they rarely pick: check them against how you play. A starting point for your draft, not a verdict.</p>
         </section>
         <section className="recap-card">
           <h3>Counter a hero</h3>
@@ -194,26 +285,6 @@ function Draft() {
           )}
           <p className="muted small">Win rate above even for the {TEAM_NAME[0]} hero. From OpenDota's sample of games, which is small for a single pair: a hint, not a verdict.</p>
         </section>
-        {([0, 1] as D2Team[]).map(team => {
-          const list = suggest(team);
-          return (
-            <section key={team} className="recap-card">
-              <h3 style={{ color: TEAM_COLOR[team] }}>Picks for {TEAM_NAME[team]}</h3>
-              {!list.length ? <p className="muted small">Add a {TEAM_NAME[(1 - team) as D2Team]} hero to see what does well against them.</p> : (
-                <div className="d2-picks">
-                  {list.map(({ hero, edge }) => (
-                    <button key={hero.id} className="d2-pick" disabled={side(team).length >= 5} title={`Add ${hero.name} to ${TEAM_NAME[team]}`}
-                      onClick={() => t.addHero(team, hero.id, { x: SPAWN[team].x + (side(team).length - 2) * 0.02, y: SPAWN[team].y })}>
-                      {hero.icon && <img src={hero.icon} alt="" width={24} height={24} />}
-                      <b>{hero.name}</b>
-                      <span className={`num small ${edge >= 0 ? '' : 'muted'}`}>{pct(edge)}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        })}
       </div>
     </div>
   );

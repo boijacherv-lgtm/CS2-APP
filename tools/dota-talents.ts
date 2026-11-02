@@ -34,8 +34,8 @@ const words = (t: Talent, bonuses: Map<string, number>) => t.name_loc.replace(/\
   if (all.length === 1) return number(all[0][1]);
   unknown++;
   return 'X';
-}).replace(/\s+/g, ' ').trim();
-let unknown = 0;
+}).replace(/^[+-]?X%? /, '').replace(/\s+/g, ' ').trim();
+let unknown = 0, stale = 0;
 
 const out: Record<string, [string, string][]> = {};
 let missing = 0;
@@ -47,12 +47,16 @@ for (const hero of HEROES) {
   if (!talents.length || !levels.length) { missing++; console.log(`no talents for ${hero.name}`); continue; }
   // tiers of two, lowest first: each entry is the talent's key and what it does
   const tiers: [string, string][] = [];
+  const listed = new Set(levels.map(l => l.name));
+  // OpenDota's list can lag a patch behind Valve's: a talent Valve no longer has was replaced by the one OpenDota doesn't know
+  const newer = talents.filter(x => !listed.has(x.name));
   for (const level of [1, 2, 3, 4]) for (const { name } of levels.filter(l => l.level === level)) {
-    const t = talents.find(x => x.name === name);
-    tiers.push([name, t ? words(t, bonusesIn(data!.result.data.heroes[0])) : name]);
+    const t = talents.find(x => x.name === name) ?? newer.shift();
+    if (!t) { console.log(`${hero.name}: nothing says what ${name} does`); stale++; }
+    tiers.push(t ? [t.name, words(t, bonusesIn(data!.result.data.heroes[0]))] : [name, 'Unknown talent']);
   }
   out[hero.id] = tiers;
 }
 fs.writeFileSync(OUT, `${JSON.stringify(out)}\n`);
-console.log(`${Object.keys(out).length} heroes, ${missing} missing, ${unknown} numbers unknown, ${(fs.statSync(OUT).size / 1000).toFixed(0)} KB`);
+console.log(`${Object.keys(out).length} heroes, ${missing} missing, ${unknown} numbers unknown, ${stale} talents unknown, ${(fs.statSync(OUT).size / 1000).toFixed(0)} KB`);
 console.log(out[1]);
