@@ -184,3 +184,6 @@
 .dl-items img { width: 20px; height: 20px; border-radius: 4px; object-fit: cover; background: rgba(255,255,255,.06); }
 .dl-items img.tier1 { box-shadow: inset 0 -2px 0 #9aa3ad; } .dl-items img.tier2 { box-shadow: inset 0 -2px 0 #5fb0ff; }
 .dl-items img.tier3 { box-shadow: inset 0 -2px 0 #b07ce8; } .dl-items img.tier4 { box-shadow: inset 0 -2px 0 #f2c230; }
+
+/* the match list: matches that still have a demo */
+.dl-row-demo { margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 700; color: var(--good); background: rgba(80, 200, 120, .12); vertical-align: 1px; }

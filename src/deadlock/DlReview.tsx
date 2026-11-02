@@ -5,7 +5,7 @@ import { useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { Icon } from '../ui/Icon';
 import { loadMatch, matchHistory, steamId3, steamNames, type DlHistoryRow } from './api';
-import { loadDemo } from './demo';
+import { demoState, loadDemo } from './demo';
 import { heroOf } from './data';
 import { DlBoard } from './DlBoard';
 import { loadBenchmarks } from './coach';
@@ -37,6 +37,15 @@ function DlStart() {
     matchHistory(account).then(setRows).catch(e => setHistErr(e instanceof Error ? e.message : String(e)));
   }, [account]);
 
+  // which of them still have a demo (full detail): checked once per list
+  const [demos, setDemos] = useState<Record<number, 'read' | 'listed' | 'none'>>({});
+  useEffect(() => {
+    if (!rows) return;
+    let live = true;
+    Promise.all(rows.slice(0, 30).map(async r => [r.match_id, await demoState(r.match_id)] as const))
+      .then(xs => { if (live) setDemos(Object.fromEntries(xs)); });
+    return () => { live = false; };
+  }, [rows]);
   const open = async (matchId: number) => {
     setBusy(matchId); setErr(null);
     try {
@@ -85,7 +94,8 @@ function DlStart() {
                 <li key={r.match_id}>
                   <button className={`dl-row ${won ? 'win' : 'loss'}`} onClick={() => open(r.match_id)} disabled={busy !== null}>
                     {h.card ? <img src={h.card} alt="" width={36} height={36} loading="lazy" /> : <span className="dl-hero-dot" style={{ background: h.color }} />}
-                    <span className="dl-row-hero"><b>{h.name}</b><span className="muted small">{ago(r.start_time)} · {mins(r.match_duration_s)}</span></span>
+                    <span className="dl-row-hero"><b>{h.name}{demos[r.match_id] && demos[r.match_id] !== 'none' && <span className="dl-row-demo" title={demos[r.match_id] === 'read' ? 'Demo read: full detail' : 'Has a demo: full detail (about a minute to read the first time)'}>Demo</span>}</b>
+                      <span className="muted small">{ago(r.start_time)} · {mins(r.match_duration_s)}</span></span>
                     <span className={`dl-row-result ${won ? 'win' : 'loss'}`}>{won ? 'Win' : 'Loss'}</span>
                     <span className="dl-row-kda num">{r.player_kills}/{r.player_deaths}/{r.player_assists}</span>
                     <span className="dl-row-souls num muted">{(r.net_worth / 1000).toFixed(1)}k souls</span>

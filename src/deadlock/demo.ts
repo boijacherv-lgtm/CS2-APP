@@ -102,13 +102,18 @@ type Row = Record<string, number | string | boolean | null>;
 /** Runs every query for a match on deadlock-api, together; `onWait` gets the longest estimated wait (s). */
 async function runAll(matchId: number, onWait: (s: number | null) => void): Promise<Record<Q, Row[]>> {
   const jobs = {} as Record<Q, string>;
-  await Promise.all((Object.keys(QUERIES) as Q[]).map(async q => {
+  const submit = async (q: Q) => {
     const res = await fetch(`${API}/v1/matches/demo/query`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ match_id: matchId, query: QUERIES[q], format: 'ndjson' }) });
     const out = await res.json().catch(() => ({}));
     if (res.status === 429) throw new Error('deadlock-api is busy reading demos: try again in a few minutes.');
+    if (res.status === 404 || /No demo available|Failed to download demo/i.test(String(out.error ?? ''))) throw new NoDemo(matchId);
     if (!res.ok || !out.job_id) throw new Error(out.error ? `The demo couldn't be read: ${String(out.error).slice(0, 160)}` : `deadlock-api answered ${res.status}.`);
     jobs[q] = out.job_id;
-  }));
+  };
+  // one first: when the demo is gone, that's one request, not one per query
+  const [first, ...rest] = Object.keys(QUERIES) as Q[];
+  await submit(first);
+  await Promise.all(rest.map(submit));
   const done = {} as Record<Q, Row[]>;
   for (let round = 0; Object.keys(done).length < Object.keys(jobs).length; round++) {
     if (round > 90) throw new Error('Reading the demo is taking too long: try again later.');
@@ -328,11 +333,36 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
   return { v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv, tracks, stats, ults, creeps, creepDeaths, rifts };
 }
 
+/** A match without a demo: deadlock-api never had its replay, or Valve has deleted it (replays are kept a while). */
+export class NoDemo extends Error {
+  constructor(id: number) {
+    super('No demo for this match: deadlock-api doesn\'t have its replay, or Valve no longer keeps it (replays are kept for a while after a match). '
+      + 'The replay below uses the match data: heroes once a second, kills, items, objectives, and the timings on their schedule.');
+    markMissing(id);
+  }
+}
+const MISSING = 'stratboard.dldemo.missing';
+const missing = (): number[] => { try { return JSON.parse(localStorage.getItem(MISSING) ?? '[]'); } catch { return []; } };
+function markMissing(id: number) { try { localStorage.setItem(MISSING, JSON.stringify([...new Set([id, ...missing()])].slice(0, 500))); } catch { /* private mode */ } }
+
 const KEY = (id: number) => `dldemo${DEMO_V}:${id}`;
+/**
+ * Whether a match has a demo to read: 'read' (kept in this browser), 'listed' (deadlock-api has its replay link;
+ * it can still turn out deleted), or 'none'. For the match list.
+ */
+export async function demoState(id: number): Promise<'read' | 'listed' | 'none'> {
+  if (await getItem<Blob>(KEY(id))) return 'read';
+  if (missing().includes(id)) return 'none';
+  try {
+    const r = await (await fetch(`${API}/v1/matches/${id}/salts?disable_steam=true`)).json();
+    return r?.replay_salt ? 'listed' : 'none';
+  } catch { return 'none'; }
+}
 /** The match's demo: from this browser when read before, else read by deadlock-api (about a minute), then kept. */
 export async function loadDemo(m: DlMatch, onWait: (s: number | null) => void = () => {}): Promise<DlDemo> {
   const saved = await getItem<Blob>(KEY(m.id));
   if (saved) { try { const d = await gunzipJson<DlDemo>(saved); if (d.v === DEMO_V) return d; } catch { /* read it again */ } }
+  if ((await demoState(m.id)) === 'none') throw new NoDemo(m.id);
   const d = buildDemo(m, await runAll(m.id, onWait));
   void setItem(KEY(m.id), await gzipJson(d));
   return d;
