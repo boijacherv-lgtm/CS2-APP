@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Icon } from '../ui/Icon';
 import { Loading } from '../ui/Loading';
 import { DL_HEROES, heroOf } from './data';
 import ITEMS from './generated/items.json';
 import { draftStats, heroBuilds, heroMeta, rankOf, RANKS, readDraft, suggest, type HeroMeta, type RankBand } from './meta';
 import { gameplayPatches, tally, verdict, type Dir, type Patch, type PatchChange } from './patches';
+import { counterItems, type CounterItem } from './meta';
+import { suggestBuild, type Focus, type Item } from './suggest';
+import { MY_GRADES } from './DlProfile';
 import { POS_JOB, POS_NAME, positionOf, POSITIONS_SOURCE, spreadOf, type Pos } from './positions';
 
 /**
@@ -150,6 +154,7 @@ export function HeroBuilds({ hero, setHero }: { hero: number; setHero: (h: numbe
       {!data && !err && <Loading>Loading builds…</Loading>}
       {data && (
         <>
+          <SuggestedBuild hero={hero} stats={data} />
           <div className="site-card">
             <div className="card-head"><h3>Core items</h3><span className="muted small">bought in over a third of games, in the order they're usually bought</span></div>
             <div className="dl-core">
@@ -381,5 +386,73 @@ export function PatchView({ onHero }: { onHero: (hero: number) => void }) {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * The coach's build for you (suggest.ts): your position, a weapon / spirit / mixed focus, staying alive, helping the
+ * team and the enemy heroes; your report card (Profile → Deadlock) fills in what you're weak at. Twelve items in three
+ * phases, each with why.
+ */
+function SuggestedBuild({ hero, stats }: { hero: number; stats: Awaited<ReturnType<typeof heroBuilds>> }) {
+  const [band] = useRank();
+  const mine = useMemo(() => { try { return JSON.parse(localStorage.getItem(MY_GRADES) ?? 'null') as { games: number; parts: Record<string, number | null> } | null; } catch { return null; } }, []);
+  const weak = mine ? Object.entries(mine.parts).filter(([, v]) => v !== null && v < 45).map(([k]) => k) : [];
+  // the hero's own lean: spirit or weapon, from its core items
+  const lean: Focus = (() => {
+    const c = stats.core.map(i => ITEM.get(i.item)?.slot);
+    const sp = c.filter(x => x === 'spirit').length, wp = c.filter(x => x === 'weapon').length;
+    return sp > wp + 1 ? 'spirit' : wp > sp + 1 ? 'weapon' : 'mixed';
+  })();
+  const [pos, setPos] = useState<Pos>(positionOf(hero));
+  const [focus, setFocus] = useState<Focus>(lean);
+  const [survive, setSurvive] = useState(weak.includes('survival'));
+  const [support, setSupport] = useState(positionOf(hero) >= 5);
+  const [enemies, setEnemies] = useState<number[]>([]);
+  const [counters, setCounters] = useState<CounterItem[]>([]);
+  useEffect(() => { setPos(positionOf(hero)); setFocus(lean); setSupport(positionOf(hero) >= 5); }, [hero]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    let live = true;
+    if (!enemies.length) { setCounters([]); return; }
+    counterItems(hero, enemies, band).then(c => live && setCounters(c), () => live && setCounters([]));
+    return () => { live = false; };
+  }, [hero, enemies, band]);
+  const build = useMemo(() => suggestBuild(stats, ITEM as unknown as Map<number, Item>, { focus, survive, support }, counters, h => heroOf(h).name),
+    [stats, focus, survive, support, counters]);
+  const total = build.phases.reduce((a, p) => a + p.cost, 0);
+  return (
+    <div className="site-card dl-sugg">
+      <div className="card-head"><h3>The coach's build for you</h3><span className="muted small">{total.toLocaleString()} souls · from {stats.games.toLocaleString()} games on this patch</span></div>
+      <div className="dl-sugg-opts">
+        <label>Position <select className="dl-rank" value={pos} onChange={e => { const p = Number(e.target.value) as Pos; setPos(p); setSupport(p >= 5); }}>
+          {([1, 2, 3, 4, 5, 6] as Pos[]).map(p => <option key={p} value={p}>Pos {p} · {POS_NAME[p]}</option>)}
+        </select></label>
+        <span className="dl-sugg-seg" role="group" aria-label="Focus">
+          {(['weapon', 'spirit', 'mixed'] as Focus[]).map(f => <button key={f} className={`chip ${focus === f ? 'on' : ''}`} onClick={() => setFocus(f)}>{f === 'weapon' ? 'Gun' : f === 'spirit' ? 'Spirit' : 'Mixed'}{f === lean ? ' ·' : ''}</button>)}
+        </span>
+        <button className={`chip ${survive ? 'on' : ''}`} onClick={() => setSurvive(!survive)}>Survive more</button>
+        <button className={`chip ${support ? 'on' : ''}`} onClick={() => setSupport(!support)}>Help the team</button>
+        <label>Against <select className="dl-rank" value="" onChange={e => { const h = Number(e.target.value); if (h && !enemies.includes(h) && enemies.length < 6) setEnemies([...enemies, h]); }}>
+          <option value="">add an enemy…</option>
+          {[...DL_HEROES].filter(h => h.id !== hero && !enemies.includes(h.id)).sort((a, b) => a.name.localeCompare(b.name)).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+        </select></label>
+        {enemies.map(h => <button key={h} className="dl-sugg-enemy" onClick={() => setEnemies(enemies.filter(x => x !== h))} title="Remove"><HeroIcon id={h} size={22} /><Icon name="close" size={11} /></button>)}
+      </div>
+      {mine && <p className="muted small dl-sugg-me">From your report card ({mine.games} games): {weak.length ? <>weakest at <b>{weak.join(', ')}</b>{weak.includes('survival') ? ', so it starts with Survive more on' : ''}.</> : 'nothing below average, so it builds for the hero.'}</p>}
+      {!mine && <p className="muted small dl-sugg-me">Open Profile → Deadlock once and the coach also builds around what you're weak at.</p>}
+      <div className="dl-sugg-phases">
+        {build.phases.map(ph => (
+          <div key={ph.name} className="dl-sugg-phase">
+            <div className="dl-sugg-ph-head"><b>{ph.name}</b><span className="muted small">{ph.cost.toLocaleString()} souls</span></div>
+            {ph.picks.map(p => (
+              <div key={p.item.id} className={`dl-sugg-item s-${p.item.slot}`}>
+                <ItemIcon id={p.item.id} size={34} />
+                <span><b>{p.item.name}</b><span className="muted small">{mins(p.buyAt)} · {p.why.join(' · ') || `${p.item.slot}`}</span></span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
