@@ -13,10 +13,10 @@ const get = async (p: string) => { const r = await fetch(API + p); if (!r.ok) th
 type Hero = { id: number; name: string; hero_type?: string; player_selectable: boolean; disabled: boolean; in_development: boolean; colors?: { style_hex?: string }; images: Record<string, string>; items?: Record<string, string> };
 const heroes = (await get('/v1/assets/heroes?only_active=true')) as Hero[];
 // each hero's four abilities (the demo names a cast by its class), the ultimate and its cooldown
-type Ability = { class_name: string; name: string; ability_type?: string; image?: string; image_webp?: string; properties?: { AbilityCooldown?: { value?: number | string } } };
+type Ability = { id: number; class_name: string; name: string; ability_type?: string; image?: string; image_webp?: string; properties?: { AbilityCooldown?: { value?: number | string } } };
 const abilities = new Map(((await get('/v1/assets/items/by-type/ability')) as Ability[]).map(a => [a.class_name, a]));
 const kitOf = (h: Hero) => [1, 2, 3, 4].map(n => abilities.get(h.items?.[`signature${n}`] ?? '')).filter((a): a is Ability => !!a)
-  .map(a => ({ cls: a.class_name, name: a.name, ult: a.ability_type === 'ultimate', cd: Number(a.properties?.AbilityCooldown?.value) || 0, img: a.image_webp ?? a.image ?? null }));
+  .map(a => ({ id: a.id, cls: a.class_name, name: a.name, ult: a.ability_type === 'ultimate', cd: Number(a.properties?.AbilityCooldown?.value) || 0, img: a.image_webp ?? a.image ?? null }));
 const outHeroes = heroes.filter(h => h.player_selectable && !h.disabled).map(h => ({
   id: h.id, name: h.name, color: h.colors?.style_hex ?? '#888888',
   icon: h.images.minimap_image_webp ?? h.images.minimap_image ?? h.images.icon_image_small_webp ?? null,
