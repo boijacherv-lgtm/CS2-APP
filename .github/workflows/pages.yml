@@ -35,6 +35,8 @@ jobs:
           # the Cloudflare Worker's address (repo Settings → Secrets and variables → Actions → Variables → API_URL);
           # empty = Log in with Steam / Your matches stay hidden on the site
           VITE_API_URL: ${{ vars.API_URL }}
+          # the Deadlock bot service (server/DEADLOCK.md; repo Variables → DL_BOT_URL); empty hides the bot
+          VITE_DL_BOT_URL: ${{ vars.DL_BOT_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

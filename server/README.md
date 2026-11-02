@@ -1,5 +1,7 @@
 # Stratboard server (demo bot)
 
+For **Deadlock** (a lighter bot on Fly.io that makes visitors' Deadlock matches load by themselves) see `DEADLOCK.md`.
+
 Makes **all your matches appear by themselves** on https://tsakhstvo.xyz: for every logged-in user, it finds their new
 matches (through the Cloudflare Worker), gets each demo with a **bot Steam account**, downloads, reads and **grades** it,
 and sends the result to the Worker. A few minutes after a match is played it's on the user's **Profile** (numbers, trends,

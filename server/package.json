@@ -2,14 +2,16 @@
   "name": "stratboard-server",
   "private": true,
   "type": "module",
-  "description": "Background worker for tsakhstvo.xyz: fetches demo links with a bot Steam account, downloads and parses demos, sends them to the Cloudflare Worker.",
+  "description": "Background worker for tsakhstvo.xyz: fetches demo links with a bot Steam account, downloads and parses demos, sends them to the Cloudflare Worker. Also the Deadlock bot (src/deadlock.mjs): finds visitors' new Deadlock matches and hands them to deadlock-api.",
   "scripts": {
     "start": "node src/main.mjs",
     "login": "node src/login.mjs",
-    "once": "node src/main.mjs --once"
+    "once": "node src/main.mjs --once",
+    "deadlock": "node src/deadlock.mjs"
   },
   "dependencies": {
     "globaloffensive": "^3.3.0",
+    "protobufjs": "^7.6.6",
     "steam-user": "^5.3.0",
     "unbzip2-stream": "^1.4.3"
   }

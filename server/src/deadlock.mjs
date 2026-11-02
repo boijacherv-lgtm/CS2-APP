@@ -1,0 +1,129 @@
+// The Deadlock bot service: makes every RageView visitor's Deadlock matches appear by themselves. A visitor adds the
+// bot as a Steam friend once (the site has the button); from then on, every few minutes the bot asks Deadlock's game
+// coordinator for their recent matches and each new match's salts, checks the match file is really there, and hands
+// the salts to deadlock-api (its public ingest), which then fetches the match and, when Valve kept one, its replay.
+// The site reads matches from deadlock-api as before, and from this service right away (GET /dl/matches/<account>).
+//
+//   npm run deadlock            (needs `npm run login` once, or STEAM_REFRESH_TOKEN in the environment)
+//
+// Settings (environment or server/.env): PORT (8080), DATA_DIR, DL_POLL_MINUTES (5), DL_ALLOW_ORIGINS.
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import { DATA } from './config.mjs';
+import { TOKEN_FILE } from './bot.mjs';
+import { DeadlockBot, readToken } from './deadlock/bot.mjs';
+
+const PORT = Number(process.env.PORT || 8080);
+const POLL_MINUTES = Number(process.env.DL_POLL_MINUTES || 5);
+const ORIGINS = (process.env.DL_ALLOW_ORIGINS || 'https://tsakhstvo.xyz,http://localhost:5173').split(',').map(s => s.trim());
+const STATE_FILE = path.join(DATA, 'deadlock-state.json');
+const API = 'https://api.deadlock-api.com';
+const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+
+// what's been seen: each friend's recent matches (for the site) and which matches were already handed on
+const state = (() => {
+  try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return { matches: {}, sent: {}, polled: {} }; }
+})();
+let dirty = false;
+setInterval(() => { if (dirty) { fs.writeFileSync(STATE_FILE, JSON.stringify(state)); dirty = false; } }, 10_000).unref();
+
+const bot = new DeadlockBot({ token: readToken(TOKEN_FILE), saveToken: t => fs.writeFileSync(TOKEN_FILE, t, { mode: 0o600 }), log });
+
+/** The match file on Valve's server answers: the salts and cluster are right. */
+async function checkSalts(s) {
+  if (!s.cluster_id || !s.metadata_salt) return false;
+  const res = await fetch(`http://replay${s.cluster_id}.valve.net/1422450/${s.match_id}_${s.metadata_salt}.meta.bz2`, { method: 'HEAD' }).catch(() => null);
+  return !!res?.ok;
+}
+
+/** Hands a match's salts to deadlock-api, which then fetches the match (and its replay when there is one). */
+async function submit(s) {
+  const body = [{ match_id: s.match_id, cluster_id: s.cluster_id, metadata_salt: s.metadata_salt, replay_salt: s.replay_salt, username: 'rageview-bot' }];
+  const res = await fetch(`${API}/v1/matches/salts`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'rageview-bot (tsakhstvo.xyz)' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`deadlock-api answered ${res.status}: ${(await res.text()).slice(0, 160)}`);
+}
+
+/** One friend: their recent matches, and the new ones handed on. */
+async function poll(account) {
+  const ms = await bot.matchHistory(account);
+  state.matches[account] = ms.slice(0, 50);
+  state.polled[account] = Date.now();
+  dirty = true;
+  // only matches from the last week are worth fetching (replays don't last longer)
+  for (const m of ms.filter(x => Date.now() / 1000 - x.start_time < 7 * 86400 && !state.sent[x.match_id])) {
+    const s = await bot.salts(m.match_id);
+    if (s.error) {
+      // still being written up by the game (MatchInFlight): next round
+      if (s.error !== 'MatchInFlight') { state.sent[m.match_id] = { at: Date.now(), error: s.error }; dirty = true; }
+      log(`match ${m.match_id}: ${s.error}`);
+      continue;
+    }
+    const ok = await checkSalts(s);
+    if (!ok) log(`match ${m.match_id}: the match file isn't where the salts say (cluster ${s.cluster_id}); sending anyway`);
+    await submit(s);
+    state.sent[m.match_id] = { at: Date.now(), replay: !!s.replay_salt };
+    dirty = true;
+    log(`match ${m.match_id} (${account}) handed to deadlock-api${s.replay_salt ? ', with its replay' : ', no replay'}`);
+  }
+}
+
+/** Every friend in turn, then again after DL_POLL_MINUTES. */
+async function loop() {
+  for (;;) {
+    const t0 = Date.now();
+    for (const account of bot.friends()) {
+      try { await poll(account); } catch (e) {
+        log(`friend ${account}: ${e.message}`);
+        if (/RateLimited|TooBusy/.test(e.message)) await new Promise(r => setTimeout(r, 60_000));
+      }
+    }
+    // forget handed-on matches after two weeks
+    for (const [id, v] of Object.entries(state.sent)) if (Date.now() - v.at > 14 * 86400e3) delete state.sent[id];
+    await new Promise(r => setTimeout(r, Math.max(10_000, POLL_MINUTES * 60_000 - (Date.now() - t0))));
+  }
+}
+
+// ---- the site's endpoints (read-only, plus "check now") ------------------------------------------------------------
+const lastAsk = new Map();
+const server = http.createServer(async (req, res) => {
+  const origin = req.headers.origin ?? '';
+  const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...(ORIGINS.includes(origin) ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {}) };
+  const send = (code, obj) => { res.writeHead(code, headers); res.end(JSON.stringify(obj)); };
+  if (req.method === 'OPTIONS') { res.writeHead(204, { ...headers, 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type' }); return res.end(); }
+  const url = new URL(req.url ?? '/', 'http://x'), parts = url.pathname.split('/').filter(Boolean);
+  try {
+    if (url.pathname === '/health') return send(200, { ok: true, state: bot.state });
+    // the bot itself: who to add as a friend
+    if (url.pathname === '/dl/bot') return send(200, { steamId: bot.steamId, state: bot.state, friends: bot.friends().length, pollMinutes: POLL_MINUTES });
+    const account = Number(parts[2]);
+    if (parts[0] === 'dl' && Number.isFinite(account) && account > 0) {
+      // whether they're the bot's friend, and their matches as the bot last saw them
+      if (parts[1] === 'friend' && req.method === 'GET') return send(200, { relation: bot.relation(account), polled: state.polled[account] ?? null });
+      if (parts[1] === 'matches' && req.method === 'GET') {
+        if (bot.relation(account) !== 'friend') return send(200, { relation: bot.relation(account), matches: [] });
+        return send(200, { relation: 'friend', polled: state.polled[account] ?? null, matches: state.matches[account] ?? [] });
+      }
+      // "check now" (once a minute per account)
+      if (parts[1] === 'refresh' && req.method === 'POST') {
+        if (bot.relation(account) !== 'friend') return send(403, { error: 'Add the bot as a friend first.' });
+        if (Date.now() - (lastAsk.get(account) ?? 0) < 60_000) return send(429, { error: 'Checked a moment ago.' });
+        lastAsk.set(account, Date.now());
+        await poll(account);
+        return send(200, { polled: state.polled[account], matches: state.matches[account] ?? [] });
+      }
+    }
+    send(404, { error: 'Not found' });
+  } catch (e) { send(500, { error: e instanceof Error ? e.message : String(e) }); }
+});
+
+server.listen(PORT, () => log(`deadlock bot service on :${PORT}`));
+try {
+  await bot.start();
+  loop();
+} catch (e) {
+  // the endpoints stay up and say what's wrong (/health)
+  bot.state = 'error';
+  log(`deadlock bot: ${e.message}`);
+}
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { if (dirty) fs.writeFileSync(STATE_FILE, JSON.stringify(state)); bot.stop(); process.exit(0); });

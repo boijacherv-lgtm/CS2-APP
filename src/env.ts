@@ -7,6 +7,8 @@
 export const ONLINE = import.meta.env.VITE_ONLINE === '1';
 /** The Worker's address on the website, e.g. https://stratboard-api.<you>.workers.dev (no trailing slash). */
 export const API_URL = String(import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+/** The Deadlock bot service (server/src/deadlock.mjs on Fly.io), e.g. https://rageview-dl-bot.fly.dev; empty: no bot. */
+export const DL_BOT_URL = String(import.meta.env.VITE_DL_BOT_URL ?? '').replace(/\/$/, '');
 /** Steam login + match list available here? (always locally; online only with the Worker) */
 export const STEAM_AVAILABLE = !ONLINE || !!API_URL;
 
