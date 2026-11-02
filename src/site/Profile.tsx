@@ -10,7 +10,9 @@ import { fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
 import { copyCard, drawShareCard, shareFileName } from './shareCard';
 import { AddMatches } from './AddMatches';
 import { AreaChart, BarList, Donut, MiniLine, Radar, StretchLine } from './charts';
-import { T } from '../ui/tokens';
+import { applyGame, gameOf, T, type GameId } from '../ui/tokens';
+import { DlProfile } from '../deadlock/DlProfile';
+import { steamId3 } from '../deadlock/api';
 
 /** Your profile: your last matches, how they trend, your goals, your maps, a friend next to you, and share cards. */
 export function Profile() {
@@ -22,6 +24,9 @@ export function Profile() {
   const shown = all && pro ? matches : matches.slice(0, FREE_HISTORY);
   const last = averages(matches.slice(0, FREE_HISTORY)), before = averages(matches.slice(FREE_HISTORY, FREE_HISTORY * 2));
   const name = me?.name ?? 'Your profile';
+  // stats per game: CS2 or Deadlock (the game you were last in first); switching also dresses the page in its colours
+  const [game, setGame] = useState<GameId>(() => gameOf('profile'));
+  const pickGame = (g: GameId) => { setGame(g); applyGame(gameOf(g)); };
 
   return (
     <div className="page profile">
@@ -41,6 +46,15 @@ export function Profile() {
         </div>
       </header>
 
+      <nav className="recap-tabs profile-games" aria-label="Game">
+        <div className="recap-tabs-list" role="tablist">
+          {(['cs2', 'deadlock'] as GameId[]).map(g => (
+            <button key={g} role="tab" aria-selected={game === g} className={game === g ? 'on' : ''} onClick={() => pickGame(g)}>{g === 'cs2' ? 'Counter-Strike 2' : 'Deadlock'}</button>
+          ))}
+        </div>
+      </nav>
+
+      {game === 'deadlock' ? <DlProfile account={me?.steamId ? steamId3(me.steamId) : null} /> : <>
       {!matches.length ? (
         <section className="empty-card">
           <Icon name="trophy" size={30} />
@@ -79,6 +93,7 @@ export function Profile() {
         </>
       )}
       <Friend mine={last} />
+      </>}
       {share && <ShareDialog m={share} player={me?.name ?? share.name ?? 'Me'} onClose={() => setShare(null)} />}
     </div>
   );
