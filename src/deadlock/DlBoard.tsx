@@ -5,7 +5,7 @@ import { campTier, DL_MAP, heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlT
 import { MapArt, useGameMap, useTunnels } from './MapArt';
 import { matchPosition } from './bench';
 import { POS_NAME, type Pos } from './positions';
-import { creepsAt, heroAt, readDemo, riftAt, statsAt, ultAt, UNDERGROUND_Z, upAt } from './demo';
+import { creepsAt, heroAt, troopersAt, readDemo, riftAt, statsAt, ultAt, UNDERGROUND_Z, upAt } from './demo';
 import ITEMS from './generated/items.json';
 import { RULES, TIMINGS_SOURCE, timersAt } from './timings';
 import { kdaAt, playerAt, statAt, type DlMatch } from './match';
@@ -232,7 +232,7 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
         <Layer listening={false}>
           {/* what comes and goes: camps, bridge buffs, the urn, the rift, the mid boss */}
           <MapArt S={S} k={k} img={map} you={you} part="live" at={{ time, midBoss: match.midBoss, demo, urnNow,
-            creeps: creepsAt(demo, time), creepDeaths: demo?.creepDeaths?.filter(d => time >= d.t && time - d.t < 2), rift: riftAt(demo, time) }} />
+            creeps: troopersAt(demo, time) ?? creepsAt(demo, time), creepDeaths: demo?.creepDeaths?.filter(d => time >= d.t && time - d.t < 2), rift: riftAt(demo, time) }} />
           {trail && trail.length >= 4 && <Line points={trail} stroke="#fff" strokeWidth={1.5 * k} opacity={0.6} lineCap="round" lineJoin="round" />}
           {/* bodies: where a hero just died, fading out */}
           {match.deaths.filter(d => time >= d.t && time - d.t < BODY_GONE).map(d => {

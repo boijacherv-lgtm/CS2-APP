@@ -34,3 +34,21 @@ describe('the demo on the match clock', () => {
     expect(toMatchClock(f, m)).toBe(f);
   });
 });
+
+describe('lane creeps one by one', () => {
+  const row = (s: number, e: number, ls = 0, cx = 64) => ({ s, e, team: 2, cx, cy: 64, vx: 0, vy: 0, ls });
+  it('holds a standing creep, ends a life at its death, drops one-off snapshots', async () => {
+    const { troopersFrom, troopersAt } = await import('../demo');
+    const ts = troopersFrom([
+      row(10, 5), row(11, 5), row(14, 5, 0, 65), row(15, 5, 2), // walks, stands 2 s, moves a cell, dies
+      row(60, 5), // a snapshot of the unused entity
+      row(100, 5), row(101, 5), row(102, 5), // a new creep on the same entity
+    ], n => (n === 2 ? 0 : undefined));
+    expect(ts.map(t => [t.t0, t.xy.length / 2])).toEqual([[10, 5], [100, 3]]);
+    expect(ts[0].xy[4]).toBe(ts[0].xy[2]); // held at 12 s
+    const at = troopersAt({ troopers: ts } as unknown as DlDemo, 13.5)!;
+    expect(at[0]).toBe(0);
+    expect(at[1]).toBeGreaterThan(ts[0].xy[6]); // halfway to the next cell
+    expect(troopersAt({ troopers: ts } as unknown as DlDemo, 20)).toEqual([]);
+  });
+});
