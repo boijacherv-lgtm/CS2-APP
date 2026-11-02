@@ -17,7 +17,13 @@ export interface DlDeath { t: number; slot: number; killer: number | null; at: {
   ttk?: number }
 export interface DlObjective { team: DlTeam; id: number; kind: ObjectiveKind; lane: 1 | 3 | 4 | null; name: string; firstDamage: number | null; destroyed: number | null }
 /** A player's numbers at a moment (every few minutes and at the end). */
-export interface DlStat { t: number; netWorth: number; kills: number; deaths: number; assists: number; level: number; lastHits: number; possibleCreeps: number; denies: number; playerDamage: number }
+export interface DlStat { t: number; netWorth: number; kills: number; deaths: number; assists: number; level: number; lastHits: number; possibleCreeps: number; denies: number; playerDamage: number;
+  /** Souls so far by where they came from: lane creeps, camps (neutrals), hero kills, the urn (treasure), bosses. */
+  souls?: { lane: number; camps: number; kills: number; urn: number; boss: number };
+  /** Healing given (self and teammates) and damage taken. */
+  heal?: number; taken?: number }
+/** A power-up picked up: breakable crates and statues (permanent stat bonuses) or the bridge buffs and powerups. */
+export interface DlPickup { t: number; type: string; permanent: boolean }
 export interface DlItem { t: number; id: number; sold: number | null }
 
 export interface DlMatch {
@@ -29,6 +35,11 @@ export interface DlMatch {
   midBoss: { t: number; team: DlTeam }[];
   stats: Record<number, DlStat[]>;
   items: Record<number, DlItem[]>;
+  pickups?: Record<number, DlPickup[]>;
+  /** Pauses: when (match time) and for how long (s). The match clock stops; a demo's ticks keep counting. */
+  pauses?: { t: number; dur: number }[];
+  /** Damage each player did to enemy heroes, by source (ability class, weapon, item), over the whole match. */
+  damageBy?: Record<number, Record<string, number>>;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -61,19 +72,45 @@ export function matchFromMetadata(meta: any): DlMatch {
     team: o.team as DlTeam, id: o.team_objective_id, ...objectiveOf(o.team_objective_id),
     firstDamage: o.first_damage_time_s || null, destroyed: o.destroyed_time_s || null,
   }));
-  const stats: DlMatch['stats'] = {}, items: DlMatch['items'] = {};
+  const stats: DlMatch['stats'] = {}, items: DlMatch['items'] = {}, pickups: Record<number, DlPickup[]> = {};
+  // the damage matrix: each dealer's damage to each player by source, cumulative per sample (the last is the total)
+  const damageBy: Record<number, Record<string, number>> = {};
+  const teamOfSlot = new Map((m.players ?? []).map((p: any) => [p.player_slot, p.team]));
+  const srcName: string[] = m.damage_matrix?.source_details?.source_name ?? [], srcType: number[] = m.damage_matrix?.source_details?.stat_type ?? [];
+  for (const d of m.damage_matrix?.damage_dealers ?? []) {
+    const out = (damageBy[d.dealer_player_slot] ??= {});
+    for (const src of d.damage_sources ?? []) {
+      // stat type 0 is damage dealt (the others: taken, healing, mitigated…); "Ability", "Bullet" and "Melee" add up
+      // the specific sources
+      const name = srcName[src.source_details_index] ?? 'Other';
+      if (srcType[src.source_details_index] !== 0 || name === 'Ability' || name === 'Melee') continue;
+      for (const tg of src.damage_to_players ?? []) {
+        // enemy heroes only (slot 0 is everything else)
+        const tt = teamOfSlot.get(tg.target_player_slot);
+        if (tt === undefined || tt === teamOfSlot.get(d.dealer_player_slot)) continue;
+        out[name] = (out[name] ?? 0) + ((tg.damage ?? []).filter((x: unknown) => typeof x === 'number').at(-1) ?? 0);
+      }
+    }
+  }
   for (const p of m.players ?? []) {
     stats[p.player_slot] = (p.stats ?? []).map((s: any) => ({
       t: s.time_stamp_s, netWorth: s.net_worth, kills: s.kills, deaths: s.deaths, assists: s.assists, level: s.level,
       lastHits: s.creep_kills, possibleCreeps: s.possible_creeps, denies: s.denies, playerDamage: s.player_damage,
+      souls: { lane: (s.gold_lane_creep ?? 0) + (s.gold_lane_creep_orbs ?? 0), camps: (s.gold_neutral_creep ?? 0) + (s.gold_neutral_creep_orbs ?? 0),
+        kills: (s.gold_player ?? 0) + (s.gold_player_orbs ?? 0), urn: s.gold_treasure ?? 0, boss: (s.gold_boss ?? 0) + (s.gold_boss_orb ?? 0) },
+      heal: (s.player_healing ?? 0) + (s.teammate_healing ?? 0), taken: s.player_damage_taken ?? 0,
     }));
+    pickups[p.player_slot] = (p.power_up_buffs ?? []).flatMap((b: any) => (b.pickup_times_s ?? []).map((t: number) => ({ t, type: b.type, permanent: !!b.is_permanent })))
+      .sort((a: DlPickup, b: DlPickup) => a.t - b.t);
     items[p.player_slot] = (p.items ?? []).map((i: any) => ({ t: i.game_time_s, id: i.item_id, sold: i.sold_time_s || null }));
   }
   return {
     id: m.match_id, start: m.start_time, duration: m.duration_s, winner: m.winning_team as DlTeam,
     players, tracks, deaths, objectives,
     midBoss: (m.mid_boss ?? []).map((b: any) => ({ t: b.destroyed_time_s, team: b.team_claimed as DlTeam })),
-    stats, items,
+    stats, items, pickups, damageBy,
+    pauses: Object.entries(((m.match_pauses ?? []) as { game_time_s: number; pause_duration_s: number }[]).reduce<Record<number, number>>((a, x) => { if (x.pause_duration_s > 0) a[x.game_time_s] = (a[x.game_time_s] ?? 0) + x.pause_duration_s; return a; }, {}))
+      .map(([t, dur]) => ({ t: Number(t), dur })).sort((a, b) => a.t - b.t),
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
