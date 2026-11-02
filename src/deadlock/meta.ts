@@ -134,7 +134,7 @@ export async function heroBuilds(hero: number, band: RankBand) {
     const ids = (hb?.details?.mod_categories ?? []).flatMap(c => (c.mods ?? []).map(m => m.ability_id));
     return { id: b.hero_build_id, name: hb?.name?.trim() || `Build ${b.hero_build_id}`, matches: b.matches, winRate: b.wins / b.matches, players: b.players, items: [...new Set(ids)] };
   });
-  return { since, base, games, core, offMeta, builds: topBuilds };
+  return { since, base, games, core, offMeta, builds: topBuilds, all };
 }
 
 export interface PairStat { a: number; b: number; wins: number; matches: number }

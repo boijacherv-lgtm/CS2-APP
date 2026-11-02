@@ -92,3 +92,30 @@ body {
 .note-face { background: none !important; padding: 0 !important; min-width: 0 !important; line-height: 0; border: none !important; }
 .dl-card-mark.mark-face { padding: 0; min-width: 0; border-radius: 50%; }
 .timeline .tl-mark:has(.mark-face) { border: none; padding: 0; min-width: 0; width: 15px; height: 15px; background: none; }
+
+/* ---- a little ornament: the game's pattern across the page, a lit top edge and a patterned corner on cards, and the
+   game's mark before section titles. Kept faint so content stays first. ------------------------------------------ */
+.shell-main { position: relative; isolation: isolate; }
+.shell-main::before {
+  content: ''; position: absolute; inset: 0 0 auto; height: 900px; z-index: -1; pointer-events: none;
+  background: var(--theme); opacity: .035;
+  -webkit-mask: var(--theme-pattern) repeat, linear-gradient(to bottom, #000, transparent);
+  -webkit-mask-composite: source-in; mask: var(--theme-pattern) repeat, linear-gradient(to bottom, #000, transparent); mask-composite: intersect;
+}
+.site-card, .recap-card, .feature { position: relative; isolation: isolate; }
+.site-card::before, .recap-card::before, .feature::before {
+  content: ''; position: absolute; inset: -1px -1px auto; height: 1px; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--theme) 55%, transparent) 35%, transparent 80%);
+}
+.site-card::after, .recap-card::after {
+  content: ''; position: absolute; top: 0; right: 0; width: 160px; height: 120px; z-index: -1; pointer-events: none; border-top-right-radius: inherit;
+  background: var(--theme); opacity: .07;
+  -webkit-mask: var(--theme-pattern) repeat, radial-gradient(circle at 100% 0, #000, transparent 70%);
+  -webkit-mask-composite: source-in; mask: var(--theme-pattern) repeat, radial-gradient(circle at 100% 0, #000, transparent 70%); mask-composite: intersect;
+}
+.card-head h2::before, .card-head h3::before, .dl-meta-head h2::before {
+  content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 8px; vertical-align: .12em; background: var(--theme); opacity: .9;
+  -webkit-mask: var(--theme-mark) center / contain no-repeat; mask: var(--theme-mark) center / contain no-repeat;
+}
+:root[data-game="cs2"] { --theme-mark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><path d='M5 0v3.5M5 6.5V10M0 5h3.5M6.5 5H10' stroke='black' stroke-width='1.6'/></svg>"); }
+:root[data-game="deadlock"] { --theme-mark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><path d='M5 0L10 5L5 10L0 5Z'/></svg>"); }

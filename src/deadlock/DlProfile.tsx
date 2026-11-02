@@ -31,6 +31,8 @@ const MISTAKE: Partial<Record<DlTag, string>> = {
 /** One graded match, as kept: enough for the profile without reading the match again. */
 interface Graded { id: number; at: number; hero: number; won: boolean; overall: number | null; parts: Partial<Record<GradeKey, number | null>>; mistakes: Partial<Record<DlTag, number>> }
 const KEY = (account: string, id: number) => `dlgrade1:${account}:${id}`;
+/** Your report card's averages over your last graded matches (Profile → Deadlock keeps them for the suggested build). */
+export const MY_GRADES = 'stratboard.dl.myGrades';
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -95,6 +97,12 @@ export function DlProfile({ account }: { account: string | null }) {
   }, [account, rows]);
 
   const recent = useMemo(() => (rows ?? []).slice(0, RECENT), [rows]);
+  // your report card's averages, for the coach's suggested build (Tactical → Builds)
+  useEffect(() => {
+    if (!graded.length || grading) return;
+    const parts = Object.fromEntries(PARTS.map(p => { const xs = graded.map(g => g.parts[p.key]).filter((v): v is number => typeof v === 'number'); return [p.key, xs.length ? Math.round(xs.reduce((a, v) => a + v, 0) / xs.length) : null]; }));
+    try { localStorage.setItem(MY_GRADES, JSON.stringify({ at: Date.now(), games: graded.length, parts })); } catch { /* private mode */ }
+  }, [graded, grading]);
   if (!account) return <section className="empty-card"><Icon name="user" size={30} /><h2>Log in with Steam</h2><p className="muted">Your Deadlock profile comes from your matches: log in to see it.</p></section>;
   if (err) return <p className="warn-text">{err}</p>;
   if (!rows) return <Loading>Loading your Deadlock matches…</Loading>;
