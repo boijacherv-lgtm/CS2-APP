@@ -7,3 +7,6 @@ tsconfig.tsbuildinfo
 # Steam settings and cache (secrets, never commit)
 .env
 .steam-cache
+
+# security reports (the pen-test report and npm run security output): local only, the repo is public
+security/

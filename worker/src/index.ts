@@ -32,6 +32,15 @@ export interface Env {
   RETURN_TO: string;
   /** Comma-separated SteamIDs that may open the dev page (GET /admin/stats). */
   OWNER_IDS?: string;
+  /** Cloudflare rate limiters (wrangler.toml [[ratelimits]]): per visitor's IP, and per logged-in player. */
+  RATE_PUBLIC?: RateLimit;
+  RATE_USER?: RateLimit;
+}
+
+/** Over the limit? (No limiter bound, e.g. in tests: never.) */
+async function limited(rl: RateLimit | undefined, key: string) {
+  if (!rl) return false;
+  try { return !(await rl.limit({ key })).success; } catch { return false; }
 }
 
 interface Match {
@@ -61,14 +70,24 @@ export default {
     if (origin && !allowed.includes(origin)) return json({ error: 'Not allowed from this site.' }, 403);
 
     const path = new URL(req.url).pathname;
+    const ip = req.headers.get('CF-Connecting-IP') ?? 'unknown';
+    const slow = () => json({ error: 'Too many requests: wait a minute.' }, 429);
     try {
+      // each of these makes the Worker call Steam, so a script could burn the site's Steam API key: only the website
+      // may call them, and only so often per visitor
+      if (path === '/openid/verify' || path === '/profiles' || path.startsWith('/public/')) {
+        if (await limited(env.RATE_PUBLIC, ip)) return slow();
+      }
       if (req.method === 'POST' && path === '/openid/verify') return json(await verifyLogin(env, await body(req)));
       if (path.startsWith('/internal/')) return await internal(req, env, path, json);
 
       // the coach's corrections from checked disputes: public (they're counts per kind of move), cached a few minutes
       if (req.method === 'GET' && path === '/corrections')
         return new Response(JSON.stringify(await corrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });
-      if (req.method === 'GET' && path === '/profiles') return json({ profiles: await profiles(env, new URL(req.url).searchParams.get('ids') ?? '') });
+      if (req.method === 'GET' && path === '/profiles') {
+        if (!allowed.includes(origin)) return json({ error: 'Not allowed from here.' }, 403);
+        return json({ profiles: await profiles(env, new URL(req.url).searchParams.get('ids') ?? '') });
+      }
       // a friend's profile, when they made it public (name, avatar and their last matches' numbers)
       const pub = path.match(/^\/public\/(7656\d{13})$/);
       if (req.method === 'GET' && pub) {
@@ -81,6 +100,8 @@ export default {
       const steamId = token ? await env.SB.get(`session:${token}`) : null;
       if (path === '/me' && req.method === 'GET') return json({ me: steamId ? { steamId, ...(await publicProfile(env, steamId)), ...(isOwner(env.OWNER_IDS, steamId) ? { owner: true } : {}) } : null });
       if (!steamId) return json({ error: 'Log in with Steam first.' }, 401);
+      // a logged-in player's writes and Steam look-ups, so often per player
+      if ((req.method === 'POST' || path === '/resolve') && await limited(env.RATE_USER, steamId)) return slow();
 
       if (req.method === 'GET' && path === '/status') return json(status(env, steamId, await loadUser(env, steamId)));
       if (req.method === 'GET' && path === '/admin/stats') {

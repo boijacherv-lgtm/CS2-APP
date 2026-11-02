@@ -18,3 +18,20 @@ binding = "SB"
 id = "18d250c7684140f2944fd2a4be8e3e03"
 
 # Secret (never in this file):  npx wrangler secret put STEAM_API_KEY
+
+# Rate limits (Cloudflare's built-in limiter; the numbers are per minute). RATE_PUBLIC: per visitor's IP on the calls
+# that make the Worker ask Steam (login check, names and avatars, public profiles). RATE_USER: per logged-in player
+# on their writes and Steam look-ups.
+[[ratelimits]]
+name = "RATE_PUBLIC"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 60
+  period = 60
+
+[[ratelimits]]
+name = "RATE_USER"
+namespace_id = "1002"
+  [ratelimits.simple]
+  limit = 30
+  period = 60

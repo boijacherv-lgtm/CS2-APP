@@ -20,11 +20,25 @@ export async function steamSignOut() {
   if (ONLINE) setToken(null);
 }
 
+/**
+ * Login CSRF guard: a random value this browser makes when a login starts and Steam brings back. An answer without
+ * it (a link someone sent you with *their* Steam login in it) is refused, so nobody can log you into their account.
+ * Kept in localStorage so a login opened in another tab still matches; it's one per browser until a login finishes.
+ */
+const STATE_KEY = 'stratboard.loginState';
+function loginState() {
+  try {
+    let s = localStorage.getItem(STATE_KEY);
+    if (!s) { s = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join(''); localStorage.setItem(STATE_KEY, s); }
+    return s;
+  } catch { return ''; }
+}
+
 /** "Log in with Steam": Steam's own login page, coming back to the page you were on. */
 export function steamLoginHref(back: string) {
   if (!ONLINE) return `/api/steam/openid/start?back=${encodeURIComponent(back)}`;
   // Steam comes back to the website itself; finishSteamLogin() hands its signed answer to the Worker
-  return openIdLoginUrl(`${location.origin}/?back=${encodeURIComponent(back)}`, location.origin);
+  return openIdLoginUrl(`${location.origin}/?back=${encodeURIComponent(back)}&state=${loginState()}`, location.origin);
 }
 
 /**
@@ -39,6 +53,10 @@ export async function finishSteamLogin(): Promise<void> {
   const params = Object.fromEntries([...q].filter(([k]) => k.startsWith('openid.')));
   let to = back;
   try {
+    // only a login this browser started (see loginState)
+    const want = (() => { try { return localStorage.getItem(STATE_KEY); } catch { return null; } })();
+    if (!want || q.get('state') !== want) throw new Error('This Steam login wasn\'t started on this browser, so it was ignored. Log in again from the site.');
+    try { localStorage.removeItem(STATE_KEY); } catch { /* private mode */ }
     const res = await fetch(`${API_URL}/openid/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ params }) });
     const out = await res.json();
     if (!res.ok || !out.token) throw new Error(out.error ?? 'Steam login failed.');
