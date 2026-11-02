@@ -21,7 +21,9 @@ const SHOW = 12;
 const LINK = /replay(\d+)\.valve\.net\/1422450\/(\d+)_(\d+)\.(meta|dem)\.bz2/g;
 const SENT = 'stratboard.dlsalts.sent';
 
-export interface Found { match_id: number; cluster_id: number; metadata_salt: number | null; replay_salt: number | null; seen: number }
+export interface Found { match_id: number; cluster_id: number; metadata_salt: number | null; replay_salt: number | null; seen: number;
+  /** A replay file Deadlock downloaded (its replays folder): no keys, the match is loaded by its ID. */
+  file?: boolean }
 
 type DirHandle = FileSystemDirectoryHandle & {
   queryPermission(o: { mode: 'read' }): Promise<PermissionState>;
@@ -30,13 +32,17 @@ type DirHandle = FileSystemDirectoryHandle & {
 };
 const supported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 
-// Steam's cache folder from wherever you picked: httpcache itself, appcache, the Steam folder, or a drive / home above it
+// Steam's cache folder and Deadlock's replays folder from wherever you picked: the folder itself, any folder on the way
+// to it (the Steam folder, a SteamLibrary, steamapps, Deadlock), or a drive / home above it
 const CACHE = ['appcache', 'httpcache'];
+const REPLAYS = ['steamapps', 'common', 'Deadlock', 'game', 'citadel', 'replays'];
 const ROOTS = [['Program Files (x86)', 'Steam'], ['Program Files', 'Steam'], ['Steam'], ['Library', 'Application Support', 'Steam'], ['Application Support', 'Steam'], ['.steam', 'steam'], ['.local', 'share', 'Steam']];
-const CHAINS = [...ROOTS.map(r => [...r, ...CACHE]), CACHE];
-async function findCache(picked: DirHandle): Promise<DirHandle | null> {
-  if (picked.name.toLowerCase() === 'httpcache') return picked;
-  for (const chain of CHAINS) {
+const LIBRARIES = [...ROOTS, ['SteamLibrary'], ['Games', 'SteamLibrary'], ['Games', 'Steam']];
+const findCache = (picked: DirHandle) => findIn(picked, [...ROOTS.map(r => [...r, ...CACHE]), CACHE]);
+const findReplays = (picked: DirHandle) => findIn(picked, [...LIBRARIES.map(r => [...r, ...REPLAYS]), REPLAYS]);
+async function findIn(picked: DirHandle, chains: string[][]): Promise<DirHandle | null> {
+  if (picked.name.toLowerCase() === chains[0].at(-1)!.toLowerCase()) return picked;
+  for (const chain of chains) {
     const at = chain.findIndex(n => n.toLowerCase() === picked.name.toLowerCase());
     let h: DirHandle | null = picked;
     for (const name of chain.slice(at + 1)) {
@@ -76,9 +82,26 @@ async function scanDir(dir: FileSystemDirectoryHandle, into: Map<number, Found>,
     }
   }
 }
-/** A dropped folder (any browser): its files, through the old entries API. */
+/** A replay file's match: Deadlock names them by match ID (`<match>.dem`; any long number in the name is taken). */
+export function replayFile(name: string, seen: number, into: Map<number, Found>) {
+  const id = /\.dem$/i.test(name) ? Number(name.match(/(\d{6,})/)?.[1]) : 0;
+  if (!id) return into;
+  const f = into.get(id) ?? { match_id: id, cluster_id: 0, metadata_salt: null, replay_salt: null, seen: 0 };
+  f.file = true; f.seen = Math.max(f.seen, seen);
+  into.set(id, f);
+  return into;
+}
+async function scanReplays(dir: FileSystemDirectoryHandle, into: Map<number, Found>) {
+  for await (const h of (dir as DirHandle).values()) {
+    if (h.kind === 'file' && /\.dem$/i.test(h.name)) replayFile(h.name, (await (h as FileSystemFileHandle).getFile()).lastModified, into);
+  }
+}
+/** A dropped folder (any browser): its files, through the old entries API (replay files by name, the rest read). */
 async function scanEntry(entry: FileSystemEntry, into: Map<number, Found>): Promise<void> {
-  if (entry.isFile) { const f = await new Promise<File>((res, rej) => (entry as FileSystemFileEntry).file(res, rej)); return linksIn(f, into); }
+  if (entry.isFile) {
+    const f = await new Promise<File>((res, rej) => (entry as FileSystemFileEntry).file(res, rej));
+    return /\.dem$/i.test(f.name) ? void replayFile(f.name, f.lastModified, into) : linksIn(f, into);
+  }
   const reader = (entry as FileSystemDirectoryEntry).createReader();
   for (;;) {
     const batch = await new Promise<FileSystemEntry[]>((res, rej) => reader.readEntries(res, rej));
@@ -106,6 +129,7 @@ const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 
 export function DlSteamFolder({ account, open, busy }: { account: string | null; open: (id: number) => void; busy: number | null }) {
   const [dir, setDir] = useState<DirHandle | null>(null);
+  const [replays, setReplays] = useState<DirHandle | null>(null);
   const [perm, setPerm] = useState<PermissionState | null>(null);
   const [found, setFound] = useState<Found[]>([]);
   const [matches, setMatches] = useState<Record<number, DlMatch | 'missing'>>({});
@@ -117,36 +141,41 @@ export function DlSteamFolder({ account, open, busy }: { account: string | null;
   // the folder picked last time
   useEffect(() => {
     if (!supported) return;
-    getItem<DirHandle>('dlSteamCache').then(async h => {
-      if (!h) return;
-      setDir(h);
-      setPerm(await h.queryPermission({ mode: 'read' }).catch(() => 'prompt' as PermissionState));
+    Promise.all([getItem<DirHandle>('dlSteamCache'), getItem<DirHandle>('dlReplays')]).then(async ([h, r]) => {
+      const first = h ?? r;
+      if (!first) return;
+      setDir(h ?? null); setReplays(r ?? null);
+      setPerm(await first.queryPermission({ mode: 'read' }).catch(() => 'prompt' as PermissionState));
     });
   }, []);
 
   /** New matches found: send their keys, then list them (newest first). */
   const take = useCallback(async () => {
-    const list = [...all.current.values()].filter(f => f.metadata_salt !== null).sort((a, b) => b.seen - a.seen);
+    const list = [...all.current.values()].filter(f => f.metadata_salt !== null || f.file).sort((a, b) => b.seen - a.seen);
     setFound(list);
     try {
-      const n = await submit(list);
+      const n = await submit(list.filter(f => f.metadata_salt !== null));
       if (n) setMsg(`${n} new match${n === 1 ? '' : 'es'} sent to deadlock-api.`);
     } catch (e) { setMsg(`Couldn't send the matches: ${e instanceof Error ? e.message : String(e)}`); }
   }, []);
 
   const scan = useCallback(async () => {
-    if (!dir || perm !== 'granted' || scanning) return;
+    if ((!dir && !replays) || perm !== 'granted' || scanning) return;
     setScanning(true);
-    try { await scanDir(dir, all.current, known.current); await take(); } catch (e) { setMsg(`Couldn't read the folder: ${e instanceof Error ? e.message : String(e)}`); }
+    try {
+      if (dir) await scanDir(dir, all.current, known.current);
+      if (replays) await scanReplays(replays, all.current);
+      await take();
+    } catch (e) { setMsg(`Couldn't read the folder: ${e instanceof Error ? e.message : String(e)}`); }
     setScanning(false);
-  }, [dir, perm, scanning, take]);
+  }, [dir, replays, perm, scanning, take]);
 
   useEffect(() => {
     if (perm !== 'granted') return;
     void scan();
     const t = setInterval(() => { if (document.visibilityState === 'visible') void scan(); }, RESCAN_MS);
     return () => clearInterval(t);
-  }, [perm, dir]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [perm, dir, replays]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // the newest few: read each match (deadlock-api has it now) for its hero, score and result
   useEffect(() => {
@@ -164,18 +193,25 @@ export function DlSteamFolder({ account, open, busy }: { account: string | null;
     return () => { live = false; };
   }, [found]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Pick a folder: the Steam folder (its cache, and Deadlock's replays when Deadlock is installed there), or the
+   * library / Deadlock / replays folder when Deadlock is on another drive. */
   const connect = async () => {
     setMsg(null);
     try {
-      const picked = await (window as unknown as { showDirectoryPicker(o: object): Promise<DirHandle> }).showDirectoryPicker({ id: 'steam-httpcache', mode: 'read' });
-      const h = await findCache(picked);
-      if (!h) { setMsg(`No Steam cache inside "${picked.name}". Pick your Steam folder (it has an appcache folder in it).`); return; }
-      await setItem('dlSteamCache', h);
-      setDir(h); setPerm('granted');
+      const picked = await (window as unknown as { showDirectoryPicker(o: object): Promise<DirHandle> }).showDirectoryPicker({ id: 'steam-deadlock', mode: 'read' });
+      const [h, r] = await Promise.all([findCache(picked), findReplays(picked)]);
+      if (!h && !r) { setMsg(`No Steam cache or Deadlock replays inside "${picked.name}". Pick your Steam folder, or the SteamLibrary where Deadlock is installed.`); return; }
+      if (h) { await setItem('dlSteamCache', h); setDir(h); }
+      if (r) { await setItem('dlReplays', r); setReplays(r); }
+      setPerm('granted');
+      setMsg([h ? 'Steam\'s cache found' : null, r ? 'Deadlock\'s replays found' : 'Deadlock\'s replays not in there (installed on another drive? add its folder below)'].filter(Boolean).join(' · '));
     } catch (e) { if ((e as Error).name !== 'AbortError') setMsg(`Couldn't open that folder: ${(e as Error).message}`); }
   };
-  const reconnect = async () => { if (dir) setPerm(await dir.requestPermission({ mode: 'read' })); };
-  const disconnect = async () => { await delItem('dlSteamCache'); setDir(null); setPerm(null); };
+  const reconnect = async () => {
+    const st = await Promise.all([dir, replays].filter((x): x is DirHandle => !!x).map(h => h.requestPermission({ mode: 'read' })));
+    setPerm(st.every(x => x === 'granted') ? 'granted' : 'denied');
+  };
+  const disconnect = async () => { await delItem('dlSteamCache'); await delItem('dlReplays'); setDir(null); setReplays(null); setPerm(null); };
   // a folder dropped on the card (any browser; read once)
   const drop = async (e: React.DragEvent) => {
     e.preventDefault(); setDrag(false); setMsg(null);
@@ -194,7 +230,7 @@ export function DlSteamFolder({ account, open, busy }: { account: string | null;
       <li key={f.match_id}>
         <button className={`dl-row ${won === null ? '' : won ? 'win' : 'loss'}`} onClick={() => open(f.match_id)} disabled={busy !== null || m === 'missing'}>
           {h?.card ? <img src={h.card} alt="" width={36} height={36} loading="lazy" /> : <span className="dl-hero-dot" />}
-          <span className="dl-row-hero"><b>{h?.name ?? `Match ${f.match_id}`}{f.replay_salt !== null && <span className="dl-row-demo listed" title="Steam had its replay link">Demo</span>}</b>
+          <span className="dl-row-hero"><b>{h?.name ?? `Match ${f.match_id}`}{f.file ? <span className="dl-row-demo read" title="You downloaded its replay in Deadlock">Replay file</span> : f.replay_salt !== null && <span className="dl-row-demo listed" title="Steam had its replay link">Demo</span>}</b>
             <span className="muted small">{m && m !== 'missing' ? `${new Date(m.start * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} · ${mins(m.duration)}` : m === 'missing' ? 'deadlock-api hasn\'t fetched it yet' : 'reading…'}</span></span>
           {won !== null && <span className={`dl-row-result ${won ? 'win' : 'loss'}`}>{won ? 'Win' : 'Loss'}</span>}
           {me && <span className="dl-row-kda num">{me.kills}/{me.deaths}/{me.assists}</span>}
@@ -209,24 +245,31 @@ export function DlSteamFolder({ account, open, busy }: { account: string | null;
     <section className={`site-card dl-folder ${drag ? 'drag' : ''}`} onDragOver={e => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)} onDrop={drop}>
       <div className="card-head">
         <h2>Your Steam folder</h2>
-        {dir && perm === 'granted' && <button className="ghost small-btn" disabled={scanning} onClick={() => void scan()}>{scanning ? 'Looking…' : 'Refresh'}</button>}
-        {dir && <button className="ghost small-btn" onClick={disconnect} title="Forget the folder (matches already found stay on deadlock-api)">Disconnect</button>}
+        {(dir || replays) && perm === 'granted' && <button className="ghost small-btn" disabled={scanning} onClick={() => void scan()}>{scanning ? 'Looking…' : 'Refresh'}</button>}
+        {(dir || replays) && <button className="ghost small-btn" onClick={disconnect} title="Forget the folders (matches already found stay on deadlock-api)">Disconnect</button>}
       </div>
-      {!dir && (
+      {(dir || replays) && perm === 'granted' && (
+        <p className="dl-folder-where muted small">
+          Watching {[dir ? 'Steam\'s cache' : null, replays ? 'Deadlock\'s replays' : null].filter(Boolean).join(' and ')}.
+          {!replays && supported && <> Downloaded replays in Deadlock? <button className="link-btn" onClick={connect}>Add Deadlock's folder</button> (its SteamLibrary, or …\Deadlock\game\citadel\replays).</>}
+          {!dir && supported && <> <button className="link-btn" onClick={connect}>Add your Steam folder</button> too, for matches you only opened in Match history.</>}
+        </p>
+      )}
+      {!dir && !replays && (
         <div className="dl-folder-intro">
-          <p>Pick your <b>Steam</b> folder once: the site finds the Deadlock matches Steam downloaded when you played them (or opened them in Match history) and loads them here, new ones by themselves. Only the matches' IDs and keys are sent to deadlock-api; nothing else leaves your PC.</p>
+          <p>Pick your <b>Steam</b> folder once (on the PC you play on): the site finds your Deadlock matches in it, the ones Steam fetched when you opened them in Match history and the replays you downloaded in Deadlock, and loads them here, new ones by themselves. Only the matches' IDs and keys are sent to deadlock-api; nothing else leaves your PC.</p>
           <div className="row">
             {supported && <button className="cta primary" onClick={connect}>Choose your Steam folder</button>}
             <span className="muted small">{supported ? 'or drop' : 'Drop'} the folder here</span>
           </div>
-          <p className="muted small">Usually <code>C:\Program Files (x86)\Steam</code> (Windows) or <code>~/Library/Application Support/Steam</code> (Mac). Picking <code>…\Steam\appcache\httpcache</code> itself works too.{!supported && ' In Chrome or Edge the site remembers the folder and checks it by itself.'}</p>
+          <p className="muted small">Usually <code>C:\Program Files (x86)\Steam</code> (Windows). Deadlock on another drive? Pick that drive's <code>SteamLibrary</code> as well (or <code>…\Deadlock\game\citadel\replays</code>).{!supported && ' In Chrome or Edge the site remembers the folder and checks it by itself.'}</p>
         </div>
       )}
-      {dir && perm !== 'granted' && <div className="row"><button className="cta primary" onClick={reconnect}>Reconnect "{dir.name}"</button><span className="muted small">the browser asks once per visit</span></div>}
+      {(dir || replays) && perm !== 'granted' && <div className="row"><button className="cta primary" onClick={reconnect}>Reconnect your folders</button><span className="muted small">the browser asks once per visit</span></div>}
       {msg && <p className="muted small">{msg}</p>}
       {scanning && !found.length && <p className="muted">Looking through Steam's cache…</p>}
       {found.length > 0 && <ul className="dl-rows">{found.slice(0, SHOW).map(row)}</ul>}
-      {(dir && perm === 'granted' || found.length > 0) && !scanning && !found.length && <p className="muted">No Deadlock matches in Steam's cache yet. Play one (or open one in Match history) and it shows up here.</p>}
+      {((dir || replays) && perm === 'granted') && !scanning && !found.length && <p className="muted">No Deadlock matches found yet. Open a match in Deadlock's Match history (or download its replay) and it shows up here within 30 s.</p>}
     </section>
   );
 }
