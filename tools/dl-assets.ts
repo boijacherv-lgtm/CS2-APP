@@ -65,10 +65,11 @@ const outMap = {
   // the mid boss stands in the middle of the map
   midBoss: { x: 0.5, y: 0.5 },
 };
-type Item = { id: number; name: string; cost: number; item_tier: number; item_slot_type: string; shopable: boolean; disabled?: boolean | null; image_webp?: string; image?: string };
+type Item = { id: number; name: string; cost: number; item_tier: number; item_slot_type: string; shopable: boolean; disabled?: boolean | null; image_webp?: string; image?: string; shop_image_webp?: string; shop_image?: string };
 const items = (await get('/v1/assets/items/by-type/upgrade')) as Item[];
 const outItems = items.filter(i => i.shopable && !i.disabled).map(i => ({
-  id: i.id, name: i.name, cost: i.cost, tier: i.item_tier, slot: i.item_slot_type, icon: i.image_webp ?? i.image ?? null,
+  id: i.id, name: i.name, cost: i.cost, tier: i.item_tier, slot: i.item_slot_type, // the picture the game's shop shows (the plain `image` is a white glyph, unreadable small)
+  icon: i.shop_image_webp ?? i.shop_image ?? i.image_webp ?? i.image ?? null,
 })).sort((a, b) => a.tier - b.tier || a.slot.localeCompare(b.slot) || a.name.localeCompare(b.name));
 
 fs.mkdirSync(OUT, { recursive: true });
