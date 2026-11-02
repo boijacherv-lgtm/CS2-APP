@@ -373,8 +373,8 @@ function DlTimers({ match, time }: { match: DlMatch; time: number }) {
 function DemoChip() {
   const st = useDl(s => s.demoStatus);
   if (!st) return null;
-  const text = st.state === 'done' ? 'Demo read' : st.state === 'failed' ? 'No demo' : `Reading the demo${st.wait ? ` · ~${st.wait} s` : '…'}`;
-  const tip = st.state === 'done' ? 'Camps, the urn and the bridge buffs are shown as they really were; ability casts and ultimates are in the coach.'
+  const text = st.state === 'done' ? 'Demo read' : st.state === 'failed' ? (/^No demo/.test(st.error ?? '') ? 'No demo · basic detail' : 'Demo failed: retry later') : `Reading the demo${st.wait ? ` · ~${st.wait} s` : '…'}`;
+  const tip = st.state === 'done' ? 'Read from the match\'s demo: heroes 4 times a second, camps, the urn, bridge buffs, lane creeps, the rift, ultimates and net worth as they really were.'
     : st.state === 'failed' ? st.error ?? 'The demo couldn\'t be read.' : 'deadlock-api is reading this match\'s demo (about a minute the first time, then it\'s kept in this browser).';
   return <span className={`dl-demo-chip ${st.state}`} title={tip}>{text}</span>;
 }
