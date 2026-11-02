@@ -9,6 +9,7 @@ import { demoState, loadDemo, NoDemo } from './demo';
 import { heroOf } from './data';
 import { DlBoard } from './DlBoard';
 import { openMatch } from './open';
+import { BOT_ON, botFriend, botInfo, botMatches, botRefresh, type BotRelation } from './botApi';
 import { useDl } from './store';
 
 /** How often the match list asks deadlock-api for new matches while it's open (a match shows up minutes to an hour
@@ -43,7 +44,10 @@ function DlStart() {
     setRows(null); setHistErr(null); setFresh(new Set());
     if (!account) return;
     let live = true, first: Set<number> | null = null;
-    const load = () => matchHistory(account).then(r => {
+    // deadlock-api's list, plus the bot's (newer matches show there first) when you're its friend
+    const load = () => Promise.all([matchHistory(account), BOT_ON ? botMatches(account).catch(() => null) : Promise.resolve(null)]).then(([api, fromBot]) => {
+      const seen = new Set(api.map(x => x.match_id));
+      const r = [...(fromBot?.matches ?? []).filter(m => !seen.has(m.match_id)), ...api].sort((a, b) => b.start_time - a.start_time);
       if (!live) return;
       if (first) { const added = r.filter(x => !first!.has(x.match_id)).map(x => x.match_id); if (added.length) setFresh(f => new Set([...f, ...added])); }
       first = new Set([...(first ?? []), ...r.map(x => x.match_id)]);
@@ -96,6 +100,29 @@ function DlStart() {
   };
   const typed = Number(id.replace(/\D/g, ''));
 
+  // the bot: who to add as a friend, and whether you are one (checked again every 10 s until you are)
+  const [bot, setBot] = useState<{ steamId: string | null; pollMinutes: number } | null>(null);
+  const [rel, setRel] = useState<BotRelation | null>(null);
+  const [botBusy, setBotBusy] = useState(false);
+  useEffect(() => {
+    if (!BOT_ON || !account) return;
+    let live = true;
+    botInfo().then(b => live && setBot(b)).catch(() => {});
+    const check = () => botFriend(account).then(r => live && setRel(r.relation)).catch(() => {});
+    void check();
+    const t = setInterval(() => { if (rel !== 'friend') void check(); }, 10_000);
+    return () => { live = false; clearInterval(t); };
+  }, [account, rel]);
+  const checkNow = async () => {
+    if (!account) return;
+    setBotBusy(true);
+    try {
+      const r = await botRefresh(account);
+      setRows(prev => { const have = new Set((prev ?? []).map(x => x.match_id)); return [...r.matches.filter(m => !have.has(m.match_id)), ...(prev ?? [])].sort((a, b) => b.start_time - a.start_time); });
+    } catch (e) { setHistErr(e instanceof Error ? e.message : String(e)); }
+    setBotBusy(false);
+  };
+
   return (
     <div className="page dl-start">
       <header className="rs-head">
@@ -111,6 +138,20 @@ function DlStart() {
 
       <section className="site-card dl-history">
         <div className="card-head"><h2>Your matches</h2>{rows && <span className="muted small">{rows.length} found{checked ? ` · checked ${Date.now() - checked < 60_000 ? 'just now' : `${Math.round((Date.now() - checked) / 60_000)} min ago`}, again every 2 min` : ''}</span>}</div>
+        {account && BOT_ON && bot?.steamId && rel !== null && (
+          rel === 'friend' ? (
+            <div className="dl-bot on">
+              <span><b>RageView bot is your friend.</b> <span className="muted small">New matches are found by themselves every {bot.pollMinutes} min.</span></span>
+              <button className="ghost small-btn" disabled={botBusy} onClick={() => void checkNow()}>{botBusy ? 'Checking…' : 'Check now'}</button>
+            </div>
+          ) : (
+            <div className="dl-bot">
+              <span><b>Get every match here by itself.</b> <span className="muted small">Add RageView bot as a Steam friend once: it finds your new matches (and their replays) and loads them here. It only reads your Deadlock match history.{rel === 'pending' ? ' Request sent: the bot accepts it in a moment.' : ''}</span></span>
+              <a className="cta primary small-btn" href={`steam://friends/add/${bot.steamId}`}>Add in Steam</a>
+              <a className="ghost small-btn" href={`https://steamcommunity.com/profiles/${bot.steamId}`} target="_blank" rel="noreferrer">Bot's profile</a>
+            </div>
+          )
+        )}
         {!account ? (
           STEAM_AVAILABLE
             ? <div className="dl-login"><span className="muted">Log in with Steam to see your Deadlock matches here.</span><SteamLoginButton compact /></div>
@@ -119,7 +160,7 @@ function DlStart() {
           <p className="muted">No matches found for your account on deadlock-api yet.</p>
         ) : (
           <>
-          {Date.now() / 1000 - rows[0].start_time > 86400 && (
+          {rel !== 'friend' && Date.now() / 1000 - rows[0].start_time > 86400 && (
             <p className="dl-history-note muted small">
               The newest match deadlock-api has for you is from {ago(rows[0].start_time)}. It lists a player's games right away only when their
               account is on Steam friends with one of its bots; otherwise a match shows up when deadlock-api happens to collect it, which can
