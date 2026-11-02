@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Arc, Circle, Group, Image as KImage, Line, Rect, RegularPolygon, Star, Text } from 'react-konva';
-import { CAMP_TIER_COLOR, campTier, DL_MAP, DL_MAP_IMAGE, TEAM_COLOR, type DlTeam } from './data';
+import { campTier, DL_MAP, DL_MAP_IMAGE, TEAM_COLOR, type DlTeam } from './data';
 import { clock, RULES, urnLane } from './timings';
 import { upAt, type DlDemo, type riftAt } from './demo';
 
 /**
  * The Deadlock map drawn like the game's own minimap (Oct 2026): a dark round map with the two bases, each lane a
  * chain of objectives from the patron out (base guardian, walker, guardian) in that lane's colour for your team and
- * red for the other, the mid boss in the middle, camps marked T1 / T2 / T3 by how strong they are. Shared by
+ * red for the other, the mid boss in the middle, camps as triangles with a line under them for each tier (T1–T3) as in the game. Shared by
  * Review (DlBoard) and Tactical (MapBase); everything is in Konva nodes for a Layer, in map units 0–1 times S.
  */
 
@@ -150,20 +150,21 @@ export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down,
           return <Line key={`l${team}${lane}`} points={pts.flatMap(o => [o.x * S, o.y * S])} stroke={lineOf(team, lane)} strokeWidth={1.6 * k} opacity={0.9} lineJoin="round" />;
         }))}
 
-        {/* neutral camps: a badge with the camp's tier (T1 small, T2 medium, T3 large) as in the game; Sinner's
-            Sacrifice (a vault) as a box */}
+        {/* neutral camps as in the game: a triangle with a line under it for each tier (T1 one, T2 two, T3 three);
+            Sinner's Sacrifice (a vault) as a box */}
         {L && layers.has('camps') && DL_MAP.camps.map((c, i) => {
           const tier = campTier(c.kind);
           // camps come at 2 / 5 / 8 min by tier, Sinner's Sacrifice (the vaults) at 8
           if (demo && tm !== undefined ? !upAt(demo.camps[i] ?? [], tm)
             : !up(tier === null ? RULES.sinners.spawn : tier === 3 ? RULES.camps.strong.spawn : tier === 2 ? RULES.camps.medium.spawn : RULES.camps.small.spawn)) return null;
           if (tier === null) return <Group key={`c${i}`} {...P(c)}><Rect x={-3.6 * k} y={-3.6 * k} width={7.2 * k} height={7.2 * k} stroke="#9cc4b9" strokeWidth={1 * k} cornerRadius={1 * k} /><Circle radius={1.6 * k} stroke="#9cc4b9" strokeWidth={1 * k} /></Group>;
-          // never smaller than readable, however small the map is drawn
-          const col = CAMP_TIER_COLOR[tier], b = Math.max(k, 0.9), w = 13 * b, h = 8.6 * b;
+          // the triangle on top, the lines stacked under it; the whole mark centred on the camp
+          // (a triangle of radius 3.4 spans 3.4 above its centre and 1.7 below)
+          const top = -(6 + (tier - 1) * 2.1 + 1.2) * k / 2;
           return (
             <Group key={`c${i}`} {...P(c)}>
-              <Rect x={-w / 2} y={-h / 2} width={w} height={h} cornerRadius={2 * b} fill="#0e1115" stroke={col} strokeWidth={1 * b} opacity={0.95} />
-              <Text text={`T${tier}`} x={-w / 2} y={-h / 2 + 0.4 * b} width={w} height={h} align="center" verticalAlign="middle" fontSize={6.6 * b} fontStyle="bold" fill={col} />
+              <RegularPolygon sides={3} radius={3.4 * k} y={top + 3.4 * k} fill="#9cc4b9" />
+              {Array.from({ length: tier }, (_, n) => <Rect key={n} x={-3.2 * k} y={top + (6 + n * 2.1) * k} width={6.4 * k} height={1.2 * k} fill="#9cc4b9" />)}
             </Group>
           );
         })}
