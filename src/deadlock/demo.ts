@@ -460,6 +460,38 @@ export function statsAt(demo: DlDemo | null, slot: number, t: number) {
   const b = Math.max(0, Math.min(st.nw.length - 1, Math.floor(t / STAT_DT)));
   return { nw: st.nw[b], lh: st.lh[b], dn: st.dn[b], lvl: st.lvl[b] };
 }
+/**
+ * Lane creeps at time t, gliding between the 2-second samples: each group (one map cell's worth, averaged over its
+ * sample) is matched to the nearest group of its team in the next sample and drawn between the two; a group with no
+ * match (it died, or split or merged across cells) shows until halfway, a new one from halfway. Flat [team, x, y, n, …].
+ */
+export function creepsAt(demo: DlDemo | null, t: number): number[] | null {
+  const c = demo?.creeps;
+  if (!c) return null;
+  // a sample averages its 2 s, so it stands for the middle of them
+  const u = (t - STAT_DT / 2) / STAT_DT, b = Math.floor(u), f = u - b;
+  const A = c[b], B = c[b + 1];
+  if (!A || !B) return (f < 0.5 ? A ?? B : B ?? A) ?? null;
+  const na = A.length / 4, nb = B.length / 4;
+  // pairs of the same team close enough to be the same creeps 2 s on (they walk about 3% of the map in 2 s)
+  const pairs: [number, number, number][] = [];
+  for (let i = 0; i < na; i++) for (let j = 0; j < nb; j++) {
+    if (A[i * 4] !== B[j * 4]) continue;
+    const d = Math.hypot(A[i * 4 + 1] - B[j * 4 + 1], A[i * 4 + 2] - B[j * 4 + 2]);
+    if (d < 0.045) pairs.push([d, i, j]);
+  }
+  pairs.sort((x, y) => x[0] - y[0]);
+  const ua = new Set<number>(), ub = new Set<number>(), out: number[] = [];
+  for (const [, i, j] of pairs) {
+    if (ua.has(i) || ub.has(j)) continue;
+    ua.add(i); ub.add(j);
+    out.push(A[i * 4], A[i * 4 + 1] + (B[j * 4 + 1] - A[i * 4 + 1]) * f, A[i * 4 + 2] + (B[j * 4 + 2] - A[i * 4 + 2]) * f, f < 0.5 ? A[i * 4 + 3] : B[j * 4 + 3]);
+  }
+  if (f < 0.5) { for (let i = 0; i < na; i++) if (!ua.has(i)) out.push(...A.slice(i * 4, i * 4 + 4)); }
+  else for (let j = 0; j < nb; j++) if (!ub.has(j)) out.push(...B.slice(j * 4, j * 4 + 4));
+  return out;
+}
+
 /** A player's ultimate at time t: not unlocked yet, cooling down (seconds left), or ready; null without a demo. */
 export function ultAt(demo: DlDemo | null, slot: number, t: number): { state: 'locked' } | { state: 'cooldown'; left: number; of: number } | { state: 'ready' } | null {
   const u = demo?.ults?.[slot];
