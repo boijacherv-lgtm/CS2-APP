@@ -4,6 +4,7 @@
  * your matches as it last saw them (they show here before deadlock-api has them).
  */
 import { DL_BOT_URL } from '../env';
+import { sessionToken } from '../ui/steamApi';
 import type { DlHistoryRow } from './api';
 
 export const BOT_ON = !!DL_BOT_URL;
@@ -22,5 +23,6 @@ type GcMatch = { match_id: number; hero_id: number; match_duration_s: number; st
 const toRow = (m: GcMatch): DlHistoryRow => ({ ...m, match_id: Number(m.match_id) });
 export const botMatches = (account: string) =>
   call<{ relation: BotRelation; polled?: number | null; matches: GcMatch[] }>(`/dl/matches/${account}`).then(r => ({ ...r, matches: r.matches.map(toRow) }));
+/** "Check now" (Pro): the bot checks with the Worker that you're logged in as this player and have Pro. */
 export const botRefresh = (account: string) =>
-  call<{ polled: number; matches: GcMatch[] }>(`/dl/refresh/${account}`, { method: 'POST' }).then(r => ({ ...r, matches: r.matches.map(toRow) }));
+  call<{ polled: number; matches: GcMatch[] }>(`/dl/refresh/${account}`, { method: 'POST', headers: { Authorization: `Bearer ${sessionToken() ?? ''}` } }).then(r => ({ ...r, matches: r.matches.map(toRow) }));

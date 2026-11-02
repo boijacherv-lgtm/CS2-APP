@@ -15,7 +15,7 @@
  * Never add Steam login automation (steam-session / steam-user / logging in as the user): Steam flagged that
  * as malicious on the owner's account. Public and official APIs only.
  */
-import { adminStats, isOwner, saveHeartbeat } from './admin';
+import { adminStats, isOwner, isPro, saveHeartbeat } from './admin';
 import { askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
@@ -32,6 +32,9 @@ export interface Env {
   RETURN_TO: string;
   /** Comma-separated SteamIDs that may open the dev page (GET /admin/stats). */
   OWNER_IDS?: string;
+  /** "1": every logged-in player has Pro (early access). Otherwise the owner and PRO_IDS (comma-separated SteamIDs). */
+  PRO_FOR_ALL?: string;
+  PRO_IDS?: string;
   /** Cloudflare rate limiters (wrangler.toml [[ratelimits]]): per visitor's IP, and per logged-in player. */
   RATE_PUBLIC?: RateLimit;
   RATE_USER?: RateLimit;
@@ -98,7 +101,7 @@ export default {
       // everything else needs a logged-in user
       const token = req.headers.get('Authorization')?.match(/^Bearer ([\w-]{20,})$/)?.[1];
       const steamId = token ? await env.SB.get(`session:${token}`) : null;
-      if (path === '/me' && req.method === 'GET') return json({ me: steamId ? { steamId, ...(await publicProfile(env, steamId)), ...(isOwner(env.OWNER_IDS, steamId) ? { owner: true } : {}) } : null });
+      if (path === '/me' && req.method === 'GET') return json({ me: steamId ? { steamId, ...(await publicProfile(env, steamId)), ...(isOwner(env.OWNER_IDS, steamId) ? { owner: true } : {}), ...(isPro(env, steamId) ? { pro: true } : {}) } : null });
       if (!steamId) return json({ error: 'Log in with Steam first.' }, 401);
       // a logged-in player's writes and Steam look-ups, so often per player
       if ((req.method === 'POST' || path === '/resolve') && await limited(env.RATE_USER, steamId)) return slow();

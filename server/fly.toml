@@ -8,7 +8,7 @@ primary_region = "fra"
 [env]
   DATA_DIR = "/data"
   PORT = "8080"
-  DL_POLL_MINUTES = "5"
+  DL_POLL_MINUTES = "10"
   DL_ALLOW_ORIGINS = "https://tsakhstvo.xyz,http://localhost:5173"
 
 # the bot's renewed login and what it has seen, kept across restarts

@@ -2,7 +2,7 @@
 
 Makes every visitor's **Deadlock matches load by themselves** on https://tsakhstvo.xyz. A visitor clicks **Add in Steam**
 in Review once; the bot (a separate Steam account) accepts, and from then on it checks their match history every
-5 minutes, gets each new match's salts from Deadlock's game coordinator and hands them to deadlock-api, which fetches the
+10 minutes, gets each new match's salts from Deadlock's game coordinator and hands them to deadlock-api, which fetches the
 match and, when Valve kept one, its replay. Visitors install nothing.
 
 - The bot is its **own Steam account**: never yours, never a visitor's. If Steam objects to it, only that account is hit.
@@ -59,9 +59,9 @@ GitHub repo → Settings → Secrets and variables → Actions → **Variables**
 [SteamDatabase/Protobufs](https://github.com/SteamDatabase/Protobufs/tree/master/deadlock)):
 
 - **Friends:** every friend request is accepted (`friendRelationship`).
-- **Every `DL_POLL_MINUTES`:** for each friend, `ClientToGCGetMatchHistory`; for each match of the last week not handed
+- **Every `DL_POLL_MINUTES` (10):** for each friend, `ClientToGCGetMatchHistory`; for each match of the last week not handed
   on yet, `ClientToGCGetMatchMetaData` (salts: metadata, replay, cluster), a check that the match file is on Valve's
   server, then `POST https://api.deadlock-api.com/v1/matches/salts`. Requests are spaced 2.5 s apart.
 - **For the site** (CORS for `DL_ALLOW_ORIGINS`): `GET /dl/bot`, `GET /dl/friend/<SteamID3>`,
-  `GET /dl/matches/<SteamID3>` (friends only), `POST /dl/refresh/<SteamID3>` (check now, once a minute).
+  `GET /dl/matches/<SteamID3>` (friends only), `POST /dl/refresh/<SteamID3>` (check now: Pro only, for your own account, verified with the Worker's `/me` using your site session; once a minute).
 - **State** (`/data/deadlock-state.json`): each friend's last match list and which matches were handed on (two weeks).

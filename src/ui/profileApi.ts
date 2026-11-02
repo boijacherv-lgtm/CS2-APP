@@ -9,7 +9,8 @@ import type { DemoData } from '../engine/recap';
  * routes), it lives on your account and follows you between devices; otherwise it's kept in this browser. Matches
  * reviewed before logging in are uploaded once you do.
  */
-export type SteamMe = { steamId: string; name: string | null; avatar: string | null; /** may open the dev page */ owner?: boolean };
+export type SteamMe = { steamId: string; name: string | null; avatar: string | null; /** may open the dev page */ owner?: boolean;
+  /** has Pro (the Worker decides: everyone during early access) */ pro?: boolean };
 
 interface ProfileState {
   /** undefined while unknown; null = not logged in (or no Steam on this build). */

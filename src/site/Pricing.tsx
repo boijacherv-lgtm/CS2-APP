@@ -18,6 +18,7 @@ const PRO = [
   `Unlimited history (your last ${MAX_HISTORY} matches, trends over all of them)`,
   'Engine deep dive: the best line for every moment, not just the worst',
   'Compare with pro players, not just level 10',
+  'Deadlock: Check now (the bot looks for your newest match right away)',
   'Supporter badge on your profile',
   'New features first',
 ];

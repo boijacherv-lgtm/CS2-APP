@@ -10,6 +10,9 @@ SITE_ORIGINS = "https://tsakhstvo.xyz,https://www.tsakhstvo.xyz"
 RETURN_TO = "https://tsakhstvo.xyz/"
 # SteamIDs that may open the site's dev page (#/dev); comma-separated
 OWNER_IDS = "76561199107207687"
+# Pro: "1" = everyone logged in (early access, as the Pricing page says); "0" = only the owner and PRO_IDS
+PRO_FOR_ALL = "1"
+PRO_IDS = ""
 
 # Logins, codes and match lists. Create it once with:  npx wrangler kv namespace create SB
 # and paste the id it prints here.

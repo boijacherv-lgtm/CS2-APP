@@ -9,6 +9,9 @@ const TOKEN_KEY = 'stratboard.steamSession';
 const token = () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } };
 const setToken = (t: string | null) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch { /* private mode */ } };
 
+/** This browser's Worker session (for services that check who you are with the Worker, like the Deadlock bot). */
+export const sessionToken = () => (ONLINE ? token() : null);
+
 export function steamFetch(path: string, init: RequestInit = {}): Promise<Response> {
   if (!ONLINE) return fetch(`/api/steam${path}`, init);
   const t = token();
