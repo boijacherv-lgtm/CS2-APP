@@ -38,10 +38,26 @@ export class DeadlockBot {
     user.on('loggedOn', () => {
       this.log(`deadlock bot: logged in to Steam as ${user.steamID.getSteamID64()}`);
       user.setPersona(SteamUser.EPersonaState.Online);
-      user.gamesPlayed([APP_ID]);
-      this.hello();
+      // Deadlock has to be in the bot's library for its game coordinator to answer: ask for it (free) every time
+      user.requestFreeLicense([APP_ID], (err, packages, apps) => {
+        this.log(err ? `deadlock bot: couldn't get Deadlock's license (${err.message}): add Deadlock to the bot's library in Steam`
+          : apps?.length ? `deadlock bot: Deadlock added to the bot's library` : 'deadlock bot: license request done (nothing new granted)');
+        user.gamesPlayed([APP_ID]);
+        this.hello();
+      });
     });
+    // which games the bot's licenses hold (Deadlock must be one)
+    user.on('licenses', ls => {
+      const ids = ls.map(l => l.package_id);
+      user.getProductInfo([], ids, false, (err, apps, packages) => {
+        if (err) return this.log(`deadlock bot: licenses: ${err.message}`);
+        const owned = new Set(Object.values(packages ?? {}).flatMap(p => Object.values(p.packageinfo?.appids ?? {}).map(Number)));
+        this.log(`deadlock bot: packages ${ids.join(', ')}; ${owned.has(APP_ID) ? 'Deadlock is in the library' : 'Deadlock is NOT in the library'} (${owned.size} apps)`);
+      });
+    });
+    let heard = 0;
     user.on('receivedFromGC', (appid, msgType) => {
+      if (heard++ < 15) this.log(`deadlock bot: from the game coordinator: app ${appid}, message ${msgType}`);
       if (appid === APP_ID && msgType === MSG.ClientWelcome && this.state !== 'ready') { this.state = 'ready'; this.log('deadlock bot: connected to Deadlock'); }
     });
     // friends: accept every request, now and whenever one comes
@@ -51,16 +67,18 @@ export class DeadlockBot {
     });
     this.state = 'connecting';
     user.logOn({ refreshToken: this.token });
-    await this.ready(90000);
+    // waits as long as it takes: hello keeps going until the game coordinator answers
+    await this.ready(Infinity);
   }
 
   /** Says hello to the game coordinator until it welcomes us (it ignores everything before that). */
   hello() {
     let n = 0;
     const tick = () => {
-      if (this.state === 'ready' || !this.user?.steamID || n++ > 40) return;
+      if (this.state === 'ready' || !this.user?.steamID) return;
       this.user.sendToGC(APP_ID, MSG.ClientHello, {}, encode(T.Hello, {}));
-      setTimeout(tick, 5000);
+      if (++n === 24) this.log('deadlock bot: no answer from Deadlock after 2 minutes; still trying every 30 s');
+      setTimeout(tick, n < 24 ? 5000 : 30000);
     };
     tick();
   }
