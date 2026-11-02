@@ -14,18 +14,17 @@ const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 interface DlItem { id: number; name: string; cost: number; tier: number; slot: string; icon: string | null }
 const ITEM_LIST = ITEMS as DlItem[];
 const itemOf = new Map(ITEM_LIST.map(i => [i.id, i]));
-type Tab = 'macro' | 'fight' | 'builds';
+type Tab = 'macro' | 'builds';
 /** Tactical's top tabs: the meta (heroes, builds, draft) and the planners. */
 type Top = 'meta' | 'heroBuilds' | 'draft' | 'planner';
 const TOP: { id: Top; label: string; icon: IconName; tip: string }[] = [
   { id: 'meta', label: 'Meta heroes', icon: 'trendUp', tip: 'Every hero on this patch: tier, win, pick and ban rates, at your ranks' },
   { id: 'heroBuilds', label: 'Builds', icon: 'star', tip: 'A hero\'s core items, most played builds and off-meta items that win more' },
   { id: 'draft', label: 'Draft', icon: 'friends', tip: 'Put up to six heroes a side: both teams\' chances and the best next pick' },
-  { id: 'planner', label: 'Planner', icon: 'route', tip: 'Macro plan, teamfight frames, builds and power spikes' },
+  { id: 'planner', label: 'Planner', icon: 'route', tip: 'Macro plan, builds and power spikes' },
 ];
 const TABS: { id: Tab; label: string; icon: IconName; tip: string }[] = [
   { id: 'macro', label: 'Macro plan', icon: 'route', tip: 'Who goes where over the match: lanes, rotations, objectives' },
-  { id: 'fight', label: 'Teamfight', icon: 'swords', tip: 'One fight, frame by frame: positions, engages, who focuses whom' },
   { id: 'builds', label: 'Builds & spikes', icon: 'trendUp', tip: 'Both teams\' builds and when each side is stronger' },
 ];
 /** Where a team's heroes start: just outside their base (map coordinates). */
@@ -52,9 +51,9 @@ export function DlTactical() {
   );
 }
 
-/** The three planners (macro plan, teamfight, builds and power spikes). Everything is kept in this browser. */
+/** The planners (macro plan, builds and power spikes). Everything is kept in this browser. */
 function Planner() {
-  const [tab, setTab] = useState<Tab>(() => { try { return (localStorage.getItem('stratboard.dl.tab') as Tab) || 'macro'; } catch { return 'macro'; } });
+  const [tab, setTab] = useState<Tab>(() => { try { const t = localStorage.getItem('stratboard.dl.tab'); return t === 'builds' ? 'builds' : 'macro'; } catch { return 'macro'; } });
   const pick = (t: Tab) => { setTab(t); try { localStorage.setItem('stratboard.dl.tab', t); } catch { /* private mode */ } };
   return (
     <div className="dl-tac">
@@ -62,10 +61,9 @@ function Planner() {
         <div className="recap-tabs-list" role="tablist">
           {TABS.map(t => <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => pick(t.id)} title={t.tip}><Icon name={t.icon} size={14} /> {t.label}</button>)}
         </div>
-        <button className="ghost small-btn" onClick={() => { if (confirm('Clear every plan (heroes, paths, frames, builds)?')) useTac.getState().reset(); }}>Clear all</button>
+        <button className="ghost small-btn" onClick={() => { if (confirm('Clear every plan (heroes, paths, builds)?')) useTac.getState().reset(); }}>Clear all</button>
       </nav>
       {tab === 'macro' && <Macro />}
-      {tab === 'fight' && <Fight />}
       {tab === 'builds' && <Builds />}
     </div>
   );
@@ -236,91 +234,7 @@ function Macro() {
   );
 }
 
-// ---- 2. teamfight ---------------------------------------------------------------------------------------------------
-
-function Fight() {
-  const heroes = useTac(s => s.heroes), frames = useTac(s => s.frames), frame = useTac(s => s.frame), ranges = useTac(s => s.ranges), selected = useTac(s => s.selected);
-  const t = useTac.getState();
-  const [layers, setLayers] = useLayers(['objectives']);
-  const [anim, setAnim] = useState<number | null>(null);
-  const icons = useImages(heroes.map(h => heroOf(h.hero).icon));
-  const cur = frames[frame] ?? frames[0], prev = frame > 0 ? frames[frame - 1] : null;
-  // play: every frame in turn, 1.2 s each, sliding between them
-  useEffect(() => {
-    if (anim === null) return;
-    let raf = 0; const start = performance.now();
-    const tick = (now: number) => {
-      const p = (now - start) / 1200;
-      if (p >= frames.length - 1) { setAnim(null); t.setFrame(frames.length - 1); return; }
-      setAnim(p); raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [anim === null]); // eslint-disable-line react-hooks/exhaustive-deps
-  const posOf = (id: string): Pt | null => {
-    if (anim !== null) {
-      const i = Math.floor(anim), f = anim - i, a = frames[i]?.pos[id], b = frames[i + 1]?.pos[id] ?? a;
-      return a && b ? { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f } : a ?? null;
-    }
-    return cur.pos[id] ?? null;
-  };
-  const sel = heroes.find(h => h.id === selected);
-  return (
-    <div className="dl-tac-body">
-      <aside className="dl-tac-side">
-        <Roster />
-        <div className="dl-frames" role="group" aria-label="Frames">
-          {frames.map((_, i) => <button key={i} className={`chip ${frame === i ? 'on' : ''}`} onClick={() => t.setFrame(i)}>Frame {i + 1}</button>)}
-          <button className="chip" onClick={() => t.addFrame()} title="A new frame starting from this one">+ Frame</button>
-        </div>
-        <div className="dl-frame-actions">
-          <button className="ghost small-btn" onClick={() => { t.setFrame(0); setAnim(0); }} disabled={frames.length < 2}><Icon name="play" size={12} /> Play frames</button>
-          {frames.length > 1 && <button className="ghost small-btn" onClick={() => t.removeFrame(frame)}>Delete frame {frame + 1}</button>}
-        </div>
-        {sel ? (
-          <div className="dl-sel">
-            <b>{heroOf(sel.hero).name}</b>
-            <label className="dl-range">Range ring <input type="range" min={0} max={3000} step={100} value={ranges[sel.id] ?? 0} onChange={e => t.setRange(sel.id, Number(e.target.value))} />
-              <span className="num muted small">{ranges[sel.id] ? `${ranges[sel.id]} u` : 'off'}</span></label>
-            <p className="muted small">Click an enemy to have {heroOf(sel.hero).name} focus them (click again to undo).</p>
-          </div>
-        ) : <p className="muted small">Drag heroes to place them in this frame. Select one for its range ring and who it focuses. Arrows show how each hero moved since the last frame.</p>}
-        <LayerToggles layers={layers} setLayers={setLayers} />
-      </aside>
-      <div className="dl-tac-map">
-        <MapBase layers={layers} onBackground={() => t.select(null)}>
-          {(S, k) => (
-            <Layer>
-              {heroes.map(h => {
-                const at = posOf(h.id), r = ranges[h.id];
-                return at && r ? <Circle key={`r${h.id}`} x={at.x * S} y={at.y * S} radius={(r / MAP_UNITS) * S} stroke={TEAM_COLOR[h.team]} strokeWidth={1.2 * k} dash={[4 * k, 3 * k]} fill={TEAM_COLOR[h.team]} opacity={0.12} listening={false} /> : null;
-              })}
-              {anim === null && prev && heroes.map(h => {
-                const a = prev.pos[h.id], b = cur.pos[h.id];
-                if (!a || !b || Math.hypot(a.x - b.x, a.y - b.y) < 0.004) return null;
-                return <Arrow key={`m${h.id}`} points={[a.x * S, a.y * S, b.x * S, b.y * S]} stroke={TEAM_COLOR[h.team]} fill={TEAM_COLOR[h.team]} strokeWidth={1.6 * k} dash={[5 * k, 4 * k]} pointerLength={6 * k} pointerWidth={6 * k} opacity={0.75} listening={false} />;
-              })}
-              {anim === null && cur.focus.map(f => {
-                const a = cur.pos[f.from], b = cur.pos[f.to];
-                return a && b ? <Arrow key={`f${f.from}-${f.to}`} points={[a.x * S, a.y * S, b.x * S, b.y * S]} stroke="#ef4444" fill="#ef4444" strokeWidth={2 * k} pointerLength={7 * k} pointerWidth={7 * k} listening={false} /> : null;
-              })}
-              {heroes.map(h => {
-                const at = posOf(h.id);
-                if (!at) return null;
-                const icon = heroOf(h.hero).icon;
-                return <Token key={h.id} h={h} at={at} k={k} S={S} icon={icon ? icons[icon] : undefined} selected={selected === h.id}
-                  onDrag={p => { t.setFramePos(h.id, p); t.select(h.id); }}
-                  onClick={() => { if (sel && sel.team !== h.team) t.toggleFocus(sel.id, h.id); else t.select(selected === h.id ? null : h.id); }} />;
-              })}
-            </Layer>
-          )}
-        </MapBase>
-      </div>
-    </div>
-  );
-}
-
-// ---- 3. builds and power spikes ------------------------------------------------------------------------------------
+// ---- 2. builds and power spikes ------------------------------------------------------------------------------------
 
 function Builds() {
   const builds = useTac(s => s.builds);
