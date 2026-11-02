@@ -187,3 +187,4 @@
 
 /* the match list: matches that still have a demo */
 .dl-row-demo { margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 700; color: var(--good); background: rgba(80, 200, 120, .12); vertical-align: 1px; }
+.dl-demo-reload { margin-left: 6px; font-size: 11px; padding: 2px 8px; }

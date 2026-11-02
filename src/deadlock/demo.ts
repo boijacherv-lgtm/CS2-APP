@@ -8,7 +8,8 @@
  * Source 2 cell + offset: world = (cell − 64) × 512 + vec. Kept in this browser once read, like the match.
  */
 import { decompress } from 'fzstd';
-import { getItem, gunzipJson, gzipJson, setItem } from '../ui/localStore';
+import { delItem, getItem, gunzipJson, gzipJson, setItem } from '../ui/localStore';
+import { useDl } from './store';
 import { DL_MAP, heroOf, toMap } from './data';
 import { playerAt, type DlMatch } from './match';
 
@@ -344,6 +345,7 @@ export class NoDemo extends Error {
 const MISSING = 'stratboard.dldemo.missing';
 const missing = (): number[] => { try { return JSON.parse(localStorage.getItem(MISSING) ?? '[]'); } catch { return []; } };
 function markMissing(id: number) { try { localStorage.setItem(MISSING, JSON.stringify([...new Set([id, ...missing()])].slice(0, 500))); } catch { /* private mode */ } }
+function unmarkMissing(id: number) { try { localStorage.setItem(MISSING, JSON.stringify(missing().filter(x => x !== id))); } catch { /* private mode */ } }
 
 const KEY = (id: number) => `dldemo${DEMO_V}:${id}`;
 /**
@@ -408,4 +410,20 @@ export function riftAt(demo: DlDemo | null, t: number) {
   if (r.taken !== null && t >= r.taken) return { ...r, phase: 'taken' as const, p: [0, 0] as [number, number], n: [0, 0] as [number, number] };
   const now = [...r.progress].reverse().find(s => s.t <= t);
   return { ...r, phase: 'contest' as const, p: now?.p ?? [0, 0], n: now?.n ?? [0, 0] };
+}
+
+/**
+ * Reads the open match's demo into Review (status by the clock). `again`: forget the copy kept in this browser (and
+ * that it had no demo) and read it afresh from deadlock-api: to retry, or to pick up a newer way of reading it.
+ */
+export async function readDemo(m: DlMatch, again = false) {
+  const mine = () => useDl.getState().match?.id === m.id;
+  if (again) { await delItem(KEY(m.id)); unmarkMissing(m.id); }
+  useDl.setState({ demoStatus: { state: 'reading' }, ...(again ? { demo: null } : {}) });
+  try {
+    const demo = await loadDemo(m, wait => { if (mine()) useDl.setState({ demoStatus: { state: 'reading', wait } }); });
+    if (mine()) useDl.setState({ demo, demoStatus: { state: 'done' } });
+  } catch (e) {
+    if (mine()) useDl.setState({ demoStatus: { state: 'failed', error: e instanceof Error ? e.message : String(e) } });
+  }
 }
