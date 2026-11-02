@@ -474,3 +474,25 @@
 .dl-pf-game > .muted:first-child { grid-column: 1 / -1; }
 .dl-pf-heroes td, .dl-pf-heroes th { padding: 6px 8px; }
 @media (max-width: 900px) { .dl-pf-parts { grid-template-columns: repeat(3, minmax(0, 1fr)); } .dl-pf-overall { grid-column: 1 / -1; } }
+
+/* Tactical: patch notes, buffed / nerfed, rising / falling */
+.dl-patch { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px 7px; border-radius: 999px;
+  background: color-mix(in srgb, var(--text-3) 18%, transparent); color: var(--text-2); cursor: help; }
+.dl-patch.buffed { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+.dl-patch.nerfed { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
+.dl-trend { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.dl-trend.up { color: var(--good); } .dl-trend.down { color: var(--bad); }
+.dl-trend.big { font-weight: 700; }
+.dl-early { margin: 0; padding: 8px 12px; border-radius: 10px; border: 1px dashed color-mix(in srgb, var(--theme) 40%, var(--border)); }
+.dl-movers { display: flex; flex-wrap: wrap; gap: 8px; }
+.dl-mover { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; font: inherit; color: inherit; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--border); }
+.dl-mover.up { border-color: color-mix(in srgb, var(--good) 35%, var(--border)); } .dl-mover.down { border-color: color-mix(in srgb, var(--bad) 35%, var(--border)); }
+.dl-patch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.dl-patch-card { padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
+.dl-patch-who { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; background: none; border: none; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.dl-patch-who .dl-patch { margin-left: auto; }
+.dl-patch-card ul, .dl-patch-general { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.dl-pl { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 6px; font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
+.dl-pl i { font-style: normal; font-weight: 800; text-align: center; }
+.dl-pl.buff i { color: var(--good); } .dl-pl.nerf i { color: var(--bad); } .dl-pl.change i { color: var(--text-3); }

@@ -3,6 +3,7 @@ import { Loading } from '../ui/Loading';
 import { DL_HEROES, heroOf } from './data';
 import ITEMS from './generated/items.json';
 import { draftStats, heroBuilds, heroMeta, rankOf, RANKS, readDraft, suggest, type HeroMeta, type RankBand } from './meta';
+import { gameplayPatches, tally, verdict, type Dir, type Patch, type PatchChange } from './patches';
 import { POS_JOB, POS_NAME, positionOf, POSITIONS_SOURCE, spreadOf, type Pos } from './positions';
 
 /**
@@ -77,8 +78,9 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
           <option value={0}>All positions</option>
           {([1, 2, 3, 4, 5, 6] as Pos[]).map(p => <option key={p} value={p}>Pos {p} · {POS_NAME[p]}</option>)}
         </select>
-        {data && <span className="muted small">Since the patch of {day(data.since)} · {Math.round(data.rows.reduce((a, r) => a + r.matches, 0) / 12).toLocaleString()} matches</span>}
+        {data && <span className="muted small">Since the patch of {day(data.since)}{data.patch ? ` (${data.patch.title})` : ''} · {Math.round(data.rows.reduce((a, r) => a + r.matches, 0) / 12).toLocaleString()} matches</span>}
       </div>
+      {data?.early && <p className="dl-early muted small"><b>Early patch:</b> heroes marked * have under 3,000 games since the patch, so their win rate leans on the previous patch, moved by what the patch notes did to them. It sharpens as games come in.</p>}
       {err && <p className="warn-text">{err}</p>}
       {!data && !err && <Loading>Loading the meta…</Loading>}
       {data && (
@@ -88,18 +90,19 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
             {([['tier', 'Tier'], ['win', 'Win rate'], ['pick', 'Pick rate'], ['ban', 'Ban rate']] as [SortKey, string][]).map(([k, l]) => (
               <th key={k}><button className={`dl-sort ${sort === k ? 'on' : ''}`} onClick={() => setSort(k)}>{l}</button></th>
             ))}
-            <th>K / D / A</th><th className="num">Games</th><th />
+            <th title="Win rate now against the previous patch">Since last patch</th><th>K / D / A</th><th className="num">Games</th><th />
           </tr></thead>
           <tbody>
             {rows.map(r => (
               <tr key={r.hero}>
-                <td><span className="dl-meta-name"><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b><PosChip hero={r.hero} /></span></td>
+                <td><span className="dl-meta-name"><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b><PosChip hero={r.hero} />{r.patch && <PatchChip p={r.patch} />}</span></td>
                 <td><span className={`dl-tier t${r.tier}`}>{r.tier}</span></td>
                 <td className={`num ${r.winRate >= 0.51 ? 'up' : r.winRate < 0.49 ? 'down' : ''}`}>
-                  <span className="dl-rate">{pct(r.winRate)}<i style={{ '--w': `${Math.max(0, Math.min(1, (r.winRate - 0.44) / 0.14)) * 100}%` } as React.CSSProperties} /></span>
+                  <span className="dl-rate" title={r.early ? `Early: ${pct(r.early.raw)} from its ${r.early.games.toLocaleString()} games on this patch, leaning on the previous patch` : undefined}>{pct(r.winRate)}{r.early ? '*' : ''}<i style={{ '--w': `${Math.max(0, Math.min(1, (r.winRate - 0.44) / 0.14)) * 100}%` } as React.CSSProperties} /></span>
                 </td>
                 <td className="num"><span className="dl-rate">{pct(r.pickRate)}<i style={{ '--w': `${Math.min(1, r.pickRate / 0.6) * 100}%` } as React.CSSProperties} /></span></td>
                 <td className="num">{r.banRate === null ? '–' : pct(r.banRate)}</td>
+                <td className="num">{r.delta === undefined ? <span className="muted">–</span> : <Trend d={r.delta} before={r.before!} />}</td>
                 <td className="num muted">{r.kda.map(x => x.toFixed(1)).join(' / ')}</td>
                 <td className="num muted">{r.matches.toLocaleString()}</td>
                 <td><button className="ghost small-btn" onClick={() => onHero(r.hero)}>Builds</button></td>
@@ -265,6 +268,103 @@ export function Draft() {
         </div>
       </div>
       {!data && !err && <Loading>Loading matchups…</Loading>}
+    </section>
+  );
+}
+
+/** Rising / falling: the win rate now against the previous patch (1.5 points or more either way is called out). */
+function Trend({ d, before }: { d: number; before: number }) {
+  const pts = d * 100, big = Math.abs(pts) >= 1.5;
+  return (
+    <span className={`dl-trend ${pts > 0 ? 'up' : pts < 0 ? 'down' : ''} ${big ? 'big' : ''}`} title={`${pct(before)} on the previous patch`}>
+      {pts > 0 ? '▲' : pts < 0 ? '▼' : ''} {Math.abs(pts).toFixed(1)}{big ? (pts > 0 ? ' rising' : ' falling') : ''}
+    </span>
+  );
+}
+/** "Buffed", "Nerfed", "Mixed": what the current patch did to a hero, with its lines on hover. */
+function PatchChip({ p }: { p: { buffs: number; nerfs: number; verdict: string; lines: PatchChange[] } }) {
+  return (
+    <span className={`dl-patch ${p.verdict}`} title={p.lines.map(l => `${l.dir > 0 ? '+' : l.dir < 0 ? '−' : '·'} ${l.ability ? `${l.ability}: ` : ''}${l.text}`).join('\n')}>
+      {p.verdict}
+    </span>
+  );
+}
+const DIR_MARK: Record<Dir, string> = { 1: 'buff', 0: 'change', [-1]: 'nerf' } as Record<Dir, string>;
+
+/**
+ * Tactical → Patch: the newest gameplay update, read: every hero's and item's changes marked buff / nerf (from the
+ * numbers and wording), the general changes, and how heroes have moved since (win rate against the previous patch).
+ */
+export function PatchView({ onHero }: { onHero: (hero: number) => void }) {
+  const [band] = useRank();
+  const notes = useLoad(() => gameplayPatches(), []);
+  const meta = useLoad(() => heroMeta(band), [band.id]);
+  const [pick, setPick] = useState(0);
+  if (notes.err) return <p className="warn-text">{notes.err}</p>;
+  if (!notes.data) return <Loading>Reading the patch notes…</Loading>;
+  if (!notes.data.length) return <p className="empty-state">No gameplay updates in the patch notes feed.</p>;
+  const p: Patch = notes.data[Math.min(pick, notes.data.length - 1)];
+  const heroes = [...tally(p.changes, 'hero')].sort((a, b) => (b[1].buffs - b[1].nerfs) - (a[1].buffs - a[1].nerfs));
+  const items = [...tally(p.changes, 'item')];
+  const general = p.changes.filter(c => c.kind === 'general');
+  const movers = (meta.data?.rows ?? []).filter(r => r.delta !== undefined && Math.abs(r.delta) >= 0.015).sort((a, b) => b.delta! - a.delta!);
+  const line = (c: PatchChange, i: number) => (
+    <li key={i} className={`dl-pl ${DIR_MARK[c.dir]}`}><i aria-label={DIR_MARK[c.dir]}>{c.dir > 0 ? '+' : c.dir < 0 ? '−' : '·'}</i><span>{c.ability && <b>{c.ability}: </b>}{c.text}</span></li>
+  );
+  return (
+    <section className="dl-meta dl-patchview">
+      <div className="dl-meta-head">
+        <h2>Patch notes</h2>
+        <select className="dl-rank" value={pick} onChange={e => setPick(Number(e.target.value))} aria-label="Update">
+          {notes.data.map((x, i) => <option key={x.at} value={i}>{day(x.at)} · {x.title}</option>)}
+        </select>
+        <a className="muted small" href={p.link} target="_blank" rel="noreferrer">Official notes</a>
+      </div>
+      <p className="muted small">Read from Deadlock's own changelog and Steam news (deadlock-api feed). Each line is marked buff, nerf or neutral from its numbers and wording (a shorter cooldown is a buff); the meta uses this patch's date and, early on, these buffs and nerfs.</p>
+
+      {pick === 0 && movers.length > 0 && (
+        <div className="site-card">
+          <div className="card-head"><h2>Moved most since the previous patch</h2><span className="muted small">{band.label} · win rate now vs before</span></div>
+          <div className="dl-movers">
+            {movers.slice(0, 6).map(r => <button key={r.hero} className="dl-mover up" onClick={() => onHero(r.hero)}><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b><Trend d={r.delta!} before={r.before!} /></button>)}
+            {movers.slice(-6).reverse().filter(r => r.delta! < 0).map(r => <button key={r.hero} className="dl-mover down" onClick={() => onHero(r.hero)}><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b><Trend d={r.delta!} before={r.before!} /></button>)}
+          </div>
+        </div>
+      )}
+
+      <div className="site-card">
+        <div className="card-head"><h2>Heroes</h2><span className="muted small">{heroes.length} changed · {heroes.filter(([, t]) => verdict(t) === 'buffed').length} buffed · {heroes.filter(([, t]) => verdict(t) === 'nerfed').length} nerfed</span></div>
+        <div className="dl-patch-grid">
+          {heroes.map(([id, t]) => (
+            <div key={id} className="dl-patch-card">
+              <button className="dl-patch-who" onClick={() => onHero(id)} title="This hero's builds"><HeroIcon id={id} /><b>{heroOf(id).name}</b><PatchChip p={{ ...t, verdict: verdict(t) }} /></button>
+              <ul>{t.lines.map(line)}</ul>
+            </div>
+          ))}
+        </div>
+      </div>
+      {items.length > 0 && (
+        <div className="site-card">
+          <div className="card-head"><h2>Items</h2><span className="muted small">{items.length} changed</span></div>
+          <div className="dl-patch-grid">
+            {items.map(([id, t]) => {
+              const it = ITEM.get(id);
+              return (
+                <div key={id} className="dl-patch-card">
+                  <div className="dl-patch-who">{it?.icon && <img className="dl-meta-item" src={it.icon} alt="" width={26} height={26} />}<b>{it?.name ?? id}</b><PatchChip p={{ ...t, verdict: verdict(t) }} /></div>
+                  <ul>{t.lines.map(line)}</ul>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {general.length > 0 && (
+        <div className="site-card">
+          <div className="card-head"><h2>General</h2></div>
+          <ul className="dl-patch-general">{general.map(line)}</ul>
+        </div>
+      )}
     </section>
   );
 }
