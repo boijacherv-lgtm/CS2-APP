@@ -37,7 +37,9 @@ export class DeadlockBot {
     user.on('disconnected', () => { this.state = 'connecting'; });
     user.on('loggedOn', () => {
       this.log(`deadlock bot: logged in to Steam as ${user.steamID.getSteamID64()}`);
-      user.setPersona(SteamUser.EPersonaState.Online);
+      // invisible: friends see it offline (no "online" or "now playing Deadlock" pop-ups); it still talks to Deadlock's
+      // game coordinator and accepts friend requests
+      user.setPersona(SteamUser.EPersonaState.Invisible);
       // Deadlock has to be in the bot's library for its game coordinator to answer: ask for it (free) every time
       user.requestFreeLicense([APP_ID], (err, packages, apps) => {
         this.log(err ? `deadlock bot: couldn't get Deadlock's license (${err.message}): add Deadlock to the bot's library in Steam`
