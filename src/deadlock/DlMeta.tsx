@@ -94,8 +94,10 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
               <tr key={r.hero}>
                 <td><span className="dl-meta-name"><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b><PosChip hero={r.hero} /></span></td>
                 <td><span className={`dl-tier t${r.tier}`}>{r.tier}</span></td>
-                <td className={`num ${r.winRate >= 0.51 ? 'up' : r.winRate < 0.49 ? 'down' : ''}`}>{pct(r.winRate)}</td>
-                <td className="num">{pct(r.pickRate)}</td>
+                <td className={`num ${r.winRate >= 0.51 ? 'up' : r.winRate < 0.49 ? 'down' : ''}`}>
+                  <span className="dl-rate">{pct(r.winRate)}<i style={{ '--w': `${Math.max(0, Math.min(1, (r.winRate - 0.44) / 0.14)) * 100}%` } as React.CSSProperties} /></span>
+                </td>
+                <td className="num"><span className="dl-rate">{pct(r.pickRate)}<i style={{ '--w': `${Math.min(1, r.pickRate / 0.6) * 100}%` } as React.CSSProperties} /></span></td>
                 <td className="num">{r.banRate === null ? '–' : pct(r.banRate)}</td>
                 <td className="num muted">{r.kda.map(x => x.toFixed(1)).join(' / ')}</td>
                 <td className="num muted">{r.matches.toLocaleString()}</td>
