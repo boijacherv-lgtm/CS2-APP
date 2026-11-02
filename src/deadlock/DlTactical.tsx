@@ -8,7 +8,7 @@ import { DL_HEROES, DL_MAP, heroOf, MAP_UNITS, TEAM_COLOR, TEAM_NAME, type DlTea
 import ITEMS from './generated/items.json';
 import { LAYER_LABEL, MapBase, useImages, type MapLayer } from './MapBase';
 import { keyAt, MATCH_LENGTH, useTac, type Pt, type TacHero } from './tacticalStore';
-import { Draft, HeroBuilds, MetaHeroes } from './DlMeta';
+import { Draft, HeroBuilds, MetaHeroes, PatchView } from './DlMeta';
 import './dl.css';
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -17,9 +17,10 @@ const ITEM_LIST = ITEMS as DlItem[];
 const itemOf = new Map(ITEM_LIST.map(i => [i.id, i]));
 type Tab = 'macro' | 'builds';
 /** Tactical's top tabs: the meta (heroes, builds, draft) and the planners. */
-type Top = 'meta' | 'heroBuilds' | 'draft' | 'planner';
+type Top = 'meta' | 'patch' | 'heroBuilds' | 'draft' | 'planner';
 const TOP: { id: Top; label: string; icon: IconName; tip: string }[] = [
   { id: 'meta', label: 'Meta heroes', icon: 'trendUp', tip: 'Every hero on this patch: tier, win, pick and ban rates, at your ranks' },
+  { id: 'patch', label: 'Patch', icon: 'bolt', tip: 'The newest patch notes, read: buffs and nerfs per hero and item, and who moved since' },
   { id: 'heroBuilds', label: 'Builds', icon: 'star', tip: 'A hero\'s core items, most played builds and off-meta items that win more' },
   { id: 'draft', label: 'Draft', icon: 'friends', tip: 'Put up to six heroes a side: both teams\' chances and the best next pick' },
   { id: 'planner', label: 'Planner', icon: 'route', tip: 'Macro plan, builds and power spikes' },
@@ -45,6 +46,7 @@ export function DlTactical() {
         </div>
       </nav>
       {top === 'meta' && <MetaHeroes onHero={h => { pickHero(h); pickTop('heroBuilds'); }} />}
+      {top === 'patch' && <PatchView onHero={h => { pickHero(h); pickTop('heroBuilds'); }} />}
       {top === 'heroBuilds' && <HeroBuilds hero={hero} setHero={pickHero} />}
       {top === 'draft' && <Draft />}
       {top === 'planner' && <Planner />}

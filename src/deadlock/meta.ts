@@ -3,6 +3,7 @@
  * patch (win, pick and ban rates), each hero's builds and items, and how heroes do against and with each other (for
  * the draft). Everything is from matches since the last big patch, at the chosen ranks.
  */
+import { gameplayPatches, tally, verdict, type Patch, type PatchChange } from './patches';
 const API = 'https://api.deadlock-api.com';
 
 /** Rank bands, by the match's average badge (tier × 10 + subrank 1–6: Initiate 1x … Eternus 11x). */
@@ -29,35 +30,68 @@ async function cached<T>(key: string, url: string, slim: (v: T) => T = v => v): 
   return v;
 }
 
-/** When the current patch started (the last "big day"), in Unix seconds. */
+/**
+ * When the current patch started, in Unix seconds: the newest gameplay update in the patch notes (patches.ts) or
+ * deadlock-api's last "big day", whichever is later (the big days are kept by hand and can lag a patch behind).
+ */
 export async function patchStart(): Promise<number> {
-  const days = await cached<string[]>('patch', '/v1/patches/big-days');
-  const t = Date.parse(days[0] ?? '');
-  return Number.isFinite(t) ? Math.floor(t / 1000) : Math.floor(Date.now() / 1000) - 14 * 86400;
+  return (await patchWindow()).since;
+}
+/** The current patch's start, the previous patch's start (for "since last patch"), and the update itself. */
+export async function patchWindow(): Promise<{ since: number; before: number; patch: Patch | null }> {
+  const [days, notes] = await Promise.all([
+    cached<string[]>('patch', '/v1/patches/big-days').catch(() => [] as string[]),
+    gameplayPatches().catch(() => [] as Patch[]),
+  ]);
+  const bigDays = days.map(d => Math.floor(Date.parse(d) / 1000)).filter(Number.isFinite).sort((a, b) => b - a);
+  const starts = [...new Set([...bigDays, ...notes.map(p => p.at)])].sort((a, b) => b - a);
+  const since = starts[0] ?? Math.floor(Date.now() / 1000) - 14 * 86400;
+  // the one before (at least a day earlier: the forum and Steam posts of one update come hours apart)
+  const before = starts.find(t => t < since - 86400) ?? since - 14 * 86400;
+  return { since, before, patch: notes.find(p => Math.abs(p.at - since) < 86400) ?? null };
 }
 const filters = (since: number, band: RankBand) => `min_unix_timestamp=${since}${band.min !== undefined ? `&min_average_badge=${band.min}` : ''}${band.max !== undefined ? `&max_average_badge=${band.max}` : ''}`;
 
 export interface HeroMeta { hero: number; matches: number; wins: number; winRate: number; pickRate: number; banRate: number | null;
-  kda: [number, number, number]; soulsPerMin: number; tier: 'S' | 'A' | 'B' | 'C' | 'D' }
+  kda: [number, number, number]; soulsPerMin: number; tier: 'S' | 'A' | 'B' | 'C' | 'D';
+  /** The patch notes on this hero (buffs, nerfs, the lines), when the current patch changed it. */
+  patch?: { buffs: number; nerfs: number; verdict: string; lines: PatchChange[] };
+  /** Win rate on the previous patch, and the change since (rising / falling). */
+  before?: number; delta?: number;
+  /** Few games on this patch yet: the win rate leans on the previous patch, moved by the patch notes. */
+  early?: { games: number; raw: number } }
+/** Games on the new patch before a hero's own numbers are trusted alone. */
+const EARLY_GAMES = 3000;
 /**
  * Every hero on this patch at these ranks. The tier is from the win rate pulled toward 50% by how few games there
  * are (a 56% from 300 games isn't a 56% from 30,000): S 52.5%+, A 51%+, B 49%+, C 47.5%+, D below.
  */
-export async function heroMeta(band: RankBand): Promise<{ since: number; rows: HeroMeta[] }> {
-  const since = await patchStart(), f = filters(since, band);
+export async function heroMeta(band: RankBand): Promise<{ since: number; before: number; patch: Patch | null; early: boolean; rows: HeroMeta[] }> {
+  const { since, before, patch } = await patchWindow(), f = filters(since, band);
   type H = { hero_id: number; wins: number; matches: number; total_kills: number; total_deaths: number; total_assists: number; total_net_worth: number };
-  const [hs, bans] = await Promise.all([
+  const [hs, bans, prev] = await Promise.all([
     cached<H[]>(`heroes.${band.id}.${since}`, `/v1/analytics/hero-stats?${f}`),
     cached<{ hero_id: number; bans: number; matches: number }[]>(`bans.${band.id}.${since}`, `/v1/analytics/hero-ban-stats?${f}`).catch(() => []),
+    cached<H[]>(`heroesprev.${band.id}.${before}.${since}`, `/v1/analytics/hero-stats?${filters(before, band)}&max_unix_timestamp=${since}`).catch(() => [] as H[]),
   ]);
+  const notes = patch ? tally(patch.changes, 'hero') : new Map();
   // a match has 12 heroes: the share of matches a hero is in
   const games = hs.reduce((a, h) => a + h.matches, 0) / 12;
   const PRIOR = 1500;
   const rows = hs.filter(h => h.matches > 0).map(h => {
-    const shrunk = (h.wins + PRIOR * 0.5) / (h.matches + PRIOR);
-    const b = bans.find(x => x.hero_id === h.hero_id);
+    const b = bans.find(x => x.hero_id === h.hero_id), p = prev.find(x => x.hero_id === h.hero_id), n = notes.get(h.hero_id);
+    const raw = h.wins / h.matches, wasRate = p && p.matches >= 500 ? p.wins / p.matches : null;
+    // early in a patch: the previous patch's rate stands in for the games not played yet, moved by the notes
+    // (each net buff about +0.4 points, at most 2)
+    const shift = n ? Math.max(-0.02, Math.min(0.02, 0.004 * (n.buffs - n.nerfs))) : 0;
+    const k = wasRate !== null ? Math.max(0, EARLY_GAMES - h.matches) : 0;
+    const winRate = k ? (h.wins + k * (wasRate! + shift)) / (h.matches + k) : raw;
+    const shrunk = (winRate * (h.matches + k) + PRIOR * 0.5) / (h.matches + k + PRIOR);
     return {
-      hero: h.hero_id, matches: h.matches, wins: h.wins, winRate: h.wins / h.matches, pickRate: games ? h.matches / games : 0,
+      hero: h.hero_id, matches: h.matches, wins: h.wins, winRate, pickRate: games ? h.matches / games : 0,
+      ...(n ? { patch: { buffs: n.buffs, nerfs: n.nerfs, verdict: verdict(n), lines: n.lines } } : {}),
+      ...(wasRate !== null ? { before: wasRate, delta: raw - wasRate } : {}),
+      ...(k ? { early: { games: h.matches, raw } } : {}),
       banRate: b && b.matches ? b.bans / b.matches : null,
       kda: [h.total_kills / h.matches, h.total_deaths / h.matches, h.total_assists / h.matches] as [number, number, number],
       // net worth at the end over a typical 33 min match isn't exact: shown only as a rough "souls a minute"
@@ -65,7 +99,7 @@ export async function heroMeta(band: RankBand): Promise<{ since: number; rows: H
       tier: (shrunk >= 0.525 ? 'S' : shrunk >= 0.51 ? 'A' : shrunk >= 0.49 ? 'B' : shrunk >= 0.475 ? 'C' : 'D') as HeroMeta['tier'],
     };
   });
-  return { since, rows: rows.sort((a, b) => b.winRate - a.winRate) };
+  return { since, before, patch, early: rows.some(r => r.early), rows: rows.sort((a, b) => b.winRate - a.winRate) };
 }
 
 export interface ItemMeta { item: number; matches: number; winRate: number; share: number; buyAt: number }
