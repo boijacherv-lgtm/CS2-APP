@@ -244,3 +244,4 @@
 .dl-pos .muted { font-weight: 500; }
 .dl-pos.p1 { color: #f2c230; } .dl-pos.p2 { color: #ff9b52; } .dl-pos.p3 { color: #e0533a; }
 .dl-pos.p4 { color: #59b247; } .dl-pos.p5 { color: #29b1cc; } .dl-pos.p6 { color: #b07ce8; }
+.dl-player-name .dl-pos { margin-left: 6px; font-size: 10px; padding: 0 6px; }

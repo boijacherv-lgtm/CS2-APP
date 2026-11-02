@@ -29,7 +29,8 @@
     "pull:disputes": "vite-node tools/pull-disputes.ts",
     "link:coach": "node tools/link-coach.mjs",
     "dl:assets": "vite-node tools/dl-assets.ts",
-    "dl:positions": "vite-node tools/dl-positions.ts"
+    "dl:positions": "vite-node tools/dl-positions.ts",
+    "dl:learn": "vite-node tools/dl-learn.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",
