@@ -146,7 +146,8 @@ function DlStart() {
           rel === 'friend' ? (
             <div className="dl-bot on">
               <span><b>RageView bot is your friend.</b> <span className="muted small">New matches are found by themselves every {bot.pollMinutes} min.</span></span>
-              <button className="ghost small-btn" disabled={botBusy} onClick={() => void checkNow()}>{botBusy ? 'Checking…' : 'Check now'}</button>
+              {me?.pro ? <button className="ghost small-btn" disabled={botBusy} onClick={() => void checkNow()}>{botBusy ? 'Checking…' : 'Check now'}</button>
+                : <a className="muted small" href="#/pricing" title="Pro can ask the bot to look right away">Check now: Pro</a>}
             </div>
           ) : (
             <div className="dl-bot">

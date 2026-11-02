@@ -6,16 +6,18 @@
 //
 //   npm run deadlock            (needs `npm run login` once, or STEAM_REFRESH_TOKEN in the environment)
 //
-// Settings (environment or server/.env): PORT (8080), DATA_DIR, DL_POLL_MINUTES (5), DL_ALLOW_ORIGINS.
+// Settings (environment or server/.env): PORT (8080), DATA_DIR, DL_POLL_MINUTES (10), DL_ALLOW_ORIGINS, WORKER_URL.
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { DATA } from './config.mjs';
 import { TOKEN_FILE } from './bot.mjs';
-import { DeadlockBot, readToken } from './deadlock/bot.mjs';
+import { accountOf, DeadlockBot, readToken } from './deadlock/bot.mjs';
 
 const PORT = Number(process.env.PORT || 8080);
-const POLL_MINUTES = Number(process.env.DL_POLL_MINUTES || 5);
+const POLL_MINUTES = Number(process.env.DL_POLL_MINUTES || 10);
+/** The site's API: "Check now" asks it who the caller is and whether they have Pro. */
+const WORKER_URL = (process.env.WORKER_URL || 'https://stratboard-api.stratboard.workers.dev').replace(/\/$/, '');
 const ORIGINS = (process.env.DL_ALLOW_ORIGINS || 'https://tsakhstvo.xyz,http://localhost:5173').split(',').map(s => s.trim());
 const STATE_FILE = path.join(DATA, 'deadlock-state.json');
 const API = 'https://api.deadlock-api.com';
@@ -86,11 +88,23 @@ async function loop() {
 
 // ---- the site's endpoints (read-only, plus "check now") ------------------------------------------------------------
 const lastAsk = new Map();
+/** Who a site session belongs to and whether they have Pro, from the Worker (kept 5 minutes per session). */
+const whoCache = new Map();
+async function whoIs(token) {
+  if (!token) return null;
+  const c = whoCache.get(token);
+  if (c && Date.now() - c.at < 300_000) return c.me;
+  const res = await fetch(`${WORKER_URL}/me`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null);
+  const me = res?.ok ? (await res.json()).me ?? null : null;
+  whoCache.set(token, { at: Date.now(), me });
+  if (whoCache.size > 5000) whoCache.clear();
+  return me;
+}
 const server = http.createServer(async (req, res) => {
   const origin = req.headers.origin ?? '';
   const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...(ORIGINS.includes(origin) ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {}) };
   const send = (code, obj) => { res.writeHead(code, headers); res.end(JSON.stringify(obj)); };
-  if (req.method === 'OPTIONS') { res.writeHead(204, { ...headers, 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type' }); return res.end(); }
+  if (req.method === 'OPTIONS') { res.writeHead(204, { ...headers, 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' }); return res.end(); }
   const url = new URL(req.url ?? '/', 'http://x'), parts = url.pathname.split('/').filter(Boolean);
   try {
     if (url.pathname === '/health') return send(200, { ok: true, state: bot.state });
@@ -104,8 +118,12 @@ const server = http.createServer(async (req, res) => {
         if (bot.relation(account) !== 'friend') return send(200, { relation: bot.relation(account), matches: [] });
         return send(200, { relation: 'friend', polled: state.polled[account] ?? null, matches: state.matches[account] ?? [] });
       }
-      // "check now" (once a minute per account)
+      // "check now": Pro only, for yourself (your site login, checked with the Worker), once a minute
       if (parts[1] === 'refresh' && req.method === 'POST') {
+        const me = await whoIs(req.headers.authorization?.match(/^Bearer ([\w-]{20,})$/)?.[1]);
+        if (!me) return send(401, { error: 'Log in on the site first.' });
+        if (accountOf(me.steamId) !== account) return send(403, { error: 'You can only check your own matches.' });
+        if (!me.pro) return send(403, { error: 'Check now is part of Pro.' });
         if (bot.relation(account) !== 'friend') return send(403, { error: 'Add the bot as a friend first.' });
         if (Date.now() - (lastAsk.get(account) ?? 0) < 60_000) return send(429, { error: 'Checked a moment ago.' });
         lastAsk.set(account, Date.now());
