@@ -59,6 +59,10 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
   const [band, setBand] = useRank();
   const [sort, setSort] = useState<SortKey>('tier');
   const [pos, setPos] = useState<number>(0);
+  const [q, setQ] = useState('');
+  // grouped by role (position, Pos 1 to 6), or one list; kept in this browser
+  const [grouped, setGrouped] = useState(() => { try { return localStorage.getItem('stratboard.dl.metaGroup') !== '0'; } catch { return true; } });
+  const toggleGroup = () => { setGrouped(g => { try { localStorage.setItem('stratboard.dl.metaGroup', g ? '0' : '1'); } catch { /* private mode */ } return !g; }); };
   const { data, err } = useLoad(() => heroMeta(band), [band.id]);
   const rows = useMemo(() => {
     if (!data) return [];
@@ -67,8 +71,11 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
       tier: (a, b) => order[a.tier] - order[b.tier] || b.winRate - a.winRate, win: (a, b) => b.winRate - a.winRate,
       pick: (a, b) => b.pickRate - a.pickRate, ban: (a, b) => (b.banRate ?? 0) - (a.banRate ?? 0),
     };
-    return data.rows.filter(r => !pos || positionOf(r.hero) === pos).sort(by[sort]);
-  }, [data, sort, pos]);
+    const find = q.trim().toLowerCase();
+    return data.rows.filter(r => (!pos || positionOf(r.hero) === pos) && (!find || heroOf(r.hero).name.toLowerCase().includes(find))).sort(by[sort]);
+  }, [data, sort, pos, q]);
+  const groups = grouped ? ([1, 2, 3, 4, 5, 6] as Pos[]).map(p => ({ pos: p as Pos | null, rows: rows.filter(r => positionOf(r.hero) === p) })).filter(g => g.rows.length)
+    : [{ pos: null as Pos | null, rows }];
   return (
     <section className="dl-meta">
       <div className="dl-meta-head">
@@ -78,11 +85,14 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
           <option value={0}>All positions</option>
           {([1, 2, 3, 4, 5, 6] as Pos[]).map(p => <option key={p} value={p}>Pos {p} · {POS_NAME[p]}</option>)}
         </select>
+        <input className="dl-meta-search" type="search" placeholder="Search heroes" value={q} onChange={e => setQ(e.target.value)} aria-label="Search heroes" />
+        <button className={`chip ${grouped ? 'on' : ''}`} onClick={toggleGroup} title="Split the list by role (position)">By role</button>
         {data && <span className="muted small">Since the patch of {day(data.since)}{data.patch ? ` (${data.patch.title})` : ''} · {Math.round(data.rows.reduce((a, r) => a + r.matches, 0) / 12).toLocaleString()} matches</span>}
       </div>
       {data?.early && <p className="dl-early muted small"><b>Early patch:</b> heroes marked * have under 3,000 games since the patch, so their win rate leans on the previous patch, moved by what the patch notes did to them. It sharpens as games come in.</p>}
       {err && <p className="warn-text">{err}</p>}
       {!data && !err && <Loading>Loading the meta…</Loading>}
+      {data && !rows.length && <p className="empty-state">No hero matches "{q}".</p>}
       {data && (
         <table className="site-table dl-meta-table">
           <thead><tr>
@@ -92,23 +102,28 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
             ))}
             <th title="Win rate now against the previous patch">Since last patch</th><th>K / D / A</th><th className="num">Games</th><th />
           </tr></thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.hero}>
-                <td><span className="dl-meta-name"><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b><PosChip hero={r.hero} />{r.patch && <PatchChip p={r.patch} />}</span></td>
-                <td><span className={`dl-tier t${r.tier}`}>{r.tier}</span></td>
-                <td className={`num ${r.winRate >= 0.51 ? 'up' : r.winRate < 0.49 ? 'down' : ''}`}>
-                  <span className="dl-rate" title={r.early ? `Early: ${pct(r.early.raw)} from its ${r.early.games.toLocaleString()} games on this patch, leaning on the previous patch` : undefined}>{pct(r.winRate)}{r.early ? '*' : ''}<i style={{ '--w': `${Math.max(0, Math.min(1, (r.winRate - 0.44) / 0.14)) * 100}%` } as React.CSSProperties} /></span>
-                </td>
-                <td className="num"><span className="dl-rate">{pct(r.pickRate)}<i style={{ '--w': `${Math.min(1, r.pickRate / 0.6) * 100}%` } as React.CSSProperties} /></span></td>
-                <td className="num">{r.banRate === null ? '–' : pct(r.banRate)}</td>
-                <td className="num">{r.delta === undefined ? <span className="muted">–</span> : <Trend d={r.delta} before={r.before!} />}</td>
-                <td className="num muted">{r.kda.map(x => x.toFixed(1)).join(' / ')}</td>
-                <td className="num muted">{r.matches.toLocaleString()}</td>
-                <td><button className="ghost small-btn" onClick={() => onHero(r.hero)}>Builds</button></td>
-              </tr>
-            ))}
-          </tbody>
+          {groups.map(g => (
+            <tbody key={g.pos ?? 'all'}>
+              {g.pos && (
+                <tr className="dl-meta-group"><td colSpan={9}><span className={`dl-pos p${g.pos}`}>Pos {g.pos}</span> <b>{POS_NAME[g.pos]}</b> <span className="muted small">{POS_JOB[g.pos]} · {g.rows.length} hero{g.rows.length === 1 ? '' : 's'}</span></td></tr>
+              )}
+            {g.rows.map(r => (
+                <tr key={r.hero}>
+                  <td><span className="dl-meta-name"><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b><PosChip hero={r.hero} />{r.patch && <PatchChip p={r.patch} />}</span></td>
+                  <td><span className={`dl-tier t${r.tier}`}>{r.tier}</span></td>
+                  <td className={`num ${r.winRate >= 0.51 ? 'up' : r.winRate < 0.49 ? 'down' : ''}`}>
+                    <span className="dl-rate" title={r.early ? `Early: ${pct(r.early.raw)} from its ${r.early.games.toLocaleString()} games on this patch, leaning on the previous patch` : undefined}>{pct(r.winRate)}{r.early ? '*' : ''}<i style={{ '--w': `${Math.max(0, Math.min(1, (r.winRate - 0.44) / 0.14)) * 100}%` } as React.CSSProperties} /></span>
+                  </td>
+                  <td className="num"><span className="dl-rate">{pct(r.pickRate)}<i style={{ '--w': `${Math.min(1, r.pickRate / 0.6) * 100}%` } as React.CSSProperties} /></span></td>
+                  <td className="num">{r.banRate === null ? '–' : pct(r.banRate)}</td>
+                  <td className="num">{r.delta === undefined ? <span className="muted">–</span> : <Trend d={r.delta} before={r.before!} />}</td>
+                  <td className="num muted">{r.kda.map(x => x.toFixed(1)).join(' / ')}</td>
+                  <td className="num muted">{r.matches.toLocaleString()}</td>
+                  <td><button className="ghost small-btn" onClick={() => onHero(r.hero)}>Builds</button></td>
+                </tr>
+              ))}
+            </tbody>
+          ))}
         </table>
       )}
       <p className="muted small">Tier from the win rate, pulled toward 50% for heroes with fewer games: S 52.5%+, A 51%+, B 49%+, C 47.5%+, D below. Pick rate: share of matches with the hero.
