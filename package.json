@@ -31,7 +31,9 @@
     "dl:assets": "vite-node tools/dl-assets.ts",
     "dl:positions": "vite-node tools/dl-positions.ts",
     "dl:learn": "vite-node tools/dl-learn.ts",
-    "security": "node tools/security-check.mjs"
+    "security": "node tools/security-check.mjs",
+    "dl:train": "vite-node tools/dl-train.ts",
+    "dl:deaths": "vite-node tools/dl-deaths.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",

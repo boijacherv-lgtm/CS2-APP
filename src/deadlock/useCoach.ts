@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { loadCorrections, type Corrections } from './disputes';
 import { useProfile } from '../ui/profileApi';
 import { steamId3 } from './api';
 import { coachMatch, type DlMove } from './coach';
@@ -19,7 +20,10 @@ export function useMySlot(): number | null {
 export function useCoach(): { all: DlMove[]; shown: DlMove[]; mine: number | null; canMine: boolean } {
   const match = useDl(s => s.match), bench = useDl(s => s.bench), names = useDl(s => s.names), scope = useDl(s => s.scope), demo = useDl(s => s.demo);
   const mine = useMySlot();
-  const all = useMemo(() => (match ? coachMatch(match, bench, names, demo) : []), [match, bench, names, demo]);
+  // the owner's rulings on disputed marks (once per visit)
+  const [corr, setCorr] = useState<Corrections>({});
+  useEffect(() => { loadCorrections().then(setCorr).catch(() => {}); }, []);
+  const all = useMemo(() => (match ? coachMatch(match, bench, names, demo, corr) : []), [match, bench, names, demo, corr]);
   const shown = useMemo(() => (scope === 'mine' && mine !== null ? all.filter(m => m.slot === mine) : all), [all, scope, mine]);
   return { all, shown, mine, canMine: mine !== null };
 }

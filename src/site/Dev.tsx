@@ -19,6 +19,7 @@ import { fmtDate, fmtInt, mapName } from './format';
 import { AreaChart, BarList, Donut, Gauge } from './charts';
 import { T } from '../ui/tokens';
 import { DevDisputes } from './DevDisputes';
+import { DevDlDisputes } from './DevDlDisputes';
 
 /** What the Worker counts for the owner (worker/src/admin.ts). */
 interface AdminStats {
@@ -214,7 +215,7 @@ export function Dev() {
         </>
       )}
 
-      {tab === 'disputes' && (owner ? <DevDisputes myId={me?.steamId ?? null} /> : <p className="muted">Log in with Steam as the owner to see disputed moments.</p>)}
+      {tab === 'disputes' && (owner ? <><DevDlDisputes /><DevDisputes myId={me?.steamId ?? null} /></> : <p className="muted">Log in with Steam as the owner to see disputed moments.</p>)}
 
       {tab === 'data' && (
         <>

@@ -1,0 +1,98 @@
+{
+ "since": "2026-10-30T20:51:49.000Z",
+ "patch": "Halloween 2026 + Gameplay Update",
+ "minBadge": 91,
+ "matches": 4004,
+ "moments": 32857,
+ "features": [
+  "soulsK",
+  "soulsShare",
+  "soulsShareLate",
+  "kills",
+  "guardians",
+  "walkers",
+  "base",
+  "midBoss"
+ ],
+ "weights": [
+  -0.04345,
+  0.06358,
+  0.75231,
+  0.09299,
+  0.33721,
+  0.13187,
+  0.20375,
+  0.23693,
+  -0.00496
+ ],
+ "test": {
+  "matches": 781,
+  "logloss": 0.5727,
+  "coinflip": 0.6929,
+  "accuracy": 0.678,
+  "early": {
+   "n": 2343,
+   "accuracy": 0.574
+  },
+  "mid": {
+   "n": 1562,
+   "accuracy": 0.657
+  },
+  "late": {
+   "n": 2517,
+   "accuracy": 0.789
+  },
+  "calibration": [
+   {
+    "bin": 0,
+    "n": 413,
+    "won": 0.044
+   },
+   {
+    "bin": 0.1,
+    "n": 297,
+    "won": 0.162
+   },
+   {
+    "bin": 0.2,
+    "n": 466,
+    "won": 0.268
+   },
+   {
+    "bin": 0.3,
+    "n": 707,
+    "won": 0.347
+   },
+   {
+    "bin": 0.4,
+    "n": 1488,
+    "won": 0.48
+   },
+   {
+    "bin": 0.5,
+    "n": 1254,
+    "won": 0.593
+   },
+   {
+    "bin": 0.6,
+    "n": 665,
+    "won": 0.648
+   },
+   {
+    "bin": 0.7,
+    "n": 438,
+    "won": 0.737
+   },
+   {
+    "bin": 0.8,
+    "n": 304,
+    "won": 0.865
+   },
+   {
+    "bin": 0.9,
+    "n": 390,
+    "won": 0.962
+   }
+  ]
+ }
+}

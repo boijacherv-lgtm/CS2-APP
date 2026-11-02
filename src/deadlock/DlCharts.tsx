@@ -8,10 +8,12 @@ export interface Series { label: string; color: string; points: { t: number; v: 
  * Lines over match time (s): each series in its colour, an optional shaded band (an average ± its spread), an optional
  * strip under the chart for the gap between the first two series (coloured by who's ahead), and a hover readout.
  */
-export function LinesChart({ series, band, gap, height = 220, marks = [] }: {
+export function LinesChart({ series, band, gap, height = 220, marks = [], max, fmt }: {
   series: Series[]; band?: { t: number; lo: number; hi: number }[]; gap?: boolean; height?: number;
   /** Moments to tick under the chart (the mid boss, …). */
   marks?: { t: number; color: string; label: string }[];
+  /** A fixed top (e.g. 100 for a percentage), and how values read. */
+  max?: number; fmt?: (v: number) => string;
 }) {
   // drawn at the width it gets (text stays its size), not stretched
   const box = useRef<HTMLDivElement>(null);
@@ -25,7 +27,8 @@ export function LinesChart({ series, band, gap, height = 220, marks = [] }: {
   }, []);
   const H = height, L = 46, R = 10, T = 10, B = 24, G = gap ? 46 : 0;
   const end = Math.max(1, ...series.flatMap(s => s.points.map(p => p.t)));
-  const top = Math.max(1, ...series.flatMap(s => s.points.map(p => p.v)), ...(band ?? []).map(b => b.hi)) * 1.05;
+  const top = max ?? Math.max(1, ...series.flatMap(s => s.points.map(p => p.v)), ...(band ?? []).map(b => b.hi)) * 1.05;
+  const show = fmt ?? short;
   const x = (t: number) => L + (t / end) * (W - L - R), y = (v: number) => T + (1 - v / top) * (H - T - B);
   const path = (pts: { t: number; v: number }[]) => pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
   const ref = useRef<SVGSVGElement>(null);
@@ -43,7 +46,7 @@ export function LinesChart({ series, band, gap, height = 220, marks = [] }: {
   return (
     <div className="dl-lines" ref={box}>
       <svg ref={ref} viewBox={`0 0 ${W} ${H2}`} width={W} height={H2} role="img" onPointerMove={move} onPointerLeave={() => setHover(null)}>
-        {yTicks.map(v => <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="dl-lines-grid" /><text x={L - 6} y={y(v)} className="dl-lines-ax" textAnchor="end" dominantBaseline="middle">{short(v)}</text></g>)}
+        {yTicks.map(v => <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="dl-lines-grid" /><text x={L - 6} y={y(v)} className="dl-lines-ax" textAnchor="end" dominantBaseline="middle">{show(v)}</text></g>)}
         {xTicks.map(t => <text key={t} x={x(t)} y={H - 6} className="dl-lines-ax" textAnchor="middle">{Math.round(t / 60)}m</text>)}
         {band && <path d={`${band.map((b, i) => `${i ? 'L' : 'M'}${x(b.t)},${y(b.hi)}`).join('')}${[...band].reverse().map(b => `L${x(b.t)},${y(b.lo)}`).join('')}Z`} className="dl-lines-band" />}
         {series.map(s => <path key={s.label} d={path(s.points)} fill="none" stroke={s.color} strokeWidth={2.2} strokeDasharray={s.dashed ? '5 4' : undefined} strokeLinejoin="round" />)}
@@ -63,7 +66,7 @@ export function LinesChart({ series, band, gap, height = 220, marks = [] }: {
       <div className="dl-lines-legend">
         {hover !== null ? <>
           <span className="num muted">{mins(hover)}</span>
-          {series.map(s => <span key={s.label}><i style={{ background: s.color }} />{s.label} <b className="num">{Math.round(at(s, hover).v).toLocaleString()}</b></span>)}
+          {series.map(s => <span key={s.label}><i style={{ background: s.color }} />{s.label} <b className="num">{fmt ? fmt(at(s, hover).v) : Math.round(at(s, hover).v).toLocaleString()}</b></span>)}
           {gap && series.length >= 2 && (() => { const d = at(series[0], hover).v - at(series[1], hover).v; return <span>lead <b className="num" style={{ color: d >= 0 ? series[0].color : series[1].color }}>{d >= 0 ? '+' : '−'}{Math.abs(Math.round(d)).toLocaleString()}</b></span>; })()}
         </> : series.map(s => <span key={s.label}><i className={s.dashed ? 'dashed' : ''} style={{ background: s.color }} />{s.label}</span>)}
         {band && hover === null && <span><i className="band" />average ± spread</span>}
