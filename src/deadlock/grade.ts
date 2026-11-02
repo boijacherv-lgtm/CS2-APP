@@ -13,7 +13,7 @@ import { playerAt, statAt, type DlMatch, type DlStat } from './match';
 import { benchAt, BENCH_MARKS, matchPosition } from './bench';
 import type { Pos } from './positions';
 import type { DlDemo } from './demo';
-import { ultAt } from './demo';
+import { statsAt, ultAt } from './demo';
 import type { DlMove } from './coach';
 import type { Annotation } from '../engine/recap';
 
@@ -267,5 +267,43 @@ export function abilityUse(m: DlMatch, slot: number, demo: DlDemo | null) {
     const ups = a.id ? items.filter(i => i.id === a.id).map(i => i.t) : [];
     return { a, unlocked: ups[0] ?? null, upgrades: ups.slice(1), damage: m.damageBy?.[slot]?.[a.cls] ?? 0,
       casts: demo ? demo.casts.filter(c => c.slot === slot && (a.ult ? c.ult : c.name === a.name)).length : null };
+  });
+}
+
+/** A player's net worth at time t: from the demo (every 2 s) when there is one, else between the match's snapshots. */
+export function worthAt(m: DlMatch, demo: DlDemo | null, slot: number, t: number) {
+  const d = statsAt(demo, slot, t);
+  if (d && d.nw > 0) return d.nw;
+  const ss = m.stats[slot] ?? [];
+  const j = ss.findIndex(s => s.t >= t);
+  if (j <= 0) return j === 0 ? ss[0].netWorth * Math.min(1, t / Math.max(1, ss[0].t)) : ss.at(-1)?.netWorth ?? 0;
+  const a = ss[j - 1], b = ss[j];
+  return a.netWorth + ((b.netWorth - a.netWorth) * (t - a.t)) / Math.max(1, b.t - a.t);
+}
+
+/** Each team's souls every `step` seconds (Amber Hand, Sapphire Flame). */
+export function teamSouls(m: DlMatch, demo: DlDemo | null, step = 30) {
+  const out: { t: number; v: [number, number] }[] = [];
+  for (let t = 0; t <= m.duration; t += step) {
+    const v: [number, number] = [0, 0];
+    for (const p of m.players) v[p.team] += worthAt(m, demo, p.slot, t);
+    out.push({ t, v });
+  }
+  if (out.at(-1)!.t < m.duration) { const v: [number, number] = [0, 0]; for (const p of m.players) v[p.team] += worthAt(m, demo, p.slot, m.duration); out.push({ t: m.duration, v }); }
+  return out;
+}
+
+/** The enemy you're measured against: the one in the same position (by farm), else the one in your lane. */
+export function laneOpponent(m: DlMatch, slot: number) {
+  const me = m.players.find(p => p.slot === slot)!, pos = matchPosition(m, slot);
+  const foes = m.players.filter(p => p.team !== me.team);
+  return foes.find(p => matchPosition(m, p.slot) === pos) ?? foes.find(p => p.lane === me.lane) ?? null;
+}
+
+/** Souls carried and not spent when each death came (net worth minus what the items held then cost). */
+export function unspentAtDeaths(m: DlMatch, slot: number, demo: DlDemo | null, cost: (item: number) => number | null) {
+  return m.deaths.filter(d => d.slot === slot).map(d => {
+    const owned = (m.items[slot] ?? []).filter(i => i.t <= d.t && (i.sold === null || i.sold > d.t)).reduce((a, i) => a + (cost(i.id) ?? 0), 0);
+    return { t: d.t, unspent: Math.max(0, Math.round(worthAt(m, demo, slot, d.t - 1) - owned)) };
   });
 }
