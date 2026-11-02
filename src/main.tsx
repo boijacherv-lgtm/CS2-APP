@@ -1,8 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Shell } from './shell/Shell';
-import { applyTokens } from './ui/tokens';
+import { applyGame, applyTokens, gameOf } from './ui/tokens';
 import './styles.css';
+import './ui/theme.css';
 
 import { ONLINE } from './env';
 
@@ -12,5 +13,6 @@ if (ONLINE && window.top !== window.self) {
   try { window.top!.location.href = window.self.location.href; } catch { /* blocked: the page just stays hidden */ }
 }
 applyTokens(); // colours as CSS variables, before the first paint
+applyGame(gameOf(location.hash.replace(/^#\/?/, '').split('/')[0])); // and the game's, so the first paint is already right
 
 createRoot(document.getElementById('root')!).render(<StrictMode><Shell /></StrictMode>);

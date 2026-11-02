@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Loading } from '../ui/Loading';
 import './dl.css';
 import { STEAM_AVAILABLE } from '../env';
 import { useProfile } from '../ui/profileApi';
@@ -159,8 +160,8 @@ function DlStart() {
           STEAM_AVAILABLE
             ? <div className="dl-login"><span className="muted">Log in with Steam to see your Deadlock matches here.</span><SteamLoginButton compact /></div>
             : <p className="muted">Paste a match ID above.</p>
-        ) : histErr ? <p className="warn-text small">{histErr}</p> : !rows ? <p className="muted">Loading your matches…</p> : !rows.length ? (
-          <p className="muted">No matches found for your account on deadlock-api yet.</p>
+        ) : histErr ? <p className="warn-text small">{histErr}</p> : !rows ? <Loading>Loading your matches…</Loading> : !rows.length ? (
+          <p className="empty-state">No matches found for your account on deadlock-api yet.</p>
         ) : (
           <>
           {rel !== 'friend' && Date.now() / 1000 - rows[0].start_time > 86400 && (

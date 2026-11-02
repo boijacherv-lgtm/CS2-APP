@@ -3,6 +3,7 @@
  * team) and objectives.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { Loading } from '../ui/Loading';
 import { matchPosition } from './bench';
 import { heroOf, LANES, objectiveSpot, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { useRank } from './DlMeta';
@@ -202,7 +203,7 @@ export function Items({ match, slot }: { match: DlMatch; slot: number }) {
         <h3>Buy against this enemy team</h3>
         <p className="muted small">Items that win more than usual on {hero.name} against these heroes this patch ({band.label}), from public matches: the number is how much more often games with it are won against them; the heroes, who it helps most against.</p>
         <div className="dl-enemies">{enemies.map(h => <HeroImg key={h} hero={h} size={30} />)}</div>
-        {counters === null ? <p className="muted">Reading the item stats…</p> : counters === 'error' ? <p className="muted">Couldn't read the item stats (deadlock-api). Try again later.</p> : (
+        {counters === null ? <Loading>Reading the item stats…</Loading> : counters === 'error' ? <p className="muted">Couldn't read the item stats (deadlock-api). Try again later.</p> : (
           <ul className="dl-counters">
             {counters.filter(c => ITEM.has(c.item)).slice(0, 8).map(c => {
               const it = ITEM.get(c.item)!, t = first.get(c.item);
@@ -216,7 +217,7 @@ export function Items({ match, slot }: { match: DlMatch; slot: number }) {
                 </li>
               );
             })}
-            {!counters.length && <li className="muted">Nothing stands out against this team: the usual build is fine.</li>}
+            {!counters.length && <li className="empty-state">Nothing stands out against this team: the usual build is fine.</li>}
           </ul>
         )}
       </section>
@@ -248,7 +249,7 @@ export function Items({ match, slot }: { match: DlMatch; slot: number }) {
 
       <section className="recap-card">
         <h3>Core items on {hero.name}</h3>
-        {meta === null ? <p className="muted">Reading this patch's items…</p> : meta === 'error' ? <p className="muted">Couldn't read the item stats.</p> : (
+        {meta === null ? <Loading>Reading this patch's items…</Loading> : meta === 'error' ? <p className="muted">Couldn't read the item stats.</p> : (
           <div className="dl-rc-core">
             {core.map(c => {
               const t = first.get(c.item), late = t !== undefined && t - c.buyAt > 240, early = t !== undefined && c.buyAt - t > 240;

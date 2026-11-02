@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Loading } from '../ui/Loading';
 import { Arrow, Circle, Group, Image as KImage, Layer, Line, Text } from 'react-konva';
 import { AreaChart } from '../site/charts';
 import { Icon, type IconName } from '../ui/Icon';
@@ -288,7 +289,7 @@ function Builds() {
       ))}
       <section className="recap-card dl-build-out">
         <h3>Who's stronger when</h3>
-        {!heroIds.length ? <p className="muted">Add heroes to both teams (and their items) to see the soul curves and power spikes.</p> : !ready ? <p className="muted">Loading the average soul curves…</p> : (
+        {!heroIds.length ? <p className="muted">Add heroes to both teams (and their items) to see the soul curves and power spikes.</p> : !ready ? <Loading>Loading the average soul curves…</Loading> : (
           <>
             <p className="muted small">Expected souls from the average player on each hero (deadlock-api, last 30 days). Above zero: {TEAM_NAME[0]} ahead.</p>
             <AreaChart points={curve} fmt={v => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v)).toLocaleString()}`} height={170} color={TEAM_COLOR[0]} />

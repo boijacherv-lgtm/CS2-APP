@@ -1,3 +1,4 @@
+import { MarkFace } from './MarkFace';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
 import { isDecision, roundDecisions } from '../engine/situations';
@@ -203,7 +204,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
       {tab === 'players' && <section>
         <table className="kills">
           <thead><tr><th /><th title="Round grade, S+ (dominated the round) … F (a game-losing mistake). Hover a grade for why">Grade</th><th title="Total change in their team's win chance">Impact</th>
-            {COUNTED.map(g => <th key={g} title={`${NOTE_INFO[g].label} moves`} style={{ color: NOTE_INFO[g].color }}>{NOTE_INFO[g].mark}</th>)}
+            {COUNTED.map(g => <th key={g} title={`${NOTE_INFO[g].label} moves`} ><MarkFace note={g} size={16} /></th>)}
           </tr></thead>
           <tbody>
             {Object.entries(players).sort(([a], [b]) => sideOf(a).localeCompare(sideOf(b)) || players[b].impact - players[a].impact).map(([id, p]) => (

@@ -60,7 +60,7 @@ export function Gauge({ value, label, sub, tone = 'flat' }: { value: number; lab
 
 export interface AreaPoint { label: string; value: number; note?: string }
 /** A line with a soft area under it, gridlines, and a readout of the point under the pointer. */
-export function AreaChart({ points, fmt, height = 220, color = 'var(--ct)' }: { points: AreaPoint[]; fmt: (v: number) => string; height?: number; color?: string }) {
+export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }: { points: AreaPoint[]; fmt: (v: number) => string; height?: number; color?: string }) {
   const id = useId().replace(/:/g, '');
   const [hover, setHover] = useState<number | null>(null);
   const W = 640, H = height, L = 48, R = 24, T = 14, B = 26;

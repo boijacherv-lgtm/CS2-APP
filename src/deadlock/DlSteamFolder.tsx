@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Loading } from '../ui/Loading';
 import { delItem, getItem, setItem } from '../ui/localStore';
 import { Icon } from '../ui/Icon';
 import { loadMatch } from './api';
@@ -267,9 +268,9 @@ export function DlSteamFolder({ account, open, busy }: { account: string | null;
       )}
       {(dir || replays) && perm !== 'granted' && <div className="row"><button className="cta primary" onClick={reconnect}>Reconnect your folders</button><span className="muted small">the browser asks once per visit</span></div>}
       {msg && <p className="muted small">{msg}</p>}
-      {scanning && !found.length && <p className="muted">Looking through Steam's cache…</p>}
+      {scanning && !found.length && <Loading>Looking through Steam's cache…</Loading>}
       {found.length > 0 && <ul className="dl-rows">{found.slice(0, SHOW).map(row)}</ul>}
-      {((dir || replays) && perm === 'granted') && !scanning && !found.length && <p className="muted">No Deadlock matches found yet. Open a match in Deadlock's Match history (or download its replay) and it shows up here within 30 s.</p>}
+      {((dir || replays) && perm === 'granted') && !scanning && !found.length && <p className="empty-state">No Deadlock matches found yet. Open a match in Deadlock's Match history (or download its replay) and it shows up here within 30 s.</p>}
     </section>
   );
 }
