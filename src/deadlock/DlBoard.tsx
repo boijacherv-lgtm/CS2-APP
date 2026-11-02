@@ -118,7 +118,10 @@ export function DlBoard() {
               const h = heroOf(p.hero), at = playerAt(match, p.slot, time), kda = kdaAt(match, p.slot, time), st = statAt(match, p.slot, time);
               const dead = !at, death = dead ? match.deaths.find(d => d.slot === p.slot && time >= d.t && time < d.t + d.respawn) : null;
               // from the demo, to the second: net worth, last hits / denies, the ultimate; else the match's snapshots
-              const live = statsAt(demo, p.slot, time), ult = ultAt(demo, p.slot, time), ultInfo = h.abilities?.find(a => a.ult);
+              const live = statsAt(demo, p.slot, time), ultInfo = h.abilities?.find(a => a.ult);
+              // no demo: the match data still says when the ultimate was unlocked (not its cooldowns)
+              const unlocked = ultInfo?.id ? match.items[p.slot]?.find(i => i.id === ultInfo.id)?.t ?? null : null;
+              const ult = ultAt(demo, p.slot, time) ?? (ultInfo?.id ? (unlocked !== null && time >= unlocked ? { state: 'unlocked' as const } : { state: 'locked' as const }) : null);
               const worth = live?.nw ?? st?.netWorth ?? null;
               // what they own now: shop items bought by now and not sold yet
               const owned = (match.items[p.slot] ?? []).filter(i => i.t <= time && (i.sold === null || i.sold > time) && ITEM.has(i.id)).map(i => ITEM.get(i.id)!);
@@ -127,13 +130,13 @@ export function DlBoard() {
                   {h.card ? <img src={h.card} alt="" width={32} height={32} /> : <span className="dl-hero-dot" style={{ background: h.color }} />}
                   <span className="dl-player-name"><b>{names[p.account]?.name ?? h.name}</b><span className="muted small">{h.name}{positions[p.slot] && <span className={`dl-pos p${positions[p.slot]}`} title={`Played Pos ${positions[p.slot]} ${POS_NAME[positions[p.slot]!]} this match (by souls on the team at the end)`}>Pos {positions[p.slot]}</span>}</span></span>
                   <span className="dl-player-kda num">{kda.k}/{kda.d}/{kda.a}</span>
-                  <span className="dl-player-souls num muted small" title={live ? `Net worth ${live.nw.toLocaleString()} · last hits ${live.lh} · denies ${live.dn} · level ${live.lvl}` : 'Net worth (from the match\'s snapshots)'}>
-                    {worth !== null ? `${(worth / 1000).toFixed(1)}k` : ''}{live ? <> · <b>{live.lh}</b>/{live.dn}</> : ''}
+                  <span className="dl-player-souls num muted small" title={live ? `Net worth ${live.nw.toLocaleString()} · last hits ${live.lh} · denies ${live.dn} · level ${live.lvl}` : st ? `Net worth ${st.netWorth.toLocaleString()} · last hits ${st.lastHits} · denies ${st.denies} (from the match's snapshots every few minutes; the demo has them to the second)` : 'Net worth'}>
+                    {worth !== null ? `${(worth / 1000).toFixed(1)}k` : ''}{live ? <> · <b>{live.lh}</b>/{live.dn}</> : st ? <> · <b>{st.lastHits}</b>/{st.denies}</> : ''}
                   </span>
                   <span className="dl-hp"><i style={{ width: `${at?.hp ?? 0}%`, background: (at?.hp ?? 0) <= 30 ? 'var(--bad)' : TEAM_COLOR[team] }} /></span>
                   {death && <span className="dl-respawn num">{Math.ceil(death.t + death.respawn - time)}</span>}
                   {ult && ultInfo && (
-                    <span className={`dl-ult ${ult.state}`} title={`${ultInfo.name}: ${ult.state === 'locked' ? 'not unlocked yet' : ult.state === 'ready' ? 'ready' : `back in ${Math.ceil(ult.left)} s`}`}>
+                    <span className={`dl-ult ${ult.state}`} title={`${ultInfo.name}: ${ult.state === 'locked' ? 'not unlocked yet' : ult.state === 'ready' ? 'ready' : ult.state === 'unlocked' ? 'unlocked (when it was used needs the demo)' : `back in ${Math.ceil(ult.left)} s`}`}>
                       {ultInfo.img && <img src={ultInfo.img} alt="" />}
                       {ult.state === 'cooldown' && <b className="num">{Math.ceil(ult.left)}</b>}
                     </span>

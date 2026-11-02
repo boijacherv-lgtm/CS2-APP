@@ -5,7 +5,7 @@
 import HEROES from './generated/heroes.json';
 import MAP from './generated/map.json';
 
-export interface DlAbility { cls: string; name: string; ult: boolean; cd: number; img?: string | null }
+export interface DlAbility { id?: number; cls: string; name: string; ult: boolean; cd: number; img?: string | null }
 export interface DlHero { id: number; name: string; color: string; icon: string | null; card: string | null; abilities?: DlAbility[];
   /** The game's role: marksman, mystic, brawler or assassin. */
   role?: string | null }
