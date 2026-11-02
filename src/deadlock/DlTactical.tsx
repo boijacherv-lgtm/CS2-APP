@@ -7,6 +7,7 @@ import { DL_HEROES, DL_MAP, heroOf, MAP_UNITS, TEAM_COLOR, TEAM_NAME, type DlTea
 import ITEMS from './generated/items.json';
 import { LAYER_LABEL, MapBase, useImages, type MapLayer } from './MapBase';
 import { keyAt, MATCH_LENGTH, useTac, type Pt, type TacHero } from './tacticalStore';
+import { Draft, HeroBuilds, MetaHeroes } from './DlMeta';
 import './dl.css';
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -14,6 +15,14 @@ interface DlItem { id: number; name: string; cost: number; tier: number; slot: s
 const ITEM_LIST = ITEMS as DlItem[];
 const itemOf = new Map(ITEM_LIST.map(i => [i.id, i]));
 type Tab = 'macro' | 'fight' | 'builds';
+/** Tactical's top tabs: the meta (heroes, builds, draft) and the planners. */
+type Top = 'meta' | 'heroBuilds' | 'draft' | 'planner';
+const TOP: { id: Top; label: string; icon: IconName; tip: string }[] = [
+  { id: 'meta', label: 'Meta heroes', icon: 'trendUp', tip: 'Every hero on this patch: tier, win, pick and ban rates, at your ranks' },
+  { id: 'heroBuilds', label: 'Builds', icon: 'star', tip: 'A hero\'s core items, most played builds and off-meta items that win more' },
+  { id: 'draft', label: 'Draft', icon: 'friends', tip: 'Put up to six heroes a side: both teams\' chances and the best next pick' },
+  { id: 'planner', label: 'Planner', icon: 'route', tip: 'Macro plan, teamfight frames, builds and power spikes' },
+];
 const TABS: { id: Tab; label: string; icon: IconName; tip: string }[] = [
   { id: 'macro', label: 'Macro plan', icon: 'route', tip: 'Who goes where over the match: lanes, rotations, objectives' },
   { id: 'fight', label: 'Teamfight', icon: 'swords', tip: 'One fight, frame by frame: positions, engages, who focuses whom' },
@@ -22,8 +31,29 @@ const TABS: { id: Tab; label: string; icon: IconName; tip: string }[] = [
 /** Where a team's heroes start: just outside their base (map coordinates). */
 const SPAWN: Record<DlTeam, Pt> = { 0: { x: 0.45, y: 0.86 }, 1: { x: 0.56, y: 0.14 } };
 
-/** Deadlock Tactical: three planners in tabs. Everything is kept in this browser. */
+/** Deadlock Tactical: the meta (heroes, builds, draft) and the planners, in tabs. */
 export function DlTactical() {
+  const [top, setTop] = useState<Top>(() => { try { return (localStorage.getItem('stratboard.dl.top') as Top) || 'meta'; } catch { return 'meta'; } });
+  const pickTop = (t: Top) => { setTop(t); try { localStorage.setItem('stratboard.dl.top', t); } catch { /* private mode */ } };
+  const [hero, setHero] = useState<number>(() => { try { return Number(localStorage.getItem('stratboard.dl.metaHero')) || DL_HEROES[0].id; } catch { return DL_HEROES[0].id; } });
+  const pickHero = (h: number) => { setHero(h); try { localStorage.setItem('stratboard.dl.metaHero', String(h)); } catch { /* private mode */ } };
+  return (
+    <div className="dl-tac dl-tac-top">
+      <nav className="recap-tabs dl-tac-tabs" aria-label="Tactical">
+        <div className="recap-tabs-list" role="tablist">
+          {TOP.map(t => <button key={t.id} role="tab" aria-selected={top === t.id} className={top === t.id ? 'on' : ''} onClick={() => pickTop(t.id)} title={t.tip}><Icon name={t.icon} size={14} /> {t.label}</button>)}
+        </div>
+      </nav>
+      {top === 'meta' && <MetaHeroes onHero={h => { pickHero(h); pickTop('heroBuilds'); }} />}
+      {top === 'heroBuilds' && <HeroBuilds hero={hero} setHero={pickHero} />}
+      {top === 'draft' && <Draft />}
+      {top === 'planner' && <Planner />}
+    </div>
+  );
+}
+
+/** The three planners (macro plan, teamfight, builds and power spikes). Everything is kept in this browser. */
+function Planner() {
   const [tab, setTab] = useState<Tab>(() => { try { return (localStorage.getItem('stratboard.dl.tab') as Tab) || 'macro'; } catch { return 'macro'; } });
   const pick = (t: Tab) => { setTab(t); try { localStorage.setItem('stratboard.dl.tab', t); } catch { /* private mode */ } };
   return (
