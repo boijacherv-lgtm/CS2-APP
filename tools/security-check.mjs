@@ -112,6 +112,13 @@ if (!OFFLINE) {
   big.status === 400 ? pass('Worker', 'oversized body refused') : fail('Worker', 'oversized body refused', `status ${big.status}`);
   const prof = await req(`${W}/profiles?ids=76561197960287930`);
   prof.status === 403 ? pass('Worker', "Steam-key look-ups only from the website", '/profiles without the site origin') : fail('Worker', "Steam-key look-ups only from the website", `/profiles from a script: status ${prof.status} (Worker fix not deployed?)`);
+  // Deadlock disputes: writing and the owner's list need a login; the corrections are public
+  for (const [p, m] of [['/dl/dispute', 'POST'], ['/admin/dldisputes', 'GET']]) {
+    const r = await req(W + p, { method: m, headers: { 'Content-Type': 'application/json' }, body: m === 'POST' ? '{}' : undefined });
+    r.status === 401 ? pass('Worker', `login required: ${p}`) : fail('Worker', `login required: ${p}`, `status ${r.status}`);
+  }
+  const corr = await req(`${W}/dl/corrections`, { headers: { Origin: SITE } });
+  corr.status === 200 && /"patterns"/.test(corr.text) ? pass('Worker', 'Deadlock corrections are public') : fail('Worker', 'Deadlock corrections are public', `status ${corr.status} (Worker not deployed with the disputes?)`);
   const err = await req(`${W}/openid/verify`, { method: 'POST', body: '{"params":{"openid.mode":"id_res","openid.op_endpoint":"x"}}' });
   /\bat \S+:\d+|\.[tj]s:\d+|\b(TypeError|ReferenceError|SyntaxError)\b|"stack"/.test(err.text) ? warn('Worker', 'error messages', `look like internals: ${err.text.slice(0, 120)}`) : pass('Worker', 'error messages stay short', err.text.slice(0, 60));
 
@@ -131,7 +138,9 @@ if (!OFFLINE) {
     const evil = await req(`${BOT}/dl/bot`, { headers: { Origin: 'https://evil.example' } });
     evil.headers.get('access-control-allow-origin') ? fail('Deadlock bot', 'CORS refuses other websites', evil.headers.get('access-control-allow-origin')) : pass('Deadlock bot', 'CORS refuses other websites');
     const refresh = await req(`${BOT}/dl/refresh/1`, { method: 'POST' });
-    refresh.status === 403 ? pass('Deadlock bot', '"check now" only for its friends') : fail('Deadlock bot', '"check now" only for its friends', `status ${refresh.status}`);
+    refresh.status === 401 || refresh.status === 403 ? pass('Deadlock bot', '"check now" needs a site login (and Pro, for your own account)', `status ${refresh.status}`) : fail('Deadlock bot', '"check now" needs a site login', `status ${refresh.status}`);
+    const fake = await req(`${BOT}/dl/refresh/1146941959`, { method: 'POST', headers: { Authorization: `Bearer ${'b'.repeat(64)}` } });
+    fake.status === 401 || fake.status === 403 ? pass('Deadlock bot', '"check now" refuses a made-up session') : fail('Deadlock bot', '"check now" refuses a made-up session', `status ${fake.status}`);
   }
 }
 
