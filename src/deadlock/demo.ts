@@ -20,6 +20,8 @@ const DEMO_V = 4;
 
 export interface DlDemo {
   v: number;
+  /** Times are on the match clock (pauses taken out, the ultimate's cooldowns moved off the server clock). */
+  clock?: 2;
   /** Each camp of the map (DL_MAP.camps, same order) and when it was up: [from, to] in match seconds. */
   camps: [number, number][][];
   /** Each urn: where it lay and from when (it lands 12.5 s after spawning), until someone picked it up (or the next
@@ -171,7 +173,10 @@ function lives(rows: Row[], end: number): { at: Row; from: number; to: number }[
 
 /** Puts the query results together for a match. */
 export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
-  const end = m.duration * TICKS;
+  // everything here is on the demo's tick clock (toMatchClock moves it to the match clock at the end); the match
+  // data is on the match clock, so it's read at clk.g(t), and the demo runs longer by the pauses
+  const clk = matchClock(m), dur = clk.tau(m.duration);
+  const end = dur * TICKS;
   // which hero entity is which player
   const slotOfPawn = new Map<number, number>();
   for (const r of q.players) {
@@ -209,7 +214,7 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
   // every hero 4 times a second: each hero entity's last spot in each quarter second, carried on while nothing changed
   // (NaN while dead). An entity is matched to the player it moves exactly like in the match data (a hero can change
   // entity during a match, so the players' list alone isn't enough)
-  const n = Math.ceil(m.duration / TRACK_DT) + 1;
+  const n = Math.ceil(dur / TRACK_DT) + 1;
   const byEntity = new Map<number, Row[]>();
   for (const r of q.heroes) { const e = Number(r.e); byEntity.set(e, [...(byEntity.get(e) ?? []), r]); }
   const tracks: DlDemo['tracks'] = {};
@@ -232,7 +237,7 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     if (best === null) {
       for (const p of m.players) {
         const gaps: number[] = [];
-        for (let b = 0; b < n; b += 40) { if (Number.isNaN(tr.x[b])) continue; const a = playerAt(m, p.slot, b * TRACK_DT); if (a) gaps.push(Math.hypot(a.x - tr.x[b], a.y - tr.y[b])); }
+        for (let b = 0; b < n; b += 40) { if (Number.isNaN(tr.x[b])) continue; const a = playerAt(m, p.slot, clk.g(b * TRACK_DT)); if (a) gaps.push(Math.hypot(a.x - tr.x[b], a.y - tr.y[b])); }
         if (gaps.length < 5) continue;
         gaps.sort((x, y) => x - y);
         if (gaps[gaps.length >> 1] < bestGap) { bestGap = gaps[gaps.length >> 1]; best = p.slot; }
@@ -244,7 +249,7 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
       if (Number.isNaN(tr.x[b]) || !Number.isNaN(into.x[b])) continue;
       // a sample far from where the match data has them isn't the hero you see (Mina's bats leave the hero entity
       // behind): left out, so the board falls back on the match data there
-      const a = playerAt(m, best, b * TRACK_DT);
+      const a = playerAt(m, best, clk.g(b * TRACK_DT));
       if (a && Math.hypot(a.x - tr.x[b], a.y - tr.y[b]) > 0.06) continue;
       into.x[b] = tr.x[b]; into.y[b] = tr.y[b]; into.z[b] = tr.z[b];
     }
@@ -256,12 +261,12 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     // carried by the hero nearest it when it went; until the next one comes, or it's run out (45 s + 45 s decay)
     // (after 3 min unclaimed it walks toward its drop-off, so it can be a little way from where it was last seen)
     let bd = u.taken - u.from > 180 ? 0.08 : 0.04;
-    for (const p of m.players) { const a = playerAt(m, p.slot, u.taken); const d = a ? Math.hypot(a.x - u.x, a.y - u.y) : 9; if (d < bd) { bd = d; u.slot = p.slot; } }
-    u.until = Math.min(urn[i + 1]?.from ?? m.duration, u.taken + 90, m.duration);
+    for (const p of m.players) { const a = playerAt(m, p.slot, clk.g(u.taken)); const d = a ? Math.hypot(a.x - u.x, a.y - u.y) : 9; if (d < bd) { bd = d; u.slot = p.slot; } }
+    u.until = Math.min(urn[i + 1]?.from ?? dur, u.taken + 90, dur);
     // it ends when the carrier reaches the drop-off on the other side (delivered) or dies (dropped)
     const drop = DL_MAP.urnPads.find(p => (p.x < 0.5) !== u.fromLeft);
     if (u.slot !== null) for (let t = u.taken; t < u.until; t += TRACK_DT) {
-      const a = heroAtTrack(u.slot, t) ?? playerAt(m, u.slot, t);
+      const a = heroAtTrack(u.slot, t) ?? playerAt(m, u.slot, clk.g(t));
       if (!a) { u.until = t; break; } // died
       if (drop && Math.hypot(a.x - drop.x, a.y - drop.y) < 0.03) { u.until = t; break; }
     }
@@ -288,7 +293,7 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     else if (r.k === 'rejuv') rejuv.push({ t, slot: slotOf(r.a) });
   }
   // each player every 2 s, and their ultimate (unlocked when, every cooldown)
-  const ns = Math.ceil(m.duration / STAT_DT) + 1;
+  const ns = Math.ceil(dur / STAT_DT) + 1;
   const stats: DlDemo['stats'] = {}, ults: DlDemo['ults'] = {};
   for (const p of m.players) { stats[p.slot] = { nw: new Array(ns).fill(0), lh: new Array(ns).fill(0), dn: new Array(ns).fill(0), lvl: new Array(ns).fill(0) }; ults[p.slot] = { from: null, cds: [] }; }
   for (const r of q.stats) {
@@ -322,7 +327,7 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     const cash = cashes.find(c => Math.abs(sec(c.from) - opens) < 3);
     const shut = cash && cash.to < end ? sec(cash.to) : null;
     const scorer = shut === null ? undefined : q.koth.filter(r => Number(r.s) >= shut - 2 && Number(r.s) <= shut + 30).map(r => Number(r.team)).find(x => x >= 2);
-    const progress = q.koth.filter(r => Number(r.s) >= opens && Number(r.s) <= (shut ?? m.duration)).map(r => {
+    const progress = q.koth.filter(r => Number(r.s) >= opens && Number(r.s) <= (shut ?? dur)).map(r => {
       const pr = (r.p as unknown as number[] | null) ?? [], nn = (r.n as unknown as number[] | null) ?? [];
       // the game lists the teams in number order (2, 3): put them in the match's order
       const pp: [number, number] = [0, 0], cc: [number, number] = [0, 0];
@@ -331,7 +336,63 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     });
     rifts.push({ from, ...p, opens, taken: scorer !== undefined ? shut : null, team: scorer !== undefined ? teamOfNum.get(scorer) ?? null : null, progress });
   }
-  return { v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv, tracks, stats, ults, creeps, creepDeaths, rifts };
+  return toMatchClock({ v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv, tracks, stats, ults, creeps, creepDeaths, rifts }, m);
+}
+
+/**
+ * Puts a demo on the match clock. A demo's ticks keep counting through pauses while the match clock (the match data,
+ * the coach) stops, so after a pause everything read by tick runs ahead by the pause; those times are moved back.
+ * The ultimate's cooldowns are on the server clock, which stops with the match but started earlier: they're moved by
+ * how far they sit from the ultimate casts.
+ */
+/** The demo's tick clock (keeps counting through pauses) against the match clock: g(tick time) → match time, tau back. */
+export function matchClock(m: DlMatch) {
+  const pauses = m.pauses ?? [];
+  let before = 0;
+  const spans = pauses.map(p => { const at = p.t + before; before += p.dur; return { at, dur: p.dur }; });
+  return {
+    pauses,
+    g: (tau: number) => +(tau - spans.reduce((a, s) => a + Math.max(0, Math.min(s.dur, tau - s.at)), 0)).toFixed(2),
+    tau: (t: number) => t + pauses.filter(p => p.t < t).reduce((a, p) => a + p.dur, 0),
+  };
+}
+
+export function toMatchClock(d: DlDemo, m: DlMatch): DlDemo {
+  if (d.clock === 2 || !m.pauses) return d;
+  const { pauses, g, tau } = matchClock(m);
+  const gn = (x: number | null) => (x === null ? null : g(x));
+  const resample = <T,>(xs: T[], dt: number) => xs.map((_, i) => xs[Math.min(xs.length - 1, Math.round(tau(i * dt) / dt))]);
+  const out: DlDemo = {
+    ...d, clock: 2,
+    camps: d.camps.map(xs => xs.map(([a, b]) => [g(a), g(b)] as [number, number])),
+    buffs: d.buffs.map(xs => xs.map(([a, b]) => [g(a), g(b)] as [number, number])),
+    urn: d.urn.map(u => ({ ...u, from: g(u.from), landed: g(u.landed), taken: gn(u.taken), until: gn(u.until) })),
+    casts: d.casts.map(c => ({ ...c, t: g(c.t) })), kills: d.kills.map(k => ({ ...k, t: g(k.t) })),
+    midBossSpawns: d.midBossSpawns.map(g), rejuv: d.rejuv.map(r => ({ ...r, t: g(r.t) })),
+    creepDeaths: d.creepDeaths.map(c => ({ ...c, t: g(c.t) })),
+    rifts: d.rifts.map(r => ({ ...r, from: g(r.from), opens: g(r.opens), taken: gn(r.taken), progress: r.progress.map(p => ({ ...p, t: g(p.t) })) })),
+    tracks: pauses.length ? Object.fromEntries(Object.entries(d.tracks).map(([k, tr]) => [k, { x: resample(tr.x, TRACK_DT), y: resample(tr.y, TRACK_DT), z: resample(tr.z, TRACK_DT) }])) : d.tracks,
+    stats: pauses.length ? Object.fromEntries(Object.entries(d.stats).map(([k, st]) => [k, { nw: resample(st.nw, STAT_DT), lh: resample(st.lh, STAT_DT), dn: resample(st.dn, STAT_DT), lvl: resample(st.lvl, STAT_DT) }])) : d.stats,
+    creeps: pauses.length ? Object.fromEntries(Object.keys(d.creeps).map(Number).map(b => [Math.round(g(b * STAT_DT) / STAT_DT), d.creeps[b]])) : d.creeps,
+  };
+  // the ultimate: unlocked at a sample (tick time); cooldowns on the server clock, offset found from the casts
+  const diffs: number[] = [];
+  for (const c of out.casts) if (c.ult) {
+    const next = (d.ults[c.slot]?.cds ?? []).map(([a]) => a - c.t).filter(x => x >= -5 && x <= 150);
+    if (next.length) diffs.push(Math.min(...next));
+  }
+  diffs.sort((a, b) => a - b);
+  const off = diffs.length ? diffs[Math.floor(diffs.length / 2)] : 0;
+  out.ults = Object.fromEntries(Object.entries(d.ults).map(([k, u]) => {
+    // one cast can show as a few cooldowns a moment apart (cooldown items changing it): keep the first
+    const cds: [number, number][] = [];
+    for (const [a, b] of [...u.cds].sort((x, y) => x[0] - y[0])) {
+      const c: [number, number] = [+(a - off).toFixed(1), +(b - off).toFixed(1)];
+      if (!cds.length || c[0] - cds[cds.length - 1][0] > 15) cds.push(c);
+    }
+    return [k, { from: u.from === null ? null : g(u.from), cds }];
+  }));
+  return out;
 }
 
 /** A match without a demo: deadlock-api never had its replay, or Valve has deleted it (replays are kept a while). */
@@ -363,7 +424,14 @@ export async function demoState(id: number): Promise<'read' | 'listed' | 'none'>
 /** The match's demo: from this browser when read before, else read by deadlock-api (about a minute), then kept. */
 export async function loadDemo(m: DlMatch, onWait: (s: number | null) => void = () => {}): Promise<DlDemo> {
   const saved = await getItem<Blob>(KEY(m.id));
-  if (saved) { try { const d = await gunzipJson<DlDemo>(saved); if (d.v === DEMO_V) return d; } catch { /* read it again */ } }
+  if (saved) {
+    try {
+      const d = await gunzipJson<DlDemo>(saved);
+      // kept before the match-clock fix: fix it here (the replay may be gone from Valve, so it can't be read again)
+      if (d.v === DEMO_V && d.clock === undefined) { const f = toMatchClock(d, m); if (f.clock) void setItem(KEY(m.id), await gzipJson(f)); return f; }
+      if (d.v === DEMO_V && d.clock === 2) return d;
+    } catch { /* read it again */ }
+  }
   if ((await demoState(m.id)) === 'none') throw new NoDemo(m.id);
   const d = buildDemo(m, await runAll(m.id, onWait));
   void setItem(KEY(m.id), await gzipJson(d));
