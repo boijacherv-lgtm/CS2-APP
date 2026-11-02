@@ -13,8 +13,8 @@ import type { DlMatch } from './match';
 import { useDl } from './store';
 import { useCoach } from './useCoach';
 import { abilityUse, reportCard, type GradeKey, type ReportCard } from './grade';
-import { BENCH_SOURCE } from './bench';
-import { Economy, Items, Objectives, Scoreboard, TeamSouls } from './DlRecap';
+import { benchLevel, benchSource, HAS_HIGH, setBenchLevel, type BenchLevel } from './bench';
+import { Economy, Items, Objectives, Scoreboard, TeamSouls, WinChance } from './DlRecap';
 import { openLatest } from './open';
 import './dl.css';
 
@@ -42,7 +42,10 @@ export function DlReport() {
   // whose recap: yours when you played in it, else the player picked here
   const [pick, setPick] = useState<number | null>(null);
   const subject = pick ?? coach.mine ?? match?.players[0]?.slot ?? null;
-  const card = useMemo(() => (match && subject !== null ? reportCard(match, subject, demo, coach.all) : null), [match, subject, demo, coach.all]);
+  // compared with everyone, or with high-rank players (bench.ts)
+  const [level, setLevel] = useState<BenchLevel>(benchLevel);
+  const pickLevel = (l: BenchLevel) => { setBenchLevel(l); setLevel(l); };
+  const card = useMemo(() => (match && subject !== null ? reportCard(match, subject, demo, coach.all) : null), [match, subject, demo, coach.all, level]); // eslint-disable-line react-hooks/exhaustive-deps
   // nothing open: your newest match opens by itself (logged in with Steam)
   const steam = useProfile(s => s.me?.steamId);
   const [auto, setAuto] = useState<'idle' | 'opening' | 'none' | 'failed'>('idle');
@@ -106,11 +109,12 @@ export function DlReport() {
       {tab === 'overview' && (
         <>
           <Scoreboard match={match} subject={subject} mine={coach.mine} nameOf={nameOf} pick={slot => setPick(slot)} />
+          <WinChance match={match} team={who?.team ?? 0} watch={watch} />
           <TeamSouls match={match} team={who?.team ?? 0} />
           <Moments moves={myMoves} watch={watch} />
         </>
       )}
-      {tab === 'grades' && card && who && <Grades card={card} match={match} name={nameOf(who.slot)} hero={heroOf(who.hero).name} moves={coach.all} watch={watch} />}
+      {tab === 'grades' && card && who && <Grades card={card} match={match} name={nameOf(who.slot)} hero={heroOf(who.hero).name} moves={coach.all} watch={watch} level={level} pickLevel={pickLevel} />}
       {tab === 'economy' && who && <Economy match={match} slot={who.slot} watch={watch} />}
       {tab === 'items' && who && <Items match={match} slot={who.slot} />}
       {tab === 'abilities' && who && <Abilities match={match} slot={who.slot} card={card} watch={watch} />}
@@ -205,10 +209,12 @@ const ORD = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'r
  * The report card: the overall grade with a verdict and rank in the match, the five parts as tiles, what to focus on
  * next game, then each part's numbers and moments. Every score is against players of the same hero in the same position.
  */
-function Grades({ card, match, name, hero, moves, watch }: { card: ReportCard; match: DlMatch; name: string; hero: string; moves: DlMove[]; watch: (t: number) => void }) {
+function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { card: ReportCard; match: DlMatch; name: string; hero: string; moves: DlMove[]; watch: (t: number) => void;
+  level: BenchLevel; pickLevel: (l: BenchLevel) => void }) {
   const demo = useDl(s => s.demo);
   // everyone's cards, for the rank in this match
-  const all = useMemo(() => match.players.map(p => reportCard(match, p.slot, demo, moves)), [match, demo, moves]);
+  const all = useMemo(() => match.players.map(p => reportCard(match, p.slot, demo, moves)), [match, demo, moves, level]); // eslint-disable-line react-hooks/exhaustive-deps
+  const src = benchSource(level);
   const rankOf = (score: number | null, pick: (c: ReportCard) => number | null) => {
     if (score === null) return null;
     const xs = all.map(pick).filter((x): x is number => x !== null);
@@ -228,7 +234,14 @@ function Grades({ card, match, name, hero, moves, watch }: { card: ReportCard; m
           <div>
             <span className="muted small">{name}'s report card · {hero}{card.pos ? ` · Pos ${card.pos}` : ''}</span>
             <h3 className="dl-rc-verdict">{verdict}</h3>
-            <span className="muted small">{overallRank ? `${ORD(overallRank.n)} of ${overallRank.of} in this match · ` : ''}50 is an average game for {hero} in this position ({BENCH_SOURCE.matches.toLocaleString()} public matches since the patch)</span>
+            <span className="muted small">{overallRank ? `${ORD(overallRank.n)} of ${overallRank.of} in this match · ` : ''}50 is an average game for {hero} in this position {level === 'high' ? 'among Phantom+ players' : ''} ({src.matches.toLocaleString()} {level === 'high' ? 'high-rank' : 'public'} matches since the patch)</span>
+            {HAS_HIGH && (
+              <span className="dl-level" role="group" aria-label="Compare with">
+                <span className="muted small">Compare with</span>
+                <button className={`chip ${level === 'all' ? 'on' : ''}`} onClick={() => pickLevel('all')}>Everyone</button>
+                <button className={`chip ${level === 'high' ? 'on' : ''}`} onClick={() => pickLevel('high')}>Phantom+</button>
+              </span>
+            )}
           </div>
         </div>
         <Radar axes={card.parts.map(p => ({ label: p.label, you: p.z, tip: `${p.label}: ${p.score ?? 'not graded'}` }))} refLabel="Average for the position" />

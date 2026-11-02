@@ -10,12 +10,17 @@ import type { Annotation } from '../engine/recap';
 import type { DlDemo } from './demo';
 import { benchAt, matchPosition } from './bench';
 import { POS_NAME } from './positions';
+import { swingAt } from './winChance';
+import { heatAt } from './deathMap';
+import { patternOf, type Corrections } from './disputes';
 
-export type DlTag = 'ISOLATED' | 'OUTNUMBERED' | 'OVEREXTENDED' | 'TRADED' | 'COST OBJECTIVE' | 'SOLO KILL' | 'MULTI-KILL' | 'UPSET' | 'LANE LOST' | 'LANE WON' | 'FIRST BLOOD' | 'ULT UNUSED';
+export type DlTag = 'HOT SPOT' | 'ISOLATED' | 'OUTNUMBERED' | 'OVEREXTENDED' | 'TRADED' | 'COST OBJECTIVE' | 'SOLO KILL' | 'MULTI-KILL' | 'UPSET' | 'LANE LOST' | 'LANE WON' | 'FIRST BLOOD' | 'ULT UNUSED';
 export interface DlMove {
   t: number; slot: number; team: DlTeam;
   kind: 'death' | 'kill' | 'laning';
   note: Annotation; title: string; why: string[]; tags: DlTag[];
+  /** The team's win chance just before and 30 s after (what the moment led to), from the coach's model. */
+  win?: { before: number; after: number; swing: number };
 }
 /** The average player on a hero: net worth at each snapshot time (s). */
 export type Benchmarks = Record<number, { t: number; avg: number; std: number }[]>;
@@ -24,8 +29,14 @@ export type Benchmarks = Record<number, { t: number; avg: number; std: number }[
 const HELP = 2500, FIGHT = 2200;
 const near = (u: number) => u / MAP_UNITS;
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const pc = (p: number) => `${Math.round(p * 100)}%`;
+const pts = (d: number) => `${d >= 0 ? '+' : '−'}${Math.abs(d * 100).toFixed(1)} pts`;
+/** The worse / better of two marks. */
+const BAD: Annotation[] = ['book', '?!', '?', '??'], GOOD: Annotation[] = ['book', '!', '!!'];
+const worst = (a: Annotation, b: Annotation) => (BAD.indexOf(b) > BAD.indexOf(a) ? b : a);
+const best = (a: Annotation, b: Annotation) => (GOOD.indexOf(a) < 0 ? a : GOOD.indexOf(b) > GOOD.indexOf(a) ? b : a);
 
-export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<number, { name: string }> = {}, demo: DlDemo | null = null): DlMove[] {
+export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<number, { name: string }> = {}, demo: DlDemo | null = null, corrections: Corrections = {}): DlMove[] {
   const moves: DlMove[] = [];
   const teamOf = new Map(m.players.map(p => [p.slot, p.team]));
   const nameOf = (slot: number | null) => {
@@ -61,6 +72,9 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     if (traded) { tags.push('TRADED'); why.push('A teammate killed your killer right after: the death was traded.'); }
     if (lost) { tags.push('COST OBJECTIVE'); why.push(`Your ${lost.name} fell ${Math.round(lost.destroyed! - d.t)} s later.`); }
     if (d === firstKill) { tags.push('FIRST BLOOD'); why.push('First death of the match.'); }
+    // a spot where high-rank players die a lot at this stage (the death map): a known trap, worth a second look
+    const heat = heatAt(d.at.x, d.at.y, d.t, team);
+    if (heat !== null && heat >= 85) { tags.push('HOT SPOT'); why.push(`A hot spot: high-rank players die here more than in ${heat}% of the places they die at this stage.`); }
     // from the demo: died with the ultimate ready (last used longer ago than its full cooldown, so surely back:
     // cooldown items only make it shorter)
     const ult = heroOf(m.players.find(p => p.slot === d.slot)?.hero ?? 0).abilities?.find(a => a.ult);
@@ -73,7 +87,12 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     const base: Annotation = traded ? 'book' : faults >= 2 && lost ? '??' : faults >= 1 && (lost || faults >= 2) ? '?' : faults >= 1 ? '?!' : 'book';
     // an ultimate held through a death is a step worse (a traded death too: it could have won the fight)
     const note: Annotation = !ultReady ? base : base === 'book' ? '?!' : base === '?!' ? '?' : base === '?' ? '??' : base;
-    moves.push({ t: d.t, slot: d.slot, team, kind: 'death', note, tags, why,
+    // what it cost: the team's win chance over the next 30 s (the model, winChance.ts); a costly death is a mistake
+    // whatever else, a very costly one a blunder (a traded death stays sound)
+    const win = swingAt(m, demo, d.t, team);
+    if (!traded) why.splice(why.length - 1, 0, `Win chance ${pts(win.swing)} (${pc(win.before)} → ${pc(win.after)} over the next 30 s).`);
+    const worse = traded ? note : win.swing <= -0.15 ? worst(note, '??') : win.swing <= -0.1 ? worst(note, '?') : win.swing <= -0.06 ? worst(note, '?!') : note;
+    moves.push({ t: d.t, slot: d.slot, team, kind: 'death', note: worse, tags, why, win,
       title: `${nameOf(d.slot)} died${d.killer !== null && d.killer !== d.slot ? ` to ${nameOf(d.killer)}` : ''} at ${mins(d.t)}` });
   }
 
@@ -92,7 +111,11 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     if (streak >= 3) { tags.push('MULTI-KILL'); why.push(`${streak} kills in 10 s.`); }
     if (richer >= 3000) { tags.push('UPSET'); why.push(`They had ${richer.toLocaleString()} more souls.`); }
     const note: Annotation = streak >= 4 || (mates === 0 && foes >= 2) ? '!!' : streak >= 3 || richer >= 3000 || (mates === 0 && foes >= 1 && richer > 0) ? '!' : 'book';
-    moves.push({ t: d.t, slot: d.killer, team, kind: 'kill', note, tags, why, title: `${nameOf(d.killer)} killed ${nameOf(d.slot)} at ${mins(d.t)}` });
+    // what it won: the team's win chance over the next 30 s
+    const win = swingAt(m, demo, d.t, team);
+    why.push(`Win chance ${pts(win.swing)} (${pc(win.before)} → ${pc(win.after)} over the next 30 s).`);
+    const better = win.swing >= 0.15 ? best(note, '!!') : win.swing >= 0.08 ? best(note, '!') : note;
+    moves.push({ t: d.t, slot: d.killer, team, kind: 'kill', note: better, tags, why, win, title: `${nameOf(d.killer)} killed ${nameOf(d.slot)} at ${mins(d.t)}` });
   }
 
   // ---- laning: souls at the end of the laning phase against players of the same hero in the same position --------
@@ -116,6 +139,17 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     const tags: DlTag[] = z <= -0.8 ? ['LANE LOST'] : z >= 0.8 ? ['LANE WON'] : [];
     moves.push({ t: LANE_END, slot: p.slot, team: p.team, kind: 'laning', note, tags, why,
       title: `${nameOf(p.slot)}'s laning: ${z >= 0 ? '+' : '−'}${Math.abs(Math.round(s.netWorth - b.avg)).toLocaleString()} souls vs the average ${who}` });
+  }
+  // the owner's rulings on disputed moments of the same kind: when players were right clearly more often (3+ rulings,
+  // twice the coach's), the mark moves one step the way they asked
+  for (const mv of moves) {
+    const c = corrections[patternOf(mv.kind, mv.tags)];
+    if (!c || c.better + c.worse < 3 || c.better + c.worse < 2 * c.coach) continue;
+    const up = c.better >= c.worse, order: Annotation[] = ['??', '?', '?!', 'book', '!', '!!'];
+    const i = order.indexOf(mv.note), j = Math.max(0, Math.min(order.length - 1, i + (up ? 1 : -1)));
+    if (i < 0 || i === j) continue;
+    mv.note = order[j];
+    mv.why.push(`Marked ${up ? 'up' : 'down'} after ${c.better + c.worse} rulings on moments like this.`);
   }
   return moves.sort((a, b) => a.t - b.t);
 }

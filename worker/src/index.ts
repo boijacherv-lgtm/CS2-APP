@@ -17,6 +17,7 @@
  */
 import { adminStats, isOwner, isPro, saveHeartbeat } from './admin';
 import { askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
+import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } from './dlDisputes';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
@@ -87,6 +88,9 @@ export default {
       // the coach's corrections from checked disputes: public (they're counts per kind of move), cached a few minutes
       if (req.method === 'GET' && path === '/corrections')
         return new Response(JSON.stringify(await corrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });
+      // Deadlock: what the owner's rulings on disputed marks change (public, cached a few minutes)
+      if (req.method === 'GET' && path === '/dl/corrections')
+        return new Response(JSON.stringify(await dlCorrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });
       if (req.method === 'GET' && path === '/profiles') {
         if (!allowed.includes(origin)) return json({ error: 'Not allowed from here.' }, 403);
         return json({ profiles: await profiles(env, new URL(req.url).searchParams.get('ids') ?? '') });
@@ -125,6 +129,15 @@ export default {
         const text = await req.text();
         if (text.length > MAX_CLIP_BYTES) return json({ error: 'That round is too big to send.' }, 413);
         return json(await removeMove(env.SB, steamId, text));
+      }
+      // Deadlock "Coach wrong?": the player's side, then the owner's list and rulings
+      if (req.method === 'POST' && path === '/dl/dispute') return json(await saveDispute(env.SB, steamId, await body(req)));
+      if (req.method === 'POST' && path === '/dl/dispute/remove') return json(await removeDispute(env.SB, steamId, (await body(req)).id));
+      const dld = path.match(/^\/admin\/dldispute\/([0-9a-f]{24})$/);
+      if (path === '/admin/dldisputes' || dld) {
+        if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);
+        if (path === '/admin/dldisputes') return json(await disputeList(env.SB));
+        if (req.method === 'POST') return json(await ruleDispute(env.SB, dld![1], await body(req)));
       }
       const clip = path.match(/^\/admin\/clip\/([0-9a-f]{24})$/);
       if (path === '/admin/clips' || clip) {

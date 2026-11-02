@@ -9,6 +9,7 @@ import { heroOf, LANES, objectiveSpot, TEAM_COLOR, TEAM_NAME, type DlTeam } from
 import { useRank } from './DlMeta';
 import { LinesChart } from './DlCharts';
 import { economy, laneOpponent, teamSouls, unspentAtDeaths, worthAt } from './grade';
+import { WIN_MODEL, winCurve } from './winChance';
 import { playerAt, statAt, type DlMatch, type DlObjective } from './match';
 import { counterItems, heroBuilds, type CounterItem } from './meta';
 import { useDl } from './store';
@@ -350,3 +351,38 @@ export function Objectives({ match, team, watch }: { match: DlMatch; team: DlTea
   );
 }
 
+
+// ---- win chance ------------------------------------------------------------------------------------------------
+
+/** A team's chance to win over the match, from the coach's model, with the moments that moved it most. */
+export function WinChance({ match, team, watch }: { match: DlMatch; team: DlTeam; watch: (t: number) => void }) {
+  const demo = useDl(s => s.demo);
+  const curve = useMemo(() => winCurve(match, demo, 15).map(c => ({ t: c.t, v: (team === 0 ? c.p : 1 - c.p) * 100 })), [match, demo, team]);
+  // the biggest moves over a minute
+  const moves = useMemo(() => {
+    const out: { t: number; d: number }[] = [];
+    for (let i = 4; i < curve.length; i++) out.push({ t: curve[i - 4].t, d: curve[i].v - curve[i - 4].v });
+    const big = out.sort((a, b) => Math.abs(b.d) - Math.abs(a.d)), kept: typeof out = [];
+    for (const m of big) { if (kept.length >= 4) break; if (kept.every(k => Math.abs(k.t - m.t) > 90)) kept.push(m); }
+    return kept.sort((a, b) => a.t - b.t);
+  }, [curve]);
+  const peak = Math.max(...curve.map(c => c.v)), low = Math.min(...curve.map(c => c.v));
+  return (
+    <section className="recap-card">
+      <h3>{TEAM_NAME[team]}'s chance to win</h3>
+      <div className="dl-kpis">
+        <span><b className="num">{Math.round(peak)}%</b><i>highest</i></span>
+        <span><b className="num">{Math.round(low)}%</b><i>lowest</i></span>
+        <span><b className="num" style={{ color: match.winner === team ? 'var(--good)' : 'var(--bad)' }}>{match.winner === team ? 'Won' : 'Lost'}</b><i>{match.winner === team ? (low < 35 ? 'a comeback' : 'as expected') : (peak > 65 ? 'thrown from ahead' : 'never really ahead')}</i></span>
+      </div>
+      <LinesChart height={190} max={100} fmt={v => `${Math.round(v)}%`} series={[{ label: TEAM_NAME[team], color: TEAM_COLOR[team], points: curve }]}
+        marks={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], label: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />
+      {moves.length > 0 && (
+        <div className="dl-win-moves">
+          {moves.map(m => <button key={m.t} className={`chip ${m.d >= 0 ? 'up' : 'down'}`} onClick={() => watch(m.t)}>{mins(m.t)} · {m.d >= 0 ? '+' : '−'}{Math.abs(m.d).toFixed(0)} pts</button>)}
+        </div>
+      )}
+      <p className="muted small">From the coach's model: {WIN_MODEL.matches.toLocaleString()} high-rank matches since the patch; right about the winner {Math.round(WIN_MODEL.test.accuracy * 100)}% of the time on matches it hadn't seen.</p>
+    </section>
+  );
+}

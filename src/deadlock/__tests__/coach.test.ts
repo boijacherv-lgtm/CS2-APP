@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { coachMatch } from '../coach';
 import { matchFromMetadata } from '../match';
 import slice from './match-124566656-slice.json';
+import { patternOf } from '../disputes';
 
 describe('Deadlock coach', () => {
   const m = matchFromMetadata(slice);
@@ -23,5 +24,15 @@ describe('Deadlock coach', () => {
     const lane = moves.find(x => x.kind === 'laning' && x.slot === p.slot)!;
     expect(lane.note).toBe('!!');
     expect(lane.tags).toContain('LANE WON');
+  });
+  it('moves a mark the way the owner\'s rulings went for moments of that kind', () => {
+    const before = coachMatch(m).find(x => x.kind === 'death')!;
+    const corr = { [patternOf(before.kind, before.tags)]: { better: 3, worse: 0, coach: 1 } };
+    const after = coachMatch(m, {}, {}, null, corr).find(x => x.kind === 'death' && x.t === before.t)!;
+    const order = ['??', '?', '?!', 'book', '!', '!!'];
+    expect(order.indexOf(after.note)).toBe(Math.min(order.length - 1, order.indexOf(before.note) + 1));
+    expect(after.why.at(-1)).toMatch(/rulings/);
+    // too few rulings, or the coach right as often: no change
+    expect(coachMatch(m, {}, {}, null, { [patternOf(before.kind, before.tags)]: { better: 2, worse: 0, coach: 2 } }).find(x => x.t === before.t && x.kind === 'death')!.note).toBe(before.note);
   });
 });

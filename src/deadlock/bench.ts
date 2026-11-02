@@ -4,12 +4,23 @@
  * worth, last hits, kills, deaths, damage, healing and souls by source at 3, 6, 9, 12, 15, 20, 25 and 30 minutes.
  */
 import BENCH from './generated/bench.json';
+import BENCH_HIGH from './generated/bench-high.json';
 import { statAt, type DlMatch } from './match';
 import type { Pos } from './positions';
 
 type Metric = 'nw' | 'lh' | 'dn' | 'k' | 'd' | 'dmg' | 'heal' | 'lane' | 'camps' | 'kills' | 'urn' | 'boss';
-const DATA = BENCH as unknown as { since: string; matches: number; marks: number[]; rows: Record<string, Record<string, Record<Metric, [number, number]>>> };
+type Data = { since: string; matches: number; minBadge?: number; marks: number[]; rows: Record<string, Record<string, Record<Metric, [number, number]>>> };
+const ALL = BENCH as unknown as Data, HIGH = BENCH_HIGH as unknown as Data;
+/** Who you're compared with: everyone, or high-rank players (Phantom and up; tools/dl-learn.ts --min-badge 91). */
+export type BenchLevel = 'all' | 'high';
+const LEVEL_KEY = 'stratboard.dl.benchLevel';
+export const HAS_HIGH = (HIGH.matches ?? 0) > 0;
+export const benchLevel = (): BenchLevel => { try { return HAS_HIGH && localStorage.getItem(LEVEL_KEY) === 'high' ? 'high' : 'all'; } catch { return 'all'; } };
+export const setBenchLevel = (l: BenchLevel) => { try { localStorage.setItem(LEVEL_KEY, l); } catch { /* private mode */ } };
+const dataOf = (l: BenchLevel = benchLevel()) => (l === 'high' && HAS_HIGH ? HIGH : ALL);
+const DATA = ALL;
 export const BENCH_SOURCE = { since: DATA.since, matches: DATA.matches };
+export const benchSource = (l: BenchLevel = benchLevel()) => ({ since: dataOf(l).since, matches: dataOf(l).matches, level: l });
 export const BENCH_MARKS = DATA.marks;
 
 /**
@@ -17,7 +28,8 @@ export const BENCH_MARKS = DATA.marks;
  * else the hero in any position, else anyone in the position. Says which it used.
  */
 export function benchAt(hero: number, pos: Pos | null, minute: number, metric: Metric): { mean: number; sd: number; of: 'hero+pos' | 'hero' | 'pos' } | null {
-  const pick = (key: string, of: 'hero+pos' | 'hero' | 'pos') => { const r = DATA.rows[key]?.[minute]?.[metric]; return r ? { mean: r[0], sd: r[1], of } : null; };
+  const rows = dataOf().rows;
+  const pick = (key: string, of: 'hero+pos' | 'hero' | 'pos') => { const r = rows[key]?.[minute]?.[metric]; return r ? { mean: r[0], sd: r[1], of } : null; };
   return (pos ? pick(`h${hero}p${pos}`, 'hero+pos') : null) ?? pick(`h${hero}`, 'hero') ?? (pos ? pick(`pos${pos}`, 'pos') : null);
 }
 

@@ -5,6 +5,11 @@ import { campTier, DL_MAP, heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlT
 import { MapArt, useGameMap, useTunnels } from './MapArt';
 import { matchPosition } from './bench';
 import { POS_NAME, type Pos } from './positions';
+import { winChance } from './winChance';
+import { STEAM_AVAILABLE } from '../env';
+import { useProfile } from '../ui/profileApi';
+import { sendDispute } from './disputes';
+import { DEATH_GRID, DEATH_PHASES, DEATH_SOURCE, heatGrid } from './deathMap';
 import { creepsAt, heroAt, troopersAt, readDemo, riftAt, statsAt, ultAt, UNDERGROUND_Z, upAt } from './demo';
 import ITEMS from './generated/items.json';
 import { RULES, TIMINGS_SOURCE, timersAt } from './timings';
@@ -81,13 +86,15 @@ export function DlBoard() {
   const board = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
   useEffect(() => { const on = () => setFull(!!document.fullscreenElement); document.addEventListener('fullscreenchange', on); return () => document.removeEventListener('fullscreenchange', on); }, []);
-  const demo = useDl(s => s.demo);
+  const demo = useDl(s => s.demo), danger = useDl(s => s.danger);
   // the position each player played this match (by souls on their team at the end)
   const positions = useMemo(() => Object.fromEntries(match.players.map(p => [p.slot, matchPosition(match, p.slot)])) as Record<number, Pos | null>, [match]);
   const teams: DlTeam[] = [0, 1];
   const kills = (team: DlTeam) => match.deaths.filter(d => d.t <= time && d.killer !== null && match.players.find(p => p.slot === d.killer)?.team === team && d.killer !== d.slot).length;
   const souls = (team: DlTeam) => match.players.filter(p => p.team === team).reduce((a, p) => a + (statAt(match, p.slot, time)?.netWorth ?? 0), 0);
   const s0 = souls(0), s1 = souls(1), lead = s0 + s1 ? s0 / (s0 + s1) : 0.5;
+  // each team's chance to win right now (the coach's model); the bar follows it
+  const p0 = useMemo(() => winChance(match, demo, time, 0), [match, demo, Math.floor(time / 2)]); // eslint-disable-line react-hooks/exhaustive-deps
   const feed = match.deaths.filter(d => d.t <= time && time - d.t < 12).slice(-6).reverse();
   const nameOf = (slot: number | null) => {
     const p = match.players.find(x => x.slot === slot);
@@ -104,10 +111,14 @@ export function DlBoard() {
           <DemoChip />
           <button className="ghost small-btn dl-full" onClick={() => (document.fullscreenElement ? document.exitFullscreen() : board.current?.requestFullscreen())}
             title="Full screen (Esc to leave)">{full ? 'Exit full screen' : 'Full screen'}</button>
+        <button className={`ghost small-btn dl-danger-btn ${danger ? 'on' : ''}`} onClick={() => useDl.getState().toggleDanger()}
+          title={`Where high-rank players die at this stage of the match (${DEATH_SOURCE.matches.toLocaleString()} Phantom+ matches since the patch), from the selected player's side`}>Danger map</button>
         </div>
         <div className="dl-souls" title={`Team souls: ${TEAM_NAME[0]} ${s0.toLocaleString()} · ${TEAM_NAME[1]} ${s1.toLocaleString()}`}>
-          <i style={{ width: `${lead * 100}%`, background: TEAM_COLOR[0] }} /><i style={{ width: `${(1 - lead) * 100}%`, background: TEAM_COLOR[1] }} />
-          <span className="dl-souls-label num">{s0 === s1 ? 'Even souls' : `${s0 > s1 ? TEAM_NAME[0] : TEAM_NAME[1]} +${Math.abs(s0 - s1).toLocaleString()} souls`}</span>
+          <i style={{ width: `${p0 * 100}%`, background: TEAM_COLOR[0] }} /><i style={{ width: `${(1 - p0) * 100}%`, background: TEAM_COLOR[1] }} />
+          <span className="dl-souls-label num" title={`Win chance from the coach's model; souls: ${Math.round(lead * 100)}% of all souls are ${TEAM_NAME[0]}'s`}>
+            {Math.round(p0 * 100)}% · {s0 === s1 ? 'even souls' : `${s0 > s1 ? TEAM_NAME[0] : TEAM_NAME[1]} +${Math.abs(s0 - s1).toLocaleString()} souls`} · {Math.round((1 - p0) * 100)}%
+          </span>
         </div>
       </div>
 
@@ -217,6 +228,11 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
     </Layer>
   ), [S, k, map, tunnels, you, downKeys]);
   const P = (p: { x: number; y: number }) => ({ x: p.x * S, y: p.y * S });
+  // the danger layer: where high-rank players die at this stage, from the selected player's side (or yours)
+  const danger = useDl(s => s.danger), cell = S / DEATH_GRID;
+  const heatTeam = (match.players.find(p => p.slot === selected)?.team ?? you) as DlTeam;
+  const phase = DEATH_PHASES.findIndex(p => time >= p.from && time < p.to);
+  const heat = useMemo(() => (danger ? heatGrid(time, heatTeam) : null), [danger, heatTeam, phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // the selected hero's way over the last 20 s
   const trail = useMemo(() => {
@@ -230,6 +246,11 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
     <div className="dl-map" ref={wrap}>
       <Stage width={S} height={S}>
         {baseLayer}
+        {heat && (
+          <Layer listening={false}>
+            {heat.map((v, i) => v < 0.12 ? null : <Rect key={i} x={(i % DEATH_GRID) * cell} y={Math.floor(i / DEATH_GRID) * cell} width={cell} height={cell} fill="#ff4d3a" opacity={Math.min(0.42, (v - 0.1) * 0.6)} cornerRadius={cell * 0.2} />)}
+          </Layer>
+        )}
         <Layer listening={false}>
           {/* what comes and goes: camps, bridge buffs, the urn, the rift, the mid boss */}
           <MapArt S={S} k={k} img={map} you={you} part="live" at={{ time, midBoss: match.midBoss, demo, urnNow,
@@ -337,6 +358,7 @@ function DlCard({ moves, time, canMine }: { moves: DlMove[]; time: number; canMi
           </header>
           <p className="dl-card-title">{m.title}</p>
           <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>
+          <Dispute m={m} />
         </article>
       )}
     </div>
@@ -396,5 +418,33 @@ function DemoChip() {
           title="Read this match's demo again from deadlock-api (forgets the copy kept in this browser; about a minute)">Reload demo</button>
       )}
     </>
+  );
+}
+
+/** "Coach wrong?" on a moment: should the mark be better or worse (and why); the owner rules on it (disputes.ts). */
+function Dispute({ m }: { m: DlMove }) {
+  const me = useProfile(s => s.me), match = useDl(s => s.match);
+  const [open, setOpen] = useState(false);
+  const [want, setWant] = useState<'better' | 'worse'>(m.note.startsWith('?') ? 'better' : 'worse');
+  const [comment, setComment] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | string>('idle');
+  useEffect(() => { setOpen(false); setState('idle'); setComment(''); setWant(m.note.startsWith('?') ? 'better' : 'worse'); }, [m.t, m.slot, m.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!STEAM_AVAILABLE || !me || !match) return null;
+  if (state === 'sent') return <p className="dl-dispute-done muted small">Sent: the owner will check this moment.</p>;
+  if (!open) return <button className="link-btn dl-dispute-open small" onClick={() => setOpen(true)}>Coach wrong?</button>;
+  const send = async () => {
+    setState('sending');
+    try { await sendDispute(match.id, m, want, comment.trim()); setState('sent'); } catch (e) { setState(e instanceof Error ? e.message : String(e)); }
+  };
+  return (
+    <div className="dl-dispute">
+      <span className="muted small">This mark should be</span>
+      <button className={`chip ${want === 'better' ? 'on' : ''}`} onClick={() => setWant('better')}>Better</button>
+      <button className={`chip ${want === 'worse' ? 'on' : ''}`} onClick={() => setWant('worse')}>Worse</button>
+      <input value={comment} onChange={e => setComment(e.target.value)} maxLength={400} placeholder="Why (optional)" aria-label="Why" />
+      <button className="cta primary small-btn" disabled={state === 'sending'} onClick={() => void send()}>{state === 'sending' ? 'Sending…' : 'Send'}</button>
+      <button className="ghost small-btn" onClick={() => setOpen(false)}>Cancel</button>
+      {state !== 'idle' && state !== 'sending' && <span className="warn-text small">{state}</span>}
+    </div>
   );
 }

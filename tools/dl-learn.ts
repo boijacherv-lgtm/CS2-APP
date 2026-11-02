@@ -5,13 +5,16 @@
 // coach (laning, deaths) and Match recap compare players with.
 //
 //   npm run dl:learn [-- --matches 3000]
+//   npm run dl:learn -- --matches 4000 --min-badge 91 --out bench-high.json   (high-rank players only: Phantom and up)
 import fs from 'node:fs';
 import path from 'node:path';
+import { gameplayPatches } from '../src/deadlock/patches';
 
 const API = 'https://api.deadlock-api.com';
 const args = process.argv.slice(2).filter(a => a !== '--');
 const want = Number(args[args.indexOf('--matches') + 1]) || 3000;
-const OUT = path.resolve(import.meta.dirname, '../src/deadlock/generated/bench.json');
+const minBadge = args.includes('--min-badge') ? Number(args[args.indexOf('--min-badge') + 1]) : 0;
+const OUT = path.resolve(import.meta.dirname, '../src/deadlock/generated', args.includes('--out') ? args[args.indexOf('--out') + 1] : 'bench.json');
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 async function get<T>(url: string): Promise<T> {
   for (let i = 0; ; i++) {
@@ -46,12 +49,14 @@ const add = (key: string, mi: number, v: Record<Metric, number>) => {
 };
 
 const days = await get<string[]>('/v1/patches/big-days');
-const since = Math.floor(Date.parse(days[0]) / 1000);
+// the newest gameplay update or the last big day, whichever is later (the big days are kept by hand and lag)
+const patch = (await gameplayPatches().catch(() => []))[0];
+const since = Math.max(patch?.at ?? 0, Math.floor(Date.parse(days[0]) / 1000));
 let seen = 0, maxId: number | undefined;
 const t0 = Date.now();
 while (seen < want) {
   // newest first, 100 at a time (a page with every player's numbers is ~35 MB)
-  const page = await get<M[]>(`/v1/matches/metadata?include_player_info=true&include_player_stats=true&game_mode=normal&min_unix_timestamp=${since}&min_duration_s=1200&order_by=match_id&order_direction=desc&limit=100${maxId ? `&max_match_id=${maxId - 1}` : ''}`);
+  const page = await get<M[]>(`/v1/matches/metadata?include_player_info=true&include_player_stats=true&game_mode=normal&min_unix_timestamp=${since}${minBadge ? `&min_average_badge=${minBadge}` : ''}&min_duration_s=1200&order_by=match_id&order_direction=desc&limit=100${maxId ? `&max_match_id=${maxId - 1}` : ''}`);
   if (!page.length) break;
   for (const m of page) {
     const ps = m.players ?? [];
@@ -89,5 +94,5 @@ for (const [key, a] of acc) {
     (out[key] ??= {})[mark] = row;
   });
 }
-fs.writeFileSync(OUT, JSON.stringify({ since: days[0], matches: seen, marks: MARKS, metrics: METRICS, rows: out }));
-console.log(`${seen} matches since ${days[0].slice(0, 10)} → ${path.relative(process.cwd(), OUT)} (${Object.keys(out).length} groups)`);
+fs.writeFileSync(OUT, JSON.stringify({ since: new Date(since * 1000).toISOString(), minBadge, matches: seen, marks: MARKS, metrics: METRICS, rows: out }));
+console.log(`${seen} matches since ${new Date(since * 1000).toISOString().slice(0, 10)} → ${path.relative(process.cwd(), OUT)} (${Object.keys(out).length} groups)`);
