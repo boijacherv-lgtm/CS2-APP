@@ -30,7 +30,8 @@
     "link:coach": "node tools/link-coach.mjs",
     "dl:assets": "vite-node tools/dl-assets.ts",
     "dl:positions": "vite-node tools/dl-positions.ts",
-    "dl:learn": "vite-node tools/dl-learn.ts"
+    "dl:learn": "vite-node tools/dl-learn.ts",
+    "security": "node tools/security-check.mjs"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",

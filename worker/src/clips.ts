@@ -81,9 +81,19 @@ export async function saveClip(kv: ClipKV, from: string, text: string) {
   // sent again (a note added): the owner's call stays if the player's answer is the same
   const keep = before && before.verdict.verdict === verdict.verdict ? { ...(before.done ? { done: true } : {}), ...(before.ruling ? { ruling: before.ruling } : {}) } : {};
   all.unshift({ id, from, at: Date.now(), verdict, card: cleanCard(input.card), size: gz.byteLength, ...keep, ...(ask ? { ask } : {}) });
-  // a player's oldest beyond their share, then everyone's oldest beyond the total
+  // a player's oldest beyond their share; then, past the total, the oldest moments nobody has judged yet, from whoever
+  // has sent the most first: judged ones (and the coach's lessons in them) are never pushed out by someone flooding
   const over = new Set(all.filter(c => c.from === from).slice(MAX_PER_PLAYER).map(c => c.id));
-  const drop = new Set([...over, ...all.filter(c => !over.has(c.id)).slice(MAX_CLIPS).map(c => c.id)]);
+  const drop = new Set(over);
+  const left = () => all.filter(c => !drop.has(c.id));
+  while (left().length > MAX_CLIPS) {
+    const open = left().filter(c => !c.ruling && !c.done);
+    if (!open.length) break;
+    const count = new Map<string, number>();
+    for (const c of open) count.set(c.from, (count.get(c.from) ?? 0) + 1);
+    const top = [...count.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    drop.add(open.filter(c => c.from === top).at(-1)!.id);
+  }
   for (const d of drop) await kv.delete(`clip:${d}`);
   all = all.filter(c => !drop.has(c.id));
   await kv.put('clips', JSON.stringify(all));

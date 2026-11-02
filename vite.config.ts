@@ -98,11 +98,43 @@ function steamApi(): Plugin {
   };
 }
 
+/**
+ * The website's security policy (online builds only: dev needs inline scripts and its own websocket). GitHub Pages
+ * can't send headers, so it goes in <meta> tags: scripts only from the site itself (plus WebAssembly for the demo
+ * reader), no plugins, no <base> tricks, forms only to the site or Steam's login, and links don't leak the page
+ * address to other sites. Framing is stopped in main.tsx (a <meta> policy can't do that).
+ */
+export const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob: https:",
+  "connect-src 'self' https:",
+  "worker-src 'self' blob:",
+  "media-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self' https://steamcommunity.com",
+].join('; ');
+function securityHeaders(): Plugin {
+  return {
+    name: 'security-headers',
+    apply: 'build',
+    transformIndexHtml(html) {
+      if (process.env.VITE_ONLINE !== '1') return html;
+      return html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="${CSP}" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />`);
+    },
+  };
+}
+
 /** Which code a build is (the dev page shows it): the commit and when it was built. */
 const commit = (() => { try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
 
 export default defineConfig({
-  plugins: [react(), demoApi(), steamApi()],
+  plugins: [react(), demoApi(), steamApi(), securityHeaders()],
   define: { __BUILD__: JSON.stringify({ commit, time: new Date().toISOString() }) },
   // the Steam cache (match list, downloaded demos) changes while the server runs; don't watch it
   server: { port: 5173, open: false, watch: { ignored: ['**/.steam-cache/**'] } },
