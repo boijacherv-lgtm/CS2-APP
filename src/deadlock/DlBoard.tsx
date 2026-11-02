@@ -3,7 +3,7 @@ import { Arc, Circle, Group, Image as KImage, Layer, Line, Rect, RegularPolygon,
 import { Icon } from '../ui/Icon';
 import { heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { MapArt, useGameMap, useTunnels } from './MapArt';
-import { heroAt, riftAt, STAT_DT, statsAt, ultAt, UNDERGROUND_Z, upAt } from './demo';
+import { heroAt, readDemo, riftAt, STAT_DT, statsAt, ultAt, UNDERGROUND_Z, upAt } from './demo';
 import ITEMS from './generated/items.json';
 import { RULES, TIMINGS_SOURCE, timersAt } from './timings';
 import { kdaAt, playerAt, statAt, type DlMatch } from './match';
@@ -376,5 +376,14 @@ function DemoChip() {
   const text = st.state === 'done' ? 'Demo read' : st.state === 'failed' ? (/^No demo/.test(st.error ?? '') ? 'No demo · basic detail' : 'Demo failed: retry later') : `Reading the demo${st.wait ? ` · ~${st.wait} s` : '…'}`;
   const tip = st.state === 'done' ? 'Read from the match\'s demo: heroes 4 times a second, camps, the urn, bridge buffs, lane creeps, the rift, ultimates and net worth as they really were.'
     : st.state === 'failed' ? st.error ?? 'The demo couldn\'t be read.' : 'deadlock-api is reading this match\'s demo (about a minute the first time, then it\'s kept in this browser).';
-  return <span className={`dl-demo-chip ${st.state}`} title={tip}>{text}</span>;
+  const match = useDl(s => s.match);
+  return (
+    <>
+      <span className={`dl-demo-chip ${st.state}`} title={tip}>{text}</span>
+      {st.state !== 'reading' && match && (
+        <button className="ghost small-btn dl-demo-reload" onClick={() => void readDemo(match, true)}
+          title="Read this match's demo again from deadlock-api (forgets the copy kept in this browser; about a minute)">Reload demo</button>
+      )}
+    </>
+  );
 }
