@@ -118,6 +118,14 @@ function DlStart() {
         ) : histErr ? <p className="warn-text small">{histErr}</p> : !rows ? <p className="muted">Loading your matches…</p> : !rows.length ? (
           <p className="muted">No matches found for your account on deadlock-api yet.</p>
         ) : (
+          <>
+          {Date.now() / 1000 - rows[0].start_time > 86400 && (
+            <p className="dl-history-note muted small">
+              The newest match deadlock-api has for you is from {ago(rows[0].start_time)}. It lists a player's games right away only when their
+              account is on Steam friends with one of its bots; otherwise a match shows up when deadlock-api happens to collect it, which can
+              take days. To open a newer one now, paste its ID above (in game: Match history → the match): deadlock-api then fetches it from Steam (up to 3 new matches an hour).
+            </p>
+          )}
           <ul className="dl-rows">
             {rows.slice(0, 30).map(r => {
               const h = heroOf(r.hero_id), won = r.match_result === r.player_team;
@@ -136,6 +144,7 @@ function DlStart() {
               );
             })}
           </ul>
+          </>
         )}
       </section>
     </div>
