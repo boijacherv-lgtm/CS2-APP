@@ -45,12 +45,17 @@ export interface DlDemo {
   ults: Record<number, { from: number | null; cds: [number, number][] }>;
   /** Lane creeps every 2 s (key: sample index): groups as flat [team, x, y, how many, …]. */
   creeps: Record<number, number[]>;
+  /** Each lane creep (trooper) one by one, a spot a second from t0 (flat x, y, …); null when the demo couldn't be
+   * read for them (demos kept before they were read). */
+  troopers?: DlTrooper[] | null;
   /** Lane creeps dying: when, whose, where. */
   creepDeaths: { t: number; team: 0 | 1; x: number; y: number }[];
   /** Each Unstable Rift: when it showed on its bridge and where, when the point opened, the capture (each team's
    * progress and players on the point, by second), and who took it and when (null: not taken before the end). */
   rifts: { from: number; x: number; y: number; opens: number; taken: number | null; team: 0 | 1 | null; progress: { t: number; p: [number, number]; n: [number, number] }[] }[];
 }
+/** A lane creep's life: its team, when it's first seen, and where it is each second from then (flat x, y, …). */
+export interface DlTrooper { team: 0 | 1; t0: number; xy: number[] }
 /** Seconds between two stats / creep samples. */
 export const STAT_DT = 2;
 /** Seconds between two hero samples. */
@@ -75,6 +80,9 @@ const QUERIES = {
   // lane creeps alive, grouped by team and map cell (512 units) every 2 s, and each one's death
   creeps: `SELECT tick / ${TICKS * STAT_DT} AS b, "m_iTeamNum" AS team, "CBodyComponent__m_cellX" AS cx, "CBodyComponent__m_cellY" AS cy, avg("CBodyComponent__m_vecX") AS vx,
     avg("CBodyComponent__m_vecY") AS vy, count(DISTINCT entity_index) AS n FROM CNPC_Trooper WHERE "m_lifeState" = 0 GROUP BY 1, 2, 3, 4 ORDER BY b`,
+  troopers: `SELECT tick / ${TICKS} AS s, entity_index AS e, last_value("m_iTeamNum" ORDER BY tick) AS team, last_value("CBodyComponent__m_cellX" ORDER BY tick) AS cx,
+    last_value("CBodyComponent__m_cellY" ORDER BY tick) AS cy, last_value("CBodyComponent__m_vecX" ORDER BY tick) AS vx, last_value("CBodyComponent__m_vecY" ORDER BY tick) AS vy,
+    last_value("m_lifeState" ORDER BY tick) AS ls FROM CNPC_Trooper GROUP BY tick / ${TICKS}, entity_index ORDER BY e, s`,
   creepDeaths: `SELECT tick, team, cx, cy, vx, vy FROM (SELECT tick, "m_iTeamNum" AS team, "m_lifeState" AS ls, lag("m_lifeState") OVER (PARTITION BY entity_index ORDER BY tick) AS prev,
     ${POS} FROM CNPC_Trooper) WHERE ls <> 0 AND prev = 0 ORDER BY tick`,
   // the Unstable Rift: its spawner while it can be captured (then the cash-in), and each team's capture
@@ -103,7 +111,7 @@ type Q = keyof typeof QUERIES;
 type Row = Record<string, number | string | boolean | null>;
 
 /** Runs every query for a match on deadlock-api, together; `onWait` gets the longest estimated wait (s). */
-async function runAll(matchId: number, onWait: (s: number | null) => void): Promise<Record<Q, Row[]>> {
+async function runAll(matchId: number, onWait: (s: number | null) => void, which: Q[] = Object.keys(QUERIES) as Q[]): Promise<Record<Q, Row[]>> {
   const jobs = {} as Record<Q, string>;
   const submit = async (q: Q) => {
     const res = await fetch(`${API}/v1/matches/demo/query`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ match_id: matchId, query: QUERIES[q], format: 'ndjson' }) });
@@ -114,7 +122,7 @@ async function runAll(matchId: number, onWait: (s: number | null) => void): Prom
     jobs[q] = out.job_id;
   };
   // one first: when the demo is gone, that's one request, not one per query
-  const [first, ...rest] = Object.keys(QUERIES) as Q[];
+  const [first, ...rest] = which;
   await submit(first);
   await Promise.all(rest.map(submit));
   const done = {} as Record<Q, Row[]>;
@@ -307,6 +315,7 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
   }
   // carry each number on through samples the demo didn't send (nothing changed)
   for (const st of Object.values(stats)) for (const k of ['nw', 'lh', 'dn', 'lvl'] as const) for (let b = 1; b < ns; b++) if (!st[k][b]) st[k][b] = st[k][b - 1];
+  const troopers = troopersFrom(q.troopers ?? [], n => teamOfNum.get(n));
   // lane creeps: each group's spot (the cell plus their average offset), team as the match's
   const creeps: DlDemo['creeps'] = {};
   for (const r of q.creeps) {
@@ -336,7 +345,60 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     });
     rifts.push({ from, ...p, opens, taken: scorer !== undefined ? shut : null, team: scorer !== undefined ? teamOfNum.get(scorer) ?? null : null, progress });
   }
-  return toMatchClock({ v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv, tracks, stats, ults, creeps, creepDeaths, rifts }, m);
+  return toMatchClock({ v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv, tracks, stats, ults, creeps, troopers, creepDeaths, rifts }, m);
+}
+
+/**
+ * Each lane creep's lives from its per-second rows (tick clock): alive rows in a row (8 s at most between them; a
+ * creep that stands still sends nothing, so it's held where it was), ended by its death; an entity number is used
+ * again by later creeps. The once-a-minute snapshots of unused entities are dropped (lives under 3 s).
+ */
+export function troopersFrom(rows: Row[], teamOf: (num: number) => 0 | 1 | undefined): DlTrooper[] {
+  const byE = new Map<number, Row[]>();
+  for (const r of rows) { const e = Number(r.e); let xs = byE.get(e); if (!xs) byE.set(e, (xs = [])); xs.push(r); }
+  const out: DlTrooper[] = [];
+  for (const rs of byE.values()) {
+    rs.sort((a, b) => Number(a.s) - Number(b.s));
+    let cur: (DlTrooper & { last: number }) | null = null;
+    const close = () => { if (cur && cur.xy.length >= 6) out.push({ team: cur.team, t0: cur.t0, xy: cur.xy }); cur = null; };
+    for (const r of rs) {
+      const s = Number(r.s), team = teamOf(Number(r.team));
+      if (Number(r.ls) !== 0 || r.cx == null || team === undefined) { close(); continue; }
+      if (cur && (s - cur.last > 8 || team !== cur.team)) close();
+      const p = spot(r);
+      if (!cur) cur = { team, t0: s, xy: [], last: s - 1 };
+      const c: DlTrooper & { last: number } = cur;
+      const lx = c.xy[c.xy.length - 2], ly = c.xy[c.xy.length - 1];
+      for (; c.last < s - 1; c.last++) c.xy.push(lx, ly);
+      c.xy.push(+p.x.toFixed(4), +p.y.toFixed(4)); c.last = s;
+    }
+    close();
+  }
+  return out.sort((a, b) => a.t0 - b.t0);
+}
+/** Lane creeps from tick time to match time: through a pause they stand, so those seconds are left out. */
+function troopersOnClock(ts: DlTrooper[], m: DlMatch): DlTrooper[] {
+  const { pauses, g, tau } = matchClock(m);
+  if (!pauses.length) return ts;
+  return ts.map(tr => {
+    const n = tr.xy.length / 2, a = Math.ceil(g(tr.t0)), z = Math.floor(g(tr.t0 + n - 1)), xy: number[] = [];
+    for (let j = a; j <= z; j++) { const i = Math.max(0, Math.min(n - 1, Math.round(tau(j) - tr.t0))); xy.push(tr.xy[i * 2], tr.xy[i * 2 + 1]); }
+    return { team: tr.team, t0: a, xy };
+  }).filter(tr => tr.xy.length >= 4);
+}
+/** Lane creeps at time t, each one where it is between its seconds; flat [team, x, y, 1, …] like creepsAt. */
+export function troopersAt(demo: DlDemo | null, t: number): number[] | null {
+  const ts = demo?.troopers;
+  if (!ts) return null;
+  const out: number[] = [];
+  for (const tr of ts) {
+    if (tr.t0 > t) break;
+    const n = tr.xy.length / 2, u = t - tr.t0;
+    if (u > n - 1) continue;
+    const i = Math.floor(u), f = u - i, j = Math.min(n - 1, i + 1);
+    out.push(tr.team, tr.xy[i * 2] + (tr.xy[j * 2] - tr.xy[i * 2]) * f, tr.xy[i * 2 + 1] + (tr.xy[j * 2 + 1] - tr.xy[i * 2 + 1]) * f, 1);
+  }
+  return out;
 }
 
 /**
@@ -370,6 +432,7 @@ export function toMatchClock(d: DlDemo, m: DlMatch): DlDemo {
     casts: d.casts.map(c => ({ ...c, t: g(c.t) })), kills: d.kills.map(k => ({ ...k, t: g(k.t) })),
     midBossSpawns: d.midBossSpawns.map(g), rejuv: d.rejuv.map(r => ({ ...r, t: g(r.t) })),
     creepDeaths: d.creepDeaths.map(c => ({ ...c, t: g(c.t) })),
+    troopers: d.troopers ? troopersOnClock(d.troopers, m) : d.troopers,
     rifts: d.rifts.map(r => ({ ...r, from: g(r.from), opens: g(r.opens), taken: gn(r.taken), progress: r.progress.map(p => ({ ...p, t: g(p.t) })) })),
     tracks: pauses.length ? Object.fromEntries(Object.entries(d.tracks).map(([k, tr]) => [k, { x: resample(tr.x, TRACK_DT), y: resample(tr.y, TRACK_DT), z: resample(tr.z, TRACK_DT) }])) : d.tracks,
     stats: pauses.length ? Object.fromEntries(Object.entries(d.stats).map(([k, st]) => [k, { nw: resample(st.nw, STAT_DT), lh: resample(st.lh, STAT_DT), dn: resample(st.dn, STAT_DT), lvl: resample(st.lvl, STAT_DT) }])) : d.stats,
@@ -429,7 +492,7 @@ export async function loadDemo(m: DlMatch, onWait: (s: number | null) => void = 
       const d = await gunzipJson<DlDemo>(saved);
       // kept before the match-clock fix: fix it here (the replay may be gone from Valve, so it can't be read again)
       if (d.v === DEMO_V && d.clock === undefined) { const f = toMatchClock(d, m); if (f.clock) void setItem(KEY(m.id), await gzipJson(f)); return f; }
-      if (d.v === DEMO_V && d.clock === 2) return d;
+      if (d.v === DEMO_V && d.clock === 2) { if (d.troopers === undefined) void addTroopers(m, d); return d; }
     } catch { /* read it again */ }
   }
   if ((await demoState(m.id)) === 'none') throw new NoDemo(m.id);
@@ -526,4 +589,31 @@ export async function readDemo(m: DlMatch, again = false) {
   } catch (e) {
     if (mine()) useDl.setState({ demoStatus: { state: 'failed', error: e instanceof Error ? e.message : String(e) } });
   }
+}
+
+/**
+ * A demo kept before lane creeps were read one by one: reads just them (in the background) and keeps them with it.
+ * When the replay is gone from Valve by now, it's marked so it isn't tried again; the creeps stay in groups.
+ */
+async function addTroopers(m: DlMatch, d: DlDemo) {
+  let troopers: DlTrooper[] | null = null;
+  try {
+    const q = await runAll(m.id, () => {}, ['troopers']);
+    const { g } = matchClock(m);
+    // the demo's team numbers, as the match's teams: by which team's creep groups they walk with
+    const votes = new Map<string, number>();
+    for (const r of q.troopers.slice(0, 4000)) {
+      if (Number(r.ls) !== 0 || r.cx == null) continue;
+      const groups = d.creeps[Math.floor(g(Number(r.s)) / STAT_DT)], p = spot(r);
+      if (!groups) continue;
+      for (let i = 0; i < groups.length; i += 4) if (Math.hypot(groups[i + 1] - p.x, groups[i + 2] - p.y) < 0.02) { const k = `${r.team}:${groups[i]}`; votes.set(k, (votes.get(k) ?? 0) + 1); }
+    }
+    const teamOf = (num: number) => { const a = votes.get(`${num}:0`) ?? 0, b = votes.get(`${num}:1`) ?? 0; return a + b < 5 ? undefined : a > b ? 0 as const : 1 as const; };
+    troopers = troopersOnClock(troopersFrom(q.troopers, teamOf), m);
+  } catch (e) {
+    if (!(e instanceof NoDemo)) return; // busy or failed: try again next time
+  }
+  const f: DlDemo = { ...d, troopers };
+  void setItem(KEY(m.id), await gzipJson(f));
+  if (useDl.getState().match?.id === m.id && useDl.getState().demo === d) useDl.setState({ demo: f });
 }
