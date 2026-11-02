@@ -449,3 +449,11 @@
 .dl-bot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--ct) 8%, transparent); border: 1px solid color-mix(in srgb, var(--ct) 30%, var(--border)); line-height: 1.5; }
 .dl-bot > span { flex: 1 1 280px; }
 .dl-bot.on { background: color-mix(in srgb, var(--good) 7%, transparent); border-color: color-mix(in srgb, var(--good) 30%, var(--border)); }
+.dl-folder { margin-bottom: 16px; transition: border-color .12s, background .12s; }
+.dl-folder.drag { border-color: var(--ct); background: color-mix(in srgb, var(--ct) 6%, transparent); }
+.dl-folder .card-head { display: flex; align-items: center; gap: 8px; }
+.dl-folder .card-head h2 { margin-right: auto; }
+.dl-folder-intro { display: grid; gap: 8px; }
+.dl-folder-intro p { margin: 0; line-height: 1.5; }
+.dl-folder-intro .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dl-folder-intro .row .cta { width: auto; flex: none; padding: 8px 16px; }
