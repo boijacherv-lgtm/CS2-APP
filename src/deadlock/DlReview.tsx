@@ -9,6 +9,7 @@ import { demoState, loadDemo, NoDemo } from './demo';
 import { heroOf } from './data';
 import { DlBoard } from './DlBoard';
 import { openMatch } from './open';
+import { DlSteamFolder } from './DlSteamFolder';
 import { BOT_ON, botFriend, botInfo, botMatches, botRefresh, type BotRelation } from './botApi';
 import { useDl } from './store';
 
@@ -135,6 +136,8 @@ function DlStart() {
         <button className="cta primary" disabled={!typed || busy !== null}>{busy === typed ? 'Loading…' : 'Open'}</button>
       </form>
       {err && <p className="warn-text">{err}</p>}
+
+      <DlSteamFolder account={account} open={id => void open(id)} busy={busy} />
 
       <section className="site-card dl-history">
         <div className="card-head"><h2>Your matches</h2>{rows && <span className="muted small">{rows.length} found{checked ? ` · checked ${Date.now() - checked < 60_000 ? 'just now' : `${Math.round((Date.now() - checked) / 60_000)} min ago`}, again every 2 min` : ''}</span>}</div>
