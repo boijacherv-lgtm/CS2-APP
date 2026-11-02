@@ -3,7 +3,8 @@ import { Arc, Circle, Group, Image as KImage, Layer, Line, Rect, RegularPolygon,
 import { Icon } from '../ui/Icon';
 import { heroOf, objectiveKey, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { MapArt, useGameMap, useTunnels } from './MapArt';
-import { heroAt, UNDERGROUND_Z, upAt } from './demo';
+import { heroAt, riftAt, STAT_DT, statsAt, ultAt, UNDERGROUND_Z, upAt } from './demo';
+import ITEMS from './generated/items.json';
 import { RULES, TIMINGS_SOURCE, timersAt } from './timings';
 import { kdaAt, playerAt, statAt, type DlMatch } from './match';
 import { useDl } from './store';
@@ -11,6 +12,8 @@ import { useCoach, useMySlot } from './useCoach';
 import type { DlMove } from './coach';
 import { NOTE_INFO } from '../engine/recap';
 
+/** The shop's items by id (icons for the inventories). */
+const ITEM = new Map((ITEMS as { id: number; name: string; tier: number; icon: string | null }[]).map(i => [i.id, i]));
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 /** A body stays where the hero died, fading out (like CS2's), gone this long after. */
 const BODY_GONE = 3;
@@ -75,6 +78,7 @@ export function DlBoard() {
   const board = useRef<HTMLDivElement>(null);
   const [full, setFull] = useState(false);
   useEffect(() => { const on = () => setFull(!!document.fullscreenElement); document.addEventListener('fullscreenchange', on); return () => document.removeEventListener('fullscreenchange', on); }, []);
+  const demo = useDl(s => s.demo);
   const teams: DlTeam[] = [0, 1];
   const kills = (team: DlTeam) => match.deaths.filter(d => d.t <= time && d.killer !== null && match.players.find(p => p.slot === d.killer)?.team === team && d.killer !== d.slot).length;
   const souls = (team: DlTeam) => match.players.filter(p => p.team === team).reduce((a, p) => a + (statAt(match, p.slot, time)?.netWorth ?? 0), 0);
@@ -109,14 +113,30 @@ export function DlBoard() {
             {match.players.filter(p => p.team === team).map(p => {
               const h = heroOf(p.hero), at = playerAt(match, p.slot, time), kda = kdaAt(match, p.slot, time), st = statAt(match, p.slot, time);
               const dead = !at, death = dead ? match.deaths.find(d => d.slot === p.slot && time >= d.t && time < d.t + d.respawn) : null;
+              // from the demo, to the second: net worth, last hits / denies, the ultimate; else the match's snapshots
+              const live = statsAt(demo, p.slot, time), ult = ultAt(demo, p.slot, time), ultInfo = h.abilities?.find(a => a.ult);
+              const worth = live?.nw ?? st?.netWorth ?? null;
+              // what they own now: shop items bought by now and not sold yet
+              const owned = (match.items[p.slot] ?? []).filter(i => i.t <= time && (i.sold === null || i.sold > time) && ITEM.has(i.id)).map(i => ITEM.get(i.id)!);
               return (
                 <button key={p.slot} className={`dl-player ${dead ? 'dead' : ''} ${selected === p.slot ? 'on' : ''}`} onClick={() => useDl.getState().select(selected === p.slot ? null : p.slot)}>
                   {h.card ? <img src={h.card} alt="" width={32} height={32} /> : <span className="dl-hero-dot" style={{ background: h.color }} />}
                   <span className="dl-player-name"><b>{names[p.account]?.name ?? h.name}</b><span className="muted small">{h.name}</span></span>
                   <span className="dl-player-kda num">{kda.k}/{kda.d}/{kda.a}</span>
-                  <span className="dl-player-souls num muted small">{st ? `${(st.netWorth / 1000).toFixed(1)}k` : ''}</span>
+                  <span className="dl-player-souls num muted small" title={live ? `Net worth ${live.nw.toLocaleString()} · last hits ${live.lh} · denies ${live.dn} · level ${live.lvl}` : 'Net worth (from the match\'s snapshots)'}>
+                    {worth !== null ? `${(worth / 1000).toFixed(1)}k` : ''}{live ? <> · <b>{live.lh}</b>/{live.dn}</> : ''}
+                  </span>
                   <span className="dl-hp"><i style={{ width: `${at?.hp ?? 0}%`, background: (at?.hp ?? 0) <= 30 ? 'var(--bad)' : TEAM_COLOR[team] }} /></span>
                   {death && <span className="dl-respawn num">{Math.ceil(death.t + death.respawn - time)}</span>}
+                  {ult && ultInfo && (
+                    <span className={`dl-ult ${ult.state}`} title={`${ultInfo.name}: ${ult.state === 'locked' ? 'not unlocked yet' : ult.state === 'ready' ? 'ready' : `back in ${Math.ceil(ult.left)} s`}`}>
+                      {ultInfo.img && <img src={ultInfo.img} alt="" />}
+                      {ult.state === 'cooldown' && <b className="num">{Math.ceil(ult.left)}</b>}
+                    </span>
+                  )}
+                  {owned.length > 0 && (
+                    <span className="dl-items">{owned.map((it, i) => <img key={`${it.id}-${i}`} src={it.icon ?? ''} alt={it.name} title={it.name} className={`tier${it.tier}`} />)}</span>
+                  )}
                 </button>
               );
             })}
@@ -204,7 +224,8 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
         {baseLayer}
         <Layer listening={false}>
           {/* what comes and goes: camps, bridge buffs, the urn, the rift, the mid boss */}
-          <MapArt S={S} k={k} img={map} you={you} at={{ time, midBoss: match.midBoss, demo, urnNow }} part="live" />
+          <MapArt S={S} k={k} img={map} you={you} part="live" at={{ time, midBoss: match.midBoss, demo, urnNow,
+            creeps: demo?.creeps?.[Math.floor(time / STAT_DT)] ?? null, creepDeaths: demo?.creepDeaths?.filter(d => time >= d.t && time - d.t < 2), rift: riftAt(demo, time) }} />
           {trail && trail.length >= 4 && <Line points={trail} stroke="#fff" strokeWidth={1.5 * k} opacity={0.6} lineCap="round" lineJoin="round" />}
           {/* bodies: where a hero just died, fading out */}
           {match.deaths.filter(d => time >= d.t && time - d.t < BODY_GONE).map(d => {
@@ -328,6 +349,10 @@ function DlTimers({ match, time }: { match: DlMatch; time: number }) {
     const side = (i: number) => { const on = demo.buffs[i]?.find(([a, z]) => time >= a && time < z); return on ? `up since ${mins(on[0])}` : 'taken'; };
     if (time >= RULES.bridgeBuffs.spawn) set('Bridge buffs', `left ${side(0)} · right ${side(1)}`);
     set('Camps', `${demo.camps.filter(xs => upAt(xs, time)).length} of ${demo.camps.length} up`);
+    const r = riftAt(demo, time), riftSide = r && (r.x < 0.5 ? 'Yellow' : 'Green');
+    set('Unstable Rift', !r ? 'none out' : r.phase === 'showing' ? `on the ${riftSide} bridge, opens ${mins(r.opens)}`
+      : r.phase === 'contest' ? `${TEAM_NAME[0]} ${Math.round(r.p[0] * 100)}% · ${TEAM_NAME[1]} ${Math.round(r.p[1] * 100)}% (${r.n[0]} v ${r.n[1]})`
+        : r.team !== null ? `taken by ${TEAM_NAME[r.team]}` : 'closed');
   }
   return (
     <section className="dl-timers" aria-label="Timers">

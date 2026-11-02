@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Arc, Circle, Group, Image as KImage, Line, Rect, RegularPolygon, Star, Text } from 'react-konva';
-import { DL_MAP, DL_MAP_IMAGE, type DlTeam } from './data';
+import { DL_MAP, DL_MAP_IMAGE, TEAM_COLOR, type DlTeam } from './data';
 import { clock, RULES, urnLane } from './timings';
-import { upAt, type DlDemo } from './demo';
+import { upAt, type DlDemo, type riftAt } from './demo';
 
 /**
  * The Deadlock map drawn like the game's own minimap (Oct 2026): a dark round map with the two bases, each lane a
@@ -87,8 +87,8 @@ export function useGameMap(src = DL_MAP_IMAGE) {
   return img;
 }
 
-export type ArtLayer = 'lanes' | 'objectives' | 'camps' | 'urn' | 'shops' | 'teleporters' | 'buffs' | 'tunnels';
-const ALL: Set<ArtLayer> = new Set(['lanes', 'objectives', 'camps', 'urn', 'shops', 'teleporters', 'buffs', 'tunnels']);
+export type ArtLayer = 'lanes' | 'objectives' | 'camps' | 'urn' | 'shops' | 'teleporters' | 'buffs' | 'tunnels' | 'creeps';
+const ALL: Set<ArtLayer> = new Set(['lanes', 'objectives', 'camps', 'urn', 'shops', 'teleporters', 'buffs', 'tunnels', 'creeps']);
 
 /**
  * The map and what's on it. `you`: the team drawn in lane colours (the other one red), like the game shows your own
@@ -107,7 +107,9 @@ export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down,
   at?: { time: number; midBoss: { t: number }[];
     /** The match's demo (demo.ts): then camps and bridge buffs as they really were, and the urn where it really was
      * (`urnNow`: on the ground, or with its carrier; null: no urn out). */
-    demo?: DlDemo | null; urnNow?: { x: number; y: number; label: string; carried: boolean; fromLeft: boolean } | null };
+    demo?: DlDemo | null; urnNow?: { x: number; y: number; label: string; carried: boolean; fromLeft: boolean } | null;
+    /** Lane creeps now (flat [team, x, y, how many, …]) and the ones that just died; the rift now (demo.ts riftAt). */
+    creeps?: number[] | null; creepDeaths?: { t: number; team: 0 | 1; x: number; y: number }[]; rift?: ReturnType<typeof riftAt> };
 }) {
   const demo = at?.demo ?? null;
   const B = part !== 'live', L = part !== 'base';
@@ -217,7 +219,31 @@ export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down,
             </Group>
           );
         })}
-        {L && layers.has('buffs') && riftOn && DL_MAP.rifts.map((b, i) => (
+        {/* lane creeps: each group a dot in its team's colour, bigger for more; a cross where one just died */}
+        {L && layers.has('creeps') && at?.creeps && Array.from({ length: at.creeps.length / 4 }, (_, i) => {
+          const [team, x, y, n] = at.creeps!.slice(i * 4, i * 4 + 4);
+          return <Circle key={`cr${i}`} x={x * S} y={y * S} radius={(1.6 + Math.sqrt(n) * 1.1) * k} fill={TEAM_COLOR[team as DlTeam]} stroke="#0b0e12" strokeWidth={0.7 * k} opacity={0.9} />;
+        })}
+        {L && layers.has('creeps') && at?.creepDeaths?.map((d, i) => {
+          const fade = Math.max(0, 1 - (tm! - d.t) / 2), c = TEAM_COLOR[d.team];
+          return <Group key={`cd${i}`} x={d.x * S} y={d.y * S} opacity={fade}><Line points={[-2, -2, 2, 2].map(v => v * k)} stroke={c} strokeWidth={1 * k} /><Line points={[-2, 2, 2, -2].map(v => v * k)} stroke={c} strokeWidth={1 * k} /></Group>;
+        })}
+        {/* the rift from the demo: on its bridge until it opens, then each team's capture (a ring each) and players on
+            the point, then who took it */}
+        {L && layers.has('buffs') && demo && at?.rift && (() => {
+          const r = at.rift;
+          return (
+            <Group x={r.x * S} y={r.y * S}>
+              <Circle radius={9 * k} stroke={r.phase === 'taken' && r.team !== null ? TEAM_COLOR[r.team] : '#3fc7b4'} strokeWidth={1.4 * k} dash={r.phase === 'showing' ? [3 * k, 2.5 * k] : undefined}
+                fill={r.phase === 'taken' && r.team !== null ? TEAM_COLOR[r.team] : 'rgba(63,199,180,0.12)'} opacity={r.phase === 'taken' ? 0.85 : 1} />
+              {r.phase === 'contest' && ([0, 1] as DlTeam[]).map(team => r.p[team] > 0 && (
+                <Arc key={team} innerRadius={(11 + team * 3) * k} outerRadius={(13 + team * 3) * k} angle={360 * r.p[team]} rotation={-90} fill={TEAM_COLOR[team]} />
+              ))}
+              {tag(r.phase === 'showing' ? `opens ${clock(r.opens)}` : r.phase === 'contest' ? `${r.n[0]} v ${r.n[1]}` : r.team !== null ? 'taken' : 'rift', '#3fc7b4', 15)}
+            </Group>
+          );
+        })()}
+        {L && layers.has('buffs') && !demo && riftOn && DL_MAP.rifts.map((b, i) => (
           <Group key={`r${i}`} {...P(b)}>
             <Circle radius={8 * k} stroke="#3fc7b4" strokeWidth={1.3 * k} />
             <Circle radius={4.5 * k} stroke="#3fc7b4" strokeWidth={1 * k} dash={[2 * k, 1.6 * k]} />

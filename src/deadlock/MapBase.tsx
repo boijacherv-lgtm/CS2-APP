@@ -20,9 +20,9 @@ export function useImages(urls: (string | null)[]) {
   return imgs;
 }
 
-export type MapLayer = 'lanes' | 'objectives' | 'camps' | 'urn' | 'shops' | 'teleporters' | 'buffs' | 'tunnels';
+export type MapLayer = 'lanes' | 'objectives' | 'camps' | 'urn' | 'shops' | 'teleporters' | 'buffs' | 'tunnels' | 'creeps';
 export const LAYER_LABEL: Record<MapLayer, string> = {
-  lanes: 'Lanes', objectives: 'Objectives', camps: 'Camps', urn: 'Urn', shops: 'Shops', teleporters: 'Teleporters', buffs: 'Buffs & rifts', tunnels: 'Underpasses',
+  lanes: 'Lanes', objectives: 'Objectives', camps: 'Camps', urn: 'Urn', shops: 'Shops', teleporters: 'Teleporters', buffs: 'Buffs & rifts', tunnels: 'Underpasses', creeps: 'Lane creeps',
 };
 
 /**
