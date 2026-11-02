@@ -9,7 +9,7 @@ import { GameMark } from './gameMarks';
 const GAME = GAMES.find(g => g.id === 'deadlock')!;
 
 /**
- * Deadlock's page while it's in beta: Review works (by match ID), what the coach will grade next, and "tell me when
+ * Deadlock's page while it's in beta: Review works (by match ID), what the coach grades, and "tell me when
  * it's complete" (saved on the profile: the account when logged in, else this browser).
  */
 export function Deadlock() {
@@ -40,7 +40,7 @@ export function Deadlock() {
       </section>
 
       <section className="site-section">
-        <h2 className="section-title">What it will grade</h2>
+        <h2 className="section-title">What it grades</h2>
         <div className="feature-grid">
           {GRADES.map(f => (
             <div key={f.title} className="feature">
@@ -57,14 +57,14 @@ export function Deadlock() {
         <ol className="steps">
           <li><b>Pick a match</b><span>Yours after logging in with Steam, or any by its match ID.</span></li>
           <li><b>Replay it</b><span>Every hero on the map, kills and objectives as they happened.</span></li>
-          <li><b>Every play graded</b><span>Brilliant to blunder, with a win chance.</span></li>
+          <li><b>Every play graded</b><span>Brilliant to blunder, against players of your hero in your position.</span></li>
           <li><b>Fix one thing</b><span>The coach picks it. You track it.</span></li>
         </ol>
       </section>
 
       <section className="site-section">
         <h2 className="section-title">Where it's at</h2>
-        <p className="muted dl-why">Match data comes from deadlock-api.com (positions every second, deaths, items, souls, objectives), so any match works without a file. Reading a .dem you saved comes later.</p>
+        <p className="muted dl-why">Match data comes from deadlock-api.com (positions every second, deaths, items, souls, objectives), so any match works without a file; when Valve kept the replay, its demo adds the fine detail. Opening a .dem you saved comes later.</p>
         <ol className="dl-road">
           {ROAD.map(r => (
             <li key={r.title} className={r.state === 'next' ? 'next' : ''}>
@@ -91,18 +91,19 @@ export function Deadlock() {
 }
 
 const GRADES: { icon: IconName; title: string; text: string }[] = [
-  { icon: 'swords', title: 'Laning', text: 'Last hits, denies and souls against your lane. When the lane was lost, and why.' },
-  { icon: 'route', title: 'Rotations', text: 'When you left lane, ganks you joined or missed, getting to fights on time.' },
-  { icon: 'target', title: 'Teamfights', text: 'Who you hit, what landed, the death that lost the fight.' },
-  { icon: 'map', title: 'Objectives', text: 'Guardians, Walkers, Shrines and the Patron. Mid Boss and Urn timing.' },
-  { icon: 'trendUp', title: 'Souls and items', text: 'Your build against theirs. Souls left unspent when you died.' },
-  { icon: 'bolt', title: 'Rage mode', text: 'The coach yells at your Deadlock plays too. 18+.' },
+  { icon: 'swords', title: 'Kills', text: 'What each kill was worth: who died, how rich they were, the objective it opened.' },
+  { icon: 'map', title: 'Map activity', text: 'Camps, the Urn, crates and statues, bosses and objectives you were at.' },
+  { icon: 'bolt', title: 'Abilities', text: 'Damage by ability, your ultimate used out of its chances, and what it led to.' },
+  { icon: 'route', title: 'Rotations', text: 'Ganks in other lanes during laning, and whether they paid off.' },
+  { icon: 'shield', title: 'Survival', text: 'Avoidable deaths, and teammates who died next to you with your ultimate ready.' },
+  { icon: 'trendUp', title: 'Laning and economy', text: 'Souls and last hits against players of your hero in your position.' },
 ];
 
 const ROAD: { title: string; text: string; state: 'done' | 'next' | 'planned' }[] = [
   { title: 'Map and replay', text: 'Any match by its ID on the real map: heroes, kills, objectives, souls.', state: 'done' },
-  { title: 'The coach and Match recap', text: 'Deaths, kills and laning graded, the lessons that come back, fights, objectives, scoreboard.', state: 'done' },
-  { title: 'Tactical', text: 'A macro planner, a teamfight planner and builds with power spikes.', state: 'done' },
+  { title: 'The coach and Match recap', text: 'A report card, why the match was won or lost, economy, items and abilities against the patch.', state: 'done' },
+  { title: 'Demos', text: 'Heroes 4 times a second, every lane creep, camps, the Urn, the Rift and ultimates, read from the match\'s replay.', state: 'done' },
+  { title: 'Tactical', text: 'Meta heroes, builds, a draft planner and a macro planner for this patch.', state: 'done' },
   { title: 'Your .dem files', text: 'Open a demo you saved, like CS2.', state: 'next' },
 ];
 

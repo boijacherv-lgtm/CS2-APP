@@ -371,7 +371,7 @@ function DlTimers({ match, time }: { match: DlMatch; time: number }) {
         <div key={r.what} className="dl-timer" title={r.note}>
           <b>{r.what}</b>
           <span className="muted small">{r.now}</span>
-          {r.next !== null && <span className="dl-timer-next num">{mins(Math.max(0, r.next - time))}</span>}
+          {r.next !== null && <span className={`dl-timer-next num ${r.next - time <= 30 ? 'soon' : ''}`}>{mins(Math.max(0, r.next - time))}</span>}
         </div>
       ))}
       <a className="muted small dl-timer-src" href={TIMINGS_SOURCE.url} target="_blank" rel="noreferrer">Game timings from the Deadlock Wiki</a>

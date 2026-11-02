@@ -60,11 +60,27 @@ export function DlReport() {
           {me && <span className={`recap-result ${match.winner === me.team ? 'victory' : 'defeat'}`}>{match.winner === me.team ? 'Victory' : 'Defeat'}</span>}
         </div>
         <p className="muted">Match {match.id} · {mins(match.duration)} · {TEAM_NAME[match.winner]} won{me ? ` · you: ${heroOf(me.hero).name}` : ''}</p>
-        <label className="dl-subject muted small">Graded player{' '}
-          <select value={subject ?? ''} onChange={e => setPick(Number(e.target.value))}>
-            {match.players.map(p => <option key={p.slot} value={p.slot}>{nameOf(p.slot)} · {heroOf(p.hero).name}{p.slot === coach.mine ? ' (you)' : ''}</option>)}
-          </select>
-        </label>
+        {who && (
+          <div className="dl-subject">
+            {heroOf(who.hero).card && <img src={heroOf(who.hero).card!} alt="" width={44} height={44} />}
+            <div className="dl-subject-who">
+              <b>{nameOf(who.slot)}{who.slot === coach.mine ? ' (you)' : ''}</b>
+              <span className="muted small">{heroOf(who.hero).name}{card?.pos ? <span className={`dl-pos p${card.pos}`}>Pos {card.pos}</span> : null}</span>
+            </div>
+            <div className="dl-subject-stats">
+              <span><b className="num">{who.kills}/{who.deaths}/{who.assists}</b><i>K/D/A</i></span>
+              <span><b className="num">{(who.netWorth / 1000).toFixed(1)}k</b><i>souls</i></span>
+              <span><b className="num">{who.lastHits}</b><i>last hits</i></span>
+              <span className={`dl-subject-result ${match.winner === who.team ? 'won' : 'lost'}`}>{match.winner === who.team ? 'Won' : 'Lost'}</span>
+            </div>
+            <label className="dl-subject-pick">
+              <span className="muted small">Graded player</span>
+              <select value={subject ?? ''} onChange={e => setPick(Number(e.target.value))}>
+                {match.players.map(p => <option key={p.slot} value={p.slot}>{nameOf(p.slot)} · {heroOf(p.hero).name}{p.slot === coach.mine ? ' (you)' : ''}</option>)}
+              </select>
+            </label>
+          </div>
+        )}
       </header>
 
       <nav className="recap-tabs" aria-label="Recap">
@@ -212,14 +228,19 @@ function WhyResult({ match, team, watch }: { match: DlMatch; team: DlTeam; watch
       <h3>Why {TEAM_NAME[team]} {won ? 'won' : 'lost'}</h3>
       {decisive && <p>The decisive stretch: <b>{mins(decisive.from)}–{mins(decisive.to)}</b>, {sign(decisive.delta)} souls for {TEAM_NAME[team]} ({say(decisive)}).</p>}
       <h4>Turning points</h4>
-      <ul className="dl-moves">
-        {tp.top.map(s => (
-          <li key={s.from}>
-            <b className="dl-card-mark" style={{ background: s.delta >= 0 ? 'var(--good)' : 'var(--bad)' }}>{s.delta >= 0 ? '+' : '−'}</b>
-            <span className="dl-move-text"><b>{mins(s.from)}–{mins(s.to)}: {sign(s.delta)} souls (lead {sign(s.lead)})</b><span className="muted small">{say(s)}</span></span>
-            <button className="chip" onClick={() => watch(s.from + 10)}>Watch</button>
-          </li>
-        ))}
+      <ul className="dl-swings">
+        {tp.top.map(s => {
+          const max = Math.max(1, ...tp.top.map(x => Math.abs(x.delta)));
+          return (
+            <li key={s.from} className={s.delta >= 0 ? 'up' : 'down'}>
+              <span className="dl-swing-time num">{mins(s.from)}–{mins(s.to)}</span>
+              <span className="dl-swing-bar" aria-hidden><i style={{ width: `${(Math.abs(s.delta) / max) * 100}%` }} /></span>
+              <b className="num dl-swing-delta">{sign(s.delta)}</b>
+              <span className="dl-swing-what muted small">{say(s)} · lead after: {sign(s.lead)}</span>
+              <button className="chip" onClick={() => watch(s.from + 10)}>Watch</button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -234,8 +255,11 @@ function Grades({ card, name, hero, watch }: { card: ReportCard; name: string; h
           <h3>{name}'s report card</h3>
           <p className="muted">{hero}{card.pos ? ` · played Pos ${card.pos}` : ''} · graded against players of the same hero in the same position ({BENCH_SOURCE.matches.toLocaleString()} public matches since the patch); 50 is average.</p>
           <div className="dl-grade-overall">
-            <b className="dl-card-mark" style={{ background: NOTE_INFO[card.note].color }}>{card.note === 'book' ? '·' : NOTE_INFO[card.note].mark}</b>
-            <span className="display">{card.overall ?? '–'}</span><span className="muted">overall</span>
+            <ScoreRing score={card.overall} note={card.note} size={84} />
+            <div><b>Overall</b><span className="muted small">{NOTE_INFO[card.note].label}</span></div>
+          </div>
+          <div className="dl-grade-chips">
+            {card.parts.map(p => <span key={p.key}><ScoreRing score={p.score} note={p.note} size={40} />{p.label}</span>)}
           </div>
         </div>
         <Radar axes={card.parts.map(p => ({ label: p.label, you: p.z, tip: `${p.label}: ${p.score ?? 'not graded'}` }))} refLabel="Average for the position" />
@@ -243,8 +267,9 @@ function Grades({ card, name, hero, watch }: { card: ReportCard; name: string; h
       {card.parts.map(p => (
         <section key={p.key} className="recap-card dl-grade">
           <h3>
-            <b className="dl-card-mark" style={{ background: NOTE_INFO[p.note].color }}>{p.note === 'book' ? '·' : NOTE_INFO[p.note].mark}</b>
-            {p.label} <span className="num">{p.score ?? '–'}</span>
+            <ScoreRing score={p.score} note={p.note} size={36} />
+            {p.label}
+            {p.note !== 'book' && <b className="dl-card-mark" style={{ background: NOTE_INFO[p.note].color }}>{NOTE_INFO[p.note].mark}</b>}
           </h3>
           <p className="muted small">{p.summary}</p>
           <ul className="dl-grade-lines">
@@ -374,5 +399,20 @@ function Abilities({ match, slot, card, watch }: { match: DlMatch; slot: number;
         </section>
       )}
     </>
+  );
+}
+
+/** A score out of 100 as a ring, coloured by its mark (grey for an average one). */
+function ScoreRing({ score, note, size }: { score: number | null; note: keyof typeof NOTE_INFO; size: number }) {
+  const r = size / 2 - 4, c = 2 * Math.PI * r, col = score === null ? 'var(--text-3)' : note === 'book' ? 'var(--text-2)' : NOTE_INFO[note].color;
+  return (
+    <span className="dl-ring" style={{ width: size, height: size }} title={score === null ? 'Not graded' : `${score} / 100`}>
+      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} className="dl-ring-track" strokeWidth={size > 60 ? 7 : 4} />
+        {score !== null && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={size > 60 ? 7 : 4} strokeLinecap="round"
+          strokeDasharray={`${(score / 100) * c} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />}
+      </svg>
+      <b className="num" style={{ fontSize: size > 60 ? 26 : size > 38 ? 13 : 12 }}>{score ?? '–'}</b>
+    </span>
   );
 }

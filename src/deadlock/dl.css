@@ -156,12 +156,14 @@
 }
 
 /* Review: the timers under the right-hand team */
-.dl-timers { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
-.dl-timer { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; padding: 5px 8px; border-radius: 8px; background: var(--bg-2, rgba(255,255,255,0.03)); font-size: 12px; }
+.dl-timers { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 12px; background: var(--surface-1, rgba(255,255,255,0.03)); border: 1px solid var(--border); }
+.dl-timers .dl-team-head { padding: 0 4px 2px; }
+.dl-timer { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,0.025); font-size: 12px; }
 .dl-timer b { font-weight: 600; }
-.dl-timer .muted { grid-column: 1; }
-.dl-timer-next { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-weight: 700; color: var(--text); }
-.dl-timer-src { padding: 2px 8px; }
+.dl-timer .muted { grid-column: 1; line-height: 1.35; }
+.dl-timer-next { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-weight: 700; color: var(--text); padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.06); }
+.dl-timer-next.soon { color: #0b0e12; background: #f2c230; }
+.dl-timer-src { padding: 2px 4px; }
 
 /* the demo's status, next to the clock */
 .dl-demo-chip { margin-left: 10px; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.06); color: var(--text-3); white-space: nowrap; }
@@ -247,14 +249,48 @@
 .dl-pos.p4 { color: #59b247; } .dl-pos.p5 { color: #29b1cc; } .dl-pos.p6 { color: #b07ce8; }
 .dl-player-name .dl-pos { margin-left: 6px; font-size: 10px; padding: 0 6px; }
 /* Match recap: report card, economy, items, abilities */
-.dl-subject { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; white-space: nowrap; flex-wrap: wrap; }
-.dl-subject select { font: inherit; color: var(--text-1); background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 3px 6px; }
+/* the graded player, under the score */
+.dl-subject { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 14px; padding: 10px 12px; border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-1, #15191f) 85%, transparent); border: 1px solid var(--border); }
+.dl-subject > img { border-radius: 10px; object-fit: cover; }
+.dl-subject-who { display: grid; gap: 2px; min-width: 0; }
+.dl-subject-who b { font-size: 15px; }
+.dl-subject-who .muted { display: inline-flex; align-items: center; gap: 6px; }
+.dl-subject-stats { display: flex; align-items: center; gap: 16px; }
+.dl-subject-stats > span:not(.dl-subject-result) { display: grid; line-height: 1.15; }
+.dl-subject-stats b { font-size: 16px; }
+.dl-subject-stats i { font-style: normal; font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+.dl-subject-result { padding: 3px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
+.dl-subject-result.won { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.dl-subject-result.lost { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.dl-subject-pick { margin-left: auto; display: grid; gap: 3px; }
+.dl-subject-pick select { font: inherit; font-size: 13px; color: var(--text-1, var(--text)); background: var(--surface-2, #1b2027); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; max-width: 240px; }
+@media (max-width: 640px) { .dl-subject-pick { margin-left: 0; width: 100%; } .dl-subject-pick select { max-width: none; width: 100%; } }
+
+/* score rings */
+.dl-ring { position: relative; display: inline-grid; place-items: center; flex: none; }
+.dl-ring svg { position: absolute; inset: 0; }
+.dl-ring-track { fill: none; stroke: color-mix(in srgb, var(--text-3) 25%, transparent); }
+.dl-ring b { position: relative; font-weight: 800; }
+.dl-grade-chips { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 14px; }
+.dl-grade-chips > span { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.dl-grade-overall > div { display: grid; }
+
+/* turning points: how big each swing was */
+.dl-swings { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.dl-swings li { display: grid; grid-template-columns: 96px minmax(80px, 180px) 72px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 10px;
+  border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border); }
+.dl-swing-bar { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--text-3) 18%, transparent); overflow: hidden; }
+.dl-swing-bar i { display: block; height: 100%; border-radius: 4px; }
+.dl-swings li.up .dl-swing-bar i { background: var(--good); } .dl-swings li.down .dl-swing-bar i { background: var(--bad); }
+.dl-swings li.up .dl-swing-delta { color: var(--good); } .dl-swings li.down .dl-swing-delta { color: var(--bad); }
+.dl-swing-delta { text-align: right; }
+@media (max-width: 760px) { .dl-swings li { grid-template-columns: auto minmax(0, 1fr) auto; } .dl-swing-bar { grid-column: 1 / -1; grid-row: 2; } .dl-swing-what { grid-column: 1 / -1; } .dl-swings li .chip { grid-row: 1; grid-column: 3; } .dl-swing-delta { grid-column: 2; } }
 .dl-grade-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 300px); gap: 16px; align-items: center; }
 @media (max-width: 640px) { .dl-grade-head { grid-template-columns: 1fr; } }
 .dl-grade-overall { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .dl-grade-overall .display { font-size: 40px; line-height: 1; }
-.dl-grade h3 { display: flex; align-items: center; gap: 8px; }
-.dl-grade h3 .num { margin-left: auto; font-size: 20px; }
+.dl-grade h3 { display: flex; align-items: center; gap: 10px; }
 .dl-grade-lines { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .dl-grade-lines li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13.5px; }
 .dl-grade-lines li i { width: 8px; height: 8px; border-radius: 50%; }
@@ -267,3 +303,12 @@
 .dl-abil-bar { position: relative; width: 140px; height: 16px; border-radius: 4px; background: var(--surface-2, var(--border)); overflow: hidden; }
 .dl-abil-bar i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--ct) 45%, transparent); }
 .dl-abil-bar .num { position: relative; font-size: 11px; padding-left: 6px; }
+
+/* Tactical tables: a readable width, a bar under each rate */
+.dl-meta { max-width: 1240px; width: 100%; margin: 0 auto; }
+.dl-meta-table tbody tr { transition: background .12s; }
+.dl-meta-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+.dl-rate { display: grid; gap: 3px; min-width: 64px; }
+.dl-rate i { display: block; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--text-3) 22%, transparent); overflow: hidden; }
+.dl-rate i::after { content: ''; display: block; height: 100%; width: var(--w); background: currentColor; opacity: .75; border-radius: 2px; }
+.dl-swing-time { color: var(--text-2); }
