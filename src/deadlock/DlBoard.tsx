@@ -21,6 +21,11 @@ import { useCoach, useMySlot } from './useCoach';
 import type { DlMove } from './coach';
 import { MarkFace } from '../ui/MarkFace';
 import { NOTE_INFO } from '../engine/recap';
+import PLAY from './generated/playnet.json';
+import { ACTION_LABEL, actionAt, playChances, WINDOW, type Action } from './playNet';
+import type { Mlp } from '../engine/mlp';
+
+const PLAY_NET = (PLAY as { net: Mlp | null }).net;
 
 /** The shop's items by id (icons for the inventories). */
 const ITEM = new Map((ITEMS as { id: number; name: string; tier: number; icon: string | null }[]).map(i => [i.id, i]));
@@ -152,6 +157,7 @@ export function DlBoard() {
                       {ult.state === 'cooldown' && <b className="num">{Math.ceil(ult.left)}</b>}
                     </span>
                   )}
+                  {selected === p.slot && !dead && <PlayHint match={match} slot={p.slot} time={time} />}
                   {owned.length > 0 && (
                     <span className="dl-items">{owned.map((it, i) => <img key={`${it.id}-${i}`} src={it.icon ?? ''} alt={it.name} title={it.name} className={`tier${it.tier}`} />)}</span>
                   )}
@@ -320,6 +326,24 @@ function DlPlaybar({ match, time, playing, speed, graded, full, onFull }: { matc
         title={`Danger map: where high-rank players die at this stage of the match (${DEATH_SOURCE.matches.toLocaleString()} Phantom+ matches since the patch)`}><Icon name="skull" /></button>
       <button className="ghost icon-btn" onClick={onFull} title={full ? 'Leave full screen (Esc)' : 'Full screen'} aria-label="Full screen"><Icon name={full ? 'close' : 'grid'} /></button>
     </div>
+  );
+}
+
+/**
+ * Under the picked player: what Phantom-and-up players in their place most often do next (the play network,
+ * playNet.ts), and what they really did over the next 20 s.
+ */
+function PlayHint({ match, slot, time }: { match: DlMatch; slot: number; time: number }) {
+  const t = Math.floor(time / 2) * 2;
+  const chances = useMemo(() => playChances(PLAY_NET, match, slot, t), [match, slot, t]);
+  const did = useMemo(() => (t + WINDOW <= match.duration ? actionAt(match, slot, t) : null), [match, slot, t]);
+  if (!chances) return null;
+  const top = (Object.entries(chances) as [Action, number][]).sort((a, b) => b[1] - a[1]).slice(0, 2);
+  return (
+    <span className="dl-play-hint" title={`What Phantom-and-up players in this spot and situation do over the next ${WINDOW} s (the play network, ${PLAY.matches} matches since the patch)`}>
+      <span className="muted">Phantom+ here:</span> {top.map(([a, p]) => <span key={a}>{ACTION_LABEL[a]} <b className="num">{Math.round(p * 100)}%</b></span>)}
+      {did && <span className={top[0][0] === did ? 'same' : 'other'}><span className="muted">they:</span> {ACTION_LABEL[did]}</span>}
+    </span>
   );
 }
 
