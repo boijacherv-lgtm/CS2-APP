@@ -581,3 +581,21 @@
 /* the picked player: what good players do here (play network) */
 .dl-play-hint { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--text-2); padding-top: 2px; }
 .dl-play-hint .same { color: var(--good); } .dl-play-hint .other { color: var(--highlight); }
+/* the engine on the graded player (Match recap → Coach) */
+.dl-engine h4 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
+.dl-engine-head { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.dl-engine-acc { display: grid; justify-items: center; padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border); min-width: 92px; }
+.dl-engine-acc b { font-size: 34px; line-height: 1; }
+.dl-engine-counts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(110px, 1fr)); gap: 4px 16px; flex: 1; }
+.dl-engine-counts li { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.dl-engine-counts i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.dl-engine-counts b { margin-left: auto; }
+.dl-engine-moves { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dl-engine-moves li { display: grid; grid-template-columns: 92px 1fr auto auto; gap: 10px; align-items: start; }
+.dl-engine-moves .dl-move-text { display: grid; gap: 2px; }
+.dl-engine-cls { font-size: 11px; font-weight: 700; color: #111; border-radius: 6px; padding: 3px 7px; text-align: center; }
+@media (max-width: 560px) {
+  .dl-engine-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dl-engine-moves li { grid-template-columns: 1fr auto; }
+  .dl-engine-moves .dl-engine-cls { justify-self: start; }
+}

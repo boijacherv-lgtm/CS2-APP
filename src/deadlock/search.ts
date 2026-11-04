@@ -62,6 +62,8 @@ export interface DlOption {
   action: Action;
   /** the team's win chance after it (0–1), assuming the enemy's best reply */ value: number;
   /** the enemy's reply that's assumed, in words, and the fight's odds when there's one */ reply: string; fight?: number;
+  /** heroes on each side of that fight (yours, theirs), and the objective it's about */ sides?: [number, number]; target?: string;
+  /** where that fight is: 'theirs' deep in their half (their objectives shoot for them), 'ours' deep in yours */ where?: 'theirs' | 'ours';
 }
 export interface DlSearch {
   t: number; slot: number; team: DlTeam;
@@ -121,7 +123,8 @@ export function searchAt(m: DlMatch, demo: DlDemo | null, slot: number, t: numbe
     const p = fightChance(FIGHT, t, a, b);
     const win = after({ kills: Math.max(1, Math.round(b.n * 0.6)), losses: Math.round(a.n * 0.15), mine: 5 + mult, theirs: 6 - b.n * 0.7 });
     const lose = after({ kills: Math.round(b.n * 0.15), losses: Math.max(1, Math.round(a.n * 0.6)), mine: 5 + mult - a.n * 0.7, theirs: 6 });
-    return { p, v: p * value(win) + (1 - p) * value(lose) };
+    const where = a.home < 0.3 ? 'theirs' as const : a.home > 0.7 ? 'ours' as const : undefined;
+    return { p, v: p * value(win) + (1 - p) * value(lose), sides: [a.n, b.n] as [number, number], where };
   };
   // the enemy's objectives still standing, nearest first
   const KIND = { guardian: 'guardians', walker: 'walkers', 'base guardian': 'baseGuardians', shrine: 'shrines' } as const;
@@ -140,7 +143,7 @@ export function searchAt(m: DlMatch, demo: DlDemo | null, slot: number, t: numbe
     const punish = (v: number, what: string): DlOption => {
       if (!jumped || replies === 'none') return { action: a, value: v, reply: what };
       const r = reply(v, jumped.v, 1 - jumped.p);
-      return r < v - 1e-9 ? { action: a, value: r, reply: 'they jump you', fight: jumped.p } : { action: a, value: v, reply: what };
+      return r < v - 1e-9 ? { action: a, value: r, reply: 'they jump you', fight: jumped.p, sides: jumped.sides, where: jumped.where } : { action: a, value: v, reply: what };
     };
     if (a === 'fight') {
       if (!threats.length) return null;
@@ -148,18 +151,18 @@ export function searchAt(m: DlMatch, demo: DlDemo | null, slot: number, t: numbe
       // they can fall back instead: their objective there falls if it's close, they earn less
       const there = target && target.d < 0.07 && enough(target.o.kind) ? KIND[target.o.kind as keyof typeof KIND] : undefined;
       const back = there ? value(after({ kills: 0, losses: 0, mine: 5 + INCOME.fight, theirs: 6 - threats.length * 0.7, objective: there })) : usual('move');
-      if (replies === 'none') return { action: a, value: f.v, reply: 'they take the fight', fight: f.p };
+      if (replies === 'none') return { action: a, value: f.v, reply: 'they take the fight', fight: f.p, sides: f.sides, where: f.where };
       // they take it when it's good for them (their chance 1 − p), else fall back
       const r = replies === 'worst' ? Math.min(back, f.v) : (1 - f.p) * f.v + f.p * back;
-      return replies === 'worst' && back < f.v ? { action: a, value: back, reply: there ? 'they fall back, the objective falls' : 'they fall back' } : { action: a, value: r, reply: f.p > 0.5 && replies === 'likely' ? 'they likely fall back' : 'they take the fight', fight: f.p };
+      return replies === 'worst' && back < f.v ? { action: a, value: back, reply: there ? 'they fall back, the objective falls' : 'they fall back', sides: f.sides } : { action: a, value: r, reply: f.p > 0.5 && replies === 'likely' ? 'they likely fall back' : 'they take the fight', fight: f.p, sides: f.sides, where: f.where };
     }
     if (a === 'objective') {
       if (!target) return null;
       const spot = target.spot!, defenders = alive(foe).filter(x => dist(x.at, spot) < 0.12).map(x => x.slot);
       const falls = enough(target.o.kind) ? value(after({ ...plain('objective'), objective: KIND[target.o.kind as keyof typeof KIND] })) : usual('objective');
       const defend = defenders.length ? fight(defenders, spot, INCOME.objective) : null;
-      if (defend && replies !== 'none') { const r = reply(falls, defend.v, 1 - defend.p); if (r < falls - 1e-9) return { action: a, value: r, reply: 'they defend it', fight: defend.p }; }
-      return { action: a, value: falls, reply: enough(target.o.kind) ? 'it falls' : 'not enough of you to take it' };
+      if (defend && replies !== 'none') { const r = reply(falls, defend.v, 1 - defend.p); if (r < falls - 1e-9) return { action: a, value: r, reply: 'they defend it', fight: defend.p, sides: defend.sides, target: target.o.name, where: defend.where }; }
+      return { action: a, value: falls, reply: enough(target.o.kind) ? 'it falls' : 'not enough of you to take it', target: target.o.name };
     }
     if (a === 'farm' && Math.min(...DL_MAP.camps.map(c => dist(c, at))) > 0.15) return null;
     if (a === 'base') return { action: a, value: base, reply: 'safe' };
