@@ -22,7 +22,8 @@ import type { DlMove } from './coach';
 import { MarkFace } from '../ui/MarkFace';
 import { NOTE_INFO } from '../engine/recap';
 import PLAY from './generated/playnet.json';
-import { ACTION_LABEL, actionAt, playChances, WINDOW, type Action } from './playNet';
+import { ACTION_LABEL, playChances, WINDOW, type Action } from './playNet';
+import { searchAt, SEARCH_COLOR } from './search';
 import type { Mlp } from '../engine/mlp';
 
 const PLAY_NET = (PLAY as { net: Mlp | null }).net;
@@ -330,19 +331,24 @@ function DlPlaybar({ match, time, playing, speed, graded, full, onFull }: { matc
 }
 
 /**
- * Under the picked player: what Phantom-and-up players in their place most often do next (the play network,
- * playNet.ts), and what they really did over the next 20 s.
+ * Under the picked player: the engine's verdict on what they did over the next 20 s (the 2-step search, search.ts): the
+ * best option, what they did and its class, with what good players usually do and every option on hover.
  */
 function PlayHint({ match, slot, time }: { match: DlMatch; slot: number; time: number }) {
+  const demo = useDl(s => s.demo);
   const t = Math.floor(time / 2) * 2;
   const chances = useMemo(() => playChances(PLAY_NET, match, slot, t), [match, slot, t]);
-  const did = useMemo(() => (t + WINDOW <= match.duration ? actionAt(match, slot, t) : null), [match, slot, t]);
+  const s = useMemo(() => searchAt(match, demo, slot, t), [match, demo, slot, t]);
   if (!chances) return null;
-  const top = (Object.entries(chances) as [Action, number][]).sort((a, b) => b[1] - a[1]).slice(0, 2);
+  const top = (Object.entries(chances) as [Action, number][]).sort((a, b) => b[1] - a[1])[0];
+  const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+  const tip = s ? s.options.map(o => `${ACTION_LABEL[o.action]}: ${pct(o.value)} win chance (${o.reply}${o.fight !== undefined ? `, fight ${Math.round(o.fight * 100)}%` : ''})`).join('\n') : '';
   return (
-    <span className="dl-play-hint" title={`What Phantom-and-up players in this spot and situation do over the next ${WINDOW} s (the play network, ${PLAY.matches} matches since the patch)`}>
-      <span className="muted">Phantom+ here:</span> {top.map(([a, p]) => <span key={a}>{ACTION_LABEL[a]} <b className="num">{Math.round(p * 100)}%</b></span>)}
-      {did && <span className={top[0][0] === did ? 'same' : 'other'}><span className="muted">they:</span> {ACTION_LABEL[did]}</span>}
+    <span className="dl-play-hint" title={`The engine, ${WINDOW} s ahead (now ${s ? pct(s.before) : '–'}):\n${tip}\n\nPhantom-and-up players here: ${ACTION_LABEL[top[0]]} ${Math.round(top[1] * 100)}% of the time`}>
+      {s ? <>
+        <span><span className="muted">Best:</span> {ACTION_LABEL[s.options[0].action]}</span>
+        {s.played && s.cls && <span><span className="muted">they:</span> {ACTION_LABEL[s.played.action]} <b style={{ color: SEARCH_COLOR[s.cls] }}>{s.cls}{s.loss > 0.002 ? ` −${(s.loss * 100).toFixed(1)}%` : ''}</b></span>}
+      </> : <span><span className="muted">Phantom+ here:</span> {ACTION_LABEL[top[0]]} <b className="num">{Math.round(top[1] * 100)}%</b></span>}
     </span>
   );
 }

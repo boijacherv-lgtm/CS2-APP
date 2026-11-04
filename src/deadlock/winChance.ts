@@ -43,10 +43,14 @@ export function stateAt(m: DlMatch, demo: DlDemo | null, t: number): State {
   return simpleState(valueStateAt(m, demo, t));
 }
 
+/** Team 0's chance to win from a moment (real, or one the search imagines), with the model that shipped. */
+export function stateChance(vs: ValueState) {
+  return WIN_MODEL.kind === 'network' && WIN_MODEL.net ? valueChance(WIN_MODEL.net, vs) : chance(WIN_MODEL.weights, simpleState(vs));
+}
+
 /** A team's chance to win at time t (0–1). */
 export function winChance(m: DlMatch, demo: DlDemo | null, t: number, team: DlTeam) {
-  const vs = valueStateAt(m, demo, t);
-  const p0 = WIN_MODEL.kind === 'network' && WIN_MODEL.net ? valueChance(WIN_MODEL.net, vs) : chance(WIN_MODEL.weights, simpleState(vs));
+  const p0 = stateChance(valueStateAt(m, demo, t));
   return team === 0 ? p0 : 1 - p0;
 }
 

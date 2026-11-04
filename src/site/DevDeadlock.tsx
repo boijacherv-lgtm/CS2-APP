@@ -1,6 +1,7 @@
 import winmodel from '../deadlock/generated/winmodel.json';
 import playnet from '../deadlock/generated/playnet.json';
 import fightmodel from '../deadlock/generated/fightmodel.json';
+import dlsearch from '../deadlock/generated/dlsearch.json';
 import spots from '../deadlock/generated/spots.json';
 import deathmap from '../deadlock/generated/deathmap.json';
 import positions from '../deadlock/generated/positions.json';
@@ -18,6 +19,9 @@ const P = playnet as { since: string; matches: number; moments: number; actions:
 type Even = { evenNumbers: { n: number; accuracy: number } | null };
 const F = fightmodel as { at: string; matches: number; fights: number; evenTrades: number; kind: string;
   test: { fights: number; calibration: { bin: number; n: number; won: number | null }[] }; compare: { numbers: Scored & Even; logistic: Scored & Even; network: Scored & Even } };
+const S = dlsearch as { thresholds: number[]; replies: string; moments: number; matches: number; calibratedAt: string; bestShare: number; classes: Record<string, number>;
+  effectFit: { r2Mean: number; r2Model: number }; check: { corr: number; teams: number; byReplies: Record<string, number> } };
+const REPLY_LABEL: Record<string, string> = { worst: 'Worst for you (chess-style)', likely: 'Likely (by the fight odds)', none: 'None (usual effect only)' };
 const day = (iso: string) => iso.slice(0, 10);
 const pct = (v: number | null | undefined) => (v == null ? '–' : `${(v * 100).toFixed(1)}%`);
 const calib = (rows: { bin: number; n: number; won: number | null }[], min: number) => rows.filter(c => c.n >= min).map(c => `${Math.round(c.bin * 100 + 5)}→${Math.round((c.won ?? 0) * 100)}%`).join(' · ');
@@ -28,11 +32,12 @@ export function DevDeadlock({ owner }: { owner: boolean }) {
   return (
     <>
       <section className="site-card">
-        <div className="card-head"><h2>Engine</h2><span className="muted small">right on matches they never saw · next: the 2-step search · retrain: the patch routine</span></div>
+        <div className="card-head"><h2>Engine</h2><span className="muted small">right on matches they never saw · retrain: the patch routine</span></div>
         <div className="gauge-row">
           <Gauge value={W.kind === 'network' && wc ? wc.network.accuracy : wc?.simple.accuracy ?? 0} label="Evaluation" sub={`win chance · ${W.kind === 'network' ? 'value network' : 'simple model'}`} tone="up" />
           <Gauge value={P.test.network.top2} label="Play network" sub={`top 2 of 6 actions · ${pct(P.test.network.accuracy)} first`} tone={P.ships ? 'up' : 'flat'} />
           <Gauge value={fc.network.accuracy >= fc.logistic.accuracy ? fc.network.accuracy : fc.logistic.accuracy} label="Fight model" sub={`who wins · ${F.kind}`} tone="up" />
+          <Gauge value={Math.max(0, S.check.corr)} label="2-step search" sub={`matches results · ${S.replies} replies`} tone={S.check.corr > 0.1 ? 'up' : 'flat'} />
         </div>
       </section>
 
@@ -69,6 +74,16 @@ export function DevDeadlock({ owner }: { owner: boolean }) {
           ))}
         </tbody></table>
         <p className="muted small">Read 12 s before the first death (when you'd decide), from the match data: no ultimates yet (they need demos). Said → won: {calib(F.test.calibration, 60)}</p>
+      </section>
+
+      <section className="site-card">
+        <div className="card-head"><h2>4 · 2-step search (grades)</h2><span className="muted small">{fmtInt(S.moments)} moments in {S.matches} matches · {S.calibratedAt}</span></div>
+        <table className="site-table"><thead><tr><th>Enemy replies</th><th>Matches results</th></tr></thead><tbody>
+          {Object.entries(S.check.byReplies).map(([k, v]) => <tr key={k} className={S.replies === k ? 'on' : ''}><td>{REPLY_LABEL[k] ?? k}{S.replies === k ? ' · in use' : ''}</td><td className="num">{v > 0 ? '+' : ''}{v}</td></tr>)}
+        </tbody></table>
+        <p className="muted small">Matches results: does a team that gave up less against the engine's best options win more than the win chance said at 10 minutes (correlation over {S.check.teams} matches, each graded by move effects learned without it; 0 = no link). The best way of replying ships.</p>
+        <BarList rows={['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'].map(c => ({ label: c, value: `${pct(S.classes[c] ?? 0)} of moves`, share: (S.classes[c] ?? 0) / Math.max(...Object.values(S.classes)), tone: c === 'Best' || c === 'Excellent' || c === 'Good' ? 'up' as const : c === 'Inaccuracy' ? 'flat' as const : 'down' as const }))} />
+        <p className="muted small">Class edges (win chance given up): {S.thresholds.map(v => `${(v * 100).toFixed(2)}%`).join(' · ')}. Move effects explain {pct(S.effectFit.r2Model)} of the 20-s change in win chance on unseen matches (each move's average alone: {pct(S.effectFit.r2Mean)}).</p>
       </section>
 
       <section className="site-card">
