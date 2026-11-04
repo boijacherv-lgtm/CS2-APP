@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { toMap } from '../src/deadlock/data';
-import { gameplayPatches } from '../src/deadlock/patches';
+import { gameplayPatches } from '../src/deadlock/patchFeed';
 import { DEATH_GRID, DEATH_PHASES } from '../src/deadlock/deathMap';
 
 const API = 'https://api.deadlock-api.com';
