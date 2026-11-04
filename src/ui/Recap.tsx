@@ -24,6 +24,7 @@ import type { Cs2Icon } from './cs2Icons';
 import { shownNow, useShown } from './shown';
 import { scoreBefore, sideSwitches } from './Playback';
 import { VerdictBar } from './Verdict';
+import { DemoReel } from './DemoReel';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
@@ -85,6 +86,7 @@ export function ReviewStart() {
             onDragLeave={() => setOver(false)}
             onDrop={e => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f && !busy) load(f); }}
           >
+            <DemoReel />
             <div className="dz-icon"><Icon name={busy ? 'hourglass' : 'upload'} size={34} /></div>
             <h2>{busy ? 'Reading your match…' : 'Drop a demo here'}</h2>
             <p>{busy ? status : 'or click to choose a .dem file (or a .json you saved before)'}</p>
