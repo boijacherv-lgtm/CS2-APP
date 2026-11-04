@@ -507,3 +507,20 @@ a.hero-games-live:hover b { text-decoration: underline; }
 @media (max-width: 980px) { .profile-cols { grid-template-columns: minmax(0, 1fr); } }
 .add-matches .card-head { margin: 0; } .add-matches { padding-block: 12px; }
 .add-hint { flex: 1; }
+
+/* the front page's preview: one review per game, overlapping */
+.hero-preview.duo { aspect-ratio: 1.08; }
+.duo .pv-frame { position: absolute; }
+.duo .pv-frame.cs2 { left: 0; top: 0; width: 70%; }
+.duo .pv-frame.dl { right: 0; bottom: 0; width: 58%; box-shadow: 0 18px 50px #0009; }
+.duo .pv-frame.dl .pv-map { opacity: 1; object-fit: contain; filter: invert(1) brightness(.42); }
+/* the CS2 card stays clear of the Deadlock frame over its corner */
+.duo .pv-frame.cs2 .pv-card { right: 44%; }
+.duo .pv-card { left: 12px; right: 12px; bottom: 24px; width: auto; padding: 10px 12px; font-size: 12.5px; }
+.duo .pv-label { left: 12px; top: 10px; }
+@media (max-width: 720px) {
+  .hero-preview.duo { aspect-ratio: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .duo .pv-frame, .duo .pv-frame.cs2, .duo .pv-frame.dl { position: relative; width: auto; inset: auto; box-shadow: none; }
+  .duo .pv-card p { display: none; }
+  .duo .pv-frame.cs2 .pv-card { right: 12px; }
+}
