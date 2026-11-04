@@ -15,3 +15,9 @@ export const STEAM_AVAILABLE = !ONLINE || !!API_URL;
 declare const __BUILD__: { commit: string; time: string } | undefined;
 /** This build: the git commit and when it was built (vite.config.ts), for the dev page. */
 export const BUILD = typeof __BUILD__ !== 'undefined' && __BUILD__ ? __BUILD__ : { commit: 'dev', time: '' };
+
+/** Debug details (the game's timers on the Deadlock map, the demo's state): `?debug` in the address, or
+ * localStorage `stratboard.debug` = 1. */
+export const DEBUG = (() => {
+  try { return /[?&]debug\b/.test(location.search + location.hash) || localStorage.getItem('stratboard.debug') === '1'; } catch { return false; }
+})();

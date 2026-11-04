@@ -1053,3 +1053,4 @@ a.btn:hover { border-color: #45505e; }
 .judge-reasons { display: flex; flex-wrap: wrap; gap: 4px; }
 .judge-reasons .chip { padding: 3px 8px; font-size: 11.5px; }
 .judge kbd { margin-left: 4px; padding: 0 4px; border-radius: 4px; font: 600 10px var(--font-ui); background: rgba(127, 127, 127, .22); color: inherit; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

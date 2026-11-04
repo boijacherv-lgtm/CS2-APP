@@ -129,11 +129,11 @@ function DlStart() {
     <div className="page dl-start">
       <header className="rs-head">
         <h1 className="display">Review a Deadlock match</h1>
-        <p className="muted">Every hero on the real map, second by second, with kills and objectives. Matches come from deadlock-api.com a few minutes to an hour after they end.</p>
+        <p className="muted">Replay any match on the map, second by second.</p>
       </header>
       <form className="dl-id" onSubmit={e => { e.preventDefault(); if (typed) void open(typed); }}>
-        <label htmlFor="dl-match-id">Match ID</label>
-        <input id="dl-match-id" inputMode="numeric" placeholder="e.g. 124566656 (in game: Match history → the match)" value={id} onChange={e => setId(e.target.value)} />
+        <label htmlFor="dl-match-id" className="sr-only">Match ID</label>
+        <input id="dl-match-id" inputMode="numeric" placeholder="Match ID, e.g. 124566656" value={id} onChange={e => setId(e.target.value)} />
         <button className="cta primary" disabled={!typed || busy !== null}>{busy === typed ? 'Loading…' : 'Open'}</button>
       </form>
       {err && <p className="warn-text">{err}</p>}
@@ -141,19 +141,18 @@ function DlStart() {
       <DlSteamFolder account={account} open={id => void open(id)} busy={busy} />
 
       <section className="site-card dl-history">
-        <div className="card-head"><h2>Your matches</h2>{rows && <span className="muted small">{rows.length} found{checked ? ` · checked ${Date.now() - checked < 60_000 ? 'just now' : `${Math.round((Date.now() - checked) / 60_000)} min ago`}, again every 2 min` : ''}</span>}</div>
+        <div className="card-head"><h2>Your matches</h2>{rows && <span className="muted small" title={checked ? `Checked ${Date.now() - checked < 60_000 ? 'just now' : `${Math.round((Date.now() - checked) / 60_000)} min ago`}, again every 2 min` : undefined}>{rows.length}</span>}</div>
         {account && BOT_ON && bot?.steamId && rel !== null && (
           rel === 'friend' ? (
             <div className="dl-bot on">
-              <span><b>RageView bot is your friend.</b> <span className="muted small">New matches are found by themselves every {bot.pollMinutes} min.</span></span>
+              <span className="muted small">New matches load by themselves every {bot.pollMinutes} min.</span>
               {me?.pro ? <button className="ghost small-btn" disabled={botBusy} onClick={() => void checkNow()}>{botBusy ? 'Checking…' : 'Check now'}</button>
                 : <a className="muted small" href="#/pricing" title="Pro can ask the bot to look right away">Check now: Pro</a>}
             </div>
           ) : (
             <div className="dl-bot">
-              <span><b>Get every match here by itself.</b> <span className="muted small">Add RageView bot as a Steam friend once: it finds your new matches (and their replays) and loads them here. It only reads your Deadlock match history.{rel === 'pending' ? ' Request sent: the bot accepts it in a moment.' : ''}</span></span>
+              <span><b>Load every match by itself.</b> <span className="muted small">{rel === 'pending' ? 'Request sent: the bot accepts it in a moment.' : 'Add RageView bot as a Steam friend once.'}</span></span>
               <a className="cta primary small-btn" href={`steam://friends/add/${bot.steamId}`}>Add in Steam</a>
-              <a className="ghost small-btn" href={`https://steamcommunity.com/profiles/${bot.steamId}`} target="_blank" rel="noreferrer">Bot's profile</a>
             </div>
           )
         )}
@@ -166,11 +165,7 @@ function DlStart() {
         ) : (
           <>
           {rel !== 'friend' && Date.now() / 1000 - rows[0].start_time > 86400 && (
-            <p className="dl-history-note muted small">
-              The newest match deadlock-api has for you is from {ago(rows[0].start_time)}. It lists a player's games right away only when their
-              account is on Steam friends with one of its bots; otherwise a match shows up when deadlock-api happens to collect it, which can
-              take days. To open a newer one now, paste its ID above (in game: Match history → the match): deadlock-api then fetches it from Steam (up to 3 new matches an hour).
-            </p>
+            <p className="dl-history-note muted small">Newest match here is from {ago(rows[0].start_time)}. For a newer one, paste its ID above.</p>
           )}
           <ul className="dl-rows">
             {rows.slice(0, 30).map(r => {

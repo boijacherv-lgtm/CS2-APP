@@ -5,14 +5,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loading } from '../ui/Loading';
 import { matchPosition } from './bench';
-import { heroOf, LANES, objectiveSpot, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
+import { heroOf, LANES, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { useRank } from './DlMeta';
 import { LinesChart } from './DlCharts';
 import { economy, laneOpponent, teamSouls, unspentAtDeaths, worthAt } from './grade';
 import { WIN_MODEL, winCurve } from './winChance';
-import { playerAt, statAt, type DlMatch, type DlObjective } from './match';
+import { statAt, type DlMatch, type DlObjective } from './match';
 import { counterItems, heroBuilds, type CounterItem } from './meta';
 import { useDl } from './store';
+import { feedEvents } from './events';
 import ITEMS from './generated/items.json';
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -82,14 +83,13 @@ export function TeamSouls({ match, team }: { match: DlMatch; team: DlTeam }) {
   const best = Math.max(...lead), worst = Math.min(...lead), endLead = lead.at(-1)!;
   return (
     <section className="recap-card">
-      <h3>Souls: {TEAM_NAME[team]} against {TEAM_NAME[other]}</h3>
+      <h3>Souls</h3>
       <div className="dl-kpis">
         <span><b className="num" style={{ color: endLead >= 0 ? 'var(--good)' : 'var(--bad)' }}>{sign(endLead)}</b><i>at the end</i></span>
         <span><b className="num">{best > 0 ? sign(best) : '–'}</b><i>biggest lead</i></span>
         <span><b className="num">{worst < 0 ? sign(worst) : '–'}</b><i>furthest behind</i></span>
-        <span><b className="num">{(pts.at(-1)!.v[team] / 1000).toFixed(1)}k / {(pts.at(-1)!.v[other] / 1000).toFixed(1)}k</b><i>souls</i></span>
       </div>
-      <LinesChart gap height={230}
+      <LinesChart gap height={150}
         series={[{ label: TEAM_NAME[team], color: TEAM_COLOR[team], points: pts.map(p => ({ t: p.t, v: p.v[team] })) },
           { label: TEAM_NAME[other], color: TEAM_COLOR[other], points: pts.map(p => ({ t: p.t, v: p.v[other] })) }]}
         marks={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], label: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />
@@ -274,83 +274,87 @@ export function Items({ match, slot }: { match: DlMatch; slot: number }) {
 // ---- objectives ------------------------------------------------------------------------------------------------
 
 export function Objectives({ match, team, watch }: { match: DlMatch; team: DlTeam; watch: (t: number) => void }) {
-  const demo = useDl(s => s.demo);
+  const demo = useDl(s => s.demo), names = useDl(s => s.names);
   const other = (1 - team) as DlTeam;
   const find = (tm: DlTeam, f: (o: DlObjective) => boolean) => match.objectives.find(o => o.team === tm && f(o));
-  // who stood by it when it fell (a twelfth of the map)
-  const there = (o: DlObjective) => {
-    const sp = objectiveSpot(o.team, o.id);
-    return sp && o.destroyed !== null ? match.players.filter(p => { const a = playerAt(match, p.slot, o.destroyed! - 1); return !!a && Math.hypot(a.x - sp.x, a.y - sp.y) < 0.085; }) : [];
-  };
-  const Cell = ({ o }: { o: DlObjective | undefined }) => {
-    // the match data lists only objectives that were attacked: one that isn't was never touched
-    if (!o) return <span className="dl-obj-cell up" title="Never attacked">standing</span>;
-    const fell = o.destroyed !== null;
+  const lost = (tm: DlTeam) => match.objectives.filter(o => o.team === tm && o.destroyed !== null).length;
+  // one objective: a diamond in its owner's colour, hollow once it fell (with when; click to watch)
+  const Node = ({ o, label }: { o: DlObjective | undefined; label: string }) => {
+    const fell = !!o && o.destroyed !== null, owner = o?.team;
     return (
-      <button className={`dl-obj-cell ${fell ? 'fell' : 'up'}`} disabled={!fell} onClick={() => fell && watch(o.destroyed! - 20)} title={fell ? `Fell at ${mins(o.destroyed!)}: watch` : 'Standing at the end'}>
-        {fell ? <b className="num">{mins(o.destroyed!)}</b> : <span>standing</span>}
-        {fell && <span className="dl-obj-there">{there(o).filter(p => p.team !== o.team).slice(0, 5).map(p => <HeroImg key={p.slot} hero={p.hero} size={16} />)}</span>}
+      <button className={`dl-tug-node ${fell ? 'fell' : 'up'}`} disabled={!fell} onClick={() => fell && watch(o!.destroyed! - 20)}
+        title={fell ? `${o!.name}: fell at ${mins(o!.destroyed!)} (watch)` : `${label}: standing`}
+        style={{ ['--c' as string]: owner !== undefined ? TEAM_COLOR[owner] : 'var(--text-3)' }}>
+        <i />
+        <span className="num">{fell ? mins(o!.destroyed!) : ''}</span>
       </button>
     );
   };
-  const KINDS = [['guardian', 'Guardian'], ['walker', 'Walker'], ['base guardian', 'Base Guardian']] as const;
-  const lost = (tm: DlTeam) => match.objectives.filter(o => o.team === tm && o.destroyed !== null).length;
-  const events = [
-    ...match.objectives.filter(o => o.destroyed !== null).map(o => ({ t: o.destroyed!, side: o.team === team ? 'lost' : 'took', label: o.name, color: TEAM_COLOR[(1 - o.team) as DlTeam] })),
-    ...match.midBoss.map(b => ({ t: b.t, side: b.team === team ? 'took' : 'lost', label: 'Mid Boss', color: TEAM_COLOR[b.team] })),
-    ...(demo?.rifts ?? []).filter(r => r.taken !== null && r.team !== null).map(r => ({ t: r.taken!, side: r.team === team ? 'took' : 'lost', label: 'Unstable Rift', color: TEAM_COLOR[r.team!] })),
-  ].sort((a, b) => a.t - b.t);
+  const KINDS = ['base guardian', 'walker', 'guardian'] as const;
+  const nameOf = (slot: number | null) => { const p = match.players.find(x => x.slot === slot); return p ? names[p.account]?.name ?? heroOf(p.hero).name : null; };
+  // everything big that happened, in order, with who did it
+  const feed = useMemo(() => feedEvents(match, demo).filter(e => e.kind !== 'kill'), [match, demo]);
   return (
     <>
       <section className="recap-card">
-        <h3>Objectives</h3>
         <div className="dl-kpis">
           <span><b className="num" style={{ color: 'var(--good)' }}>{lost(other)}</b><i>taken by {TEAM_NAME[team]}</i></span>
-          <span><b className="num" style={{ color: 'var(--bad)' }}>{lost(team)}</b><i>lost by {TEAM_NAME[team]}</i></span>
+          <span><b className="num" style={{ color: 'var(--bad)' }}>{lost(team)}</b><i>lost</i></span>
           <span><b className="num">{match.midBoss.filter(b => b.team === team).length} / {match.midBoss.length}</b><i>Mid Bosses</i></span>
           {demo && <span><b className="num">{demo.rifts.filter(r => r.team === team).length} / {demo.rifts.filter(r => r.taken !== null).length}</b><i>Rifts</i></span>}
         </div>
-        <div className="dl-obj-strip" aria-label="When they fell">
-          {events.map((e, i) => (
-            <button key={i} className={`dl-obj-tick ${e.side}`} style={{ left: `${(e.t / match.duration) * 100}%`, background: e.color }} title={`${mins(e.t)} · ${e.side === 'took' ? 'took' : 'lost'} ${e.label}`} onClick={() => watch(e.t - 20)} />
-          ))}
-          <span className="dl-obj-strip-l small muted">took ↑</span><span className="dl-obj-strip-r small muted">lost ↓</span>
-        </div>
-        <div className="dl-obj-axis">{Array.from({ length: Math.floor(match.duration / 300) + 1 }, (_, i) => <span key={i} className="small muted num" style={{ left: `${((i * 300) / match.duration) * 100}%` }}>{i * 5}m</span>)}</div>
-      </section>
-      {([team, other] as DlTeam[]).map(tm => (
-        <section key={tm} className="recap-card">
-          <h3 style={{ color: TEAM_COLOR[tm] }}>{TEAM_NAME[tm]}'s objectives{tm === team ? '' : ' (theirs)'}</h3>
-          <div className="dl-obj-grid">
-            <span />{KINDS.map(([, label]) => <span key={label} className="muted small">{label}</span>)}
-            {LANES.map(l => (
-              <div key={l.id} className="dl-obj-lane">
-                <span className="dl-obj-lane-name"><i style={{ background: l.color }} />{l.name}</span>
-                {KINDS.map(([kind]) => <Cell key={kind} o={find(tm, o => o.kind === kind && o.lane === l.id)} />)}
+        {/* each lane as a tug of war: your base on the left, theirs on the right */}
+        <div className="dl-tug">
+          <div className="dl-tug-head"><span style={{ color: TEAM_COLOR[team] }}>{TEAM_NAME[team]}</span><span style={{ color: TEAM_COLOR[other] }}>{TEAM_NAME[other]}</span></div>
+          {LANES.map(l => (
+            <div key={l.id} className="dl-tug-lane">
+              <span className="dl-tug-name"><i style={{ background: l.color }} />{l.name}</span>
+              <div className="dl-tug-track">
+                {KINDS.map(k => <Node key={`a${k}`} o={find(team, o => o.kind === k && o.lane === l.id)} label={k} />)}
+                <span className="dl-tug-mid" />
+                {[...KINDS].reverse().map(k => <Node key={`b${k}`} o={find(other, o => o.kind === k && o.lane === l.id)} label={k} />)}
               </div>
-            ))}
-          </div>
-          <div className="dl-obj-base">
-            {[find(tm, o => o.kind === 'shrine' && o.id === 10), find(tm, o => o.kind === 'shrine' && o.id === 11), find(tm, o => o.kind === 'titan'), find(tm, o => o.kind === 'patron')].map((o, i) => (
-              <div key={i}><span className="muted small">{['Shrine 1', 'Shrine 2', 'Patron (weakened)', 'Patron'][i]}</span><Cell o={o} /></div>
-            ))}
-          </div>
-          <p className="muted small">Heroes on a fallen objective: the attackers who were there.</p>
-        </section>
-      ))}
-      <section className="recap-card">
-        <h3>Mid Boss{demo?.rifts.length ? ' and Rifts' : ''}</h3>
-        <ul className="dl-obj-list">
-          {events.filter(e => e.label === 'Mid Boss' || e.label === 'Unstable Rift').map((e, i) => (
-            <li key={i}><span className="num muted">{mins(e.t)}</span><i style={{ background: e.color }} /><span>{e.side === 'took' ? `${TEAM_NAME[team]} took` : `${TEAM_NAME[other]} took`} the <b>{e.label}</b></span><button className="chip" onClick={() => watch(e.t - 20)}>Watch</button></li>
+            </div>
           ))}
-          {!events.some(e => e.label === 'Mid Boss' || e.label === 'Unstable Rift') && <li className="muted">Nobody took the Mid Boss.</li>}
+          <div className="dl-tug-lane base">
+            <span className="dl-tug-name">Base</span>
+            <div className="dl-tug-track">
+              <Node o={find(team, o => o.kind === 'patron')} label="Patron" />
+              <Node o={find(team, o => o.kind === 'shrine' && o.id === 10)} label="Shrine" />
+              <Node o={find(team, o => o.kind === 'shrine' && o.id === 11)} label="Shrine" />
+              <span className="dl-tug-mid" />
+              <Node o={find(other, o => o.kind === 'shrine' && o.id === 11)} label="Shrine" />
+              <Node o={find(other, o => o.kind === 'shrine' && o.id === 10)} label="Shrine" />
+              <Node o={find(other, o => o.kind === 'patron')} label="Patron" />
+            </div>
+          </div>
+          <p className="muted small dl-tug-key">Guardian, Walker, Base Guardian from the middle out; hollow ones fell (click to watch).</p>
+        </div>
+      </section>
+      <section className="recap-card">
+        <h3>Who took what</h3>
+        <ul className="dl-obj-list">
+          {feed.map((e, i) => {
+            const by = nameOf(e.slot), side = e.team !== null ? TEAM_NAME[e.team] : '';
+            const text = e.kind === 'objective' ? <>{by ?? side} destroyed <b>{e.what}</b></>
+              : e.kind === 'urn' ? (e.what === 'delivered' ? <>{by} delivered the <b>urn</b> <span className="dl-feed-souls">+{e.souls!.toLocaleString()}</span></> : <>{by} picked up the <b>urn</b></>)
+              : e.kind === 'urnLost' ? <>{by} lost the <b>urn</b></>
+              : e.kind === 'sinners' ? <>{by} took <b>Sinner's Sacrifice</b></>
+              : e.kind === 'rejuv' ? <>{by} took the <b>Rejuvenator</b></>
+              : e.kind === 'boss' ? <>{side} killed the <b>Mid Boss</b></>
+              : <>{side} took the <b>Unstable Rift</b></>;
+            return (
+              <li key={i} className={e.team === team ? 'ours' : 'theirs'}>
+                <span className="num muted">{mins(e.t)}</span><i style={{ background: e.team !== null ? TEAM_COLOR[e.team] : 'var(--text-3)' }} />
+                <span>{text}</span><button className="chip" onClick={() => watch(e.t - 20)}>Watch</button>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </>
   );
 }
-
 
 // ---- win chance ------------------------------------------------------------------------------------------------
 
@@ -368,21 +372,20 @@ export function WinChance({ match, team, watch }: { match: DlMatch; team: DlTeam
   }, [curve]);
   const peak = Math.max(...curve.map(c => c.v)), low = Math.min(...curve.map(c => c.v));
   return (
-    <section className="recap-card">
-      <h3>{TEAM_NAME[team]}'s chance to win</h3>
+    <section className="recap-card" title={`From the coach's model: ${WIN_MODEL.matches.toLocaleString()} high-rank matches since the patch; right about the winner ${Math.round(WIN_MODEL.test.accuracy * 100)}% of the time on matches it hadn't seen`}>
+      <h3>Chance to win</h3>
       <div className="dl-kpis">
         <span><b className="num">{Math.round(peak)}%</b><i>highest</i></span>
         <span><b className="num">{Math.round(low)}%</b><i>lowest</i></span>
         <span><b className="num" style={{ color: match.winner === team ? 'var(--good)' : 'var(--bad)' }}>{match.winner === team ? 'Won' : 'Lost'}</b><i>{match.winner === team ? (low < 35 ? 'a comeback' : 'as expected') : (peak > 65 ? 'thrown from ahead' : 'never really ahead')}</i></span>
       </div>
-      <LinesChart height={190} max={100} fmt={v => `${Math.round(v)}%`} series={[{ label: TEAM_NAME[team], color: TEAM_COLOR[team], points: curve }]}
+      <LinesChart height={150} max={100} fmt={v => `${Math.round(v)}%`} series={[{ label: TEAM_NAME[team], color: TEAM_COLOR[team], points: curve }]}
         marks={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], label: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />
       {moves.length > 0 && (
         <div className="dl-win-moves">
           {moves.map(m => <button key={m.t} className={`chip ${m.d >= 0 ? 'up' : 'down'}`} onClick={() => watch(m.t)}>{mins(m.t)} · {m.d >= 0 ? '+' : '−'}{Math.abs(m.d).toFixed(0)} pts</button>)}
         </div>
       )}
-      <p className="muted small">From the coach's model: {WIN_MODEL.matches.toLocaleString()} high-rank matches since the patch; right about the winner {Math.round(WIN_MODEL.test.accuracy * 100)}% of the time on matches it hadn't seen.</p>
     </section>
   );
 }
