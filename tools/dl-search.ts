@@ -86,22 +86,24 @@ console.log(`effects: ${ex.length} moments; explains ${(effectFit.r2Model * 100)
 
 // ---- every reply mode: grade every match (out of fold), check against results, class edges -------------------------------
 function run(mode: Replies) {
-  const losses: number[] = [];
+  const losses: number[] = [], players: number[] = [];
   const teams: { lossDiff: number; surprise: number }[] = [];
   let best = 0;
   const t0 = Date.now();
   for (const m of all) {
-    const byTeam: number[][] = [[], []];
+    const byTeam: number[][] = [[], []], bySlot = new Map<number, number[]>();
     for (let t = 120; t < m.duration; t += STEP) {
       for (const p of m.players) {
         const s = searchAt(m, null, p.slot, t, byFold[fold(m.id)], mode);
         if (!s?.played) continue;
         byTeam[p.team].push(s.loss);
+        bySlot.set(p.slot, [...(bySlot.get(p.slot) ?? []), s.loss]);
         losses.push(s.loss);
         if (s.loss <= 0.002) best++;
       }
     }
     const avg = (xs: number[]) => xs.reduce((a, v) => a + v, 0) / Math.max(1, xs.length);
+    for (const xs of bySlot.values()) if (xs.length >= 20) players.push(avg(xs));
     // team 0's side: how much less it gave up than team 1, against how much better it did than expected at 10 min
     if (m.duration > 900) teams.push({ lossDiff: avg(byTeam[1]) - avg(byTeam[0]), surprise: (m.winner === 0 ? 1 : 0) - winChance(m, null, 600, 0) });
   }
@@ -110,11 +112,14 @@ function run(mode: Replies) {
   for (const r of teams) { sxy += (r.lossDiff - mx) * (r.surprise - my); sxx += (r.lossDiff - mx) ** 2; syy += (r.surprise - my) ** 2; }
   const corr = sxx && syy ? +(sxy / Math.sqrt(sxx * syy)).toFixed(3) : 0;
   console.log(`  replies '${mode}': check ${corr} on ${n} matches, ${Math.round((best / losses.length) * 100)}% of moves the best (${Math.round((Date.now() - t0) / 1000)} s)`);
-  return { mode, losses, best, corr, teams: n };
+  return { mode, losses, best, corr, teams: n, players };
 }
 const runs = MODES.map(run);
 const chosen = runs.reduce((a, b) => (b.corr > a.corr ? b : a));
 const { losses, best } = chosen;
+// accuracy (chess.com's curve on the average win chance given up, in points): a typical good player's game scores 90
+const ps = [...chosen.players].sort((a, b) => a - b), med = ps[ps.length >> 1] * 100;
+const accuracyScale = +((-Math.log(93.1669 / 103.1668) / 0.04354) / Math.max(1e-6, med)).toFixed(4);
 const matches = all.length;
 const sorted = losses.filter(l => l > 0.002).sort((a, b) => a - b);
 const q = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
@@ -124,7 +129,7 @@ const cls = (l: number) => (l <= 0.002 ? 'Best' : l <= thresholds[0] ? 'Excellen
 const classes: Record<string, number> = {};
 for (const l of losses) classes[cls(l)] = (classes[cls(l)] ?? 0) + 1;
 const out = {
-  thresholds, replies: chosen.mode, moments: losses.length, matches, step: STEP, calibratedAt: new Date().toISOString().slice(0, 10), effects, effectFit,
+  thresholds, replies: chosen.mode, accuracyScale, playerLoss: { median: +(med / 100).toFixed(5), p25: +ps[Math.floor(ps.length * 0.25)].toFixed(5), p75: +ps[Math.floor(ps.length * 0.75)].toFixed(5) }, moments: losses.length, matches, step: STEP, calibratedAt: new Date().toISOString().slice(0, 10), effects, effectFit,
   bestShare: +(best / losses.length).toFixed(3), classes: Object.fromEntries(Object.entries(classes).map(([k, v]) => [k, +(v / losses.length).toFixed(3)])),
   check: { corr: chosen.corr, teams: chosen.teams, byReplies: Object.fromEntries(runs.map(r => [r.mode, r.corr])) },
 };

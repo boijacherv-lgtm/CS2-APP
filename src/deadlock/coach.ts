@@ -17,7 +17,7 @@ import { patternOf, type Corrections } from './disputes';
 export type DlTag = 'HOT SPOT' | 'ISOLATED' | 'OUTNUMBERED' | 'OVEREXTENDED' | 'TRADED' | 'COST OBJECTIVE' | 'SOLO KILL' | 'MULTI-KILL' | 'UPSET' | 'LANE LOST' | 'LANE WON' | 'FIRST BLOOD' | 'ULT UNUSED';
 export interface DlMove {
   t: number; slot: number; team: DlTeam;
-  kind: 'death' | 'kill' | 'laning';
+  /** engine: a move the 2-step search graded (engineReview.ts) */ kind: 'death' | 'kill' | 'laning' | 'engine';
   note: Annotation; title: string; why: string[]; tags: DlTag[];
   /** The team's win chance just before and 30 s after (what the moment led to), from the coach's model. */
   win?: { before: number; after: number; swing: number };

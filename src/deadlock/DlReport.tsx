@@ -17,6 +17,8 @@ import { benchLevel, benchSource, HAS_HIGH, setBenchLevel, type BenchLevel } fro
 import { Economy, Items, Objectives, Positioning, Scoreboard, TeamSouls, WinChance } from './DlRecap';
 import { openLatest } from './open';
 import './dl.css';
+import { engineReview, type EngineMove, type EngineReview } from './engineReview';
+import { DL_SEARCH, SEARCH_COLOR, type SearchClass } from './search';
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 type Tab = 'overview' | 'grades' | 'coach' | 'build' | 'objectives';
@@ -41,6 +43,8 @@ export function DlReport() {
   // whose recap: yours when you played in it, else the player picked here
   const [pick, setPick] = useState<number | null>(null);
   const subject = pick ?? coach.mine ?? match?.players[0]?.slot ?? null;
+  // the engine's review of the graded player: every move, accuracy, the costliest and the best calls
+  const review = useMemo(() => (match && subject !== null ? engineReview(match, demo, subject) : null), [match, demo, subject]);
   // compared with everyone, or with high-rank players (bench.ts)
   const [level, setLevel] = useState<BenchLevel>(benchLevel);
   const pickLevel = (l: BenchLevel) => { setBenchLevel(l); setLevel(l); };
@@ -112,7 +116,7 @@ export function DlReport() {
             <WinChance match={match} team={who?.team ?? 0} watch={watch} />
             <TeamSouls match={match} team={who?.team ?? 0} />
           </div>
-          <Moments moves={myMoves} watch={watch} />
+          <Moments moves={[...myMoves, ...(review ? engineMoves(review, myMoves) : [])]} watch={watch} />
         </>
       )}
       {tab === 'grades' && card && who && <Grades card={card} match={match} name={nameOf(who.slot)} hero={heroOf(who.hero).name} moves={coach.all} watch={watch} level={level} pickLevel={pickLevel} />}
@@ -125,6 +129,7 @@ export function DlReport() {
       )}
       {tab === 'coach' && (
         <>
+          {review && who && <EngineCard review={review} watch={watch} who={nameOf(who.slot)} />}
           <Coach moves={myMoves} watch={watch} who={who ? nameOf(who.slot) : 'everyone'} />
           {who && <Positioning match={match} slot={who.slot} watch={watch} />}
           <section className="recap-card">
@@ -177,6 +182,62 @@ function Coach({ moves, watch, who }: { moves: DlMove[]; watch: (t: number) => v
           ))}
         </ol>
       )}
+    </section>
+  );
+}
+
+/** The engine's verdicts and best calls as moments for the lists (not where the coach already marked something). */
+function engineMoves(r: EngineReview, coach: DlMove[]): DlMove[] {
+  const free = (t: number) => !coach.some(c => Math.abs(c.t - t) < 20);
+  const t3 = DL_SEARCH.thresholds?.[3] ?? 0.035;
+  const as = (x: EngineMove, note: DlMove['note']): DlMove => ({ t: x.t, slot: x.slot, team: x.team, kind: 'engine', note, title: x.title, why: x.why, tags: [] });
+  return [
+    ...r.worst.filter(x => (x.cls === 'Mistake' || x.cls === 'Blunder') && free(x.t)).map(x => as(x, x.cls === 'Blunder' ? '??' : '?')),
+    ...r.best.filter(x => free(x.t)).map(x => as(x, x.margin > t3 ? '!!' : '!')),
+  ];
+}
+
+/**
+ * The engine on the graded player: accuracy (like chess.com's: a typical Phantom-and-up game is 90), how many moves fell
+ * in each class, and the costliest moves and the best calls with what the search saw.
+ */
+function EngineCard({ review, watch, who }: { review: EngineReview; watch: (t: number) => void; who: string }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? review.worst : review.worst.slice(0, 4);
+  const CLASSES: SearchClass[] = ['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'];
+  const row = (x: EngineMove) => (
+    <li key={x.t}>
+      <span className="dl-engine-cls" style={{ background: SEARCH_COLOR[x.cls] }}>{x.cls}</span>
+      <span className="dl-move-text"><b>{x.title.replace(/^[^:]+: /, '')}</b>{x.why.map((w, i) => <span key={i} className="muted small">{w}</span>)}</span>
+      <span className="num muted">{mins(x.t)}</span>
+      <button className="chip" onClick={() => watch(x.t)}>Watch</button>
+    </li>
+  );
+  return (
+    <section className="recap-card dl-engine">
+      <h3>Engine ({who})</h3>
+      <div className="dl-engine-head">
+        <div className="dl-engine-acc" title={`Accuracy: how close every move came to the engine's best, like chess.com's. A typical Phantom-and-up player's game is 90. ${review.moves.length} moves, one every 20 s alive.`}>
+          <b className="num">{Math.round(review.accuracy)}</b><span className="muted small">accuracy</span>
+        </div>
+        <ul className="dl-engine-counts">
+          {CLASSES.map(c => <li key={c}><i style={{ background: SEARCH_COLOR[c] }} /><span>{c}</span><b className="num">{review.counts[c]}</b></li>)}
+        </ul>
+      </div>
+      {review.worst.length > 0 && (
+        <>
+          <h4>Costliest moves</h4>
+          <ul className="dl-engine-moves">{shown.map(row)}</ul>
+          {review.worst.length > 4 && <button className="link-btn small" onClick={() => setAll(!all)}>{all ? 'Fewer' : `All ${review.worst.length}`}</button>}
+        </>
+      )}
+      {review.best.length > 0 && (
+        <>
+          <h4>Best calls</h4>
+          <ul className="dl-engine-moves">{review.best.slice(0, 3).map(row)}</ul>
+        </>
+      )}
+      <p className="muted small">The engine looks 20 s ahead: the best options good players take here, what the enemy would likely do, and the win chance after. No ultimates yet, and it sees enemies you might not have.</p>
     </section>
   );
 }

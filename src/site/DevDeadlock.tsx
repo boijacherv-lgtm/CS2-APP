@@ -20,7 +20,7 @@ type Even = { evenNumbers: { n: number; accuracy: number } | null };
 const F = fightmodel as { at: string; matches: number; fights: number; evenTrades: number; kind: string;
   test: { fights: number; calibration: { bin: number; n: number; won: number | null }[] }; compare: { numbers: Scored & Even; logistic: Scored & Even; network: Scored & Even } };
 const S = dlsearch as { thresholds: number[]; replies: string; moments: number; matches: number; calibratedAt: string; bestShare: number; classes: Record<string, number>;
-  effectFit: { r2Mean: number; r2Model: number }; check: { corr: number; teams: number; byReplies: Record<string, number> } };
+  effectFit: { r2Mean: number; r2Model: number }; playerLoss?: { median: number; p25: number; p75: number }; check: { corr: number; teams: number; byReplies: Record<string, number> } };
 const REPLY_LABEL: Record<string, string> = { worst: 'Worst for you (chess-style)', likely: 'Likely (by the fight odds)', none: 'None (usual effect only)' };
 const day = (iso: string) => iso.slice(0, 10);
 const pct = (v: number | null | undefined) => (v == null ? '–' : `${(v * 100).toFixed(1)}%`);
@@ -83,7 +83,8 @@ export function DevDeadlock({ owner }: { owner: boolean }) {
         </tbody></table>
         <p className="muted small">Matches results: does a team that gave up less against the engine's best options win more than the win chance said at 10 minutes (correlation over {S.check.teams} matches, each graded by move effects learned without it; 0 = no link). The best way of replying ships.</p>
         <BarList rows={['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'].map(c => ({ label: c, value: `${pct(S.classes[c] ?? 0)} of moves`, share: (S.classes[c] ?? 0) / Math.max(...Object.values(S.classes)), tone: c === 'Best' || c === 'Excellent' || c === 'Good' ? 'up' as const : c === 'Inaccuracy' ? 'flat' as const : 'down' as const }))} />
-        <p className="muted small">Class edges (win chance given up): {S.thresholds.map(v => `${(v * 100).toFixed(2)}%`).join(' · ')}. Move effects explain {pct(S.effectFit.r2Model)} of the 20-s change in win chance on unseen matches (each move's average alone: {pct(S.effectFit.r2Mean)}).</p>
+        <p className="muted small">Class edges (win chance given up): {S.thresholds.map(v => `${(v * 100).toFixed(2)}%`).join(' · ')}. Move effects explain {pct(S.effectFit.r2Model)} of the 20-s change in win chance on unseen matches (each move's average alone: {pct(S.effectFit.r2Mean)}).
+          {S.playerLoss && <> Accuracy (Match recap → Coach): a typical Phantom+ game gives up {(S.playerLoss.median * 100).toFixed(2)}% a move and scores 90 (middle half: {(S.playerLoss.p25 * 100).toFixed(2)}–{(S.playerLoss.p75 * 100).toFixed(2)}%).</>}</p>
       </section>
 
       <section className="site-card">
