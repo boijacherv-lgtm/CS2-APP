@@ -19,7 +19,9 @@ import { fmtDate, fmtInt, mapName } from './format';
 import { AreaChart, BarList, Donut, Gauge } from './charts';
 import { T } from '../ui/tokens';
 import { DevDisputes } from './DevDisputes';
-import { DevDlDisputes } from './DevDlDisputes';
+import { DevDeadlock } from './DevDeadlock';
+import { GAMES } from './games';
+import { GameMark } from './gameMarks';
 
 /** What the Worker counts for the owner (worker/src/admin.ts). */
 interface AdminStats {
@@ -38,8 +40,8 @@ const LOCAL = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1
 const ago = (ms: number) => (!ms ? 'never' : `${fmtDate(ms)}${Date.now() - ms < 86400000 ? `, ${new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}`);
 
 /**
- * The owner's dev page (#/dev): the build, the coach's models, everything the Worker counts and this browser's
- * storage. Only the owner (OWNER_IDS in worker/wrangler.toml) gets the server numbers; the page itself hides from
+ * The owner's dev page (#/dev), in the neutral theme: a tab for the site (the build, everything the Worker counts, this
+ * browser's storage) and one per game (its coach's models, training data and disputes). Only the owner (OWNER_IDS in worker/wrangler.toml) gets the server numbers; the page itself hides from
  * everyone else (and is open on a local copy, where there's nothing private to show).
  */
 export function Dev() {
@@ -60,7 +62,7 @@ export function Dev() {
     setBusy(false);
   };
   useEffect(() => { if (me?.owner && remote) load(); }, [me?.owner, remote]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [tab, setTab] = useState<DevTab>(() => { try { const t = localStorage.getItem('stratboard.devTab') as DevTab | null; return t && DEV_TABS.some(x => x.id === t) ? t : 'users'; } catch { return 'users'; } });
+  const [tab, setTab] = useState<DevTab>(() => { try { const t = localStorage.getItem('stratboard.devTab') as DevTab | null; return t && DEV_TABS.some(x => x.id === t) ? t : 'site'; } catch { return 'site'; } });
   const pickTab = (t: DevTab) => { setTab(t); try { localStorage.setItem('stratboard.devTab', t); } catch { /* private mode */ } };
 
   if (!loaded && !LOCAL) return <div className="page"><Loading>Loading…</Loading></div>;
@@ -81,20 +83,20 @@ export function Dev() {
   const botOk = !!stats?.bot && Date.now() - stats.bot.at < 30 * 60000;
   const builtAgo = BUILD.time ? Date.now() - Date.parse(BUILD.time) : null;
   // the health line: one check per moving part, green / amber / red
-  const checks: { label: string; value: string; tone: 'ok' | 'warn' | 'bad' | 'off'; tip: string }[] = [
-    { label: 'Build', value: `${BUILD.commit}${builtAgo !== null ? ` · ${builtAgo < 3600000 ? `${Math.round(builtAgo / 60000)} min` : builtAgo < 86400000 ? `${Math.round(builtAgo / 3600000)} h` : `${Math.round(builtAgo / 86400000)} d`} ago` : ''}`, tone: 'ok', tip: ONLINE ? 'The website build' : 'Local dev server' },
-    { label: 'Worker', value: !owner ? 'log in as owner' : err ? 'error' : !stats ? 'counting…' : stats.profiles.weeks ? 'up to date' : 'old: redeploy', tone: !owner ? 'off' : err ? 'bad' : !stats ? 'off' : stats.profiles.weeks ? 'ok' : 'warn', tip: err ?? 'Profiles, Steam and the owner stats (npx wrangler deploy in worker/)' },
-    { label: 'Demo bot', value: !stats ? '–' : stats.bot ? (botOk ? `ran ${ago(stats.bot.at)}` : `last ${ago(stats.bot.at)}`) : 'not set up', tone: !stats ? 'off' : stats.bot ? (botOk ? 'ok' : 'warn') : 'off', tip: 'Downloads and reads new matches for users who pasted their codes (server/README.md)' },
-    { label: 'Failing demos', value: !stats ? '–' : String(stats.lists.failing), tone: !stats ? 'off' : stats.lists.failing ? 'warn' : 'ok', tip: 'Matches the bot tried 3 times and couldn\'t read' },
-    { label: 'Coach', value: v ? `agrees ${v.right}/${v.total}` : 'not measured', tone: v ? (v.right / Math.max(1, v.total) >= 0.8 ? 'ok' : 'warn') : 'off', tip: 'Agreement with your own verdicts (npm run eval:coach)' },
+  const checks: { label: string; value: string; tone: 'ok' | 'warn' | 'bad' | 'off'; tip: string; tab: DevTab }[] = [
+    { label: 'Build', value: `${BUILD.commit}${builtAgo !== null ? ` · ${builtAgo < 3600000 ? `${Math.round(builtAgo / 60000)} min` : builtAgo < 86400000 ? `${Math.round(builtAgo / 3600000)} h` : `${Math.round(builtAgo / 86400000)} d`} ago` : ''}`, tone: 'ok', tip: ONLINE ? 'The website build' : 'Local dev server', tab: 'site' },
+    { label: 'Worker', value: !owner ? 'log in as owner' : err ? 'error' : !stats ? 'counting…' : stats.profiles.weeks ? 'up to date' : 'old: redeploy', tone: !owner ? 'off' : err ? 'bad' : !stats ? 'off' : stats.profiles.weeks ? 'ok' : 'warn', tip: err ?? 'Profiles, Steam and the owner stats (npx wrangler deploy in worker/)', tab: 'site' },
+    { label: 'Demo bot', value: !stats ? '–' : stats.bot ? (botOk ? `ran ${ago(stats.bot.at)}` : `last ${ago(stats.bot.at)}`) : 'not set up', tone: !stats ? 'off' : stats.bot ? (botOk ? 'ok' : 'warn') : 'off', tip: 'Downloads and reads new matches for users who pasted their codes (server/README.md)', tab: 'cs2' },
+    { label: 'Failing demos', value: !stats ? '–' : String(stats.lists.failing), tone: !stats ? 'off' : stats.lists.failing ? 'warn' : 'ok', tip: 'Matches the bot tried 3 times and couldn\'t read', tab: 'cs2' },
+    { label: 'Coach', value: v ? `agrees ${v.right}/${v.total}` : 'not measured', tone: v ? (v.right / Math.max(1, v.total) >= 0.8 ? 'ok' : 'warn') : 'off', tip: 'Agreement with your own verdicts (npm run eval:coach)', tab: 'cs2' },
   ];
-  const kpis: [string, string, string?][] = [
+  const kpis: [string, string, string?, DevTab?][] = [
     ['Accounts', stats ? fmtInt(stats.keys.profiles) : '–', 'with a profile'],
     ['Matches reviewed', stats ? fmtInt(stats.profiles.matches) : '–', 'on all profiles'],
     ['This week', lastWeek !== null ? fmtInt(lastWeek) : '–', 'matches played'],
     ['Want Pro', stats ? fmtInt(stats.profiles.notifyPro) : '–', 'notify me'],
     ['Want Deadlock', stats ? fmtInt(stats.profiles.notifyGames?.deadlock ?? 0) : '–', 'notify me'],
-    ['Trained on', w ? fmtInt(w.trainMatches + w.testMatches) : '–', 'level-10 matches'],
+    ['Trained on', w ? fmtInt(w.trainMatches + w.testMatches) : '–', 'level-10 matches', 'cs2'],
   ];
 
   return (
@@ -104,23 +106,23 @@ export function Dev() {
         {owner && <button className="ghost small-btn" onClick={load} disabled={busy}>{busy ? 'Counting…' : 'Refresh'}</button>}
       </header>
       <div className="dev-checks">
-        {checks.map(c => <span key={c.label} className={`dev-check ${c.tone}`} title={c.tip}><i />{c.label}<b>{c.value}</b></span>)}
+        {checks.filter(c => c.tab === 'site' || c.tab === tab).map(c => <span key={c.label} className={`dev-check ${c.tone}`} title={c.tip}><i />{c.label}<b>{c.value}</b></span>)}
       </div>
       {!owner && <p className="muted small">{LOCAL ? 'Server numbers come from the Worker: open this page on the website, logged in as the owner.' : 'Log in with Steam as the owner for the server numbers.'}</p>}
       {err && <p className="warn-text small">{err}</p>}
       <div className="kpi-strip dev-kpis">
-        {kpis.map(([k, val, sub]) => <div key={k} className="kpi-tile"><span>{k}</span><b>{val}</b>{sub && <em className="muted">{sub}</em>}</div>)}
+        {kpis.filter(x => !x[3] || x[3] === tab).map(([k, val, sub]) => <div key={k} className="kpi-tile"><span>{k}</span><b>{val}</b>{sub && <em className="muted">{sub}</em>}</div>)}
       </div>
 
       <nav className="recap-tabs dev-tabs" aria-label="Dev">
         <div className="recap-tabs-list" role="tablist">
           {DEV_TABS.map(t => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => pickTab(t.id)}><Icon name={t.icon} size={14} /> {t.label}</button>
+            <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => pickTab(t.id)}>{t.game ? <GameMark game={t.game} size={16} /> : t.icon && <Icon name={t.icon} size={14} />} {t.label}</button>
           ))}
         </div>
       </nav>
 
-      {tab === 'users' && (!stats ? <p className="muted">{owner ? 'Counting…' : 'No server numbers here.'}</p> : (
+      {tab === 'site' && (!stats ? <p className="muted">{owner ? 'Counting…' : 'No server numbers here.'}</p> : (
         <>
           <section className="site-card">
             <div className="card-head"><h2>Matches played per week</h2><span className="muted small">last 12 weeks</span></div>
@@ -128,18 +130,6 @@ export function Dev() {
               points={Object.entries(stats.profiles.weeks).sort((a, b) => a[0].localeCompare(b[0])).map(([wk, n]) => ({ label: new Date(wk).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value: n, note: `week of ${wk}` }))} />
               : <p className="muted">Redeploy the Worker for weekly numbers.</p>}
           </section>
-          <div className="dash-row">
-            <section className="site-card dash-wide">
-              <div className="card-head"><h2>Maps</h2></div>
-              {(() => { const rows = Object.entries(stats.profiles.maps).sort((a, b) => b[1] - a[1]), max = rows[0]?.[1] ?? 1;
-                return rows.length ? <BarList rows={rows.map(([m, n]) => ({ label: mapName(m), value: fmtInt(n), share: n / max, tone: 'flat' as const }))} /> : <p className="muted">No matches yet.</p>; })()}
-            </section>
-            <section className="site-card dash-narrow">
-              <div className="card-head"><h2>Results</h2></div>
-              <Donut center={fmtInt(stats.profiles.matches)} sub="matches"
-                parts={[{ label: 'Wins', value: stats.profiles.results.win ?? 0, color: T.good }, { label: 'Losses', value: stats.profiles.results.loss ?? 0, color: T.bad }, { label: 'Draws', value: stats.profiles.results.tie ?? 0, color: T.text3 }]} />
-            </section>
-          </div>
           <section className="site-card">
             <div className="card-head"><h2>Most active</h2><span className="muted small">{stats.profiles.public} public · {stats.profiles.withGoals} with goals · last match {ago(stats.profiles.lastMatchAt)}</span></div>
             <div>{stats.profiles.top.map(t => <a key={t.steamId} href={`https://steamcommunity.com/profiles/${t.steamId}`} target="_blank" rel="noreferrer" className="dev-chip">{t.steamId.slice(-6)} · {t.matches}</a>)}</div>
@@ -147,8 +137,22 @@ export function Dev() {
         </>
       ))}
 
-      {tab === 'coach' && (
+      {tab === 'cs2' && (
         <>
+          {stats && (
+          <div className="dash-row">
+              <section className="site-card dash-wide">
+                <div className="card-head"><h2>Maps</h2></div>
+                {(() => { const rows = Object.entries(stats.profiles.maps).sort((a, b) => b[1] - a[1]), max = rows[0]?.[1] ?? 1;
+                  return rows.length ? <BarList rows={rows.map(([m, n]) => ({ label: mapName(m), value: fmtInt(n), share: n / max, tone: 'flat' as const }))} /> : <p className="muted">No matches yet.</p>; })()}
+              </section>
+              <section className="site-card dash-narrow">
+                <div className="card-head"><h2>Results</h2></div>
+                <Donut center={fmtInt(stats.profiles.matches)} sub="matches"
+                  parts={[{ label: 'Wins', value: stats.profiles.results.win ?? 0, color: T.good }, { label: 'Losses', value: stats.profiles.results.loss ?? 0, color: T.bad }, { label: 'Draws', value: stats.profiles.results.tie ?? 0, color: T.text3 }]} />
+              </section>
+            </div>
+          )}
           {w && (
             <section className="site-card">
               <div className="card-head"><h2>Win chance</h2><span className="muted small">{w.split ? `test: ${w.split}` : `${fmtInt(w.testMatches)} matches it never learned from`} · {w.at}</span></div>
@@ -215,9 +219,7 @@ export function Dev() {
         </>
       )}
 
-      {tab === 'disputes' && (owner ? <><DevDlDisputes /><DevDisputes myId={me?.steamId ?? null} /></> : <p className="muted">Log in with Steam as the owner to see disputed moments.</p>)}
-
-      {tab === 'data' && (
+      {tab === 'cs2' && (
         <>
           <section className="site-card">
             <div className="card-head"><h2>Training data per map</h2><span className="muted small">red: under 40 demos, the coach is least sure</span></div>
@@ -247,7 +249,11 @@ export function Dev() {
         </>
       )}
 
-      {tab === 'browser' && (
+      {tab === 'cs2' && (owner ? <DevDisputes myId={me?.steamId ?? null} /> : <p className="muted">Log in with Steam as the owner to see disputed moments.</p>)}
+
+      {tab === 'deadlock' && <DevDeadlock owner={owner} />}
+
+      {tab === 'site' && (
         <section className="site-card">
           <div className="card-head"><h2>This browser</h2><span className="muted small">{data.matches.length} matches here ({remote ? 'synced to the account' : 'browser only'}) · you: {whoAmI(s) ?? 'unknown'} · {me ? `${me.name ?? me.steamId}${me.owner ? ' (owner)' : ''}` : 'not logged in'}</span></div>
           <table className="site-table"><tbody>
@@ -260,10 +266,10 @@ export function Dev() {
   );
 }
 
-type DevTab = 'users' | 'coach' | 'disputes' | 'data' | 'browser';
-const DEV_TABS: { id: DevTab; label: string; icon: IconName }[] = [
-  { id: 'users', label: 'Users', icon: 'friends' }, { id: 'coach', label: 'Coach', icon: 'star' }, { id: 'disputes', label: 'Disputes', icon: 'chat' },
-  { id: 'data', label: 'Data & bot', icon: 'stats' }, { id: 'browser', label: 'Browser', icon: 'lock' },
+type DevTab = 'site' | 'cs2' | 'deadlock';
+/** One tab for the site itself, then one per game (its models, data and disputes). */
+const DEV_TABS: { id: DevTab; label: string; icon?: IconName; game?: (typeof GAMES)[number] }[] = [
+  { id: 'site', label: 'Site', icon: 'friends' }, { id: 'cs2', label: 'Counter-Strike 2', game: GAMES.find(g => g.id === 'cs2') }, { id: 'deadlock', label: 'Deadlock', game: GAMES.find(g => g.id === 'deadlock') },
 ];
 
 type Scored = { logLoss: number; brier: number; calibration: { said: number; won: number | null; n: number }[] };

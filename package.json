@@ -35,7 +35,8 @@
     "dl:train": "vite-node tools/dl-train.ts",
     "dl:deaths": "vite-node tools/dl-deaths.ts",
     "dl:spots": "vite-node tools/dl-spots.ts",
-    "dl:play": "vite-node tools/dl-play.ts"
+    "dl:play": "vite-node tools/dl-play.ts",
+    "dl:fight": "vite-node tools/dl-fight.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",
