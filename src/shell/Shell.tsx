@@ -22,12 +22,12 @@ import { profileMatchOf } from '../engine/habits';
 import type { DemoData } from '../engine/recap';
 import { recordMatch, refreshProfile, useProfile } from '../ui/profileApi';
 import { useRoute } from './router';
-import { applyGame, gameOf } from '../ui/tokens';
+import { applyGame, themeOf } from '../ui/tokens';
 
 export function Shell() {
   const route = useRoute();
   // the site wears the colours of the game you're in
-  useEffect(() => { applyGame(gameOf(route.page)); }, [route.page]);
+  useEffect(() => { applyGame(themeOf(route.page)); }, [route.page]);
   const setMode = useStore(s => s.setMode);
 
   // the URL decides the CS2 mode (so Back/Forward and bookmarks work); the report page has no board

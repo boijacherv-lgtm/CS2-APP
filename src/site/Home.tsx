@@ -1,18 +1,20 @@
 import { COACH_MODEL, PRO_MODEL } from '../engine/coachModels';
-import { FREE_HISTORY, PRO_EARLY_ACCESS } from '../engine/profile';
-import { LETTER_COLOR } from '../engine/recap';
+import { PRO_EARLY_ACCESS } from '../engine/profile';
+import { matches as DL_MATCHES } from '../deadlock/generated/winmodel.json';
+import { DL_MAP_IMAGE } from '../deadlock/data';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { Icon, type IconName } from '../ui/Icon';
-import { BETA_GAMES, GAMES, LIVE_GAMES, SOON_GAMES, STATUS_LABEL } from './games';
+import { GAMES, PLAYABLE, SOON_GAMES, STATUS_LABEL } from './games';
 import { GameMark } from './gameMarks';
+import { MarkFace } from '../ui/MarkFace';
 
 const MATCHES = COACH_MODEL.source?.demos ?? COACH_MODEL.trainedOn;
 const PRO_MATCHES = PRO_MODEL?.source?.demos ?? 0;
-
-const LIVE = LIVE_GAMES[0];
+const names = (gs: { name: string }[]) => gs.map(g => g.name).join(' and ');
 const toGames = () => document.getElementById('games')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-/** The front page: what it is, which games, how it works, what you get, what it costs. Short on purpose. */
+/** The front page, about every game rather than one: what it is, which games, how it works, what you get, what it
+ * costs. Short on purpose; dressed in the neutral theme (tokens.ts themeOf). */
 export function Home() {
   const top = GAMES.slice(0, 3), more = GAMES.slice(3);
   return (
@@ -21,19 +23,18 @@ export function Home() {
         <div className="hero-text">
           <span className="eyebrow"><Icon name="bolt" size={12} /> Free game coach</span>
           <h1>Prove you were right.</h1>
-          <p className="lead">Drop your match. Every play gets a grade and the better option. Live for {LIVE.short}, more games coming.</p>
+          <p className="lead">Bring your match. Every play gets a grade and the better option. {names(PLAYABLE)} now, more games coming.</p>
           <div className="hero-games" aria-label="Games">
-            <span className="hero-games-live"><GameMark game={LIVE} size={30} /><b>{LIVE.name}</b><span className="games-status live">Live</span></span>
-            {BETA_GAMES.map(g => (
-              <a key={g.id} className="hero-games-live" href={g.review ?? g.page}><GameMark game={g} size={30} /><b>{g.name}</b><span className="games-status beta">Beta</span></a>
+            {PLAYABLE.map(g => (
+              <a key={g.id} className="hero-games-live" href={g.review ?? g.page}><GameMark game={g} size={30} /><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></a>
             ))}
             <span className="hero-games-soon">
               {SOON_GAMES.map(g => <span key={g.id} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`}><GameMark game={g} size={30} muted /></span>)}
             </span>
           </div>
           <div className="hero-cta">
-            <a className="cta primary" href="#/cs2/review">Review a {LIVE.short} match <Icon name="arrowRight" size={14} /></a>
-            <button className="cta" onClick={toGames}>All games</button>
+            {PLAYABLE.map((g, i) => <a key={g.id} className={`cta${i === 0 ? ' primary' : ''}`} href={g.review}>Review a {g.short === 'DL' ? 'Deadlock' : g.short} match <Icon name="arrowRight" size={14} /></a>)}
+            <button className="cta ghost" onClick={toGames}>All games</button>
           </div>
           <ul className="hero-trust">
             <li><Icon name="shield" size={14} /> Nothing uploaded</li>
@@ -46,26 +47,21 @@ export function Home() {
       <section className="site-section" id="games">
         <h2 className="section-title">Games</h2>
         <div className="game-cards">
-          {top.map(g => g.status === 'live' ? (
-            <article key={g.id} className="game-card live" style={{ '--game': g.color } as React.CSSProperties}>
-              <div className="game-card-head"><GameMark game={g} size={48} /><div><b>{g.name}</b><span className="games-status live">Live now</span></div></div>
+          {top.map(g => g.review ? (
+            <article key={g.id} className={`game-card live ${g.status}`} style={{ '--game': g.color } as React.CSSProperties}>
+              <div className="game-card-head"><GameMark game={g} size={48} /><div><b>{g.name}</b><span className={`games-status ${g.status}`}>{g.status === 'live' ? 'Live now' : STATUS_LABEL[g.status]}</span></div></div>
               <p>{g.note}</p>
-              <ul className="game-card-points"><li>Graded replay</li><li>Engine</li><li>Coach</li><li>Tactical board</li></ul>
+              {g.points && <ul className="game-card-points">{g.points.map(x => <li key={x}>{x}</li>)}</ul>}
               <div className="game-card-cta">
-                <a className="cta primary" href="#/cs2/review">Review a match</a>
-                <a className="cta" href="#/cs2/tactical">Plan a round</a>
+                <a className="cta primary" href={g.review}>Review a match</a>
+                {g.plan && <a className="cta" href={g.plan}>Plan</a>}
               </div>
             </article>
           ) : (
             <article key={g.id} className={`game-card soon ${g.status}`} style={{ '--game': g.color } as React.CSSProperties}>
-              <div className="game-card-head"><GameMark game={g} size={44} muted={g.status !== 'next' && g.status !== 'beta'} /><div><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></div></div>
+              <div className="game-card-head"><GameMark game={g} size={44} muted={g.status !== 'next'} /><div><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></div></div>
               <p>{g.note}</p>
-              {(g.page || g.review) && (
-                <div className="game-card-cta">
-                  {g.review && <a className="cta primary" href={g.review}>Review a match</a>}
-                  {g.page && <a className="cta" href={g.page}>{g.review ? 'What it does' : 'What\'s coming'} <Icon name="arrowRight" size={14} /></a>}
-                </div>
-              )}
+              {g.page && <div className="game-card-cta"><a className="cta" href={g.page}>What's coming <Icon name="arrowRight" size={14} /></a></div>}
             </article>
           ))}
         </div>
@@ -106,11 +102,12 @@ export function Home() {
       </section>
 
       <section className="site-section">
-        <h2 className="section-title"><GameMark game={LIVE} size={26} /> {LIVE.short} in numbers</h2>
-        <div className="stat-strip" aria-label={`${LIVE.name} in numbers`}>
-          <div><b>{MATCHES}</b><span>level-10 matches learned</span></div>
-          {PRO_MATCHES > 0 && <div><b>{PRO_MATCHES}</b><span>pro matches</span></div>}
-          <div><b>10</b><span>maps</span></div>
+        <h2 className="section-title">In numbers</h2>
+        <div className="stat-strip" aria-label="RageView in numbers">
+          <div><b>{MATCHES}</b><span>CS2 level-10 matches learned</span></div>
+          {PRO_MATCHES > 0 && <div><b>{PRO_MATCHES}</b><span>CS2 pro matches</span></div>}
+          <div><b>{DL_MATCHES.toLocaleString()}</b><span>Deadlock Phantom+ matches</span></div>
+          <div><b>{PLAYABLE.length}</b><span>games now</span></div>
           <div><b>0 MB</b><span>uploaded</span></div>
         </div>
       </section>
@@ -118,7 +115,7 @@ export function Home() {
       <section className="site-section pricing-teaser">
         <div>
           <h2 className="section-title">Free</h2>
-          <p className="muted">Everything you need is free. Pro adds unlimited history{PRO_EARLY_ACCESS ? ', and it\'s free during early access too' : ''}.</p>
+          <p className="muted">Everything you need is free, in every game. Pro adds unlimited history{PRO_EARLY_ACCESS ? ', and it\'s free during early access too' : ''}.</p>
         </div>
         <a className="cta" href="#/pricing">See plans</a>
       </section>
@@ -133,7 +130,7 @@ export function Home() {
       <footer className="site-footer">
         <span className="brand-small"><LogoMark size={18} /> {APP_NAME}</span>
         <nav>
-          <a href="#/cs2/review">Review</a><a href="#/cs2/tactical">Tactical</a><a href="#/profile">Profile</a><a href="#/pricing">Pricing</a><a href="#/settings">Settings</a>
+          {PLAYABLE.map(g => <a key={g.id} href={g.review}>{g.name}</a>)}<a href="#/profile">Profile</a><a href="#/pricing">Pricing</a><a href="#/settings">Settings</a>
         </nav>
         <span className="muted">Not affiliated with any game publisher. Game names and logos belong to their owners.</span>
       </footer>
@@ -144,7 +141,7 @@ export function Home() {
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
   { icon: 'play', title: 'Graded replay', text: 'Every play scored, with a live win chance.' },
   { icon: 'route', title: 'The engine', text: 'The better play, and what it was worth.' },
-  { icon: 'star', title: 'A real coach', text: 'You against level 10 and pros.' },
+  { icon: 'star', title: 'A real coach', text: 'You against the best players in your game.' },
   { icon: 'bolt', title: 'Rage mode', text: 'The coach yells at your plays. 18+.' },
   { icon: 'goal', title: 'Goals', text: 'Pick 3 habits. Watch them improve.' },
   { icon: 'friends', title: 'Friends', text: 'Your stats next to theirs.' },
@@ -152,38 +149,40 @@ const FEATURES: { icon: IconName; title: string; text: string }[] = [
 ];
 
 const FAQ = [
-  { q: 'Which games?', a: `${LIVE.name} now. Next: ${SOON_GAMES.slice(0, 3).map(g => g.name).join(', ')}, then more.` },
+  { q: 'Which games?', a: `${names(PLAYABLE)} now. Next: ${SOON_GAMES.slice(0, 3).map(g => g.name).join(', ')}, then more.` },
   { q: 'Is it free?', a: 'Yes. Pro adds unlimited history and is free during early access. No card needed.' },
-  { q: 'Is my match uploaded?', a: 'No. It\'s read in your browser. Logged in, only your numbers are saved, never the replay.' },
+  { q: 'Is my match uploaded?', a: 'No. Demos and replay files are read in your browser. A Deadlock match ID is looked up in deadlock-api\'s public match data. Logged in, only your numbers are saved, never the replay.' },
   { q: 'Do I need an account?', a: 'No. Log in with Steam only to sync your profile between devices.' },
-  { q: `Which ${LIVE.short} demos work?`, a: 'Valve, FACEIT and HLTV demos, on the competitive maps.' },
-  { q: 'How good is the coach?', a: `Trained on ${MATCHES} FACEIT level-10 matches${PRO_MATCHES ? ` and ${PRO_MATCHES} pro ones` : ''}. It can't hear your team's calls, and says so.` },
+  { q: 'What do I bring?', a: PLAYABLE.map(g => `${g.name}: ${g.source}`).join('. ') + '.' },
+  { q: 'How good is the coach?', a: `In CS2 it learned from ${MATCHES} FACEIT level-10 matches${PRO_MATCHES ? ` and ${PRO_MATCHES} pro ones` : ''}; in Deadlock from ${DL_MATCHES.toLocaleString()} Phantom-and-up matches since the patch. It can't hear your team's calls, and says so.` },
 ];
 
-/** A picture of the review screen: a radar, a graded move and the coach's bars (an illustration, not a real match). */
+/** A picture of two reviews, one per game: a graded moment on each map (illustrations, not real matches). */
 function HeroPreview() {
   return (
-    <div className="hero-preview" aria-hidden="true">
-      <div className="pv-frame">
+    <div className="hero-preview duo" aria-hidden="true">
+      <div className="pv-frame cs2">
         <img className="pv-map" src="/images/maps/de_mirage.png" alt="" />
         <i className="pv-dot ct" style={{ left: '62%', top: '30%' }} /><i className="pv-dot ct" style={{ left: '44%', top: '55%' }} />
         <i className="pv-dot t" style={{ left: '70%', top: '64%' }} /><i className="pv-dot t dead" style={{ left: '55%', top: '72%' }} />
         <div className="pv-card">
-          <div className="pv-card-head"><span className="pv-mark" style={{ background: '#e58f2a' }}>?</span><b>Mistake</b><span className="pv-gain">−11%</span></div>
-          <p>Died alone at Palace: no teammate within 20 m could trade.</p>
-          <p className="muted">Better: hold Ramp with your teammate.</p>
+          <div className="pv-card-head"><MarkFace note="?" size={22} /><b>Mistake</b><span className="pv-gain">−11%</span></div>
+          <p>Died alone at Palace: nobody could trade.</p>
         </div>
         <div className="pv-eval"><i style={{ width: '58%' }} /></div>
+        <span className="pv-label">CS2</span>
       </div>
-      <div className="pv-coach">
-        <div className="pv-grades">
-          <span style={{ background: LETTER_COLOR.A }}>A</span><small>Level</small>
+      <div className="pv-frame dl">
+        <img className="pv-map" src={DL_MAP_IMAGE} alt="" />
+        <i className="pv-dot t" style={{ left: '40%', top: '60%' }} /><i className="pv-dot t" style={{ left: '46%', top: '64%' }} />
+        <i className="pv-dot ct" style={{ left: '50%', top: '47%' }} /><i className="pv-dot ct" style={{ left: '56%', top: '52%' }} /><i className="pv-dot ct" style={{ left: '44%', top: '45%' }} />
+        <div className="pv-card">
+          <div className="pv-card-head"><MarkFace note="??" size={22} /><b>Blunder</b><span className="pv-gain">−14%</span></div>
+          <p>Fought 2 against 3 with your ultimate down.</p>
         </div>
-        {[['Dying alone', -0.55], ['ADR', 0.62], ['Counter-strafing', 0.4]].map(([k, v]) => (
-          <div key={k as string} className="pv-row"><span>{k}</span><span className="pv-track"><i className={(v as number) < 0 ? 'down' : 'up'} style={{ [(v as number) < 0 ? 'right' : 'left']: '50%', width: `${Math.abs(v as number) * 50}%` }} /></span></div>
-        ))}
+        <div className="pv-eval"><i style={{ width: '41%' }} /></div>
+        <span className="pv-label">Deadlock</span>
       </div>
-      <span className="pv-label">{LIVE_GAMES[0].short} review · preview</span>
     </div>
   );
 }

@@ -47,11 +47,20 @@ export function gameOf(page: string): GameId {
   try { const g = localStorage.getItem(GAME_KEY); if (g === 'cs2' || g === 'deadlock') return g; } catch { /* private mode */ }
   return 'cs2';
 }
-/** Dresses the page in a game's colours (CSS --theme / --theme-ink, html[data-game]); the stylesheet fades between them. */
-export function applyGame(game: GameId, root: HTMLElement = document.documentElement) {
+/** The pages about the site itself rather than one game (the front page, plans): white, the chrome's own colour. */
+const NEUTRAL = { accent: T.text1, ink: T.bg0 };
+const NEUTRAL_PAGES = new Set(['home', 'pricing']);
+/** What a page is dressed in: neutral for the site's own pages, else its game (gameOf). */
+export function themeOf(page: string): GameId | 'neutral' {
+  return NEUTRAL_PAGES.has(page) || page === '' ? 'neutral' : gameOf(page);
+}
+/** Dresses the page in a game's colours, or neutral (CSS --theme / --theme-ink, html[data-game]); the stylesheet fades
+ * between them. */
+export function applyGame(game: GameId | 'neutral', root: HTMLElement = document.documentElement) {
+  const c = game === 'neutral' ? NEUTRAL : GAME_THEME[game];
   root.dataset.game = game;
-  root.style.setProperty('--theme', GAME_THEME[game].accent);
-  root.style.setProperty('--theme-ink', GAME_THEME[game].ink);
+  root.style.setProperty('--theme', c.accent);
+  root.style.setProperty('--theme-ink', c.ink);
 }
 
 /** Overlay surface over the map: solid enough to read on a busy radar (no blur: the canvas repaints every frame). */
