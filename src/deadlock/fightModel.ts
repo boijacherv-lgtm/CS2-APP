@@ -7,9 +7,10 @@
  *
  * It reads each side as it was a few seconds before: heroes in it, their health, souls, levels, help close by, whose
  * half of the map it's on and whether one of their objectives stands there; and, when the demo is read, which of them had
- * their ultimate ready, counted by what those ultimates do (ultKinds.ts: area, single target, control, damage, protect…). Two models ship (tools/dl-fight.ts): one with ultimates, used when both sides' are known (a
- * match with its demo read), and one without, for the rest. The sides are read both ways round and averaged, so the two
- * chances add up to 1.
+ * their ultimate ready, counted by what those ultimates do (ultKinds.ts: area, single target, control, damage, protect…):
+ * a small correction on top (FightModel.ults), shipped only when it beats the model without it. On 4 Nov it didn't
+ * (230 matches with demos): ultimates ready 12 s before barely changed who won once the rest was known.
+ * The sides are read both ways round and averaged, so the two chances add up to 1.
  */
 import { objectiveSpot, type DlTeam } from './data';
 import { worthAt } from './grade';
@@ -83,24 +84,32 @@ export function fightsIn(m: DlMatch, ults?: DlDemo['ults'] | null): Fight[] {
 const side = (s: FightSide) => [s.n, s.hp, s.souls / 1000, s.richest / 1000, s.level, s.help, s.home, s.tower];
 const SIDE_FEATURES = ['n', 'hp', 'souls', 'richest', 'level', 'help', 'home', 'tower'];
 export const FIGHT_FEATURES = ['minute', ...SIDE_FEATURES.map(f => `${f}A`), ...SIDE_FEATURES.map(f => `${f}B`)];
-/** Side A against side B at a minute of the match; with `ults`, each side's ultimates ready, in all and by kind. */
-const zero = ULT_KINDS.map(() => 0);
-export const fightFeatures = (t: number, a: FightSide, b: FightSide, ults = false) =>
-  [t / 60, ...side(a), ...side(b), ...(ults ? [a.ults ?? 0, b.ults ?? 0, ...(a.ultKinds ?? zero), ...(b.ultKinds ?? zero)] : [])];
-export const FIGHT_FEATURES_ULTS = [...FIGHT_FEATURES, 'ultsA', 'ultsB', ...ULT_KINDS.map(k => `${k}A`), ...ULT_KINDS.map(k => `${k}B`)];
+/** Side A against side B at a minute of the match (ultimates are a correction on top: ultStackFeatures). */
+export const fightFeatures = (t: number, a: FightSide, b: FightSide) => [t / 60, ...side(a), ...side(b)];
 
 interface Fitted { kind: 'logistic' | 'network'; weights: number[]; net?: Mlp | null }
-/** The model without ultimates, and the one with (null until enough demos were read). */
-export interface FightModel extends Fitted { ults?: Fitted | null }
-/** The chance side A wins (loses fewer heroes), both ways round and averaged; with ultimates when both sides' are known. */
+/** The ultimates correction on top of the model without them: weights on [its log-odds, ultimates ready A − B, then
+ * A − B for each kind in ULT_STACK_KINDS] (no intercept: swapping the sides flips the sign). */
+export interface UltStack { kind: 'stack'; weights: number[] }
+export const ULT_STACK_KINDS = ['area', 'control', 'protect'] as const;
+/** The model without ultimates, and the correction for them (null until enough demos were read). */
+export interface FightModel extends Fitted { ults?: UltStack | null }
+/** The chance side A wins (loses fewer heroes), both ways round and averaged; corrected for ultimates when both sides'
+ * are known. */
 export function fightChance(model: FightModel, t: number, a: FightSide, b: FightSide) {
-  const withUlts = !!model.ults && a.ults !== undefined && b.ults !== undefined;
-  const m: Fitted = withUlts ? model.ults! : model;
   const one = (x: FightSide, y: FightSide) => {
-    const f = fightFeatures(t, x, y, withUlts);
-    if (m.kind === 'network' && m.net) return mlpPredict(m.net, f)[1];
-    const z = m.weights[0] + f.reduce((s, v, i) => s + v * m.weights[i + 1], 0);
+    const f = fightFeatures(t, x, y);
+    if (model.kind === 'network' && model.net) return mlpPredict(model.net, f)[1];
+    const z = model.weights[0] + f.reduce((s, v, i) => s + v * model.weights[i + 1], 0);
     return 1 / (1 + Math.exp(-z));
   };
-  return (one(a, b) + 1 - one(b, a)) / 2;
+  const p = (one(a, b) + 1 - one(b, a)) / 2;
+  if (!model.ults || a.ults === undefined || b.ults === undefined) return p;
+  const x = ultStackFeatures(p, a, b);
+  return 1 / (1 + Math.exp(-x.reduce((s, v, i) => s + v * model.ults!.weights[i], 0)));
+}
+/** The ultimates correction's inputs: the chance without ultimates as log-odds, then the sides' differences. */
+export function ultStackFeatures(p: number, a: FightSide, b: FightSide): number[] {
+  const q = Math.min(1 - 1e-6, Math.max(1e-6, p)), kind = (s: FightSide, k: (typeof ULT_STACK_KINDS)[number]) => s.ultKinds?.[ULT_KINDS.indexOf(k)] ?? 0;
+  return [Math.log(q / (1 - q)), (a.ults ?? 0) - (b.ults ?? 0), ...ULT_STACK_KINDS.map(k => kind(a, k) - kind(b, k))];
 }

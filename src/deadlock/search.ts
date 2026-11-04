@@ -13,8 +13,8 @@
  *            them), or jump a player who farms or lanes close to them. Going to base can't be punished.
  *
  * Estimates, not exact like chess: Deadlock has hidden information and fights are chancy; what fights cost (heroes lost,
- * respawn, bounty) comes from rough rules below, read by the value network. Ultimates ready count in fights when the demo
- * is read (the fight model's ultimates version), not without it.
+ * respawn, bounty) comes from rough rules below, read by the value network. With the demo, the ultimates ready in a fight
+ * are named in the reasons, and count in the odds when the fight model's ultimates correction shipped.
  */
 import CAL from './generated/dlsearch.json';
 import { DL_MAP, objectiveSpot, type DlTeam } from './data';
