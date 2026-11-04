@@ -68,31 +68,34 @@ export function Profile() {
       {!matches.length ? null : (
         <>
           {last && <Kpis now={last} was={before} matches={matches} />}
-          <div className="dash-row">
-            <PremierTrend matches={matches} />
-            <Results matches={matches.slice(0, pro ? matches.length : FREE_HISTORY)} />
-          </div>
-
-          <section className="site-card">
-            <div className="card-head">
-              <h2>{all && pro ? 'All matches' : `Last ${Math.min(FREE_HISTORY, matches.length)} matches`}</h2>
-              {matches.length > FREE_HISTORY && (pro
-                ? <button className="ghost small-btn" onClick={() => setAll(!all)}>{all ? 'Show the last 5' : `Show all ${matches.length}`}</button>
-                : <a className="muted small" href="#/pricing"><Icon name="lock" size={12} /> {matches.length - FREE_HISTORY} older with Pro</a>)}
+          {/* two columns: what changed over time and your matches on the left, the summaries on the right */}
+          <div className="profile-cols">
+            <div className="pc-main">
+              <PremierTrend matches={matches} />
+              <section className="site-card">
+                <div className="card-head">
+                  <h2>{all && pro ? 'All matches' : `Last ${Math.min(FREE_HISTORY, matches.length)} matches`}</h2>
+                  {matches.length > FREE_HISTORY && (pro
+                    ? <button className="ghost small-btn" onClick={() => setAll(!all)}>{all ? 'Show the last 5' : `Show all ${matches.length}`}</button>
+                    : <a className="muted small" href="#/pricing"><Icon name="lock" size={12} /> {matches.length - FREE_HISTORY} older with Pro</a>)}
+                </div>
+                <div className="match-list">
+                  {shown.map(m => <MatchRow key={m.id} m={m} onShare={() => setShare(m)} />)}
+                </div>
+              </section>
+              <SkillBars matches={matches.slice(0, pro ? matches.length : FREE_HISTORY)} />
+              <Goals matches={matches} />
             </div>
-            <div className="match-list">
-              {shown.map(m => <MatchRow key={m.id} m={m} onShare={() => setShare(m)} />)}
+            <div className="pc-side">
+              <Results matches={matches.slice(0, pro ? matches.length : FREE_HISTORY)} />
+              <SkillRadar matches={matches.slice(0, pro ? matches.length : FREE_HISTORY)} />
+              <MapStats matches={matches} />
+              <Friend mine={last} />
             </div>
-          </section>
-
-          <div className="profile-grid">
-            <Goals matches={matches} />
-            <MapStats matches={matches} />
           </div>
-          <Skills matches={matches.slice(0, pro ? matches.length : FREE_HISTORY)} />
         </>
       )}
-      <Friend mine={last} />
+      {!matches.length && <Friend mine={last} />}
       </>}
       {share && <ShareDialog m={share} player={me?.name ?? share.name ?? 'Me'} onClose={() => setShare(null)} />}
     </div>
@@ -295,8 +298,8 @@ function MapStats({ matches }: { matches: ProfileMatch[] }) {
 const RADAR: [string, string][] = [['adr', 'Damage'], ['hs', 'Headshots'], ['trades', 'Trading'], ['isolatedDeaths', 'With the team'],
   ['openingDeaths', 'Opening duels'], ['utilDamage', 'Utility'], ['stopped', 'Counter-strafe'], ['loud', 'Quiet moving']];
 
-/** Your skills against level 10: a radar of the main ones, and the weakest and strongest habits as bars. */
-function Skills({ matches }: { matches: ProfileMatch[] }) {
+/** Your skills against level 10 as a radar of the main ones. */
+function SkillRadar({ matches }: { matches: ProfileMatch[] }) {
   const h = useMemo(() => habits(matches), [matches]);
   if (!h) return null;
   const byId = new Map(h.rows.map(r => [r.id, r]));
@@ -304,23 +307,28 @@ function Skills({ matches }: { matches: ProfileMatch[] }) {
     const r = byId.get(id);
     return { label, you: r ? r.z : null, tip: r ? `${r.label}: ${r.fmt(r.you)} (level 10: ${r.fmt(r.lvl10)})` : `${label}: not measured` };
   });
+  return (
+    <section className="site-card">
+      <div className="card-head"><h2><Icon name="star" size={16} /> Skill profile</h2><span className="muted small">{h.matches} matches</span></div>
+      <Radar axes={axes} />
+    </section>
+  );
+}
+
+/** Your weakest and strongest habits against level 10, as bars. */
+function SkillBars({ matches }: { matches: ProfileMatch[] }) {
+  const h = useMemo(() => habits(matches), [matches]);
+  if (!h) return null;
   const bar = (r: (typeof h.rows)[number], tone: 'up' | 'down') => ({ label: r.label, value: r.fmt(r.you), share: Math.min(1, Math.abs(r.z) / 2), tone, note: `Level 10: ${r.fmt(r.lvl10)}. ${r.tip}` });
   const weak = h.rows.filter(r => r.z < -0.1).slice(0, 4), strong = [...h.rows].reverse().filter(r => r.z > 0.1 && r.id !== 'awpLost').slice(0, 4); // not losing an AWP you never bought isn't a strength
   return (
-    <div className="dash-row">
-      <section className="site-card dash-narrow">
-        <div className="card-head"><h2><Icon name="star" size={16} /> Skill profile</h2><span className="muted small">{h.matches} matches</span></div>
-        <Radar axes={axes} />
-      </section>
-      <section className="site-card dash-wide">
-        <div className="card-head"><h2><Icon name="goal" size={16} /> Weakest and strongest</h2><span className="muted small">against FACEIT level 10</span></div>
-        <div className="habit-cols">
-          <div><h3 className="dev-h">Work on</h3>{weak.length ? <BarList rows={weak.map(r => bar(r, 'down'))} /> : <p className="muted small">Nothing below level 10.</p>}</div>
-          <div><h3 className="dev-h">Your strengths</h3>{strong.length ? <BarList rows={strong.map(r => bar(r, 'up'))} /> : <p className="muted small">Nothing above level 10 yet.</p>}</div>
-        </div>
-        {weak[0] && <p className="muted small skills-tip"><b>{weak[0].label}:</b> {weak[0].tip}</p>}
-      </section>
-    </div>
+    <section className="site-card">
+      <div className="card-head"><h2><Icon name="goal" size={16} /> Weakest and strongest</h2><span className="muted small">against FACEIT level 10</span></div>
+      <div className="habit-cols">
+        <div><h3 className="dev-h">Work on</h3>{weak.length ? <BarList rows={weak.map(r => bar(r, 'down'))} /> : <p className="muted small">Nothing below level 10.</p>}</div>
+        <div><h3 className="dev-h">Your strengths</h3>{strong.length ? <BarList rows={strong.map(r => bar(r, 'up'))} /> : <p className="muted small">Nothing above level 10 yet.</p>}</div>
+      </div>
+    </section>
   );
 }
 

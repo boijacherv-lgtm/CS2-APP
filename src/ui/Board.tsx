@@ -857,7 +857,22 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
       </Stage>
       {/* everything over the map lives in fixed slots around its edges, so nothing overlaps */}
       <div className={`board-ui ${rosterRound ? 'broadcast' : ''}`}>
-        <div className="slot tl"><LayersBar /></div>
+        <div className="slot tl">
+          <LayersBar />
+          {rosterRound && (
+            <button className={`tl-btn ${s.autoCam ? 'on' : ''}`} onClick={() => s.setAutoCam(!s.autoCam)} aria-pressed={s.autoCam}
+              title={s.autoCam ? 'Auto zoom is on: the map zooms in when everyone is on one part of it. Click for the whole map.' : 'Auto zoom is off: the whole map. Click to follow the fight.'}>
+              <Icon name="target" /> Auto zoom
+            </button>
+          )}
+          {recap && (
+            <button className={`tl-btn reveal-float ${s.reviewSpoilers ? 'on' : ''}`} onClick={() => s.setReviewSpoilers(!s.reviewSpoilers)} title="Shortcut: R">
+              {s.reviewSpoilers ? <><Icon name="prev" /> Live</> : <><Icon name="revealAll" /> Reveal all</>}
+            </button>
+          )}
+          <button className={`tl-btn drawer-toggle ${s.drawerOpen ? 'on' : ''}`} onClick={() => s.setDrawerOpen(!s.drawerOpen)}
+            title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}><Icon name={s.drawerOpen ? 'panelClose' : 'panelOpen'} /> Panel</button>
+        </div>
         <div className="slot top">
           {rosterRound && s.review && <ScoreBug score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time}
             switched={switches.includes(s.review.round) ? s.review.data.names[Object.keys(rosterRound.frames.players).find(id => rosterRound.frames.players[id].side === 'CT') ?? ''] ?? 'the other' : null} />}
@@ -880,15 +895,6 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           </div>
         </div>
         <div className="slot tr">
-          <div className="tr-buttons">
-          {recap && (
-            <button className={`reveal-float ${s.reviewSpoilers ? 'on' : ''}`} onClick={() => s.setReviewSpoilers(!s.reviewSpoilers)} title="Shortcut: R">
-              {s.reviewSpoilers ? <><Icon name="prev" /> Live</> : <><Icon name="revealAll" /> Reveal all</>}
-            </button>
-          )}
-          <button className={`drawer-toggle ${s.drawerOpen ? 'on' : ''}`} onClick={() => s.setDrawerOpen(!s.drawerOpen)}
-            title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}><Icon name={s.drawerOpen ? 'panelClose' : 'panelOpen'} /> Panel</button>
-          </div>
           {recap && s.review && (
             <KillFeed recap={recap} round={s.review.data.rounds[s.review.round]} time={s.time} names={s.review.data.names} />
           )}
@@ -897,14 +903,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         {rosterRound && !s.judging && <div className="slot team-ct">{roster('CT')}</div>}
         {rosterRound && !s.judging && <div className="slot team-t">{roster('T')}</div>}
         <div className="slot right">
-          {rosterRound ? (
-            <div className="zoom">
-              <button className={s.autoCam ? 'on' : ''} onClick={() => s.setAutoCam(!s.autoCam)} aria-pressed={s.autoCam}
-                title={s.autoCam ? 'Auto zoom is on: the map zooms in when everyone is on one part of it. Click for the whole map.' : 'Auto zoom is off: the whole map. Click to follow the fight.'}>
-                Auto
-              </button>
-            </div>
-          ) : (
+          {!rosterRound && (
             <div className="zoom">
               <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>
               <button onClick={() => zoomAt(0.8)} title="Zoom out">−</button>
