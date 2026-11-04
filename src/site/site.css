@@ -6,7 +6,6 @@
 
 /* ---- navbar: right side ---- */
 .nav-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
-.modes + .nav-right { margin-left: 12px; }
 .nav-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 7px; color: var(--text-2); text-decoration: none; font-weight: 600; font-size: 13px; }
 .nav-link:hover, .nav-link.on { color: var(--text-1); background: var(--surface-2); }
 .account { display: flex; align-items: center; gap: 6px; }

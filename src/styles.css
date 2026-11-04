@@ -334,7 +334,8 @@ td.loadout { white-space: nowrap; }
 .game-tab.soon { opacity: .45; cursor: default; }
 .game-tab i { font-style: normal; font-size: 9px; font-weight: 600; margin-left: 4px; text-transform: uppercase; }
 /* one toggle style everywhere (nav, segmented controls, tabs): a dark track, the chosen one a lifted pill */
-.modes { margin-left: auto; display: flex; background: var(--bg-1); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
+/* right after the game picker, behind a divider: game → mode → open match, read left to right */
+.modes { position: relative; margin-left: 25px; display: flex; background: var(--bg-1); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
 .modes button { white-space: nowrap; border: 0; background: transparent; padding: 5px 14px; border-radius: 7px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; gap: 6px; text-align: center;
   transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out), box-shadow var(--motion-fast) var(--ease-out); }
 .modes button:hover:not(:disabled) { background: var(--surface-2); color: var(--text-1); }
@@ -1054,3 +1055,5 @@ a.btn:hover { border-color: #45505e; }
 .judge-reasons .chip { padding: 3px 8px; font-size: 11.5px; }
 .judge kbd { margin-left: 4px; padding: 0 4px; border-radius: 4px; font: 600 10px var(--font-ui); background: rgba(127, 127, 127, .22); color: inherit; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.modes::before { content: ''; position: absolute; left: -13px; top: 7px; bottom: 7px; width: 1px; background: var(--border-strong); }
