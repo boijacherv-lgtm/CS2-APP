@@ -423,7 +423,7 @@ function DlTimers({ match, time }: { match: DlMatch; time: number }) {
 function DemoChip() {
   const st = useDl(s => s.demoStatus);
   if (!st) return null;
-  const text = st.state === 'done' ? 'Demo read' : st.state === 'failed' ? (/^No demo/.test(st.error ?? '') ? 'No demo · basic detail' : 'Demo failed: retry later') : `Reading the demo${st.wait ? ` · ~${st.wait} s` : '…'}`;
+  const text = st.state === 'done' ? 'Demo read' : st.state === 'failed' ? (/^No demo/.test(st.error ?? '') ? 'No demo · basic detail' : 'Demo failed: retry later') : st.local !== undefined ? `Reading your replay · ${Math.round(st.local * 100)}%` : `Reading the demo${st.wait ? ` · ~${st.wait} s` : '…'}`;
   const tip = st.state === 'done' ? 'Read from the match\'s demo: heroes 4 times a second, camps, the urn, bridge buffs, lane creeps, the rift, ultimates and net worth as they really were.'
     : st.state === 'failed' ? st.error ?? 'The demo couldn\'t be read.' : 'deadlock-api is reading this match\'s demo (about a minute the first time, then it\'s kept in this browser).';
   const match = useDl(s => s.match);
