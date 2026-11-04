@@ -66,6 +66,8 @@ function useDemoLoader() {
   return { load, status, busy, progress, elapsed };
 }
 
+const DZ_FRAMES = 28;
+
 /** Review mode with no match loaded: a big place to drop a demo. */
 export function ReviewStart() {
   const { load, status, busy, progress, elapsed } = useDemoLoader();
@@ -92,8 +94,14 @@ export function ReviewStart() {
             <p>{busy ? status : 'or click to choose a .dem file (or a .json you saved before)'}</p>
             {busy && progress !== null && (
               <div className="dz-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
-                <i style={{ width: `${Math.max(3, progress * 100)}%` }} />
-                <span className="muted num">{Math.round(progress * 100)}% · {elapsed} s</span>
+                {/* the demo as a strip of frames, lighting up as they're read; a scan line sweeps the one being read */}
+                <div className="dz-frames">
+                  {Array.from({ length: DZ_FRAMES }, (_, i) => {
+                    const at = progress * DZ_FRAMES;
+                    return <i key={i} className={i < Math.floor(at) ? 'read' : i === Math.floor(at) ? 'now' : ''} />;
+                  })}
+                </div>
+                <span className="muted num"><b>{Math.round(progress * 100)}%</b> · {elapsed} s</span>
               </div>
             )}
             <input ref={input} type="file" accept=".dem,.json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) load(f); e.target.value = ''; }} />

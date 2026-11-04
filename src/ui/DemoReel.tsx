@@ -1,6 +1,6 @@
 /**
  * The drop zone's backdrop: a tiny match playing on loop. A made-up map seen from above, both teams walking in, two
- * kills, and a playhead running along the timeline below with a tick at each kill. Drawn with SVG animation (no JS);
+ * kills,. Drawn with SVG animation (no JS);
  * still when the visitor prefers less motion.
  */
 const LOOP = 12; // seconds
@@ -21,7 +21,7 @@ const endOf = (d: string) => d.split(' ').at(-1)!.slice(1).split(',').map(Number
 export function DemoReel() {
   const dur = `${LOOP}s`;
   return (
-    <div className="dz-reel" aria-hidden="true" style={{ ['--reel' as string]: dur }}>
+    <div className="dz-reel" aria-hidden="true">
     <div className="reel-hud"><b className="ct">8</b><span>Round 14</span><b className="t">5</b></div>
     <svg viewBox="20 14 560 246" preserveAspectRatio="xMidYMid meet">
       {/* the map: corridors and two sites */}
@@ -65,14 +65,6 @@ export function DemoReel() {
       ))}
 
     </svg>
-    {/* the timeline: play mark, a track with a tick at each kill, the playhead */}
-    <div className={`reel-bar ${still ? 'still' : ''}`}>
-      <i className="reel-play" />
-      <div className="reel-track">
-        {KILLS.map(([at, , , team], i) => <i key={i} className={`reel-tick ${team}`} style={{ left: `${at * 100}%` }} />)}
-        <i className="reel-done" />
-      </div>
-    </div>
     </div>
   );
 }
