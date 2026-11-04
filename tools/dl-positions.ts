@@ -5,6 +5,7 @@
 //   npm run dl:positions [-- --matches 20000]
 import fs from 'node:fs';
 import path from 'node:path';
+import { gameplayPatches } from '../src/deadlock/patchFeed';
 
 const API = 'https://api.deadlock-api.com';
 const args = process.argv.slice(2).filter(a => a !== '--');
@@ -21,7 +22,9 @@ async function get<T>(url: string): Promise<T> {
 }
 
 const days = await get<string[]>('/v1/patches/big-days');
-const since = Math.floor(Date.parse(days[0]) / 1000);
+// the newest gameplay update or the last big day, whichever is later (the big days are kept by hand and lag)
+const patch = (await gameplayPatches().catch(() => []))[0];
+const since = Math.max(patch?.at ?? 0, Math.floor(Date.parse(days[0]) / 1000));
 type P = { hero_id: number; team: string; net_worth: number; abandon_match_time_s?: number };
 type M = { match_id: number; duration_s: number; players?: P[] };
 const counts = new Map<number, number[]>();
@@ -49,5 +52,6 @@ for (const [hero, c] of counts) {
   const games = c.reduce((a, b) => a + b, 0);
   heroes[hero] = { games, share: c.map(x => +(x / games).toFixed(3)) };
 }
-fs.writeFileSync(OUT, JSON.stringify({ since: days[0], matches: seen, heroes }));
-console.log(`${seen} matches since ${days[0].slice(0, 10)}, ${counts.size} heroes → ${path.relative(process.cwd(), OUT)}`);
+const sinceIso = new Date(since * 1000).toISOString();
+fs.writeFileSync(OUT, JSON.stringify({ since: sinceIso, matches: seen, heroes }));
+console.log(`${seen} matches since ${sinceIso.slice(0, 10)}, ${counts.size} heroes → ${path.relative(process.cwd(), OUT)}`);
