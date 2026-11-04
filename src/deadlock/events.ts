@@ -1,6 +1,6 @@
 /**
  * The match as a feed, like the game's: who killed whom, who destroyed which objective, who carried the urn and what
- * it paid, who took Sinner's Sacrifice, the Rejuvenator, the Unstable Rift. Kills and objectives come
+ * it paid, who picked up whose soul bag, who took Sinner's Sacrifice, the Rejuvenator, the Unstable Rift. Kills and objectives come
  * from the match data; the rest needs the demo. When the game doesn't say who did it (an objective, a vault),
  * it's the nearest hero (of the team that profited, for an objective), if one was close.
  */
@@ -8,12 +8,12 @@ import { campTier, DL_MAP, objectiveKey, type DlTeam } from './data';
 import { heroAt, STAT_DT, type DlDemo } from './demo';
 import { playerAt, type DlMatch } from './match';
 
-export type FeedKind = 'kill' | 'objective' | 'urn' | 'urnLost' | 'sinners' | 'rejuv' | 'boss' | 'rift';
+export type FeedKind = 'kill' | 'objective' | 'urn' | 'urnLost' | 'sinners' | 'rejuv' | 'boss' | 'rift' | 'bag';
 export interface FeedEvent {
   t: number; kind: FeedKind;
   /** Who did it (a player slot), or only which team. */
   slot: number | null; team: DlTeam | null;
-  /** A kill's victim. */
+  /** A kill's victim, or whose soul bag it was. */
   victim?: number;
   /** What it was (an objective's name), or what it paid (souls). */
   what?: string; souls?: number;
@@ -64,6 +64,8 @@ export function feedEvents(match: DlMatch, demo: DlDemo | null): FeedEvent[] {
     const gain = before !== null && after !== null ? after - before : 0;
     out.push(gain >= 300 ? { t: u.until, kind: 'urn', slot: u.slot, team, souls: gain, what: 'delivered' } : { t: u.until, kind: 'urnLost', slot: u.slot, team });
   }
+  // soul bags: a killed hero's unsecured souls, picked up
+  for (const b of demo.bags ?? []) out.push({ t: b.t, kind: 'bag', slot: b.slot, team: teamOf.get(b.slot) ?? null, victim: b.victim ?? undefined, souls: b.souls });
   // Sinner's Sacrifice (the vaults): cleared by whoever stood there
   demo.camps.forEach((spans, i) => {
     const c = DL_MAP.camps[i];
