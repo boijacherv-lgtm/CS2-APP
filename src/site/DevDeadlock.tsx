@@ -17,7 +17,9 @@ type Stages = { early: { accuracy: number } | null; mid: { accuracy: number } | 
 const P = playnet as { since: string; matches: number; moments: number; actions: Action[]; share: number[]; ships: boolean;
   test: { matches: number; network: Scored & { top2: number; recall: Record<Action, number | null> }; baseline: Scored & { top2: number } } };
 type Even = { evenNumbers: { n: number; accuracy: number } | null };
-const F = fightmodel as { at: string; matches: number; fights: number; evenTrades: number; kind: string;
+type UltScore = { logloss: number; accuracy: number };
+const F = fightmodel as { at: string; matches: number; fights: number; evenTrades: number; kind: string; ults?: unknown;
+  ultCompare?: { fights: number; matches: number; without: UltScore; logistic: UltScore; network: UltScore; shipped: string | null; weights: Record<string, number> } | null;
   test: { fights: number; calibration: { bin: number; n: number; won: number | null }[] }; compare: { numbers: Scored & Even; logistic: Scored & Even; network: Scored & Even } };
 const S = dlsearch as { thresholds: number[]; replies: string; moments: number; matches: number; calibratedAt: string; bestShare: number; classes: Record<string, number>;
   effectFit: { r2Mean: number; r2Model: number }; playerLoss?: { median: number; p25: number; p75: number }; check: { corr: number; teams: number; byReplies: Record<string, number> } };
@@ -73,7 +75,16 @@ export function DevDeadlock({ owner }: { owner: boolean }) {
               <td className="num">{fc[k].logloss}</td><td className="num">{pct(fc[k].accuracy)}</td><td className="num">{pct(fc[k].evenNumbers?.accuracy)}</td></tr>
           ))}
         </tbody></table>
-        <p className="muted small">Read 12 s before the first death (when you'd decide), from the match data: no ultimates yet (they need demos). Said → won: {calib(F.test.calibration, 60)}</p>
+        <p className="muted small">Read 12 s before the first death (when you'd decide), from the match data. Said → won: {calib(F.test.calibration, 60)}</p>
+        {F.ultCompare ? (
+          <>
+            <table className="site-table"><thead><tr><th>With ultimates ready ({F.ultCompare.matches} matches with demos)</th><th>Log loss</th><th>Right</th></tr></thead><tbody>
+              <tr><td>Without ultimates</td><td className="num">{F.ultCompare.without.logloss}</td><td className="num">{pct(F.ultCompare.without.accuracy)}</td></tr>
+              {(['logistic', 'network'] as const).map(k => <tr key={k} className={F.ultCompare!.shipped === k ? 'on' : ''}><td>{k === 'logistic' ? 'Logistic' : 'Network'} with ultimates{F.ultCompare!.shipped === k ? ' · in use with a demo' : ''}</td><td className="num">{F.ultCompare![k].logloss}</td><td className="num">{pct(F.ultCompare![k].accuracy)}</td></tr>)}
+            </tbody></table>
+            <p className="muted small">On the same {fmtInt(F.ultCompare.fights)} test fights. Used when the match's demo is read; without one, the model above. {F.ultCompare.shipped ? '' : 'Not shipped: it didn\'t beat the model without ultimates.'}</p>
+          </>
+        ) : <p className="muted small">No ultimates yet: npm run dl:ults reads them from demos.</p>}
       </section>
 
       <section className="site-card">

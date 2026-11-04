@@ -18,7 +18,13 @@ import { Economy, Items, Objectives, Positioning, Scoreboard, TeamSouls, WinChan
 import { openLatest } from './open';
 import './dl.css';
 import { engineReview, type EngineMove, type EngineReview } from './engineReview';
+import { ultUses, type UltUse, type UltVerdict } from './ultUse';
+import { ultOf, type UltInfo } from './ultKinds';
 import { DL_SEARCH, SEARCH_COLOR, type SearchClass } from './search';
+import FIGHT_MODEL from './generated/fightmodel.json';
+
+/** Whether the fight model's ultimates version shipped (tools/dl-fight.ts). */
+const ULTS_IN = !!(FIGHT_MODEL as { ults?: unknown }).ults;
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 type Tab = 'overview' | 'grades' | 'coach' | 'build' | 'objectives';
@@ -45,6 +51,9 @@ export function DlReport() {
   const subject = pick ?? coach.mine ?? match?.players[0]?.slot ?? null;
   // the engine's review of the graded player: every move, accuracy, the costliest and the best calls
   const review = useMemo(() => (match && subject !== null ? engineReview(match, demo, subject) : null), [match, demo, subject]);
+  // their ultimate: what it does, and each time they used it, judged (needs the demo)
+  const ults = useMemo(() => (match && subject !== null ? ultUses(match, demo, subject) : null), [match, demo, subject]);
+  const subjectUlt = match && subject !== null ? ultOf(match.players.find(p => p.slot === subject)?.hero ?? -1) : null;
   // compared with everyone, or with high-rank players (bench.ts)
   const [level, setLevel] = useState<BenchLevel>(benchLevel);
   const pickLevel = (l: BenchLevel) => { setBenchLevel(l); setLevel(l); };
@@ -129,7 +138,7 @@ export function DlReport() {
       )}
       {tab === 'coach' && (
         <>
-          {review && who && <EngineCard review={review} watch={watch} who={nameOf(who.slot)} />}
+          {review && who && <EngineCard review={review} watch={watch} who={nameOf(who.slot)} ult={subjectUlt} uses={ults?.uses ?? null} />}
           <Coach moves={myMoves} watch={watch} who={who ? nameOf(who.slot) : 'everyone'} />
           {who && <Positioning match={match} slot={who.slot} watch={watch} />}
           <section className="recap-card">
@@ -201,7 +210,11 @@ function engineMoves(r: EngineReview, coach: DlMove[]): DlMove[] {
  * The engine on the graded player: accuracy (like chess.com's: a typical Phantom-and-up game is 90), how many moves fell
  * in each class, and the costliest moves and the best calls with what the search saw.
  */
-function EngineCard({ review, watch, who }: { review: EngineReview; watch: (t: number) => void; who: string }) {
+const ULT_VERDICT: Record<UltVerdict, { label: string; color: string }> = {
+  great: { label: 'Great', color: SEARCH_COLOR.Best }, good: { label: 'Good', color: SEARCH_COLOR.Good }, ok: { label: 'OK', color: SEARCH_COLOR.Inaccuracy }, wasted: { label: 'Wasted', color: SEARCH_COLOR.Mistake },
+};
+function EngineCard({ review, watch, who, ult, uses }: { review: EngineReview; watch: (t: number) => void; who: string; ult: UltInfo | null; uses: UltUse[] | null }) {
+  const demoRead = !!useDl(s => s.demo);
   const [all, setAll] = useState(false);
   const shown = all ? review.worst : review.worst.slice(0, 4);
   const CLASSES: SearchClass[] = ['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'];
@@ -237,7 +250,26 @@ function EngineCard({ review, watch, who }: { review: EngineReview; watch: (t: n
           <ul className="dl-engine-moves">{review.best.slice(0, 3).map(row)}</ul>
         </>
       )}
-      <p className="muted small">The engine looks 20 s ahead: the best options good players take here, what the enemy would likely do, and the win chance after. No ultimates yet, and it sees enemies you might not have.</p>
+      {ult && (
+        <>
+          <h4>Ultimate: {ult.name}</h4>
+          <p className="dl-engine-ult">{ult.does} <span className="muted">Worth using: {ult.use.charAt(0).toLowerCase() + ult.use.slice(1)}</span></p>
+          {uses === null ? <p className="muted small">Each time it was used shows once the match's demo is read (Review reads it).</p>
+            : !uses.length ? <p className="muted small">Not used this match{ult.effects.includes('revive') ? ' (it goes off on its own)' : ''}.</p> : (
+              <ul className="dl-engine-moves">
+                {uses.map(u => (
+                  <li key={u.t}>
+                    <span className="dl-engine-cls" style={{ background: ULT_VERDICT[u.verdict].color }}>{ULT_VERDICT[u.verdict].label}</span>
+                    <span className="dl-move-text"><b>{u.text}</b></span>
+                    <span className="num muted">{mins(u.t)}</span>
+                    <button className="chip" onClick={() => watch(u.t)}>Watch</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+        </>
+      )}
+      <p className="muted small">The engine looks 20 s ahead: the best options good players take here, what the enemy would likely do, and the win chance after. {ULTS_IN ? (demoRead ? 'Ultimates ready count in its fights.' : 'Ultimates count once the demo is read.') : demoRead ? 'It names the ultimates ready in fights, but they don\'t change its odds yet.' : 'Read the demo for ultimates.'} It sees enemies you might not have.</p>
     </section>
   );
 }

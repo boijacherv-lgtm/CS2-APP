@@ -9,6 +9,7 @@ import type { DlDemo } from './demo';
 import type { DlMatch } from './match';
 import { WINDOW, type Action } from './playNet';
 import { searchAt, type DlOption, type DlSearch, type SearchClass } from './search';
+import { ultOf, ultWords } from './ultKinds';
 
 const SCALE = (CAL as { accuracyScale?: number }).accuracyScale ?? 9;
 /** chess.com's accuracy curve on the average win chance given up (points), scaled so a typical good game is 90. */
@@ -21,6 +22,16 @@ const odds = (p: number) => `${Math.round(p * 100)}%`;
 const sides = (o: DlOption) => (o.sides ? `your ${o.sides[0]} against their ${o.sides[1]}` : 'the fight');
 /** Where a fight was, when that explains the odds. */
 const where = (o: DlOption) => (o.where === 'theirs' ? ' deep in their half' : o.where === 'ours' ? ' in your half' : '');
+
+/** The ultimates ready in a fight, once a move: the enemy's strongest (area and control first) with what it does, and
+ * yours by name. "Their Storm Cloud (Seven: …) was ready. Yours: Spirit Lasso." (with the demo; '' without). */
+function readyUlts(o: DlOption): string {
+  const rank = (h: number) => { const k = ultOf(h)?.kinds ?? []; return (k.includes('area') ? 2 : 0) + (k.includes('control') ? 1 : 0); };
+  const best = (hs: number[]) => [...hs].sort((a, b) => rank(b) - rank(a));
+  const theirs = best(o.ults?.theirs ?? []), ours = best(o.ults?.ours ?? []);
+  return [theirs.length ? `Their ${ultWords(theirs[0])} was ready${theirs.length > 1 ? `, and ${theirs.length - 1} more` : ''}.` : '',
+    ours.length ? `Yours: ${ours.map(h => ultOf(h)?.name ?? 'an ultimate').join(', ')}.` : ''].filter(Boolean).join(' ');
+}
 
 /** Why an option was worth what it was, in a sentence (from what the search assumed). */
 function because(o: DlOption): string | null {
@@ -53,12 +64,14 @@ export function explain(s: DlSearch & { played: DlOption; cls: SearchClass }): {
     const next = s.options[1];
     return {
       title: `${s.cls}: ${DID[mine.action]}`,
-      why: [because(mine), next ? `The next best, ${DO[next.action]}, was worth ${pct(mine.value - next.value)} less.` : 'Nothing else made sense from there.'].filter((x): x is string => !!x),
+      why: [because(mine), mine.fight !== undefined ? readyUlts(mine) : '', next ? `The next best, ${DO[next.action]}, was worth ${pct(mine.value - next.value)} less.` : 'Nothing else made sense from there.'].filter((x): x is string => !!x),
     };
   }
+  // the ultimates in play, once: from the fight in the better option, else in the move made
+  const ults = readyUlts(top.fight !== undefined ? top : mine);
   return {
     title: `${s.cls}: ${DID[mine.action]} instead of ${DO[top.action]}`,
-    why: [because(top), because(mine), `It gave up ${pct(s.loss)} win chance (${pct(top.value)} → ${pct(mine.value)}).`].filter((x): x is string => !!x),
+    why: [because(top), because(mine), ults, `It gave up ${pct(s.loss)} win chance (${pct(top.value)} → ${pct(mine.value)}).`].filter((x): x is string => !!x),
   };
 }
 
