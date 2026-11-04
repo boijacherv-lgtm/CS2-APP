@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { DEBUG } from '../env';
 import { Arc, Circle, Group, Image as KImage, Line, Rect, RegularPolygon, Star, Text } from 'react-konva';
 import { campTier, DL_MAP, DL_MAP_IMAGE, TEAM_COLOR, type DlTeam } from './data';
 import { clock, RULES, urnLane } from './timings';
@@ -193,7 +194,7 @@ export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down,
                   <Rect x={-2.4 * k} y={-3.4 * k} width={4.8 * k} height={1.2 * k} fill="#3fd0e6" cornerRadius={0.5 * k} />
                   <Circle y={0.8 * k} radius={3 * k} fill="#3fd0e6" />
                 </Group>
-                {tag(u.label, '#3fd0e6', u.carried ? 14 : 10)}
+                {(u.carried || DEBUG) && tag(u.label, '#3fd0e6', u.carried ? 14 : 10)}
               </Group>
             </>
           );
@@ -206,7 +207,7 @@ export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down,
               {out && <Circle radius={urn ? 9 * k : 0} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={9 * k} fillRadialGradientColorStops={[0, 'rgba(63,208,230,0.5)', 1, 'rgba(63,208,230,0)']} />}
               {out && <Rect x={-2.4 * k} y={-3.4 * k} width={4.8 * k} height={1.2 * k} fill="#3fd0e6" cornerRadius={0.5 * k} opacity={urn ? 1 : 0.7} />}
               {out && <Circle y={0.8 * k} radius={3 * k} fill="#3fd0e6" opacity={urn ? 1 : 0.7} />}
-              {out && urn && tag(clock(urn.t), '#3fd0e6')}
+              {DEBUG && out && urn && tag(clock(urn.t), '#3fd0e6')}
             </Group>
           );
         })}
@@ -219,7 +220,7 @@ export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down,
             <Group key={`b${i}`} {...P(b)}>
               <Circle radius={7 * k} stroke="#b07ce8" strokeWidth={1.3 * k} fill="rgba(176,124,232,0.15)" />
               <Star numPoints={5} innerRadius={2 * k} outerRadius={4.4 * k} fill="#b07ce8" />
-              {since !== null && tag(clock(since), '#b07ce8', 9)}
+              {DEBUG && since !== null && tag(clock(since), '#b07ce8', 9)}
             </Group>
           );
         })}
@@ -243,7 +244,7 @@ export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down,
               {r.phase === 'contest' && ([0, 1] as DlTeam[]).map(team => r.p[team] > 0 && (
                 <Arc key={team} innerRadius={(11 + team * 3) * k} outerRadius={(13 + team * 3) * k} angle={360 * r.p[team]} rotation={-90} fill={TEAM_COLOR[team]} />
               ))}
-              {tag(r.phase === 'showing' ? `opens ${clock(r.opens)}` : r.phase === 'contest' ? `${r.n[0]} v ${r.n[1]}` : r.team !== null ? 'taken' : 'rift', '#3fc7b4', 15)}
+              {(r.phase === 'contest' || DEBUG) && tag(r.phase === 'showing' ? `opens ${clock(r.opens)}` : r.phase === 'contest' ? `${r.n[0]} v ${r.n[1]}` : r.team !== null ? 'taken' : 'rift', '#3fc7b4', 15)}
             </Group>
           );
         })()}
@@ -251,7 +252,7 @@ export function MapArt({ S, k, img, tunnels = null, you = 0, layers = ALL, down,
           <Group key={`r${i}`} {...P(b)}>
             <Circle radius={8 * k} stroke="#3fc7b4" strokeWidth={1.3 * k} />
             <Circle radius={4.5 * k} stroke="#3fc7b4" strokeWidth={1 * k} dash={[2 * k, 1.6 * k]} />
-            {tm !== undefined && riftAt !== null && tag(`~${clock(riftAt)}`, '#3fc7b4', 10)}
+            {DEBUG && tm !== undefined && riftAt !== null && tag(`~${clock(riftAt)}`, '#3fc7b4', 10)}
           </Group>
         ))}
 

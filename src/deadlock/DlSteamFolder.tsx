@@ -252,25 +252,24 @@ export function DlSteamFolder({ account, open, busy }: { account: string | null;
       {(dir || replays) && perm === 'granted' && (
         <p className="dl-folder-where muted small">
           Watching {[dir ? 'Steam\'s cache' : null, replays ? 'Deadlock\'s replays' : null].filter(Boolean).join(' and ')}.
-          {!replays && supported && <> Downloaded replays in Deadlock? <button className="link-btn" onClick={connect}>Add Deadlock's folder</button> (its SteamLibrary, or …\Deadlock\game\citadel\replays).</>}
-          {!dir && supported && <> <button className="link-btn" onClick={connect}>Add your Steam folder</button> too, for matches you only opened in Match history.</>}
+          {!replays && supported && <> <button className="link-btn" onClick={connect}>Add Deadlock's folder</button></>}
+          {!dir && supported && <> <button className="link-btn" onClick={connect}>Add your Steam folder</button></>}
         </p>
       )}
       {!dir && !replays && (
         <div className="dl-folder-intro">
-          <p>Pick your <b>Steam</b> folder once (on the PC you play on): the site finds your Deadlock matches in it, the ones Steam fetched when you opened them in Match history and the replays you downloaded in Deadlock, and loads them here, new ones by themselves. Only the matches' IDs and keys are sent to deadlock-api; nothing else leaves your PC.</p>
+          <p className="muted small">Pick it once: your matches and downloaded replays load here by themselves. Only match IDs leave your PC.</p>
           <div className="row">
             {supported && <button className="cta primary" onClick={connect}>Choose your Steam folder</button>}
-            <span className="muted small">{supported ? 'or drop' : 'Drop'} the folder here</span>
+            <span className="muted small" title="Usually C:\Program Files (x86)\Steam. Deadlock on another drive? Pick that drive's SteamLibrary too.">{supported ? 'or drop' : 'Drop'} it here</span>
           </div>
-          <p className="muted small">Usually <code>C:\Program Files (x86)\Steam</code> (Windows). Deadlock on another drive? Pick that drive's <code>SteamLibrary</code> as well (or <code>…\Deadlock\game\citadel\replays</code>).{!supported && ' In Chrome or Edge the site remembers the folder and checks it by itself.'}</p>
         </div>
       )}
       {(dir || replays) && perm !== 'granted' && <div className="row"><button className="cta primary" onClick={reconnect}>Reconnect your folders</button><span className="muted small">the browser asks once per visit</span></div>}
       {msg && <p className="muted small">{msg}</p>}
       {scanning && !found.length && <Loading>Looking through Steam's cache…</Loading>}
       {found.length > 0 && <ul className="dl-rows">{found.slice(0, SHOW).map(row)}</ul>}
-      {((dir || replays) && perm === 'granted') && !scanning && !found.length && <p className="empty-state">No Deadlock matches found yet. Open a match in Deadlock's Match history (or download its replay) and it shows up here within 30 s.</p>}
+      {((dir || replays) && perm === 'granted') && !scanning && !found.length && <p className="empty-state">No matches yet. Open one in Deadlock's Match history and it shows up here.</p>}
     </section>
   );
 }

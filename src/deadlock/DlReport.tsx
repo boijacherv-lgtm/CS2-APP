@@ -19,11 +19,10 @@ import { openLatest } from './open';
 import './dl.css';
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-type Tab = 'overview' | 'grades' | 'coach' | 'economy' | 'items' | 'abilities' | 'fights' | 'objectives';
+type Tab = 'overview' | 'grades' | 'coach' | 'build' | 'objectives';
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'overview', label: 'Overview', icon: 'star' }, { id: 'grades', label: 'Report card', icon: 'trophy' }, { id: 'coach', label: 'Coach', icon: 'target' },
-  { id: 'economy', label: 'Economy', icon: 'coins' }, { id: 'items', label: 'Items', icon: 'shield' }, { id: 'abilities', label: 'Abilities', icon: 'bolt' },
-  { id: 'fights', label: 'Fights', icon: 'swords' }, { id: 'objectives', label: 'Objectives', icon: 'map' },
+  { id: 'build', label: 'Souls, items and abilities', icon: 'coins' }, { id: 'objectives', label: 'Objectives', icon: 'map' },
 ];
 /** What each kind of mistake means, and what to do instead (the coach's lessons). */
 const LESSON: Partial<Record<DlTag, { title: string; fix: string }>> = {
@@ -109,21 +108,29 @@ export function DlReport() {
       {tab === 'overview' && (
         <>
           <Scoreboard match={match} subject={subject} mine={coach.mine} nameOf={nameOf} pick={slot => setPick(slot)} />
-          <WinChance match={match} team={who?.team ?? 0} watch={watch} />
-          <TeamSouls match={match} team={who?.team ?? 0} />
+          <div className="dl-ov-charts">
+            <WinChance match={match} team={who?.team ?? 0} watch={watch} />
+            <TeamSouls match={match} team={who?.team ?? 0} />
+          </div>
           <Moments moves={myMoves} watch={watch} />
         </>
       )}
       {tab === 'grades' && card && who && <Grades card={card} match={match} name={nameOf(who.slot)} hero={heroOf(who.hero).name} moves={coach.all} watch={watch} level={level} pickLevel={pickLevel} />}
-      {tab === 'economy' && who && <Economy match={match} slot={who.slot} watch={watch} />}
-      {tab === 'items' && who && <Items match={match} slot={who.slot} />}
-      {tab === 'abilities' && who && <Abilities match={match} slot={who.slot} card={card} watch={watch} />}
-      {tab === 'coach' && <Coach moves={myMoves} watch={watch} who={who ? nameOf(who.slot) : 'everyone'} />}
-      {tab === 'fights' && (
-        <section className="recap-card">
-          <h3>{who ? `${nameOf(who.slot)}'s kills and deaths` : 'Every kill and death'}</h3>
-          <MoveList moves={myMoves.filter(m => m.kind !== 'laning')} watch={watch} />
-        </section>
+      {tab === 'build' && who && (
+        <>
+          <Economy match={match} slot={who.slot} watch={watch} />
+          <Items match={match} slot={who.slot} />
+          <Abilities match={match} slot={who.slot} card={card} watch={watch} />
+        </>
+      )}
+      {tab === 'coach' && (
+        <>
+          <Coach moves={myMoves} watch={watch} who={who ? nameOf(who.slot) : 'everyone'} />
+          <section className="recap-card">
+            <h3>Kills</h3>
+            <MoveList moves={myMoves.filter(m => m.kind !== 'laning')} watch={watch} compact />
+          </section>
+        </>
       )}
       {tab === 'objectives' && <Objectives match={match} team={who?.team ?? 0} watch={watch} />}
     </div>
@@ -141,11 +148,11 @@ function Moments({ moves, watch }: { moves: DlMove[]; watch: (t: number) => void
     <div className="dl-moments">
       <section className="recap-card">
         <h3>Worst moments</h3>
-        {bad.length ? <MoveList moves={bad.slice(0, 5)} watch={watch} /> : <p className="empty-state">No real mistakes marked.</p>}
+        {bad.length ? <MoveList moves={bad.slice(0, 3)} watch={watch} compact /> : <p className="empty-state">No real mistakes marked.</p>}
       </section>
       <section className="recap-card">
         <h3>Best moments</h3>
-        {good.length ? <MoveList moves={good.slice(0, 5)} watch={watch} /> : <p className="empty-state">No standout plays marked.</p>}
+        {good.length ? <MoveList moves={good.slice(0, 3)} watch={watch} compact /> : <p className="empty-state">No standout plays marked.</p>}
       </section>
     </div>
   );
@@ -173,14 +180,15 @@ function Coach({ moves, watch, who }: { moves: DlMove[]; watch: (t: number) => v
   );
 }
 
-function MoveList({ moves, watch }: { moves: DlMove[]; watch: (t: number) => void }) {
+/** Graded moments with Watch; compact: the title only (the why shows on hover). */
+function MoveList({ moves, watch, compact }: { moves: DlMove[]; watch: (t: number) => void; compact?: boolean }) {
   if (!moves.length) return <p className="empty-state">Nothing here.</p>;
   return (
     <ul className="dl-moves">
       {moves.map(m => (
-        <li key={`${m.kind}-${m.t}-${m.slot}`}>
+        <li key={`${m.kind}-${m.t}-${m.slot}`} title={compact ? m.why.join(' ') : undefined}>
           <MarkFace note={m.note} size={24} className="dl-card-mark" />
-          <span className="dl-move-text"><b>{m.title}</b>{m.why.length > 1 && <span className="muted small">{m.why.slice(0, -1).join(' ')}</span>}</span>
+          <span className="dl-move-text"><b>{m.title}</b>{!compact && m.why.length > 1 && <span className="muted small">{m.why.slice(0, -1).join(' ')}</span>}{compact && m.why[0] && <span className="muted small">{m.why[0]}</span>}</span>
           <button className="chip" onClick={() => watch(m.t)}>Watch</button>
         </li>
       ))}

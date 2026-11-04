@@ -13,6 +13,8 @@ import { DEATH_GRID, DEATH_PHASES, DEATH_SOURCE, heatGrid } from './deathMap';
 import { creepsAt, heroAt, troopersAt, readDemo, riftAt, statsAt, ultAt, UNDERGROUND_Z, upAt } from './demo';
 import ITEMS from './generated/items.json';
 import { RULES, TIMINGS_SOURCE, timersAt } from './timings';
+import { feedEvents, type FeedEvent } from './events';
+import { DEBUG } from '../env';
 import { kdaAt, playerAt, statAt, type DlMatch } from './match';
 import { useDl } from './store';
 import { useCoach, useMySlot } from './useCoach';
@@ -95,7 +97,8 @@ export function DlBoard() {
   const s0 = souls(0), s1 = souls(1), lead = s0 + s1 ? s0 / (s0 + s1) : 0.5;
   // each team's chance to win right now (the coach's model); the bar follows it
   const p0 = useMemo(() => winChance(match, demo, time, 0), [match, demo, Math.floor(time / 2)]); // eslint-disable-line react-hooks/exhaustive-deps
-  const feed = match.deaths.filter(d => d.t <= time && time - d.t < 12).slice(-6).reverse();
+  const events = useMemo(() => feedEvents(match, demo), [match, demo]);
+  const feed = events.filter(e => e.t <= time && time - e.t < 12).slice(-6);
   const nameOf = (slot: number | null) => {
     const p = match.players.find(x => x.slot === slot);
     return p ? names[p.account]?.name ?? heroOf(p.hero).name : 'the creeps';
@@ -108,11 +111,7 @@ export function DlBoard() {
           <span className="dl-team-score" style={{ color: TEAM_COLOR[0] }}>{TEAM_NAME[0]} <b>{kills(0)}</b></span>
           <span className="dl-clock num">{mins(time)}</span>
           <span className="dl-team-score" style={{ color: TEAM_COLOR[1] }}><b>{kills(1)}</b> {TEAM_NAME[1]}</span>
-          <DemoChip />
-          <button className="ghost small-btn dl-full" onClick={() => (document.fullscreenElement ? document.exitFullscreen() : board.current?.requestFullscreen())}
-            title="Full screen (Esc to leave)">{full ? 'Exit full screen' : 'Full screen'}</button>
-        <button className={`ghost small-btn dl-danger-btn ${danger ? 'on' : ''}`} onClick={() => useDl.getState().toggleDanger()}
-          title={`Where high-rank players die at this stage of the match (${DEATH_SOURCE.matches.toLocaleString()} Phantom+ matches since the patch), from the selected player's side`}>Danger map</button>
+          {DEBUG && <DemoChip />}
         </div>
         <div className="dl-souls" title={`Team souls: ${TEAM_NAME[0]} ${s0.toLocaleString()} · ${TEAM_NAME[1]} ${s1.toLocaleString()}`}>
           <i style={{ width: `${p0 * 100}%`, background: TEAM_COLOR[0] }} /><i style={{ width: `${(1 - p0) * 100}%`, background: TEAM_COLOR[1] }} />
@@ -159,26 +158,18 @@ export function DlBoard() {
                 </button>
               );
             })}
-            {team === 1 && <DlTimers match={match} time={time} />}
+            {team === 1 && DEBUG && <DlTimers match={match} time={time} />}
           </aside>
         ))}
         <DlMap match={match} time={time} selected={selected} />
         <DlCard moves={graded} time={time} canMine={coach.canMine} />
-        <ol className="dl-feed" aria-label="Kills">
-          {feed.map((d, i) => {
-            const killer = match.players.find(p => p.slot === d.killer), victim = match.players.find(p => p.slot === d.slot)!;
-            return (
-              <li key={`${d.t}-${d.slot}-${i}`}>
-                <span style={{ color: killer ? TEAM_COLOR[killer.team] : 'var(--text-3)' }}>{nameOf(d.killer)}</span>
-                <Icon name="close" size={10} />
-                <span style={{ color: TEAM_COLOR[victim.team] }}>{nameOf(d.slot)}</span>
-              </li>
-            );
-          })}
+        <ol className="dl-feed" aria-label="What happened">
+          {feed.map((e, i) => <FeedRow key={`${e.kind}-${e.t}-${e.slot}-${i}`} e={e} match={match} nameOf={nameOf} />)}
         </ol>
       </div>
 
-      <DlPlaybar match={match} time={time} playing={playing} speed={speed} graded={graded} />
+      <DlPlaybar match={match} time={time} playing={playing} speed={speed} graded={graded}
+        full={full} onFull={() => (document.fullscreenElement ? document.exitFullscreen() : board.current?.requestFullscreen())} />
     </div>
   );
 }
@@ -293,13 +284,14 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
   );
 }
 
-function DlPlaybar({ match, time, playing, speed, graded }: { match: DlMatch; time: number; playing: boolean; speed: number; graded: DlMove[] }) {
-  const s = useDl.getState();
+function DlPlaybar({ match, time, playing, speed, graded, full, onFull }: { match: DlMatch; time: number; playing: boolean; speed: number; graded: DlMove[]; full: boolean; onFull: () => void }) {
+  const s = useDl.getState(), danger = useDl(x => x.danger);
+  // on the track: the objectives that fell and the graded moments (kills are in the feed)
   const marks = useMemo(() => [
-    ...match.deaths.map(d => ({ t: d.t, color: TEAM_COLOR[match.players.find(p => p.slot === d.slot)?.team === 0 ? 1 : 0], kind: 'kill' as const })),
-    ...match.objectives.filter(o => o.destroyed).map(o => ({ t: o.destroyed!, color: TEAM_COLOR[o.team === 0 ? 1 : 0], kind: 'objective' as const })),
-    ...graded.map(m => ({ t: m.t, color: NOTE_INFO[m.note].color, kind: 'graded' as const })),
+    ...match.objectives.filter(o => o.destroyed).map(o => ({ t: o.destroyed!, color: TEAM_COLOR[o.team === 0 ? 1 : 0], kind: 'objective' as const, tip: `${o.name} destroyed` })),
+    ...graded.map(m => ({ t: m.t, color: NOTE_INFO[m.note].color, kind: 'graded' as const, tip: m.title })),
   ], [match, graded]);
+  const pct = (t: number) => `${(t / match.duration) * 100}%`;
   return (
     <div className="dl-playbar">
       <button className="play-main" onClick={() => { if (!playing && time >= match.duration) s.setTime(0); s.setPlaying(!playing); }} title="Play / pause (Space)">
@@ -313,18 +305,42 @@ function DlPlaybar({ match, time, playing, speed, graded }: { match: DlMatch; ti
         <span className="num muted small">{graded.filter(m => m.t <= time).length}/{graded.length}</span>
         <button onClick={() => stepMoment(graded, 1)} disabled={!graded.length} title="Next graded moment (→)" aria-label="Next graded moment"><Icon name="prev" size={14} className="flip-x" /></button>
       </div>
-      <div className="dl-phases" role="group" aria-label="Jump to">
-        {PHASES.filter(p => p.t < match.duration).map(p => <button key={p.label} className="chip" onClick={() => s.setTime(p.t)}>{p.label}</button>)}
-      </div>
       <div className="dl-timeline">
-        <input type="range" min={0} max={match.duration} step={1} value={Math.floor(time)} onChange={e => s.setTime(Number(e.target.value))} aria-label="Match time" />
         <div className="dl-marks" aria-hidden>
-          {marks.map((m, i) => <i key={i} className={m.kind} style={{ left: `${(m.t / match.duration) * 100}%`, background: m.color }} />)}
+          {marks.map((m, i) => <i key={i} className={m.kind} title={m.tip} style={{ left: pct(m.t), background: m.color }} />)}
+        </div>
+        <input type="range" min={0} max={match.duration} step={1} value={Math.floor(time)} onChange={e => s.setTime(Number(e.target.value))} aria-label="Match time" />
+        {/* the game's stages, under the track where they start: click to jump */}
+        <div className="dl-jump">
+          {PHASES.filter(p => p.t < match.duration).map(p => <button key={p.label} style={{ left: pct(p.t) }} onClick={() => s.setTime(p.t)}>{p.label}</button>)}
         </div>
       </div>
       <span className="num dl-time">{mins(time)} / {mins(match.duration)}</span>
+      <button className={`ghost icon-btn dl-danger-btn ${danger ? 'on' : ''}`} onClick={() => useDl.getState().toggleDanger()} aria-pressed={danger}
+        title={`Danger map: where high-rank players die at this stage of the match (${DEATH_SOURCE.matches.toLocaleString()} Phantom+ matches since the patch)`}><Icon name="skull" /></button>
+      <button className="ghost icon-btn" onClick={onFull} title={full ? 'Leave full screen (Esc)' : 'Full screen'} aria-label="Full screen"><Icon name={full ? 'close' : 'grid'} /></button>
     </div>
   );
+}
+
+/** One line of the feed: who did what (hero icon and name in their team's colour), to whom or what. */
+function FeedRow({ e, match, nameOf }: { e: FeedEvent; match: DlMatch; nameOf: (slot: number | null) => string }) {
+  const who = (slot: number | null, team: DlTeam | null) => {
+    const p = match.players.find(x => x.slot === slot);
+    if (!p) return <span className="dl-feed-who" style={{ color: team !== null ? TEAM_COLOR[team] : 'var(--text-3)' }}>{team !== null ? TEAM_NAME[team] : 'Creeps'}</span>;
+    const h = heroOf(p.hero);
+    return <span className="dl-feed-who" style={{ color: TEAM_COLOR[p.team] }}>{h.icon && <img src={h.icon} alt="" />}{nameOf(p.slot)}</span>;
+  };
+  const verb = (text: string, extra?: React.ReactNode) => <><span className="dl-feed-verb">{text}</span>{extra}</>;
+  const body = e.kind === 'kill' ? <>{who(e.slot, e.team)}<Icon name="close" size={10} />{who(e.victim ?? null, null)}</>
+    : e.kind === 'objective' ? <>{who(e.slot, e.team)}{verb('destroyed', <b>{e.what}</b>)}</>
+    : e.kind === 'urn' ? <>{who(e.slot, e.team)}{e.what === 'delivered' ? verb('delivered the urn', <b className="dl-feed-souls">+{e.souls!.toLocaleString()}</b>) : verb('picked up the urn')}</>
+    : e.kind === 'urnLost' ? <>{who(e.slot, e.team)}{verb('lost the urn')}</>
+    : e.kind === 'sinners' ? <>{who(e.slot, e.team)}{verb("took Sinner's Sacrifice")}</>
+    : e.kind === 'rejuv' ? <>{who(e.slot, e.team)}{verb('took the Rejuvenator')}</>
+    : e.kind === 'boss' ? <>{who(null, e.team)}{verb('killed the Mid Boss')}</>
+    : <>{who(null, e.team)}{verb('took the Unstable Rift')}</>;
+  return <li className={`dl-feed-${e.kind}`}>{body}</li>;
 }
 
 /** Jumps to the previous / next graded moment (a few seconds before it, so you see it happen). */
