@@ -39,7 +39,8 @@
     "dl:fight": "vite-node tools/dl-fight.ts",
     "dl:search": "vite-node tools/dl-search.ts",
     "dl:ults": "vite-node tools/dl-ults.ts",
-    "dl:ultkinds": "vite-node tools/dl-ultkinds.ts"
+    "dl:ultkinds": "vite-node tools/dl-ultkinds.ts",
+    "dl:abilities": "vite-node tools/dl-abilities.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",

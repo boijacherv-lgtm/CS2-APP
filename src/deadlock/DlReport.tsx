@@ -11,7 +11,7 @@ import type { DlMove, DlTag } from './coach';
 import { heroOf, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import type { DlMatch } from './match';
 import { useDl } from './store';
-import { useCoach } from './useCoach';
+import { useCoach, useMySlot } from './useCoach';
 import { abilityUse, reportCard, type GradeKey, type ReportCard } from './grade';
 import { benchLevel, benchSource, HAS_HIGH, setBenchLevel, type BenchLevel } from './bench';
 import { Economy, Items, Objectives, Positioning, Scoreboard, TeamSouls, WinChance } from './DlRecap';
@@ -20,6 +20,7 @@ import './dl.css';
 import { engineReview, type EngineMove, type EngineReview } from './engineReview';
 import { ultUses, type UltUse, type UltVerdict } from './ultUse';
 import { ultOf, type UltInfo } from './ultKinds';
+import { abilitiesOf } from './abilityInfo';
 import { DL_SEARCH, SEARCH_COLOR, type SearchClass } from './search';
 import FIGHT_MODEL from './generated/fightmodel.json';
 
@@ -410,6 +411,10 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
 function Abilities({ match, slot, card, watch }: { match: DlMatch; slot: number; card: ReportCard | null; watch: (t: number) => void }) {
   const demo = useDl(s => s.demo);
   const rows = useMemo(() => abilityUse(match, slot, demo), [match, slot, demo]);
+  // what each does, its numbers and upgrade tiers (the books); against them when the graded player is on the other team
+  const player = match.players.find(p => p.slot === slot);
+  const info = useMemo(() => (player ? abilitiesOf(player.hero) : []), [player]);
+  const mine = useMySlot(), enemy = mine !== null && match.players.find(p => p.slot === mine)?.team !== player?.team;
   const part = card?.parts.find(p => p.key === 'abilities');
   const maxDmg = Math.max(1, ...rows.map(r => r.damage));
   return (
@@ -423,6 +428,23 @@ function Abilities({ match, slot, card, watch }: { match: DlMatch; slot: number;
               <b>{r.a.name}{r.a.ult ? ' (ultimate)' : ''}</b>
               <span className="muted small">{r.unlocked !== null ? `unlocked ${mins(r.unlocked)}` : 'never unlocked'}{r.upgrades.length ? ` · upgraded ${r.upgrades.map(mins).join(', ')}` : ''}{r.casts !== null ? ` · cast ${r.casts}×` : ''}</span>
               <span className="dl-abil-bar"><i style={{ width: `${(r.damage / maxDmg) * 100}%` }} /><span className="num">{Math.round(r.damage).toLocaleString()}</span></span>
+              {(() => {
+                const a = info.find(x => x.name === r.a.name);
+                if (!a) return null;
+                return (
+                  <details className="dl-abil-info">
+                    <summary>What it does</summary>
+                    <p>{a.book?.does ?? a.text}{a.book?.unsure ? <span className="muted"> (the game data had no text for this one: written from its numbers, to check)</span> : null}</p>
+                    {enemy && a.book && <p><b>Against it:</b> {a.book.against}</p>}
+                    {a.numbers.length > 0 && <p className="muted small">{a.cd ? `Cooldown ${a.cd} s · ` : ''}{a.numbers.join(' · ')}</p>}
+                    {a.tiers.length > 0 && (
+                      <ol className="dl-abil-tiers">
+                        {a.tiers.map((t, i) => <li key={i} className={i < r.upgrades.length ? 'got' : ''}><span>Tier {i + 1}{i < r.upgrades.length ? ' (bought)' : ''}</span>{t.join(', ') || '–'}</li>)}
+                      </ol>
+                    )}
+                  </details>
+                );
+              })()}
             </li>
           ))}
         </ul>

@@ -600,3 +600,11 @@
   .dl-engine-moves .dl-engine-cls { justify-self: start; }
 }
 .dl-engine-ult { margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; }
+/* an ability's "What it does" (Match recap → Souls, items and abilities) */
+.dl-abil-info { grid-column: 1 / -1; font-size: 13px; margin-top: 2px; }
+.dl-abil-info summary { cursor: pointer; color: var(--text-2); font-size: 12px; }
+.dl-abil-info p { margin: 6px 0; line-height: 1.5; }
+.dl-abil-tiers { margin: 6px 0 2px; padding-left: 0; list-style: none; display: grid; gap: 3px; }
+.dl-abil-tiers li { display: grid; grid-template-columns: 110px 1fr; gap: 8px; color: var(--text-2); }
+.dl-abil-tiers li span { color: var(--text-3); font-weight: 600; }
+.dl-abil-tiers li.got { color: var(--text-1); } .dl-abil-tiers li.got span { color: var(--good); }
