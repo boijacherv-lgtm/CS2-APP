@@ -14,7 +14,7 @@ import { useDl } from './store';
 import { useCoach } from './useCoach';
 import { abilityUse, reportCard, type GradeKey, type ReportCard } from './grade';
 import { benchLevel, benchSource, HAS_HIGH, setBenchLevel, type BenchLevel } from './bench';
-import { Economy, Items, Objectives, Scoreboard, TeamSouls, WinChance } from './DlRecap';
+import { Economy, Items, Objectives, Positioning, Scoreboard, TeamSouls, WinChance } from './DlRecap';
 import { openLatest } from './open';
 import './dl.css';
 
@@ -126,6 +126,7 @@ export function DlReport() {
       {tab === 'coach' && (
         <>
           <Coach moves={myMoves} watch={watch} who={who ? nameOf(who.slot) : 'everyone'} />
+          {who && <Positioning match={match} slot={who.slot} watch={watch} />}
           <section className="recap-card">
             <h3>Kills</h3>
             <MoveList moves={myMoves.filter(m => m.kind !== 'laning')} watch={watch} compact />

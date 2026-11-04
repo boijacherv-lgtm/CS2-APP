@@ -33,7 +33,8 @@
     "dl:learn": "vite-node tools/dl-learn.ts",
     "security": "node tools/security-check.mjs",
     "dl:train": "vite-node tools/dl-train.ts",
-    "dl:deaths": "vite-node tools/dl-deaths.ts"
+    "dl:deaths": "vite-node tools/dl-deaths.ts",
+    "dl:spots": "vite-node tools/dl-spots.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",
