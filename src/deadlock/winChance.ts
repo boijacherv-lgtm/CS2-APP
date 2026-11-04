@@ -1,37 +1,52 @@
 /**
- * Win chance in a Deadlock match, from the coach's model (winmodel.ts, trained by tools/dl-train.ts on high-rank
- * matches since the patch): the game state at any moment (souls from the demo or between the match's snapshots,
- * kills, objectives lost, Mid Bosses) → each team's chance to win.
+ * Win chance in a Deadlock match, from the coach's model (trained by tools/dl-train.ts on high-rank matches since the
+ * patch): the value network (valueNet.ts) when it beat the simple model (winmodel.ts) on matches neither saw, else the
+ * simple one. Both read the same moment: each team's souls (from the demo or between the match's snapshots), levels,
+ * kills, players alive, objectives lost and Mid Bosses.
  */
 import WM from './generated/winmodel.json';
+import type { Mlp } from '../engine/mlp';
 import type { DlDemo } from './demo';
 import type { DlTeam } from './data';
 import { worthAt } from './grade';
-import type { DlMatch } from './match';
+import { statAt, type DlMatch } from './match';
 import { chance, type State } from './winmodel';
+import { simpleState, valueChance, type TeamState, type ValueState } from './valueNet';
 
-export const WIN_MODEL = WM as { since: string; patch: string | null; minBadge: number; matches: number; weights: number[]; test: { accuracy: number; matches: number } };
+export const WIN_MODEL = WM as { since: string; patch: string | null; minBadge: number; matches: number; weights: number[]; kind?: 'simple' | 'network'; net?: Mlp;
+  test: { accuracy: number; matches: number } };
 
-/** The state at time t (team 0's side). */
-export function stateAt(m: DlMatch, demo: DlDemo | null, t: number): State {
-  const souls: [number, number] = [0, 0], kills: [number, number] = [0, 0];
-  for (const p of m.players) souls[p.team] += worthAt(m, demo, p.slot, t);
+/** A Mid Boss counts as recent this long (s): the Rejuvenator's push. */
+const RECENT_BOSS = 180;
+/** Everything both models read at time t, each team as it is. */
+export function valueStateAt(m: DlMatch, demo: DlDemo | null, t: number): ValueState {
   const teamOf = new Map(m.players.map(p => [p.slot, p.team]));
-  for (const d of m.deaths) {
-    const k = d.killer !== null ? teamOf.get(d.killer) : undefined, v = teamOf.get(d.slot);
-    if (d.t <= t && k !== undefined && k !== v) kills[k]++;
-  }
-  const lost = (team: DlTeam, kinds: string[]) => m.objectives.filter(o => o.team === team && o.destroyed !== null && o.destroyed <= t && kinds.includes(o.kind)).length;
-  const pair = (kinds: string[]): [number, number] => [lost(0, kinds), lost(1, kinds)];
-  return {
-    t, souls, kills, guardians: pair(['guardian']), walkers: pair(['walker']), base: pair(['base guardian', 'shrine']),
-    midBoss: [m.midBoss.filter(b => b.team === 0 && b.t <= t).length, m.midBoss.filter(b => b.team === 1 && b.t <= t).length],
+  const one = (team: DlTeam): TeamState => {
+    const mine = m.players.filter(p => p.team === team);
+    const worth = mine.map(p => worthAt(m, demo, p.slot, t));
+    const lost = (kinds: string[]) => m.objectives.filter(o => o.team === team && o.destroyed !== null && o.destroyed > 0 && o.destroyed <= t && kinds.includes(o.kind)).length;
+    const bosses = m.midBoss.filter(b => b.team === team && b.t <= t);
+    return {
+      souls: worth.reduce((a, v) => a + v, 0), richest: Math.max(0, ...worth),
+      level: mine.length ? mine.reduce((a, p) => a + (statAt(m, p.slot, t)?.level ?? 1), 0) / mine.length : 0,
+      kills: m.deaths.filter(d => d.t <= t && d.killer !== null && teamOf.get(d.killer) === team && teamOf.get(d.slot) !== team).length,
+      alive: mine.filter(p => !m.deaths.some(d => d.slot === p.slot && t >= d.t && t < d.t + d.respawn)).length,
+      guardians: lost(['guardian']), walkers: lost(['walker']), baseGuardians: lost(['base guardian']), shrines: lost(['shrine']),
+      patron: lost(['titan']) > 0 ? 1 : 0, midBoss: bosses.length, recentBoss: bosses.some(b => t - b.t < RECENT_BOSS) ? 1 : 0,
+    };
   };
+  return { t, teams: [one(0), one(1)] };
+}
+
+/** The simple model's state at time t (team 0's side). */
+export function stateAt(m: DlMatch, demo: DlDemo | null, t: number): State {
+  return simpleState(valueStateAt(m, demo, t));
 }
 
 /** A team's chance to win at time t (0–1). */
 export function winChance(m: DlMatch, demo: DlDemo | null, t: number, team: DlTeam) {
-  const p0 = chance(WIN_MODEL.weights, stateAt(m, demo, t));
+  const vs = valueStateAt(m, demo, t);
+  const p0 = WIN_MODEL.kind === 'network' && WIN_MODEL.net ? valueChance(WIN_MODEL.net, vs) : chance(WIN_MODEL.weights, simpleState(vs));
   return team === 0 ? p0 : 1 - p0;
 }
 

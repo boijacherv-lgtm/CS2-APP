@@ -10,3 +10,6 @@ tsconfig.tsbuildinfo
 
 # security reports (the pen-test report and npm run security output): local only, the repo is public
 security/
+
+# training downloads (tools/dl-train.ts): re-fetched when missing
+tools/.cache/
