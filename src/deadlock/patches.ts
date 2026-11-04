@@ -8,8 +8,6 @@
 import { DL_HEROES } from './data';
 import ITEMS from './generated/items.json';
 
-const API = 'https://api.deadlock-api.com';
-const KEEP_MS = 6 * 3600e3;
 
 export type Dir = -1 | 0 | 1;
 export interface PatchChange { kind: 'hero' | 'item' | 'general'; id: number | null; name: string; ability: string | null; text: string; dir: Dir }
@@ -72,25 +70,14 @@ export function parseChanges(lines: string[]): PatchChange[] {
   return out;
 }
 
-/** The feed, newest first (kept 6 hours). */
-export async function patchNotes(): Promise<Patch[]> {
-  const k = 'stratboard.dlpatches';
-  try { const c = JSON.parse(localStorage.getItem(k) ?? 'null'); if (c && Date.now() - c.at < KEEP_MS) return c.v; } catch { /* read it again */ }
-  const res = await fetch(`${API}/v2/patches`);
-  if (!res.ok) throw new Error(`deadlock-api answered ${res.status}.`);
-  const raw = (await res.json()) as { title: string; pub_date: string; link: string; source: string; content: string }[];
-  const v: Patch[] = raw.map(p => {
+export type RawPatch = { title: string; pub_date: string; link: string; source: string; content: string };
+/** deadlock-api's feed as updates with their changes, newest first. */
+export function parsePatches(raw: RawPatch[]): Patch[] {
+  return raw.map(p => {
     const changes = parseChanges(textLines(p.content ?? ''));
     // a gameplay update: several changes to heroes or items (news posts and cosmetic updates have none)
     return { title: p.title.trim(), at: Math.floor(Date.parse(p.pub_date) / 1000), link: p.link, source: p.source, changes, gameplay: changes.filter(c => c.kind !== 'general').length >= 5 };
   }).sort((a, b) => b.at - a.at);
-  try { localStorage.setItem(k, JSON.stringify({ at: Date.now(), v })); } catch { /* too big or private mode */ }
-  return v;
-}
-
-/** The newest gameplay update and the one before it (for "since the last patch"). */
-export async function gameplayPatches(): Promise<Patch[]> {
-  return (await patchNotes()).filter(p => p.gameplay);
 }
 
 /** Per hero or item: how many buffs and nerfs, and the lines. */

@@ -1,22 +1,15 @@
 /**
- * The current meta from deadlock-api's analytics (called from the browser, kept a day per query): heroes on this
- * patch (win, pick and ban rates), each hero's builds and items, and how heroes do against and with each other (for
- * the draft). Everything is from matches since the last big patch, at the chosen ranks.
+ * The current meta from deadlock-api's analytics (the Worker's 3-hourly copy when there is one, else called from the
+ * browser and kept a day per query): heroes on this patch (win, pick and ban rates), each hero's builds and items, and
+ * how heroes do against and with each other (for the draft). Everything is from matches since the last big patch, at the chosen ranks.
  */
-import { gameplayPatches, tally, verdict, type Patch, type PatchChange } from './patches';
+import { tally, verdict, type Patch, type PatchChange } from './patches';
+import { gameplayPatches } from './patchFeed';
+import { filters, patchWindowFrom, RANKS, rankOf, type BanRow, type HeroRow, type MetaSnapshot, type RankBand } from './metaCore';
+import { API_URL } from '../env';
 const API = 'https://api.deadlock-api.com';
 
-/** Rank bands, by the match's average badge (tier × 10 + subrank 1–6: Initiate 1x … Eternus 11x). */
-export interface RankBand { id: string; label: string; min?: number; max?: number }
-export const RANKS: RankBand[] = [
-  { id: 'all', label: 'All ranks' },
-  { id: 'low', label: 'Initiate – Arcanist', max: 46 },
-  { id: 'mid', label: 'Ritualist – Emissary', min: 51, max: 66 },
-  { id: 'high', label: 'Archon – Oracle', min: 71, max: 86 },
-  { id: 'top', label: 'Phantom – Ascendant', min: 91, max: 106 },
-  { id: 'eternus', label: 'Eternus', min: 111 },
-];
-export const rankOf = (id: string) => RANKS.find(r => r.id === id) ?? RANKS[0];
+export { RANKS, rankOf, type RankBand };
 
 const DAY = 86400e3;
 async function cached<T>(key: string, url: string, slim: (v: T) => T = v => v): Promise<T> {
@@ -37,20 +30,30 @@ async function cached<T>(key: string, url: string, slim: (v: T) => T = v => v): 
 export async function patchStart(): Promise<number> {
   return (await patchWindow()).since;
 }
-/** The current patch's start, the previous patch's start (for "since last patch"), and the update itself. */
+/** The current patch's start, the previous patch's start (for "since last patch"), and the update itself: from the
+ * Worker's snapshot when there is one (everyone sees the same), else worked out here. */
 export async function patchWindow(): Promise<{ since: number; before: number; patch: Patch | null }> {
+  const snap = await sharedMeta();
+  if (snap) return { since: snap.since, before: snap.before, patch: snap.patches.find(p => Math.abs(p.at - snap.since) < 86400) ?? null };
   const [days, notes] = await Promise.all([
     cached<string[]>('patch', '/v1/patches/big-days').catch(() => [] as string[]),
     gameplayPatches().catch(() => [] as Patch[]),
   ]);
-  const bigDays = days.map(d => Math.floor(Date.parse(d) / 1000)).filter(Number.isFinite).sort((a, b) => b - a);
-  const starts = [...new Set([...bigDays, ...notes.map(p => p.at)])].sort((a, b) => b - a);
-  const since = starts[0] ?? Math.floor(Date.now() / 1000) - 14 * 86400;
-  // the one before (at least a day earlier: the forum and Steam posts of one update come hours apart)
-  const before = starts.find(t => t < since - 86400) ?? since - 14 * 86400;
-  return { since, before, patch: notes.find(p => Math.abs(p.at - since) < 86400) ?? null };
+  return patchWindowFrom(days, notes);
 }
-const filters = (since: number, band: RankBand) => `min_unix_timestamp=${since}${band.min !== undefined ? `&min_average_badge=${band.min}` : ''}${band.max !== undefined ? `&max_average_badge=${band.max}` : ''}`;
+
+/**
+ * The meta the Worker reads every 3 hours (worker/src/dlMeta.ts): the same for everyone, and one request instead of
+ * twenty right after a patch. Null without the Worker, or when its copy is missing or more than 12 hours old.
+ */
+let snapshot: Promise<MetaSnapshot | null> | null = null;
+export function sharedMeta(): Promise<MetaSnapshot | null> {
+  if (!API_URL) return Promise.resolve(null);
+  return (snapshot ??= fetch(`${API_URL}/dl/meta`, { signal: AbortSignal.timeout(5000) })
+    .then(r => (r.ok ? r.json() as Promise<MetaSnapshot> : null))
+    .then(s => (s && Date.now() - s.at < 12 * 3600e3 ? s : null))
+    .catch(() => null));
+}
 
 export interface HeroMeta { hero: number; matches: number; wins: number; winRate: number; pickRate: number; banRate: number | null;
   kda: [number, number, number]; soulsPerMin: number; tier: 'S' | 'A' | 'B' | 'C' | 'D';
@@ -68,11 +71,11 @@ const EARLY_GAMES = 3000;
  */
 export async function heroMeta(band: RankBand): Promise<{ since: number; before: number; patch: Patch | null; early: boolean; rows: HeroMeta[] }> {
   const { since, before, patch } = await patchWindow(), f = filters(since, band);
-  type H = { hero_id: number; wins: number; matches: number; total_kills: number; total_deaths: number; total_assists: number; total_net_worth: number };
-  const [hs, bans, prev] = await Promise.all([
-    cached<H[]>(`heroes.${band.id}.${since}`, `/v1/analytics/hero-stats?${f}`),
-    cached<{ hero_id: number; bans: number; matches: number }[]>(`bans.${band.id}.${since}`, `/v1/analytics/hero-ban-stats?${f}`).catch(() => []),
-    cached<H[]>(`heroesprev.${band.id}.${before}.${since}`, `/v1/analytics/hero-stats?${filters(before, band)}&max_unix_timestamp=${since}`).catch(() => [] as H[]),
+  const snap = await sharedMeta(), kept = snap?.since === since ? snap.bands[band.id] : undefined;
+  const [hs, bans, prev] = kept ? [kept.heroes, kept.bans, kept.prev] : await Promise.all([
+    cached<HeroRow[]>(`heroes.${band.id}.${since}`, `/v1/analytics/hero-stats?${f}`),
+    cached<BanRow[]>(`bans.${band.id}.${since}`, `/v1/analytics/hero-ban-stats?${f}`).catch(() => []),
+    cached<HeroRow[]>(`heroesprev.${band.id}.${before}.${since}`, `/v1/analytics/hero-stats?${filters(before, band)}&max_unix_timestamp=${since}`).catch(() => [] as HeroRow[]),
   ]);
   const notes = patch ? tally(patch.changes, 'hero') : new Map();
   // a match has 12 heroes: the share of matches a hero is in
