@@ -3,14 +3,14 @@
 // models on each fight both ways round: logistic regression and a small neural network. A fifth of the matches test
 // them against "the side with more heroes wins"; the better of the two ships. Then the same again with each side's
 // ultimates ready, on the matches dl:ults read the demo of: it ships only if it beats the model without them on the same
-// fights. Writes src/deadlock/generated/fightmodel.json.
+// fights (a small correction on top of the model without them). Writes src/deadlock/generated/fightmodel.json.
 //
 //   npm run dl:fight
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { matchFromMetadata } from '../src/deadlock/match';
-import { FIGHT_FEATURES, FIGHT_FEATURES_ULTS, fightChance, fightFeatures, fightsIn, type Fight, type FightModel } from '../src/deadlock/fightModel';
+import { FIGHT_FEATURES, fightChance, fightFeatures, fightsIn, ULT_STACK_KINDS, ultStackFeatures, type Fight, type FightModel } from '../src/deadlock/fightModel';
 import type { DlDemo } from '../src/deadlock/demo';
 import { trainMlp, type TrainSet } from '../src/engine/mlp';
 
@@ -40,7 +40,7 @@ const test = rows.filter(r => isTest(r.match)), val = rows.filter(r => isVal(r.m
 console.log(`${matches} matches: ${rows.length} fights with a winner (${even} even trades left out); ${train.length} to learn from, ${val.length} to stop on, ${test.length} to test`);
 
 // each fight both ways round: A against B, and B against A with the result flipped
-const both = (rs: Row[], ults = false) => rs.flatMap(r => [{ x: fightFeatures(r.f.t, r.f.sides[0], r.f.sides[1], ults), y: r.y }, { x: fightFeatures(r.f.t, r.f.sides[1], r.f.sides[0], ults), y: 1 - r.y }]);
+const both = (rs: Row[]) => rs.flatMap(r => [{ x: fightFeatures(r.f.t, r.f.sides[0], r.f.sides[1]), y: r.y }, { x: fightFeatures(r.f.t, r.f.sides[1], r.f.sides[0]), y: 1 - r.y }]);
 
 // ---- logistic regression (Newton's method, a little L2) ---------------------------------------------------------------
 function logistic(data: { x: number[]; y: number }[]): number[] {
@@ -88,27 +88,49 @@ const score = (pred: (r: Row) => number) => {
 };
 const sNum = score(numbers), sLog = score(r => fightChance(logisticModel, r.f.t, r.f.sides[0], r.f.sides[1])), sNet = score(r => fightChance(networkModel, r.f.t, r.f.sides[0], r.f.sides[1]));
 const best = sNet.logloss < sLog.logloss ? networkModel : logisticModel;
-// ---- with ultimates: the fights whose match had its demo read ---------------------------------------------------------
-const uTrain = train.filter(r => r.ults), uVal = val.filter(r => r.ults), uTest = test.filter(r => r.ults);
+// ---- with ultimates: a correction on top of the model above, from the fights whose match had its demo read --------------
+// (a model learned from scratch on these alone lost to the one above: it had less than half the fights to learn from)
+const uTrain = [...train, ...val].filter(r => r.ults), uTest = test.filter(r => r.ults);
 let ults: FightModel['ults'] = null, ultCompare: Record<string, unknown> | null = null;
 if (uTrain.length >= 1500 && uTest.length >= 300) {
-  const uLog: FightModel = { kind: 'logistic', weights: logistic(both([...uTrain, ...uVal], true)).map(v => +v.toFixed(5)) };
-  const uSet = (rs: Row[]): TrainSet => { const b = both(rs, true); return { x: b.map(r => r.x), spot: b.map(() => ''), y: b.map(r => r.y) }; };
-  const { net: uNet } = trainMlp(uSet(uTrain), uSet(uVal), { classes: 2, embDim: 1, h1: 24, h2: 12, epochs: 30, batch: 128, lr: 0.002, l2: 1e-4, minSpot: Infinity, seed: 3 });
-  const asUlts = (fit: FightModel): FightModel => ({ ...best, ults: fit });
-  const on = (rs: Row[], pred: (r: Row) => number) => {
-    const loss = -rs.reduce((a, r) => { const p = Math.min(1 - 1e-9, Math.max(1e-9, pred(r))); return a + (r.y ? Math.log(p) : Math.log(1 - p)); }, 0) / rs.length;
-    return { logloss: +loss.toFixed(4), accuracy: +(rs.filter(r => (pred(r) >= 0.5) === (r.y === 1)).length / rs.length).toFixed(3) };
+  const base = (r: Row) => { const strip = (x: Fight['sides'][0]) => ({ ...x, ults: undefined }); return fightChance(best, r.f.t, strip(r.f.sides[0]), strip(r.f.sides[1])); };
+  // both ways round, no intercept: the correction is the same from either side
+  const data = uTrain.flatMap(r => [{ x: ultStackFeatures(base(r), r.f.sides[0], r.f.sides[1]), y: r.y }, { x: ultStackFeatures(1 - base(r), r.f.sides[1], r.f.sides[0]), y: 1 - r.y }]);
+  const fitStack = (cols: number[]) => {
+    let w = cols.map(() => 0);
+    for (let it = 0; it < 40; it++) {
+      const d = cols.length, g = new Array(d).fill(0), H = Array.from({ length: d }, () => new Array(d).fill(0));
+      for (const r of data) {
+        const x = cols.map(c => r.x[c]), p = 1 / (1 + Math.exp(-x.reduce((s, v, i) => s + v * w[i], 0))), e = p - r.y, s2 = p * (1 - p);
+        for (let i = 0; i < d; i++) { g[i] += e * x[i]; for (let j = 0; j < d; j++) H[i][j] += s2 * x[i] * x[j]; }
+      }
+      for (let i = 0; i < d; i++) H[i][i] += 1e-3 * data.length;
+      const A = H.map((row, i) => [...row, g[i]]);
+      for (let c = 0; c < d; c++) {
+        const piv = A.reduce((bb, row, i) => (i >= c && Math.abs(row[c]) > Math.abs(A[bb][c]) ? i : bb), c);
+        [A[c], A[piv]] = [A[piv], A[c]];
+        for (let i = 0; i < d; i++) if (i !== c) { const f = A[i][c] / A[c][c]; for (let j = c; j <= d; j++) A[i][j] -= f * A[c][j]; }
+      }
+      w = w.map((v, i) => v - A[i][d] / A[i][i]);
+    }
+    // back to the full layout (zeros for the columns left out)
+    const full = new Array(2 + ULT_STACK_KINDS.length).fill(0);
+    cols.forEach((c, i) => { full[c] = +w[i].toFixed(5); });
+    return full;
   };
-  // the same test fights three ways: the shipped model without ultimates, and the two with
-  const noUlts = (r: Row) => { const strip = (x: Fight['sides'][0]) => ({ ...x, ults: undefined }); return fightChance(best, r.f.t, strip(r.f.sides[0]), strip(r.f.sides[1])); };
-  const sNo = on(uTest, noUlts), sULog = on(uTest, r => fightChance(asUlts(uLog), r.f.t, r.f.sides[0], r.f.sides[1])), sUNet = on(uTest, r => fightChance(asUlts({ kind: 'network', weights: uLog.weights, net: uNet }), r.f.t, r.f.sides[0], r.f.sides[1]));
-  const bestU = sUNet.logloss < sULog.logloss ? { fit: { kind: 'network' as const, weights: uLog.weights, net: uNet }, s: sUNet } : { fit: uLog, s: sULog };
-  if (bestU.s.logloss < sNo.logloss) ults = bestU.fit;
-  ultCompare = { fights: uTest.length, matches: new Set(rows.filter(r => r.ults).map(r => r.match)).size, without: sNo, logistic: sULog, network: sUNet, shipped: ults ? bestU.fit.kind : null,
-    // what each kind of ultimate ready is worth to a side (logistic weights: positive helps the side that has it)
-    weights: Object.fromEntries(FIGHT_FEATURES_ULTS.map((f, i) => [f, uLog.weights[i + 1]]).filter(([f]) => String(f) === 'ultsA' || (/A$/.test(String(f)) && FIGHT_FEATURES_ULTS.indexOf(String(f)) >= FIGHT_FEATURES.length + 2))) };
-  console.log(`with ultimates (${uTest.length} test fights): without ${sNo.accuracy} · logistic ${sULog.accuracy} · network ${sUNet.accuracy} → ${ults ? `ships ${bestU.fit.kind}` : 'not shipped'}`);
+  const on = (pred: (r: Row) => number) => {
+    const loss = -uTest.reduce((a2, r) => { const p = Math.min(1 - 1e-9, Math.max(1e-9, pred(r))); return a2 + (r.y ? Math.log(p) : Math.log(1 - p)); }, 0) / uTest.length;
+    return { logloss: +loss.toFixed(4), accuracy: +(uTest.filter(r => (pred(r) >= 0.5) === (r.y === 1)).length / uTest.length).toFixed(3) };
+  };
+  const withStack = (w: number[]) => (r: Row) => fightChance({ ...best, ults: { kind: 'stack', weights: w } }, r.f.t, r.f.sides[0], r.f.sides[1]);
+  const wCount = fitStack([0, 1]), wKinds = fitStack([0, 1, 2, 3, 4]);
+  const sNo = on(base), sCount = on(withStack(wCount)), sKinds = on(withStack(wKinds));
+  const bestU = sKinds.logloss < sCount.logloss ? { w: wKinds, s: sKinds, name: 'count and kinds' } : { w: wCount, s: sCount, name: 'count' };
+  if (bestU.s.logloss < sNo.logloss) ults = { kind: 'stack', weights: bestU.w };
+  ultCompare = { fights: uTest.length, matches: new Set(rows.filter(r => r.ults).map(r => r.match)).size, without: sNo, count: sCount, kinds: sKinds, shipped: ults ? bestU.name : null,
+    weights: { logOdds: bestU.w[0], ultsReady: bestU.w[1], ...Object.fromEntries(ULT_STACK_KINDS.map((k, i) => [k, bestU.w[2 + i]])) } };
+  console.log(`with ultimates (${uTest.length} test fights): without ${sNo.accuracy} (${sNo.logloss}) · + count ${sCount.accuracy} (${sCount.logloss}) · + kinds ${sKinds.accuracy} (${sKinds.logloss}) → ${ults ? `ships ${bestU.name}` : 'not shipped'}`);
+  console.log(`  weights: ${JSON.stringify(ultCompare.weights)}`);
 } else console.log(`with ultimates: only ${uTrain.length} fights to learn from and ${uTest.length} to test (run npm run dl:ults): not trained`);
 
 const out = {

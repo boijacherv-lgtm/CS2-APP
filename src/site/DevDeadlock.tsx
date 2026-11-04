@@ -19,7 +19,7 @@ const P = playnet as { since: string; matches: number; moments: number; actions:
 type Even = { evenNumbers: { n: number; accuracy: number } | null };
 type UltScore = { logloss: number; accuracy: number };
 const F = fightmodel as { at: string; matches: number; fights: number; evenTrades: number; kind: string; ults?: unknown;
-  ultCompare?: { fights: number; matches: number; without: UltScore; logistic: UltScore; network: UltScore; shipped: string | null; weights: Record<string, number> } | null;
+  ultCompare?: { fights: number; matches: number; without: UltScore; count: UltScore; kinds: UltScore; shipped: string | null; weights: Record<string, number> } | null;
   test: { fights: number; calibration: { bin: number; n: number; won: number | null }[] }; compare: { numbers: Scored & Even; logistic: Scored & Even; network: Scored & Even } };
 const S = dlsearch as { thresholds: number[]; replies: string; moments: number; matches: number; calibratedAt: string; bestShare: number; classes: Record<string, number>;
   effectFit: { r2Mean: number; r2Model: number }; playerLoss?: { median: number; p25: number; p75: number }; check: { corr: number; teams: number; byReplies: Record<string, number> } };
@@ -78,11 +78,12 @@ export function DevDeadlock({ owner }: { owner: boolean }) {
         <p className="muted small">Read 12 s before the first death (when you'd decide), from the match data. Said → won: {calib(F.test.calibration, 60)}</p>
         {F.ultCompare ? (
           <>
-            <table className="site-table"><thead><tr><th>With ultimates ready ({F.ultCompare.matches} matches with demos)</th><th>Log loss</th><th>Right</th></tr></thead><tbody>
-              <tr><td>Without ultimates</td><td className="num">{F.ultCompare.without.logloss}</td><td className="num">{pct(F.ultCompare.without.accuracy)}</td></tr>
-              {(['logistic', 'network'] as const).map(k => <tr key={k} className={F.ultCompare!.shipped === k ? 'on' : ''}><td>{k === 'logistic' ? 'Logistic' : 'Network'} with ultimates{F.ultCompare!.shipped === k ? ' · in use with a demo' : ''}</td><td className="num">{F.ultCompare![k].logloss}</td><td className="num">{pct(F.ultCompare![k].accuracy)}</td></tr>)}
+            <table className="site-table"><thead><tr><th>Ultimates ready ({F.ultCompare.matches} matches with demos)</th><th>Log loss</th><th>Right</th></tr></thead><tbody>
+              <tr className={F.ultCompare.shipped ? '' : 'on'}><td>Without ultimates{F.ultCompare.shipped ? '' : ' · in use'}</td><td className="num">{F.ultCompare.without.logloss}</td><td className="num">{pct(F.ultCompare.without.accuracy)}</td></tr>
+              <tr className={F.ultCompare.shipped === 'count' ? 'on' : ''}><td>+ how many ready</td><td className="num">{F.ultCompare.count.logloss}</td><td className="num">{pct(F.ultCompare.count.accuracy)}</td></tr>
+              <tr className={F.ultCompare.shipped === 'count and kinds' ? 'on' : ''}><td>+ how many, and area / control / protect</td><td className="num">{F.ultCompare.kinds.logloss}</td><td className="num">{pct(F.ultCompare.kinds.accuracy)}</td></tr>
             </tbody></table>
-            <p className="muted small">On the same {fmtInt(F.ultCompare.fights)} test fights. Used when the match's demo is read; without one, the model above. {F.ultCompare.shipped ? '' : 'Not shipped: it didn\'t beat the model without ultimates.'}</p>
+            <p className="muted small">A correction on top of the model above, on the same {fmtInt(F.ultCompare.fights)} test fights with demos. {F.ultCompare.shipped ? `In use with a demo: ${F.ultCompare.shipped}.` : 'Not shipped: ultimates ready 12 s before a fight barely change who wins once numbers, health, souls and help are known (each ultimate ready: +' + (F.ultCompare.weights.ultsReady ?? 0).toFixed(2) + ' log-odds). How they\'re used decides it: Match recap judges every use.'}</p>
           </>
         ) : <p className="muted small">No ultimates yet: npm run dl:ults reads them from demos.</p>}
       </section>
