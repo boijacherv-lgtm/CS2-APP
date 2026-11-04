@@ -123,3 +123,4 @@ a.site-card:hover, button.site-card:hover, a.feature:hover, .dl-row:hover:not(:d
 }
 :root[data-game="cs2"] { --theme-mark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><path d='M5 0v3.5M5 6.5V10M0 5h3.5M6.5 5H10' stroke='black' stroke-width='1.6'/></svg>"); }
 :root[data-game="deadlock"] { --theme-mark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><path d='M5 0L10 5L5 10L0 5Z'/></svg>"); }
+:root[data-game="neutral"] { --theme-mark: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><circle cx='5' cy='5' r='3.2'/></svg>"); }

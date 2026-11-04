@@ -47,9 +47,10 @@ export function gameOf(page: string): GameId {
   try { const g = localStorage.getItem(GAME_KEY); if (g === 'cs2' || g === 'deadlock') return g; } catch { /* private mode */ }
   return 'cs2';
 }
-/** The pages about the site itself rather than one game (the front page, plans): white, the chrome's own colour. */
+/** The pages about the site itself rather than one game (the front page, plans, the dev page): white, the chrome's own
+ * colour. */
 const NEUTRAL = { accent: T.text1, ink: T.bg0 };
-const NEUTRAL_PAGES = new Set(['home', 'pricing']);
+const NEUTRAL_PAGES = new Set(['home', 'pricing', 'dev']);
 /** What a page is dressed in: neutral for the site's own pages, else its game (gameOf). */
 export function themeOf(page: string): GameId | 'neutral' {
   return NEUTRAL_PAGES.has(page) || page === '' ? 'neutral' : gameOf(page);
