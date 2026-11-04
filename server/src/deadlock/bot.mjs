@@ -48,13 +48,14 @@ export class DeadlockBot {
         this.hello();
       });
     });
-    // which games the bot's licenses hold (Deadlock must be one)
+    // which games the bot's licenses hold. Package info fetched without access tokens often leaves free games out, so a
+    // missing Deadlock here proves nothing: the game coordinator's welcome ("connected to Deadlock") is the real check
     user.on('licenses', ls => {
       const ids = ls.map(l => l.package_id);
       user.getProductInfo([], ids, false, (err, apps, packages) => {
         if (err) return this.log(`deadlock bot: licenses: ${err.message}`);
         const owned = new Set(Object.values(packages ?? {}).flatMap(p => Object.values(p.packageinfo?.appids ?? {}).map(Number)));
-        this.log(`deadlock bot: packages ${ids.join(', ')}; ${owned.has(APP_ID) ? 'Deadlock is in the library' : 'Deadlock is NOT in the library'} (${owned.size} apps)`);
+        this.log(`deadlock bot: ${ids.length} licenses${owned.has(APP_ID) ? ', Deadlock among them' : ''}; waiting for Deadlock's game coordinator`);
       });
     });
     let heard = 0;

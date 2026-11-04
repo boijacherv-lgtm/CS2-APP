@@ -2,7 +2,8 @@
  * The match's demo, read by deadlock-api on its own servers (its Demo Query: SQL over the demo's entity and event
  * tables, ~20–60 s a match, results zstd-compressed NDJSON): what the match data doesn't have. Camps and Sinner's
  * Sacrifice up and down to the second, the urn on the ground and who carried it, the bridge buffs, every ability
- * cast (ultimates marked), kills with what did them, the mid boss's spawns and the Rejuvenator claims.
+ * cast (ultimates marked), kills with what did them, the mid boss's spawns, the Rejuvenator claims and who picked up
+ * whose soul bag.
  *
  * A demo tick is 1/64 s of match time (checked against the kills in the match data, ±1 s). Positions are the
  * Source 2 cell + offset: world = (cell − 64) × 512 + vec. Kept in this browser once read, like the match.
@@ -53,7 +54,11 @@ export interface DlDemo {
   /** Each Unstable Rift: when it showed on its bridge and where, when the point opened, the capture (each team's
    * progress and players on the point, by second), and who took it and when (null: not taken before the end). */
   rifts: { from: number; x: number; y: number; opens: number; taken: number | null; team: 0 | 1 | null; progress: { t: number; p: [number, number]; n: [number, number] }[] }[];
+  /** Soul bags (a killed hero's unsecured souls) picked up: when, by whom, whose, how many souls. Undefined: kept
+   * before bags were read; empty also when the demo is from before the game had them. */
+  bags?: DlBag[];
 }
+export interface DlBag { t: number; slot: number; victim: number | null; souls: number }
 /** A lane creep's life: its team, when it's first seen, and where it is each second from then (flat x, y, …). */
 export interface DlTrooper { team: 0 | 1; t0: number; xy: number[] }
 /** Seconds between two stats / creep samples. */
@@ -104,16 +109,24 @@ const QUERIES = {
   heroes: `SELECT tick / ${TICKS * TRACK_DT} AS b, entity_index AS e, last_value("CBodyComponent__m_cellX" ORDER BY tick) AS cx, last_value("CBodyComponent__m_cellY" ORDER BY tick) AS cy,
     last_value("CBodyComponent__m_cellZ" ORDER BY tick) AS cz, last_value("CBodyComponent__m_vecX" ORDER BY tick) AS vx, last_value("CBodyComponent__m_vecY" ORDER BY tick) AS vy,
     last_value("CBodyComponent__m_vecZ" ORDER BY tick) AS vz, last_value("m_lifeState" ORDER BY tick) AS ls FROM CCitadelPlayerPawn GROUP BY tick / ${TICKS * TRACK_DT}, entity_index ORDER BY b`,
+  // soul bags: older demos don't have this table (see OPTIONAL)
+  bags: `SELECT tick, CAST(pickup_player AS BIGINT) AS a, CAST(victim_player AS BIGINT) AS b, CAST(killfeed_gold AS BIGINT) AS g FROM SoulBagPickupEvent ORDER BY tick`,
   buffs: `SELECT tick, e, d, act, cx, cy, vx, vy FROM (SELECT tick, entity_index AS e, delta_type AS d, "m_bActive" AS act,
     lag("m_bActive") OVER (PARTITION BY entity_index ORDER BY tick) AS prev, ${POS} FROM CCitadel_Pickup_Modifier) WHERE d <> 'update' OR act <> prev ORDER BY tick`,
 };
 type Q = keyof typeof QUERIES;
 type Row = Record<string, number | string | boolean | null>;
+/** Queries a demo may not be able to answer (a table from a newer patch): their failure reads as nothing found. */
+const OPTIONAL = new Set<Q>(['bags']);
 
 /** Runs every query for a match on deadlock-api, together; `onWait` gets the longest estimated wait (s). */
 async function runAll(matchId: number, onWait: (s: number | null) => void, which: Q[] = Object.keys(QUERIES) as Q[]): Promise<Record<Q, Row[]>> {
   const jobs = {} as Record<Q, string>;
+  const done = {} as Record<Q, Row[]>;
   const submit = async (q: Q) => {
+    try { await submitOne(q); } catch (e) { if (!OPTIONAL.has(q) || e instanceof NoDemo) throw e; done[q] = []; }
+  };
+  const submitOne = async (q: Q) => {
     const res = await fetch(`${API}/v1/matches/demo/query`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ match_id: matchId, query: QUERIES[q], format: 'ndjson' }) });
     const out = await res.json().catch(() => ({}));
     if (res.status === 429) throw new Error('deadlock-api is busy reading demos: try again in a few minutes.');
@@ -125,14 +138,14 @@ async function runAll(matchId: number, onWait: (s: number | null) => void, which
   const [first, ...rest] = which;
   await submit(first);
   await Promise.all(rest.map(submit));
-  const done = {} as Record<Q, Row[]>;
-  for (let round = 0; Object.keys(done).length < Object.keys(jobs).length; round++) {
+  for (let round = 0; Object.keys(done).length < which.length; round++) {
     if (round > 90) throw new Error('Reading the demo is taking too long: try again later.');
     await new Promise(r => setTimeout(r, round === 0 ? 8000 : 4000));
     let wait: number | null = null;
     for (const q of Object.keys(jobs) as Q[]) {
       if (done[q]) continue;
       const st = await (await fetch(`${API}/v1/matches/demo/query/${jobs[q]}`)).json();
+      if (st.status === 'failed' && OPTIONAL.has(q)) { done[q] = []; continue; }
       if (st.status === 'failed') throw new Error(`The demo couldn't be read: ${String(st.error ?? 'unknown error').slice(0, 160)}`);
       if (st.status === 'done' && st.result_url) {
         const raw = new Uint8Array(await (await fetch(st.result_url)).arrayBuffer());
@@ -300,6 +313,7 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     } else if (r.k === 'midboss') midBossSpawns.push(t);
     else if (r.k === 'rejuv') rejuv.push({ t, slot: slotOf(r.a) });
   }
+  const bags = bagsFrom(q.bags ?? [], slotOf);
   // each player every 2 s, and their ultimate (unlocked when, every cooldown)
   const ns = Math.ceil(dur / STAT_DT) + 1;
   const stats: DlDemo['stats'] = {}, ults: DlDemo['ults'] = {};
@@ -345,7 +359,7 @@ export function buildDemo(m: DlMatch, q: Record<Q, Row[]>): DlDemo {
     });
     rifts.push({ from, ...p, opens, taken: scorer !== undefined ? shut : null, team: scorer !== undefined ? teamOfNum.get(scorer) ?? null : null, progress });
   }
-  return toMatchClock({ v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv, tracks, stats, ults, creeps, troopers, creepDeaths, rifts }, m);
+  return toMatchClock({ v: DEMO_V, camps: campLives.map(xs => merge(xs)), urn, buffs: buffs.map(xs => merge(xs)), casts, kills, midBossSpawns, rejuv, tracks, stats, ults, creeps, troopers, creepDeaths, rifts, bags }, m);
 }
 
 /**
@@ -430,7 +444,7 @@ export function toMatchClock(d: DlDemo, m: DlMatch): DlDemo {
     buffs: d.buffs.map(xs => xs.map(([a, b]) => [g(a), g(b)] as [number, number])),
     urn: d.urn.map(u => ({ ...u, from: g(u.from), landed: g(u.landed), taken: gn(u.taken), until: gn(u.until) })),
     casts: d.casts.map(c => ({ ...c, t: g(c.t) })), kills: d.kills.map(k => ({ ...k, t: g(k.t) })),
-    midBossSpawns: d.midBossSpawns.map(g), rejuv: d.rejuv.map(r => ({ ...r, t: g(r.t) })),
+    midBossSpawns: d.midBossSpawns.map(g), rejuv: d.rejuv.map(r => ({ ...r, t: g(r.t) })), bags: d.bags?.map(b => ({ ...b, t: g(b.t) })),
     creepDeaths: d.creepDeaths.map(c => ({ ...c, t: g(c.t) })),
     troopers: d.troopers ? troopersOnClock(d.troopers, m) : d.troopers,
     rifts: d.rifts.map(r => ({ ...r, from: g(r.from), opens: g(r.opens), taken: gn(r.taken), progress: r.progress.map(p => ({ ...p, t: g(p.t) })) })),
@@ -492,7 +506,11 @@ export async function loadDemo(m: DlMatch, onWait: (s: number | null) => void = 
       const d = await gunzipJson<DlDemo>(saved);
       // kept before the match-clock fix: fix it here (the replay may be gone from Valve, so it can't be read again)
       if (d.v === DEMO_V && d.clock === undefined) { const f = toMatchClock(d, m); if (f.clock) void setItem(KEY(m.id), await gzipJson(f)); return f; }
-      if (d.v === DEMO_V && d.clock === 2) { if (d.troopers === undefined) void addTroopers(m, d); return d; }
+      if (d.v === DEMO_V && d.clock === 2) {
+        if (d.troopers === undefined) void addTroopers(m, d);
+        else if (d.bags === undefined) void addBags(m, d);
+        return d;
+      }
     } catch { /* read it again */ }
   }
   if ((await demoState(m.id)) === 'none') throw new NoDemo(m.id);
@@ -614,6 +632,36 @@ async function addTroopers(m: DlMatch, d: DlDemo) {
     if (!(e instanceof NoDemo)) return; // busy or failed: try again next time
   }
   const f: DlDemo = { ...d, troopers };
+  void setItem(KEY(m.id), await gzipJson(f));
+  if (useDl.getState().match?.id === m.id && useDl.getState().demo === d) useDl.setState({ demo: f });
+}
+
+/** Soul bag pickups from their rows (players are pawn handles); on the demo's tick clock. */
+function bagsFrom(rows: Row[], slotOf: (h: Row[string]) => number | null): DlBag[] {
+  const out: DlBag[] = [];
+  for (const r of rows) {
+    const slot = slotOf(r.a);
+    if (slot !== null) out.push({ t: Number(r.tick) / TICKS, slot, victim: slotOf(r.b), souls: Number(r.g) || 0 });
+  }
+  return out;
+}
+
+/** A demo kept before soul bags were read: reads just them (and who's who) in the background, and keeps them. */
+async function addBags(m: DlMatch, d: DlDemo) {
+  let bags: DlBag[] = [];
+  try {
+    const q = await runAll(m.id, () => {}, ['players', 'bags']);
+    const slotOfPawn = new Map<number, number>();
+    for (const r of q.players) {
+      const slot = parseInt(String(r.slot ?? '').slice(0, 2), 16), pawn = Number(r.pawn) & 0x3fff;
+      if (Number.isFinite(slot) && pawn && pawn !== 0x3fff) slotOfPawn.set(pawn, slot);
+    }
+    const { g } = matchClock(m);
+    bags = bagsFrom(q.bags, h => (h == null ? null : slotOfPawn.get(Number(h) & 0x3fff) ?? null)).map(b => ({ ...b, t: g(b.t) }));
+  } catch (e) {
+    if (!(e instanceof NoDemo)) return; // busy or failed: try again next time
+  }
+  const f: DlDemo = { ...d, bags };
   void setItem(KEY(m.id), await gzipJson(f));
   if (useDl.getState().match?.id === m.id && useDl.getState().demo === d) useDl.setState({ demo: f });
 }

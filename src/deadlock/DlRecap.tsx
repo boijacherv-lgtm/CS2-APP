@@ -19,6 +19,8 @@ import ITEMS from './generated/items.json';
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const sign = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v)).toLocaleString()}`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
+/** A soul bag worth listing in the recap (smaller ones only show in the replay's feed). */
+const BIG_BAG = 300;
 type Item = { id: number; name: string; tier: number; cost: number; icon: string | null };
 const ITEM = new Map((ITEMS as Item[]).map(i => [i.id, i]));
 const HeroImg = ({ hero, size = 22 }: { hero: number; size?: number }) => {
@@ -292,8 +294,8 @@ export function Objectives({ match, team, watch }: { match: DlMatch; team: DlTea
   };
   const KINDS = ['base guardian', 'walker', 'guardian'] as const;
   const nameOf = (slot: number | null) => { const p = match.players.find(x => x.slot === slot); return p ? names[p.account]?.name ?? heroOf(p.hero).name : null; };
-  // everything big that happened, in order, with who did it
-  const feed = useMemo(() => feedEvents(match, demo).filter(e => e.kind !== 'kill'), [match, demo]);
+  // everything big that happened, in order, with who did it (soul bags only when they were worth it)
+  const feed = useMemo(() => feedEvents(match, demo).filter(e => e.kind !== 'kill' && (e.kind !== 'bag' || e.souls! >= BIG_BAG)), [match, demo]);
   return (
     <>
       <section className="recap-card">
@@ -339,6 +341,7 @@ export function Objectives({ match, team, watch }: { match: DlMatch; team: DlTea
             const text = e.kind === 'objective' ? <>{by ?? side} destroyed <b>{e.what}</b></>
               : e.kind === 'urn' ? (e.what === 'delivered' ? <>{by} delivered the <b>urn</b> <span className="dl-feed-souls">+{e.souls!.toLocaleString()}</span></> : <>{by} picked up the <b>urn</b></>)
               : e.kind === 'urnLost' ? <>{by} lost the <b>urn</b></>
+              : e.kind === 'bag' ? <>{by} took <b>{nameOf(e.victim ?? null) ?? 'a'}{e.victim !== undefined ? "'s" : ''} soul bag</b> <span className="dl-feed-souls">+{e.souls!.toLocaleString()}</span></>
               : e.kind === 'sinners' ? <>{by} took <b>Sinner's Sacrifice</b></>
               : e.kind === 'rejuv' ? <>{by} took the <b>Rejuvenator</b></>
               : e.kind === 'boss' ? <>{side} killed the <b>Mid Boss</b></>

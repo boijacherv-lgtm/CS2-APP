@@ -336,6 +336,7 @@ function FeedRow({ e, match, nameOf }: { e: FeedEvent; match: DlMatch; nameOf: (
     : e.kind === 'objective' ? <>{who(e.slot, e.team)}{verb('destroyed', <b>{e.what}</b>)}</>
     : e.kind === 'urn' ? <>{who(e.slot, e.team)}{e.what === 'delivered' ? verb('delivered the urn', <b className="dl-feed-souls">+{e.souls!.toLocaleString()}</b>) : verb('picked up the urn')}</>
     : e.kind === 'urnLost' ? <>{who(e.slot, e.team)}{verb('lost the urn')}</>
+    : e.kind === 'bag' ? <>{who(e.slot, e.team)}{verb(e.victim !== undefined ? 'took the soul bag of' : 'took a soul bag')}{e.victim !== undefined && who(e.victim, null)}<b className="dl-feed-souls">+{e.souls!.toLocaleString()}</b></>
     : e.kind === 'sinners' ? <>{who(e.slot, e.team)}{verb("took Sinner's Sacrifice")}</>
     : e.kind === 'rejuv' ? <>{who(e.slot, e.team)}{verb('took the Rejuvenator')}</>
     : e.kind === 'boss' ? <>{who(null, e.team)}{verb('killed the Mid Boss')}</>
