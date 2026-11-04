@@ -1,0 +1,442 @@
+{
+ "1": {
+  "name": "Concussive Combustion",
+  "hero": "Infernus",
+  "cd": 190,
+  "radius": 12,
+  "range": 0,
+  "stun": 1.25,
+  "duration": 0,
+  "summary": "Become a living bomb, dealing spirit damage and applying stun to all nearby enemies after a delay.Once cast, Concussive Combustion cannot be interrupted."
+ },
+ "2": {
+  "name": "Storm Cloud",
+  "hero": "Seven",
+  "cd": 205,
+  "radius": 30,
+  "range": 0,
+  "stun": 0,
+  "duration": 7,
+  "summary": "Channel an expanding storm cloud around you that damages all enemies within its radius."
+ },
+ "3": {
+  "name": "Assassinate",
+  "hero": "Vindicta",
+  "cd": 55,
+  "radius": 0,
+  "range": 1000,
+  "stun": 0,
+  "duration": 0,
+  "summary": "Use your scoped rifle to fire a powerful shot over long distances."
+ },
+ "4": {
+  "name": "Soul Exchange",
+  "hero": "Lady Geist",
+  "cd": 220,
+  "radius": 0,
+  "range": 5.5,
+  "stun": 0,
+  "duration": 0.3,
+  "summary": "Swaps health levels with an enemy target."
+ },
+ "6": {
+  "name": "Seismic Impact",
+  "hero": "Abrams",
+  "cd": 215,
+  "radius": 9,
+  "range": 0,
+  "stun": 1.6,
+  "duration": 0,
+  "summary": "Leap high into the air before crashing into the ground, dealing spirit damage and applying stun."
+ },
+ "7": {
+  "name": "Telekinesis",
+  "hero": "Wraith",
+  "cd": 150,
+  "radius": 20,
+  "range": 10,
+  "stun": 2,
+  "duration": 2.3,
+  "summary": "Lift an enemy hero into the air and then slam them towards the target location."
+ },
+ "8": {
+  "name": "Heavy Barrage",
+  "hero": "McGinnis",
+  "cd": 200,
+  "radius": 4.5,
+  "range": 36,
+  "stun": 0,
+  "duration": 8,
+  "summary": "Unleashes a volley of rockets that home in on a targeted location."
+ },
+ "10": {
+  "name": "Paradoxical Swap",
+  "hero": "Paradox",
+  "cd": 95,
+  "radius": 0,
+  "range": 25,
+  "stun": 0,
+  "duration": 0,
+  "summary": "Fire a projectile that swaps your position with the target enemy hero."
+ },
+ "11": {
+  "name": "Singularity",
+  "hero": "Dynamo",
+  "cd": 250,
+  "radius": 7,
+  "range": 0,
+  "stun": 0,
+  "duration": 2.8,
+  "summary": "Create a singularity in your hands, dealing spirit damage over time, applying stun, and pulling in nearby enemies."
+ },
+ "12": {
+  "name": "Frozen Shelter",
+  "hero": "Kelvin",
+  "cd": 190,
+  "radius": 10,
+  "range": 8,
+  "stun": 0,
+  "duration": 5,
+  "summary": "Target yourself or a Hero to freeze the air and create an impenetrable dome around them."
+ },
+ "13": {
+  "name": "Bullet Dance",
+  "hero": "Haze",
+  "cd": 165,
+  "radius": 16,
+  "range": 0,
+  "stun": 0,
+  "duration": 3.5,
+  "summary": "Enter a flurry, firing your weapon at nearby enemies with perfect accuracy and added Bullet Damage."
+ },
+ "14": {
+  "name": "Spirit Lasso",
+  "hero": "Holliday",
+  "cd": 130,
+  "radius": 2,
+  "range": 20,
+  "stun": 0,
+  "duration": 2.3,
+  "summary": "Throw out your lasso, dealing spirit damage, pulling, and applying stun.Using a Bounce Pad extends the duration of Spirit Lasso."
+ },
+ "15": {
+  "name": "Hyper Beam",
+  "hero": "Bebop",
+  "cd": 120,
+  "radius": 70,
+  "range": 0,
+  "stun": 0,
+  "duration": 11,
+  "summary": "Channel a powerful torrent of energy that deals spirit damage and applies slow."
+ },
+ "16": {
+  "name": "Return to Shadows",
+  "hero": "Calico",
+  "cd": 115,
+  "radius": 7.5,
+  "range": 0,
+  "stun": 0,
+  "duration": 3,
+  "summary": "Instantly turn to shadows, becoming untargetable, gaining bonus move speed, and dealing spirit damage."
+ },
+ "17": {
+  "name": "Guided Owl",
+  "hero": "Grey Talon",
+  "cd": 125,
+  "radius": 12,
+  "range": 0,
+  "stun": 0.75,
+  "duration": 20,
+  "summary": "After 1.5s cast time, launch a spirit owl that you control and which explodes on impact, damaging and stunning enemies."
+ },
+ "18": {
+  "name": "Combo",
+  "hero": "Mo & Krill",
+  "cd": 150,
+  "radius": 0,
+  "range": 4,
+  "stun": 0,
+  "duration": 2.4,
+  "summary": "Hold the target in place, stunning them and dealing damage during the channel."
+ },
+ "19": {
+  "name": "Killing Blow",
+  "hero": "Shiv",
+  "cd": 145,
+  "radius": 0,
+  "range": 12,
+  "stun": 0,
+  "duration": 0,
+  "summary": ""
+ },
+ "20": {
+  "name": "Air Drop",
+  "hero": "Ivy",
+  "cd": 100,
+  "radius": 20,
+  "range": 22,
+  "stun": 0,
+  "duration": 21,
+  "summary": "Grab an ally and take flight with them."
+ },
+ "25": {
+  "name": "Last Stand",
+  "hero": "Warden",
+  "cd": 180,
+  "radius": 12,
+  "range": 0,
+  "stun": 0,
+  "duration": 6,
+  "summary": "After charging for 2s, release pulses that damage enemies and heal you based on the damage done."
+ },
+ "27": {
+  "name": "Shadow Transformation",
+  "hero": "Yamato",
+  "cd": 160,
+  "radius": 0,
+  "range": 0,
+  "stun": 0,
+  "duration": 5,
+  "summary": "Become infused with Yamato's shadow soul."
+ },
+ "31": {
+  "name": "Death Slam",
+  "hero": "Lash",
+  "cd": 170,
+  "radius": 6,
+  "range": 20,
+  "stun": 0,
+  "duration": 2.3,
+  "summary": "Focus on enemies to connect whips to them."
+ },
+ "35": {
+  "name": "Goo Ball",
+  "hero": "Viscous",
+  "cd": 150,
+  "radius": 75,
+  "range": 0,
+  "stun": 0.5,
+  "duration": 11,
+  "summary": "Morph into a large goo ball that deals damage and stuns enemies on impact."
+ },
+ "50": {
+  "name": "Affliction",
+  "hero": "Pocket",
+  "cd": 170,
+  "radius": 9,
+  "range": 0,
+  "stun": 0,
+  "duration": 0,
+  "summary": "Applies damage over time to enemies nearby.Affliction's damage is non-lethal and does not apply item procs."
+ },
+ "52": {
+  "name": "Traveler",
+  "hero": "Mirage",
+  "cd": 140,
+  "radius": 0,
+  "range": 0,
+  "stun": 0,
+  "duration": 0,
+  "summary": "Target a location on the minimap."
+ },
+ "58": {
+  "name": "Petrifying Bola",
+  "hero": "Vyper",
+  "cd": 115,
+  "radius": 12,
+  "range": 0,
+  "stun": 2.2,
+  "duration": 0,
+  "summary": "Throw an explosive bola."
+ },
+ "60": {
+  "name": "Audience Participation",
+  "hero": "Sinclair",
+  "cd": 85,
+  "radius": 0,
+  "range": 20,
+  "stun": 0,
+  "duration": 0,
+  "summary": "Copy the Ultimate of an enemy hero for a limited time."
+ },
+ "63": {
+  "name": "Nox Nostra",
+  "hero": "Mina",
+  "cd": 150,
+  "radius": 0,
+  "range": 40,
+  "stun": 0,
+  "duration": 0,
+  "summary": "Active: Unleash a cloud of bats that seek out targets, each dealing spirit damage and applying Silence.Passive: Triggering Love Bites against heroes permanently"
+ },
+ "64": {
+  "name": "Eternal Night",
+  "hero": "Drifter",
+  "cd": 145,
+  "radius": 0,
+  "range": 100,
+  "stun": 0,
+  "duration": 6.5,
+  "summary": "Surround nearby enemy heroes in darkness, severely limiting their vision of other units."
+ },
+ "65": {
+  "name": "Ira Domini",
+  "hero": "Venator",
+  "cd": 160,
+  "radius": 0.2,
+  "range": 0,
+  "stun": 0,
+  "duration": 15,
+  "summary": "Load your crossbow with 3 stakes, dealing massively increased weapon damage.The final stake is blessed, dealing bonus pure damage and executing low-health enemi"
+ },
+ "66": {
+  "name": "Shocking Reanimation",
+  "hero": "Victor",
+  "cd": 240,
+  "radius": 18,
+  "range": 0,
+  "stun": 1.5,
+  "duration": 3,
+  "summary": "Release a wave after taking lethal damage, applying a diminishing slow."
+ },
+ "67": {
+  "name": "Rallying Charge",
+  "hero": "Paige",
+  "cd": 210,
+  "radius": 4,
+  "range": 600,
+  "stun": 1,
+  "duration": 13,
+  "summary": "Release a wave of spectral knights and steeds that charge across the entire city, healing allies and dealing spirit damage to enemies."
+ },
+ "69": {
+  "name": "Hotel Guest",
+  "hero": "The Doorman",
+  "cd": 140,
+  "radius": 0,
+  "range": 7,
+  "stun": 0,
+  "duration": 6.5,
+  "summary": "Send the target's physical body to be a guest at the Baroness Hotel."
+ },
+ "72": {
+  "name": "Chain Gang",
+  "hero": "Billy",
+  "cd": 175,
+  "radius": 0,
+  "range": 12,
+  "stun": 0,
+  "duration": 2.8,
+  "summary": "Chain nearby enemies to you."
+ },
+ "76": {
+  "name": "Borrowed Decree",
+  "hero": "Graves",
+  "cd": 140,
+  "radius": 8,
+  "range": 20,
+  "stun": 0,
+  "duration": 16,
+  "summary": ""
+ },
+ "77": {
+  "name": "Itani Lo Sahn",
+  "hero": "Apollo",
+  "cd": 145,
+  "radius": 7,
+  "range": 27,
+  "stun": 0,
+  "duration": 0,
+  "summary": "Charge up and perform a long range slash."
+ },
+ "78": {
+  "name": "Close The Deal",
+  "hero": "Deadman Danny",
+  "cd": 135,
+  "radius": 0,
+  "range": 10,
+  "stun": 0.5,
+  "duration": 0,
+  "summary": "Grab an enemy and give them a hands-on demonstration, flying high into the air before crashing back to the ground.You and the participant take spirit damage ove"
+ },
+ "79": {
+  "name": "Naptime",
+  "hero": "Rem",
+  "cd": 200,
+  "radius": 19,
+  "range": 24,
+  "stun": 4,
+  "duration": 1.9,
+  "summary": "Cast your gaze forward, piercing walls and floors."
+ },
+ "80": {
+  "name": "Lycan Curse",
+  "hero": "Silver",
+  "cd": 60,
+  "radius": 0,
+  "range": 0,
+  "stun": 0,
+  "duration": 15,
+  "summary": "Passive: Dealing damage generates bloodlust, increased at low health."
+ },
+ "81": {
+  "name": "Shining Wonder",
+  "hero": "Celeste",
+  "cd": 160,
+  "radius": 15.5,
+  "range": 0,
+  "stun": 0,
+  "duration": 0,
+  "summary": "Launch a deadly orb of light that deals spirit damage and applies slow and reduces Dash Distance on impact."
+ },
+ "84": {
+  "name": "Rule, Ratannia!",
+  "hero": "Rat King",
+  "cd": 180,
+  "radius": 20,
+  "range": 0,
+  "stun": 0,
+  "duration": 10,
+  "summary": "Charge up and summon the banner of Ratannia, granting all nearby allies increased move speed, immunity from slows, and reduced incoming damage while near the ba"
+ },
+ "85": {
+  "name": "Develop Queen",
+  "hero": "Solomon",
+  "cd": 240,
+  "radius": 0,
+  "range": 30,
+  "stun": 1.25,
+  "duration": 0,
+  "summary": ""
+ },
+ "86": {
+  "name": "Abstract Landscape",
+  "hero": "Violet",
+  "cd": 180,
+  "radius": 18,
+  "range": 0,
+  "stun": 2,
+  "duration": 6,
+  "summary": "Create a circular display of ink that blocks vision and grants allies Spirit.Enemies inside are revealed, and leaving causes them to take spirit damage and suff"
+ },
+ "87": {
+  "name": "Lurking Terrors",
+  "hero": "Nurse Harrow",
+  "cd": 200,
+  "radius": 0,
+  "range": 35,
+  "stun": 0,
+  "duration": 7,
+  "summary": "Open your bag and reveal the horrors you carry inside, dealing spirit damage over time to enemies in front of you."
+ },
+ "88": {
+  "name": "Feed The Birds",
+  "hero": "Baba",
+  "cd": 150,
+  "radius": 0,
+  "range": 18,
+  "stun": 0,
+  "duration": 6.5,
+  "summary": "Cover targets in front of you with bread, adding a stacking slow .When the channel ends a flock of pigeons bombard the targets, dealing spirit damage and hexing"
+ }
+}

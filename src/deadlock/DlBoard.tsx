@@ -24,6 +24,7 @@ import { NOTE_INFO } from '../engine/recap';
 import PLAY from './generated/playnet.json';
 import { ACTION_LABEL, playChances, WINDOW, type Action } from './playNet';
 import { searchAt, SEARCH_COLOR } from './search';
+import { ultOf } from './ultKinds';
 import type { Mlp } from '../engine/mlp';
 
 const PLAY_NET = (PLAY as { net: Mlp | null }).net;
@@ -57,6 +58,8 @@ export function DlBoard() {
   const match = useDl(s => s.match)!;
   const time = useDl(s => s.time), playing = useDl(s => s.playing), speed = useDl(s => s.speed), selected = useDl(s => s.selected);
   const names = useDl(s => s.names);
+  // your team (or team 0): an ultimate's tooltip says how to play against it on the other one
+  const mySlot = useMySlot(), myTeam = match.players.find(p => p.slot === mySlot)?.team ?? 0;
 
   // playback
   useEffect(() => {
@@ -153,7 +156,7 @@ export function DlBoard() {
                   <span className="dl-hp"><i style={{ width: `${at?.hp ?? 0}%`, background: (at?.hp ?? 0) <= 30 ? 'var(--bad)' : TEAM_COLOR[team] }} /></span>
                   {death && <span className="dl-respawn num">{Math.ceil(death.t + death.respawn - time)}</span>}
                   {ult && ultInfo && (
-                    <span className={`dl-ult ${ult.state}`} title={`${ultInfo.name}: ${ult.state === 'locked' ? 'not unlocked yet' : ult.state === 'ready' ? 'ready' : ult.state === 'unlocked' ? 'unlocked (when it was used needs the demo)' : `back in ${Math.ceil(ult.left)} s`}`}>
+                    <span className={`dl-ult ${ult.state}`} title={`${ultInfo.name}: ${ult.state === 'locked' ? 'not unlocked yet' : ult.state === 'ready' ? 'ready' : ult.state === 'unlocked' ? 'unlocked (when it was used needs the demo)' : `back in ${Math.ceil(ult.left)} s`}${ultTip(p.hero, p.team !== myTeam)}`}>
                       {ultInfo.img && <img src={ultInfo.img} alt="" />}
                       {ult.state === 'cooldown' && <b className="num">{Math.ceil(ult.left)}</b>}
                     </span>
@@ -351,6 +354,12 @@ function PlayHint({ match, slot, time }: { match: DlMatch; slot: number; time: n
       </> : <span><span className="muted">Phantom+ here:</span> {ACTION_LABEL[top[0]]} <b className="num">{Math.round(top[1] * 100)}%</b></span>}
     </span>
   );
+}
+
+/** An ultimate's tooltip: what it does (ultBook.ts), and for an enemy, how to play against it. */
+function ultTip(hero: number, enemy: boolean) {
+  const u = ultOf(hero);
+  return u ? `\n${u.does}${enemy ? `\nAgainst it: ${u.against}` : `\nUse it: ${u.use}`}` : '';
 }
 
 /** One line of the feed: who did what (hero icon and name in their team's colour), to whom or what. */

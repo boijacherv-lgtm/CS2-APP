@@ -599,3 +599,4 @@
   .dl-engine-moves li { grid-template-columns: 1fr auto; }
   .dl-engine-moves .dl-engine-cls { justify-self: start; }
 }
+.dl-engine-ult { margin: 0 0 8px; font-size: 13.5px; line-height: 1.5; }

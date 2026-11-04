@@ -535,6 +535,17 @@ export async function loadDemo(m: DlMatch, onWait: (s: number | null) => void = 
   return d;
 }
 
+/**
+ * Just each player's ultimate from a match's demo (unlocked when, every cooldown, on the match clock), read with three of
+ * the queries instead of all of them and put together by buildDemo like a full read: for training the fight model's
+ * ultimates (tools/dl-ults.ts).
+ */
+export async function readUlts(m: DlMatch): Promise<DlDemo['ults']> {
+  const q = await runAll(m.id, () => {}, ['players', 'stats', 'events']);
+  const empty = Object.fromEntries((Object.keys(QUERIES) as Q[]).map(k => [k, []])) as unknown as Record<Q, Row[]>;
+  return buildDemo(m, { ...empty, ...q }).ults;
+}
+
 /** Whether `t` falls in one of the intervals. */
 export const upAt = (xs: [number, number][], t: number) => xs.some(([a, b]) => t >= a && t < b);
 
