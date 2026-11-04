@@ -3,8 +3,9 @@ import { Icon } from '../ui/Icon';
 import { Loading } from '../ui/Loading';
 import { DL_HEROES, heroOf } from './data';
 import ITEMS from './generated/items.json';
-import { draftStats, heroBuilds, heroMeta, rankOf, RANKS, readDraft, suggest, type HeroMeta, type RankBand } from './meta';
-import { gameplayPatches, tally, verdict, type Dir, type Patch, type PatchChange } from './patches';
+import { draftStats, heroBuilds, heroMeta, rankOf, RANKS, readDraft, sharedMeta, suggest, type HeroMeta, type RankBand } from './meta';
+import { tally, verdict, type Dir, type Patch, type PatchChange } from './patches';
+import { gameplayPatches } from './patchFeed';
 import { counterItems, type CounterItem } from './meta';
 import { suggestBuild, type Focus, type Item } from './suggest';
 import { MY_GRADES } from './DlProfile';
@@ -317,7 +318,7 @@ const DIR_MARK: Record<Dir, string> = { 1: 'buff', 0: 'change', [-1]: 'nerf' } a
  */
 export function PatchView({ onHero }: { onHero: (hero: number) => void }) {
   const [band] = useRank();
-  const notes = useLoad(() => gameplayPatches(), []);
+  const notes = useLoad(() => sharedMeta().then(s => s?.patches ?? gameplayPatches()), []);
   const meta = useLoad(() => heroMeta(band), [band.id]);
   const [pick, setPick] = useState(0);
   if (notes.err) return <p className="warn-text">{notes.err}</p>;

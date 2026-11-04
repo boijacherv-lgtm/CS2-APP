@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { patchWindowFrom } from '../metaCore';
+import type { Patch } from '../patches';
 import { direction, parseChanges, tally, textLines, verdict } from '../patches';
 import { DL_HEROES } from '../data';
 
@@ -25,5 +27,17 @@ describe('reading patch notes', () => {
     const t = tally(cs, 'hero');
     expect(verdict(t.get(id('Celeste'))!)).toBe('nerfed');
     expect(verdict(t.get(id('The Doorman'))!)).toBe('buffed');
+  });
+});
+
+describe('the patch window', () => {
+  const p = (at: number): Patch => ({ title: 'Update', at, link: '', source: '', changes: [], gameplay: true });
+  it('starts at the newest of the notes and the big days, and the one before is a day or more earlier', () => {
+    const day = 86400, t = 1_800_000_000;
+    // the forum and Steam posts of one update, hours apart, and an older big day
+    const w = patchWindowFrom([new Date((t - 20 * day) * 1000).toISOString()], [p(t), p(t - 3600)]);
+    expect(w.since).toBe(t);
+    expect(w.before).toBe(t - 20 * day);
+    expect(w.patch?.at).toBe(t);
   });
 });

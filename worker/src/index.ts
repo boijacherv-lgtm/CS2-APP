@@ -18,6 +18,7 @@
 import { adminStats, isOwner, isPro, saveHeartbeat } from './admin';
 import { askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
 import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } from './dlDisputes';
+import { META_KEY, refreshDlMeta } from './dlMeta';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
@@ -62,6 +63,10 @@ const MAX_TRIES = 3; // the server gives up on a demo after this many failures
 const MAX_DEMO_BYTES = 24 * 1024 * 1024; // KV values must stay under 25 MB
 
 export default {
+  // every 3 hours (wrangler.toml): Deadlock's meta for everyone
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(refreshDlMeta(env.SB).then(() => undefined));
+  },
   async fetch(req: Request, env: Env): Promise<Response> {
     const origin = req.headers.get('Origin') ?? '';
     const allowed = env.SITE_ORIGINS.split(',').map(s => s.trim()).filter(Boolean);
@@ -91,6 +96,12 @@ export default {
       // Deadlock: what the owner's rulings on disputed marks change (public, cached a few minutes)
       if (req.method === 'GET' && path === '/dl/corrections')
         return new Response(JSON.stringify(await dlCorrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });
+      // Deadlock: the meta the 3-hourly job read (dlMeta.ts); public, cached 10 minutes
+      if (req.method === 'GET' && path === '/dl/meta') {
+        const meta = await env.SB.get(META_KEY);
+        if (!meta) return json({ error: 'Not read yet.' }, 404);
+        return new Response(meta, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600', ...cors } });
+      }
       if (req.method === 'GET' && path === '/profiles') {
         if (!allowed.includes(origin)) return json({ error: 'Not allowed from here.' }, 403);
         return json({ profiles: await profiles(env, new URL(req.url).searchParams.get('ids') ?? '') });
