@@ -46,7 +46,8 @@ body {
 .site-card, .feature, .dl-row, .dl-rc-tile, .dl-counters li, .dl-rc-item, .dl-phases > div, .steam-list tr, .hero-games-live {
   transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
 }
-.site-card:hover, .feature:hover, .dl-row:hover:not(:disabled), .dl-rc-tile:hover, .dl-counters li:hover, .dl-rc-item:hover, .hero-games-live:hover {
+/* only on things you can click: a card that isn't a link or button stays still */
+a.site-card:hover, button.site-card:hover, a.feature:hover, .dl-row:hover:not(:disabled), .hero-games-live:hover {
   border-color: color-mix(in srgb, var(--theme) 40%, var(--border));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--theme) 18%, transparent), 0 10px 34px -14px color-mix(in srgb, var(--theme) 55%, transparent);
 }

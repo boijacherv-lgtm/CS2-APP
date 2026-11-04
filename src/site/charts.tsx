@@ -130,7 +130,7 @@ export function Radar({ axes, refLabel = 'Level 10' }: { axes: RadarAxis[]; refL
   const poly = (f: (i: number) => number) => axes.map((_, i) => pt(i, f(i)).map(v => v.toFixed(1)).join(',')).join(' ');
   return (
     <div className="radar">
-      <svg viewBox={`0 0 ${S} ${S}`} role="img" aria-label={`Your skills against ${refLabel.toLowerCase()}`}>
+      <svg viewBox={`-78 -4 ${S + 156} ${S + 8}`} role="img" aria-label={`Your skills against ${refLabel.toLowerCase()}`}>
         {[0.25, 0.5, 0.75, 1].map(f => <polygon key={f} points={poly(() => Rmax * f)} className="radar-grid" />)}
         {axes.map((_, i) => { const [x, y] = pt(i, Rmax); return <line key={i} x1={C} y1={C} x2={x} y2={y} className="radar-grid" />; })}
         <polygon points={poly(() => r(0))} className="radar-ref" />

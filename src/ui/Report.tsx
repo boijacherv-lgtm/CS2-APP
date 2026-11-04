@@ -106,11 +106,6 @@ export function MatchReportPage() {
                 <ul className="ov-list keep">{overview.keep.map(n => <li key={n.title}><b>{n.title}</b></li>)}</ul>
               </>
             )}
-            <div className="ov-go">
-              {RECAP_TABS.filter(t => t.id !== 'overview').map(t => (
-                <button key={t.id} className="ov-go-btn" onClick={() => pickTab(t.id)}><Icon name={t.icon} size={14} /> {t.label} <Icon name="arrowRight" size={12} /></button>
-              ))}
-            </div>
             <details className="rp-how">
               <summary><Icon name="info" size={13} /> How the rating and grades work</summary>
               <p><b>Game rating</b>: the Premier rating at which this player's duels (each kill a win, each death a loss, against each opponent's real rating) come out as expected, plus {IMPACT_PER_POINT} points per point of round impact. A {Math.round(RATING_SCALE * 0.3)}-point gap makes the higher-rated player a 2:1 favourite in a duel.</p>

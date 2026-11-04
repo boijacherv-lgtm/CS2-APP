@@ -148,33 +148,15 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
         if (!s.playing && s.time >= end - 0.05) s.setTime(s.judging?.from ?? 0);
         s.setPlaying(!s.playing);
       }}><Icon name={s.playing ? 'pause' : 'play'} /><span> {s.playing ? 'Pause' : 'Play'}</span></button>
-      <button onClick={() => { s.setPlaying(false); s.setTime(s.judging?.from ?? 0); }} title={s.judging ? 'Back to the clip\'s start' : 'Back to round start'} aria-label={s.judging ? 'Back to the clip\'s start' : 'Back to round start'}><Icon name="toStart" /></button>
       <select value={s.speed} onChange={e => s.setSpeed(+e.target.value)} title="Playback speed">
         <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
       </select>
-      {review && <EvalToggle />}
-      {review && (
-        <button className={s.popups ? 'on' : ''} onClick={e => { s.setPopups(!s.popups); e.currentTarget.blur(); }}
-          title={s.popups ? 'Move windows: on (a window with the grade and comments for each graded move)' : 'Move windows: off'} aria-label="Move windows"><Icon name="chat" /><span className="pb-label">Cards</span></button>
-      )}
-      {review && (
-        <button className={s.engineLines ? 'on' : ''} onClick={e => { s.setEngineLines(!s.engineLines); e.currentTarget.blur(); }}
-          title={s.engineLines ? 'Arrows: on (the engine\'s best option against what was done, and a line from each card to its player)' : 'Arrows: off (turn on to see the engine\'s lines and which player a card is about)'} aria-label="Arrows"><Icon name="route" /><span className="pb-label">Arrows</span></button>
-      )}
-      {review && (
-        <button className={`pb-rage ${s.rage ? 'on' : ''}`} onClick={e => { s.setRage(!s.rage); e.currentTarget.blur(); }}
-          title={s.rage ? 'Rage mode: on (the coach swears at your plays)' : 'Rage mode: off. Turn on to have the coach lose it at your plays (18+, strong language)'} aria-label="Rage mode"><Icon name="bolt" /><span className="pb-label">Rage</span></button>
-      )}
-      {review && s.popups && (
-        <button onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
-          title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'} aria-label="Slow motion while reading" className={`pb-slow ${s.readSlow ? 'on' : ''}`}><Icon name="slow" /><span className="pb-label">Slow</span></button>
-      )}
-      {review && <NoteKey />}
       {review && recap && round
         ? <Timeline end={end} recap={recap} round={round} time={s.time} spoilers={s.reviewSpoilers} onSeek={t => { s.setPlaying(false); s.setTime(t); }} />
         : <input className="playbar-range" type="range" min={0} max={max} step={0.1} value={Math.min(s.time, max)}
             title="Seconds after freeze time"
             onChange={e => { s.setPlaying(false); s.setTime(+e.target.value); }} />}
+      {review && <ReviewOptions />}
       {!review && (
         <>
           <button className={s.combat ? 'on' : ''} onClick={() => s.setCombat(!s.combat)} title="Combat: players fight and die" aria-label="Combat"><Icon name="swords" /></button>
@@ -248,12 +230,38 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
   );
 }
 
-/** What the grade marks mean (on the map, the timeline, the killfeed and the cards). */
-function NoteKey() {
+/**
+ * Review's settings in one menu over the playbar: whose moves are graded, the coach's cards (and slow motion while
+ * reading them), the engine's arrows, rage mode, and what the marks mean.
+ */
+function ReviewOptions() {
+  const s = useStore();
+  const toggle = (on: boolean, set: (v: boolean) => void, icon: Parameters<typeof Icon>[0]['name'], label: string, tip: string, cls = '') => (
+    <button className={`opt-row ${cls} ${on ? 'on' : ''}`} onClick={() => set(!on)} aria-pressed={on} title={tip}>
+      <Icon name={icon} /><span>{label}</span><i className="opt-switch" />
+    </button>
+  );
   return (
-    <details className="note-key">
-      <summary title="What the marks mean">Key</summary>
-      <div className="note-key-pop">
+    <details className="pb-options">
+      <summary title="Review settings"><Icon name="gear" /><span className="pb-label">Options</span></summary>
+      <div className="pb-options-pop">
+        <div className="opt-head">Graded moves</div>
+        <EvalToggle />
+        {toggle(s.popups, s.setPopups, 'chat', 'Coach cards', 'A card with the grade and comments for each graded move')}
+        {s.popups && toggle(s.readSlow, s.setReadSlow, 'slow', 'Slow while reading', 'Slow motion while a card is open')}
+        {toggle(s.engineLines, s.setEngineLines, 'route', 'Arrows', "The engine's best option against what was done, and a line from each card to its player")}
+        {toggle(s.rage, s.setRage, 'bolt', 'Rage mode', 'The coach swears at your plays (18+, strong language)', 'rage')}
+        <div className="opt-head">What the marks mean</div>
+        <NoteKeyRows />
+      </div>
+    </details>
+  );
+}
+
+/** What the grade marks mean (on the map, the timeline, the killfeed and the cards). */
+function NoteKeyRows() {
+  return (
+    <div className="note-key-rows">
         {(Object.keys(NOTE_INFO) as Annotation[]).map(a => (
           <div key={a} className="note-key-row">
             <NoteMark m={{ note: a, kind: 'kill' }} />
@@ -261,8 +269,7 @@ function NoteKey() {
           </div>
         ))}
         <p className="muted">The % on a card is how much the move changed its team's chance to win the round.</p>
-      </div>
-    </details>
+    </div>
   );
 }
 

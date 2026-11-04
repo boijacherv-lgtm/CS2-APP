@@ -37,14 +37,10 @@ export function TeamRoster({ side, players, round, time }: { side: 'CT' | 'T'; p
   let k = 0; while (k < ft.length - 1 && ft[k + 1] <= time) k++;
   const gears = players.map(p => (p.alive ? gearAt(round, p.id, time) : null));
   const bank = players.reduce((a, p) => a + (gearAt(round, p.id, time)?.money ?? 0), 0);
-  const alive = players.filter(p => p.alive).length;
   return (
     <div className={`teambar ${side.toLowerCase()}`}>
       <div className="tb-head">
         <b><span className="tb-long">{side === 'CT' ? 'Counter-Terrorists' : 'Terrorists'}</span><span className="tb-short">{side}</span></b>
-        <span className="tb-alive" title={`${alive} of ${players.length} alive`}>
-          {players.map((p, i) => <i key={i} className={p.alive ? 'on' : ''} />)}
-        </span>
         {bank > 0 && <span className="tb-bank num" title="The team's money">{dollars(bank)}</span>}
       </div>
       {players.map((p, i) => {
