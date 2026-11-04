@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loading } from '../ui/Loading';
 import { matchPosition } from './bench';
-import { heroOf, LANES, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
+import { DL_MAP_IMAGE, heroOf, LANES, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { useRank } from './DlMeta';
 import { LinesChart } from './DlCharts';
 import { economy, laneOpponent, teamSouls, unspentAtDeaths, worthAt } from './grade';
@@ -14,6 +14,7 @@ import { statAt, type DlMatch, type DlObjective } from './match';
 import { counterItems, heroBuilds, type CounterItem } from './meta';
 import { useDl } from './store';
 import { feedEvents } from './events';
+import { positioning, SPOT_GRID, SPOT_PHASES, SPOT_SOURCE, spotGrid } from './spots';
 import ITEMS from './generated/items.json';
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -389,6 +390,53 @@ export function WinChance({ match, team, watch }: { match: DlMatch; team: DlTeam
           {moves.map(m => <button key={m.t} className={`chip ${m.d >= 0 ? 'up' : 'down'}`} onClick={() => watch(m.t)}>{mins(m.t)} · {m.d >= 0 ? '+' : '−'}{Math.abs(m.d).toFixed(0)} pts</button>)}
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * Where you played next to good players in your position (spots.ts): per stage, the share of your time spent where
+ * they usually are; a small map of their usual spots with your path; and the longest stretches you spent where they
+ * rarely go, to watch (not marked as mistakes: a flank can be right).
+ */
+export function Positioning({ match, slot, watch }: { match: DlMatch; slot: number; watch: (t: number) => void }) {
+  const demo = useDl(s => s.demo);
+  const p = useMemo(() => positioning(match, slot, demo), [match, slot, demo]);
+  const team = match.players.find(x => x.slot === slot)?.team ?? 0;
+  const firstLive = p ? Math.max(0, p.phases.findIndex(ph => ph.n > 0)) : 0;
+  const [phase, setPhase] = useState<number | null>(null);
+  if (!p) return null;
+  const at = phase ?? firstLive, ph = SPOT_PHASES[at];
+  const grid = spotGrid(p.pos, at, team) ?? [];
+  const S = 240, cell = S / SPOT_GRID;
+  const dots = p.path.filter(d => d.t >= ph.from && d.t < ph.to);
+  return (
+    <section className="recap-card dl-spots">
+      <h3>Where you played</h3>
+      <p className="muted small">Next to Pos {p.pos} players at {SPOT_SOURCE.minBadge >= 91 ? 'Phantom and up' : 'high ranks'} ({SPOT_SOURCE.matches} matches): time spent where they usually are.</p>
+      <div className="dl-spots-body">
+        <svg viewBox={`0 0 ${S} ${S}`} className="dl-spots-map" role="img" aria-label={`Your path from ${ph.label}, over where good Pos ${p.pos} players usually are`}>
+          <image href={DL_MAP_IMAGE} width={S} height={S} opacity={0.5} />
+          {grid.map((v, i) => v < 0.08 ? null : <rect key={i} x={(i % SPOT_GRID) * cell} y={Math.floor(i / SPOT_GRID) * cell} width={cell} height={cell} rx={cell * 0.2} className="dl-spots-heat" opacity={Math.min(0.55, v * 0.7)} />)}
+          {dots.map(d => <circle key={d.t} cx={d.x * S} cy={d.y * S} r={2.2} className={d.usual ? 'dl-spots-dot' : 'dl-spots-dot rare'} />)}
+        </svg>
+        <div className="dl-spots-side">
+          <div className="dl-spots-phases" role="tablist" aria-label="Stage of the match">
+            {p.phases.map((x, i) => (
+              <button key={x.label} role="tab" aria-selected={i === at} className={i === at ? 'on' : ''} disabled={!x.n} onClick={() => setPhase(i)}>
+                <span className="muted small">{x.label}</span><b className="num">{x.n ? pct(x.usual / x.n) : '–'}</b>
+              </button>
+            ))}
+          </div>
+          {p.stretches.length > 0 && (
+            <ul className="dl-spots-stretches">
+              {p.stretches.map(s => (
+                <li key={s.t}><span className="num muted">{mins(s.t)}</span><span>{Math.round(s.dur)} s where they rarely are</span><button className="chip" onClick={() => watch(s.t)}>Watch</button></li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
