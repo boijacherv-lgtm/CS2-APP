@@ -8,7 +8,7 @@
 //   npm run dl:learn -- --matches 4000 --min-badge 91 --out bench-high.json   (high-rank players only: Phantom and up)
 import fs from 'node:fs';
 import path from 'node:path';
-import { gameplayPatches } from '../src/deadlock/patches';
+import { gameplayPatches } from '../src/deadlock/patchFeed';
 
 const API = 'https://api.deadlock-api.com';
 const args = process.argv.slice(2).filter(a => a !== '--');
