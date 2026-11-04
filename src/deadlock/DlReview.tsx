@@ -10,6 +10,7 @@ import { demoState, loadDemo, NoDemo } from './demo';
 import { heroOf } from './data';
 import { DlBoard } from './DlBoard';
 import { openMatch } from './open';
+import { addLocalReplay, replayId } from './localReplays';
 import { DlSteamFolder } from './DlSteamFolder';
 import { BOT_ON, botFriend, botInfo, botMatches, botRefresh, type BotRelation } from './botApi';
 import { useDl } from './store';
@@ -101,6 +102,13 @@ function DlStart() {
     setBusy(null);
   };
   const typed = Number(id.replace(/\D/g, ''));
+  // a replay file: its name is the match ID; the file is read here when the match opens
+  const openFile = (f: File) => {
+    const fid = replayId(f.name);
+    if (!fid) { setErr(`"${f.name}" isn't named by its match ID (Deadlock saves replays as <match ID>.dem).`); return; }
+    addLocalReplay(fid, f);
+    void open(fid);
+  };
 
   // the bot: who to add as a friend, and whether you are one (checked again every 10 s until you are)
   const [bot, setBot] = useState<{ steamId: string | null; pollMinutes: number } | null>(null);
@@ -135,6 +143,10 @@ function DlStart() {
         <label htmlFor="dl-match-id" className="sr-only">Match ID</label>
         <input id="dl-match-id" inputMode="numeric" placeholder="Match ID, e.g. 124566656" value={id} onChange={e => setId(e.target.value)} />
         <button className="cta primary" disabled={!typed || busy !== null}>{busy === typed ? 'Loading…' : 'Open'}</button>
+        <label className="ghost dl-file" title="A replay from Deadlock's replays folder (<match ID>.dem): read here, nothing is uploaded">
+          <Icon name="upload" size={14} />Replay file
+          <input type="file" accept=".dem" className="sr-only" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); }} />
+        </label>
       </form>
       {err && <p className="warn-text">{err}</p>}
 

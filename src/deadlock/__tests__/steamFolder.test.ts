@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { matchLinks, type Found } from '../DlSteamFolder';
+import { replayId } from '../localReplays';
 
 describe("Steam's cache", () => {
   it('finds Deadlock match links: the data key, the replay key and the cluster', () => {
@@ -16,5 +17,14 @@ describe("Deadlock's replays folder", () => {
     const into = new Map<number, Found>();
     replayFile('125001234.dem', 50, into); replayFile('notes.txt', 60, into); replayFile('125001234.dem.tmp', 70, into); replayFile('12.dem', 80, into); replayFile('match_125009999.dem', 90, into);
     expect([...into.values()].map(f => [f.match_id, f.seen, f.file])).toEqual([[125001234, 50, true], [125009999, 90, true]]);
+  });
+});
+
+describe('replay files', () => {
+  it('know their match by the file name', () => {
+    expect(replayId('129007749.dem')).toBe(129007749);
+    expect(replayId('replay_129007749 (1).DEM')).toBe(129007749);
+    expect(replayId('129007749.meta')).toBe(0);
+    expect(replayId('notes.dem')).toBe(0);
   });
 });

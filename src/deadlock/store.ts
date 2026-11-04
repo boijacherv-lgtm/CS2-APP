@@ -21,7 +21,8 @@ interface DlState {
   scope: 'all' | 'mine';
   /** The match's demo, once deadlock-api has read it (null until then), and how that's going. */
   demo: DlDemo | null;
-  demoStatus: { state: 'reading' | 'done' | 'failed'; wait?: number | null; error?: string } | null;
+  /** Reading the demo: deadlock-api's estimated wait (s), or how far into the replay file on this PC (0–1). */
+  demoStatus: { state: 'reading' | 'done' | 'failed'; wait?: number | null; local?: number; error?: string } | null;
   open(match: DlMatch): void;
   close(): void;
   setTime(t: number): void;

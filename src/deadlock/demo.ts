@@ -13,6 +13,7 @@ import { delItem, getItem, gunzipJson, gzipJson, setItem } from '../ui/localStor
 import { useDl } from './store';
 import { DL_MAP, heroOf, toMap } from './data';
 import { playerAt, type DlMatch } from './match';
+import { localReplay } from './localReplays';
 
 const API = 'https://api.deadlock-api.com';
 const TICKS = 64;
@@ -114,8 +115,8 @@ const QUERIES = {
   buffs: `SELECT tick, e, d, act, cx, cy, vx, vy FROM (SELECT tick, entity_index AS e, delta_type AS d, "m_bActive" AS act,
     lag("m_bActive") OVER (PARTITION BY entity_index ORDER BY tick) AS prev, ${POS} FROM CCitadel_Pickup_Modifier) WHERE d <> 'update' OR act <> prev ORDER BY tick`,
 };
-type Q = keyof typeof QUERIES;
-type Row = Record<string, number | string | boolean | null>;
+export type Q = keyof typeof QUERIES;
+export type Row = Record<string, number | string | boolean | null>;
 /** Queries a demo may not be able to answer (a table from a newer patch): their failure reads as nothing found. */
 const OPTIONAL = new Set<Q>(['bags']);
 
@@ -498,8 +499,12 @@ export async function demoState(id: number): Promise<'read' | 'listed' | 'none'>
     return r?.replay_salt ? 'listed' : 'none';
   } catch { return 'none'; }
 }
-/** The match's demo: from this browser when read before, else read by deadlock-api (about a minute), then kept. */
-export async function loadDemo(m: DlMatch, onWait: (s: number | null) => void = () => {}): Promise<DlDemo> {
+/**
+ * The match's demo: from this browser when read before; else from its replay file on this PC when one was found
+ * (localReplays.ts: read here in seconds), else read by deadlock-api (about a minute); then kept. `onLocal` gets how far
+ * into the file it is (0–1).
+ */
+export async function loadDemo(m: DlMatch, onWait: (s: number | null) => void = () => {}, onLocal: (p: number) => void = () => {}): Promise<DlDemo> {
   const saved = await getItem<Blob>(KEY(m.id));
   if (saved) {
     try {
@@ -512,6 +517,17 @@ export async function loadDemo(m: DlMatch, onWait: (s: number | null) => void = 
         return d;
       }
     } catch { /* read it again */ }
+  }
+  const file = localReplay(m.id);
+  if (file) {
+    try {
+      const { readReplay } = await import('./localDemo');
+      // the replay file has no soul bags (the reader can't see them yet): deadlock-api adds them when it has the demo
+      const d: DlDemo = { ...buildDemo(m, await readReplay(file, onLocal)), bags: undefined };
+      void setItem(KEY(m.id), await gzipJson(d));
+      void addBags(m, d);
+      return d;
+    } catch { /* a replay the reader doesn't understand (a newer game build): deadlock-api's copy instead */ }
   }
   if ((await demoState(m.id)) === 'none') throw new NoDemo(m.id);
   const d = buildDemo(m, await runAll(m.id, onWait));
@@ -602,7 +618,8 @@ export async function readDemo(m: DlMatch, again = false) {
   if (again) { await delItem(KEY(m.id)); unmarkMissing(m.id); }
   useDl.setState({ demoStatus: { state: 'reading' }, ...(again ? { demo: null } : {}) });
   try {
-    const demo = await loadDemo(m, wait => { if (mine()) useDl.setState({ demoStatus: { state: 'reading', wait } }); });
+    const demo = await loadDemo(m, wait => { if (mine()) useDl.setState({ demoStatus: { state: 'reading', wait } }); },
+      local => { if (mine()) useDl.setState({ demoStatus: { state: 'reading', local } }); });
     if (mine()) useDl.setState({ demo, demoStatus: { state: 'done' } });
   } catch (e) {
     if (mine()) useDl.setState({ demoStatus: { state: 'failed', error: e instanceof Error ? e.message : String(e) } });

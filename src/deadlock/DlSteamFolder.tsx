@@ -5,6 +5,7 @@ import { Icon } from '../ui/Icon';
 import { loadMatch } from './api';
 import { heroOf } from './data';
 import type { DlMatch } from './match';
+import { addLocalReplay, replayId } from './localReplays';
 
 /**
  * Review: "Your Steam folder". Like CS2's demo folder: you pick your Steam folder once (Chrome / Edge remember it), and
@@ -83,10 +84,12 @@ async function scanDir(dir: FileSystemDirectoryHandle, into: Map<number, Found>,
     }
   }
 }
-/** A replay file's match: Deadlock names them by match ID (`<match>.dem`; any long number in the name is taken). */
-export function replayFile(name: string, seen: number, into: Map<number, Found>) {
-  const id = /\.dem$/i.test(name) ? Number(name.match(/(\d{6,})/)?.[1]) : 0;
+/** A replay file's match: Deadlock names them by match ID (`<match>.dem`; any long number in the name is taken). The
+ * file itself is kept for this visit, to be read here when deadlock-api has no demo for the match. */
+export function replayFile(name: string, seen: number, into: Map<number, Found>, file?: Blob) {
+  const id = replayId(name);
   if (!id) return into;
+  if (file) addLocalReplay(id, file);
   const f = into.get(id) ?? { match_id: id, cluster_id: 0, metadata_salt: null, replay_salt: null, seen: 0 };
   f.file = true; f.seen = Math.max(f.seen, seen);
   into.set(id, f);
@@ -94,14 +97,14 @@ export function replayFile(name: string, seen: number, into: Map<number, Found>)
 }
 async function scanReplays(dir: FileSystemDirectoryHandle, into: Map<number, Found>) {
   for await (const h of (dir as DirHandle).values()) {
-    if (h.kind === 'file' && /\.dem$/i.test(h.name)) replayFile(h.name, (await (h as FileSystemFileHandle).getFile()).lastModified, into);
+    if (h.kind === 'file' && /\.dem$/i.test(h.name)) { const f = await (h as FileSystemFileHandle).getFile(); replayFile(h.name, f.lastModified, into, f); }
   }
 }
 /** A dropped folder (any browser): its files, through the old entries API (replay files by name, the rest read). */
 async function scanEntry(entry: FileSystemEntry, into: Map<number, Found>): Promise<void> {
   if (entry.isFile) {
     const f = await new Promise<File>((res, rej) => (entry as FileSystemFileEntry).file(res, rej));
-    return /\.dem$/i.test(f.name) ? void replayFile(f.name, f.lastModified, into) : linksIn(f, into);
+    return /\.dem$/i.test(f.name) ? void replayFile(f.name, f.lastModified, into, f) : linksIn(f, into);
   }
   const reader = (entry as FileSystemDirectoryEntry).createReader();
   for (;;) {
