@@ -10,6 +10,8 @@ import { loadMatch, matchHistory, type DlHistoryRow } from './api';
 import { BOT_ON, botMatches } from './botApi';
 import { coachMatch, type DlTag } from './coach';
 import { heroOf } from './data';
+import { gameplayPatches } from './patchFeed';
+import type { Patch } from './patches';
 import { noteOf, reportCard, type GradeKey } from './grade';
 import { openMatch } from './open';
 import './dl.css';
@@ -216,6 +218,8 @@ export function DlProfile({ account }: { account: string | null }) {
         )}
       </section>
 
+      <PatchEffect rows={rows} />
+
       <section className="site-card">
         <div className="card-head"><h2><Icon name="user" size={16} /> Your heroes</h2><span className="muted small">last {recent.length} matches</span></div>
         <table className="site-table dl-pf-heroes">
@@ -256,3 +260,34 @@ export function DlProfile({ account }: { account: string | null }) {
   );
 }
 
+
+/** Before and after the newest gameplay patch: your heroes you played on both sides of it, and what the patch did to them. */
+function PatchEffect({ rows }: { rows: DlHistoryRow[] }) {
+  const [patch, setPatch] = useState<Patch | null>(null);
+  useEffect(() => { gameplayPatches().then(ps => setPatch(ps[0] ?? null), () => setPatch(null)); }, []);
+  if (!patch) return null;
+  const after = rows.filter(r => r.start_time >= patch.at), before = rows.filter(r => r.start_time < patch.at);
+  const heroes = [...new Set(after.map(r => r.hero_id))].filter(h => before.some(r => r.hero_id === h));
+  const side = (xs: DlHistoryRow[]) => ({ n: xs.length, wr: xs.filter(won).length / Math.max(1, xs.length), spm: xs.filter(hasSouls).reduce((a, r) => a + spm(r), 0) / Math.max(1, xs.filter(hasSouls).length) });
+  const dirWord = (h: number) => { const cs = patch.changes.filter(c => c.kind === 'hero' && c.id === h); const d = cs.reduce((a, c) => a + c.dir, 0); return !cs.length ? 'not changed' : d > 0 ? `buffed (${cs.length} changes)` : d < 0 ? `nerfed (${cs.length} changes)` : `changed (${cs.length})`; };
+  const all = { b: side(before), a: side(after) };
+  return (
+    <section className="site-card">
+      <div className="card-head"><h2><Icon name="bolt" size={16} /> Since the last patch</h2>
+        <a className="muted small" href={patch.link} target="_blank" rel="noreferrer">{patch.title} · {day(patch.at)}</a></div>
+      {!after.length ? <p className="muted">No matches since this patch yet.</p> : (
+        <table className="duo-table">
+          <thead><tr><th /><th>Before</th><th>After</th><th>The patch</th></tr></thead>
+          <tbody>
+            <tr><td>All heroes ({all.b.n} → {all.a.n} matches)</td><td>{pct(all.b.wr)} won · {Math.round(all.b.spm)} souls/min</td>
+              <td className={all.a.wr > all.b.wr ? 'hi' : ''}>{pct(all.a.wr)} won · {Math.round(all.a.spm)} souls/min</td><td /></tr>
+            {heroes.map(h => { const b = side(before.filter(r => r.hero_id === h)), a = side(after.filter(r => r.hero_id === h)); return (
+              <tr key={h}><td>{heroOf(h).name} ({b.n} → {a.n})</td><td>{pct(b.wr)} · {Math.round(b.spm)}</td><td className={a.wr > b.wr ? 'hi' : ''}>{pct(a.wr)} · {Math.round(a.spm)}</td><td>{dirWord(h)}</td></tr>
+            ); })}
+          </tbody>
+        </table>
+      )}
+      {after.length > 0 && !heroes.length && <p className="muted small">None of your heroes since the patch were played before it in these matches.</p>}
+    </section>
+  );
+}

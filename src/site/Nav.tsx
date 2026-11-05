@@ -84,6 +84,7 @@ export function NavBar({ route }: { route: Route }) {
       )}
       {route.page === 'deadlock' && <DlNav route={route} />}
       <div className="nav-right">
+        <a className={`nav-link ${route.page === 'puzzles' ? 'on' : ''}`} href="#/puzzles" aria-label="Puzzles"><Icon name="target" size={16} /> <span>Puzzles</span></a>
         <a className={`nav-link ${route.page === 'pricing' ? 'on' : ''}`} href="#/pricing">Pricing</a>
         <AccountMenu route={route} />
       </div>

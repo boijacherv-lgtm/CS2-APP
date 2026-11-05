@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { GOAL_CHOICES, goalInfo, habits } from '../engine/habits';
+import { focusOf, loadMoments } from '../moments/moments';
 import { averages, fullMatches, FREE_HISTORY, premierOf, goalSeries, hasPro, mapStats, MAX_GOALS, type Averages, type GoalId, type ProfileMatch } from '../engine/profile';
 import { LETTER_COLOR } from '../engine/recap';
 import { Icon } from '../ui/Icon';
@@ -52,6 +53,8 @@ export function Profile() {
           ))}
         </div>
       </nav>
+
+      <FocusBanner game={game} />
 
       {game === 'deadlock' ? <DlProfile account={me?.steamId ? steamId3(me.steamId) : null} /> : <>
       {!matches.length ? (
@@ -409,5 +412,19 @@ export function ShareDialog({ m, player, onClose }: { m: ProfileMatch; player: s
         </div>
       </div>
     </div>
+  );
+}
+
+/** The next match's one thing (the most frequent mistake lately, from your moments) and whether you're fixing it. */
+function FocusBanner({ game }: { game: GameId }) {
+  const f = useMemo(() => focusOf(loadMoments(), game), [game]);
+  if (!f) return null;
+  return (
+    <a className="site-card focus-banner" href="#/puzzles">
+      <Icon name="goal" size={20} />
+      <span><span className="muted small">Next match, one thing</span><b>{f.kind}</b></span>
+      <span className={`focus-streak ${f.streak ? 'up' : ''}`}>{f.streak ? `Fixing it: ${f.streak} in a row` : 'Practise it in Puzzles'}</span>
+      <Icon name="arrowRight" size={14} />
+    </a>
   );
 }
