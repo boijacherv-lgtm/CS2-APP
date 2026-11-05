@@ -36,7 +36,7 @@ export function MatchReportPage() {
   // your default comparison (Settings), when the pro models are there
   const [level, setLevel] = useState<Level>(() => (useProfile.getState().data.prefs.compare === 'pro' && (!!PRO_MODEL || proAnalystAvailable) ? 'pro' : 'lvl10'));
   const [fullBoard, setFullBoard] = useState(false);
-  const [tab, setTab] = useState<RecapTab>(() => { try { const t = localStorage.getItem(LS_TAB) as RecapTab | null; return t && RECAP_TABS.some(x => x.id === t) ? t : 'overview'; } catch { return 'overview'; } });
+  const [tab, setTab] = useState<RecapTab>(() => { try { const t = localStorage.getItem(LS_TAB); if (t === 'analyst' || t === 'positions' || t === 'engine') return 'coach'; return t && RECAP_TABS.some(x => x.id === t) ? t as RecapTab : 'overview'; } catch { return 'overview'; } });
   const pickTab = (t: RecapTab) => { setTab(t); try { localStorage.setItem(LS_TAB, t); } catch { /* private mode */ } document.querySelector('.report')?.scrollTo({ top: 0 }); };
   // the overview's short version: the coach's summary, the three things to fix first, two to keep
   const overviewFor = useMemo(() => {
@@ -116,15 +116,16 @@ export function MatchReportPage() {
           </section>
         </>
       )}
+      {/* one Coach tab (was Coach, Analyst, Positions and Engine): the notes, the engine's moments, the numbers, where you stood */}
       {tab === 'coach' && focus && (
         <>
           <CoachCard p={focus} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
+          <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />
+          <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
+          <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />
           {me && view.players.some(p => p.id === me) && <HabitsCard />}
         </>
       )}
-      {tab === 'analyst' && focus && <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
-      {tab === 'positions' && focus && <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
-      {tab === 'engine' && focus && <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />}
       {tab === 'scoreboard' && (
         <section className="recap-card">
           <div className="coach-head">
@@ -141,13 +142,10 @@ export function MatchReportPage() {
   );
 }
 
-type RecapTab = 'overview' | 'coach' | 'analyst' | 'positions' | 'engine' | 'scoreboard' | 'rounds';
+type RecapTab = 'overview' | 'coach' | 'scoreboard' | 'rounds';
 const RECAP_TABS: { id: RecapTab; label: string; icon: IconName }[] = [
   { id: 'overview', label: 'Overview', icon: 'star' },
   { id: 'coach', label: 'Coach', icon: 'chat' },
-  { id: 'analyst', label: 'Analyst', icon: 'stats' },
-  { id: 'positions', label: 'Positions', icon: 'map' },
-  { id: 'engine', label: 'Engine', icon: 'route' },
   { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
   { id: 'rounds', label: 'Rounds', icon: 'grid' },
 ];
