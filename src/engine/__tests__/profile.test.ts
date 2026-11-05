@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FEATURE_LABEL } from '../coach';
 import { LETTERS } from '../recap';
-import { averages, cleanGoals, cleanMatch, cleanNotifyGames, cleanPrefs, FEATURE_IDS, goalSeries, mapStats, MAX_GOALS, MAX_HISTORY, MECH_IDS, withMatch, type ProfileMatch } from '../profile';
+import { averages, fullMatches, cleanGoals, cleanMatch, cleanNotifyGames, cleanPrefs, FEATURE_IDS, goalSeries, mapStats, MAX_GOALS, MAX_HISTORY, MECH_IDS, withMatch, type ProfileMatch } from '../profile';
 import { addMatchFromServer, profileRoute, publicProfileOf, type ProfileKV } from '../../../worker/src/profile';
 
 const match = (o: Partial<ProfileMatch> = {}): ProfileMatch => ({
@@ -102,5 +102,11 @@ describe('profile', () => {
     const off = await profileRoute(kv, id, 'POST', '/profile/notify-game', { game: 'deadlock', on: false }) as { notifyGames: string[] };
     expect(off.notifyGames).toEqual([]);
     await expect(profileRoute(kv, id, 'POST', '/profile/notify-game', { game: '../x', on: true })).rejects.toThrow();
+  });
+});
+
+describe('fullMatches', () => {
+  it('drops partial demos', () => {
+    expect(fullMatches([match({ rounds: 1 }), match({ rounds: 7 }), match({ rounds: 8 }), match()]).map(m => m.rounds)).toEqual([8, 24]);
   });
 });

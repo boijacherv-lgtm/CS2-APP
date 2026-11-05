@@ -101,6 +101,9 @@ export const cleanVerdicts = (raw: unknown): MoveVerdict[] => (Array.isArray(raw
 export const PRO_EARLY_ACCESS = true;
 /** Matches the profile shows on the free plan, and keeps at most. */
 export const FREE_HISTORY = 5, MAX_HISTORY = 100;
+/** Fewer rounds than this is a partial demo (a clip, a disconnect): it would skew win rate and averages. */
+export const MIN_ROUNDS = 8;
+export const fullMatches = (list: ProfileMatch[]) => list.filter(m => m.rounds >= MIN_ROUNDS);
 export const MAX_GOALS = 3;
 export const hasPro = () => PRO_EARLY_ACCESS;
 

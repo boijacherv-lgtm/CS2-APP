@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { GOAL_CHOICES, goalInfo, habits } from '../engine/habits';
-import { averages, FREE_HISTORY, premierOf, goalSeries, hasPro, mapStats, MAX_GOALS, type Averages, type GoalId, type ProfileMatch } from '../engine/profile';
+import { averages, fullMatches, FREE_HISTORY, premierOf, goalSeries, hasPro, mapStats, MAX_GOALS, type Averages, type GoalId, type ProfileMatch } from '../engine/profile';
 import { LETTER_COLOR } from '../engine/recap';
 import { Icon } from '../ui/Icon';
 import { findFriend, setGoals, useProfile, type PublicProfile } from '../ui/profileApi';
@@ -20,7 +20,7 @@ export function Profile() {
   const pro = hasPro();
   const [all, setAll] = useState(false);
   const [share, setShare] = useState<ProfileMatch | null>(null);
-  const matches = data.matches;
+  const matches = fullMatches(data.matches);
   const shown = all && pro ? matches : matches.slice(0, FREE_HISTORY);
   const last = averages(matches.slice(0, FREE_HISTORY)), before = averages(matches.slice(FREE_HISTORY, FREE_HISTORY * 2));
   const name = me?.name ?? 'Your profile';
