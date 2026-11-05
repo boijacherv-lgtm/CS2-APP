@@ -58,6 +58,18 @@ export function Gauge({ value, label, sub, tone = 'flat' }: { value: number; lab
   );
 }
 
+/** Which x labels to draw: every step-th and the last, never two that would touch, never the same date twice in a row. */
+export function axisLabels(labels: string[], step: number): Set<number> {
+  const out = new Set<number>();
+  let prev = '';
+  for (let i = 0; i < labels.length; i++) {
+    const last = i === labels.length - 1;
+    if (!(i % step === 0 || last) || (!last && labels.length - 1 - i < step * 0.7) || labels[i] === prev) continue;
+    out.add(i); prev = labels[i];
+  }
+  return out;
+}
+
 export interface AreaPoint { label: string; value: number; note?: string }
 /** A line with a soft area under it, gridlines, and a readout of the point under the pointer. */
 export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }: { points: AreaPoint[]; fmt: (v: number) => string; height?: number; color?: string }) {
@@ -69,6 +81,7 @@ export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }:
     let lo = Math.min(...vs), hi = Math.max(...vs);
     const pad = (hi - lo) * 0.15 || Math.abs(hi) * 0.05 || 1;
     lo -= pad; hi += pad;
+    if (Math.min(...vs) >= 0) lo = Math.max(0, lo); // no axis below zero for counts and ratings
     const x = (i: number) => L + (points.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (points.length - 1));
     const y = (v: number) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
     const ticks = [0, 1, 2, 3].map(k => lo + ((hi - lo) * k) / 3);
@@ -78,6 +91,7 @@ export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }:
   const line = points.map((p, i) => `${i ? 'L' : 'M'}${geo.x(i).toFixed(1)} ${geo.y(p.value).toFixed(1)}`).join(' ');
   const area = `${line} L${geo.x(points.length - 1).toFixed(1)} ${H - B} L${geo.x(0).toFixed(1)} ${H - B} Z`;
   const step = Math.max(1, Math.ceil(points.length / 8));
+  const labelled = axisLabels(points.map(p => p.label), step);
   const h = hover !== null ? points[hover] : null;
   return (
     <div className="area-chart">
@@ -99,7 +113,7 @@ export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }:
             <text x={L - 8} y={geo.y(t)} className="axis" textAnchor="end" dominantBaseline="central">{fmt(t)}</text>
           </g>
         ))}
-        {points.map((p, i) => i % step === 0 || i === points.length - 1
+        {points.map((p, i) => labelled.has(i)
           ? <text key={i} x={geo.x(i)} y={H - 8} className="axis" textAnchor={i === points.length - 1 && i > 0 ? 'end' : i === 0 && points.length > 1 ? 'start' : 'middle'}>{p.label}</text> : null)}
         <path d={area} fill={`url(#g${id})`} />
         <path d={line} fill="none" stroke={color} strokeWidth={2.2} strokeLinejoin="round" strokeLinecap="round" />

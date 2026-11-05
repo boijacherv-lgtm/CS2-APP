@@ -106,7 +106,8 @@ function Kpis({ now, was, matches }: { now: Averages; was: Averages | null; matc
   // oldest to newest, the last 10
   const recent = [...matches].sort((a, b) => a.at - b.at).slice(-10);
   const series = (f: (m: ProfileMatch) => number | null) => recent.map(f).filter((v): v is number => v !== null);
-  const pill = (d: number | null, text: string) => d === null || Math.abs(d) < 1e-9
+  // a change that rounds to 0 is no change (not a red "0")
+  const pill = (d: number | null, text: string) => d === null || Math.abs(d) < 1e-9 || !parseFloat(text.replace(/[^\d.]/g, ''))
     ? <i className="kpi-pill flat">last {now.matches}</i>
     : <i className={`kpi-pill ${d > 0 ? 'up' : 'down'}`} title={`Against the ${was?.matches ?? 0} matches before`}><Icon name={d > 0 ? 'trendUp' : 'trendDown'} size={11} /> {text}</i>;
   const items: { label: string; v: string; d: number | null; dt: string; line: number[] }[] = [
