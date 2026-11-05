@@ -35,8 +35,8 @@ export function Profile() {
         <div className="profile-id">
           <h1>{name}{pro && <span className="pro-badge" title="Pro is free during early access">PRO</span>}</h1>
           <p className="muted">
-            {remote ? <><Icon name="shield" size={13} /> Saved to your Steam account · {matches.length} match{matches.length === 1 ? '' : 'es'}</>
-              : <>Kept in this browser{matches.length ? ` · ${matches.length} match${matches.length === 1 ? '' : 'es'}` : ''}{STEAM_AVAILABLE && !me ? '. Log in with Steam to keep it on every device.' : ''}</>}
+            {remote ? <><Icon name="shield" size={13} /> Saved to your Steam account{game === 'cs2' && ` · ${matches.length} CS2 match${matches.length === 1 ? '' : 'es'}`}</>
+              : <>Kept in this browser{game === 'cs2' && matches.length ? ` · ${matches.length} CS2 match${matches.length === 1 ? '' : 'es'}` : ''}{STEAM_AVAILABLE && !me ? '. Log in with Steam to keep it on every device.' : ''}</>}
           </p>
           {error && me && <p className="warn-text small">Your account's profile couldn't be loaded ({error}); showing this browser's copy.</p>}
         </div>
