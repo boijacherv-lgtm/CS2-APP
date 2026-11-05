@@ -157,7 +157,7 @@ export function DlProfile({ account }: { account: string | null }) {
 
       <div className="dash-row">
         <section className="site-card dash-wide">
-          <div className="card-head"><h2><Icon name="trendUp" size={16} /> Souls a minute</h2><span className="muted small">last {chrono.length}</span></div>
+          <div className="card-head"><h2><Icon name="trendUp" size={16} /> Souls a minute</h2><span className="muted small" title="Matches deadlock-api has no soul stats for are left out">{chrono.filter(hasSouls).length} of the last {chrono.length}</span></div>
           {chrono.filter(hasSouls).length >= 2 ? <AreaChart points={chrono.filter(hasSouls).map(r => ({ label: day(r.start_time), value: spm(r), note: `${heroOf(r.hero_id).name} · ${won(r) ? 'won' : 'lost'}` }))} fmt={v => Math.round(v).toLocaleString()} />
             : <p className="muted">Two matches and the line starts.</p>}
         </section>

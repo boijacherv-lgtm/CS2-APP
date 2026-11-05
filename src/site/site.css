@@ -530,3 +530,5 @@ a.hero-games-live:hover b { text-decoration: underline; }
   .duo .pv-card p { display: none; }
   .duo .pv-frame.cs2 .pv-card { right: 12px; }
 }
+/* the profile's game tabs: as wide as the cards under them (the recap's bleed doesn't fit this page's padding) */
+.recap-tabs.profile-games { margin: 0 0 14px; padding: 8px 0; }
