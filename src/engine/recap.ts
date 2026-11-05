@@ -783,7 +783,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   const hasEcon = [...gear.values()].some(v => v !== null);
   // a pistol round: nobody has more than a pistol and armour, so "eco" means nothing
   const pistolRound = hasEcon && [...gear.values()].every(v => v === null || v <= 1300);
-  const rating = (id: string) => rep.ranks[id]?.rating ?? null;
+  const rating = (id: string) => { const r = rep.ranks[id]; return r?.type === 'premier' ? r.rating : null; }; // skill groups aren't Premier
   const stateAt = (t: number) => {
     let ct = 0, tt = 0, ctHp = 0, tHp = 0, ctGear = 0, tGear = 0;
     const ctR: number[] = [], tR: number[] = [];
