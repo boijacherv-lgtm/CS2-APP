@@ -15,6 +15,8 @@ export interface Moment {
   /** best first, win chance 0–1 after each; `played` is the index of what was really done */ options: MomentOption[]; played: number;
   cls: SearchClass; /** win chance given up against the best (0–1) */ cost: number;
   /** the kind of mistake, for grouping ("Held instead of moving") */ kind: string;
+  /** a premade puzzle's source ("FACEIT level 10"); none for your own */ who?: string;
+  /** the engine's reasons, in words */ why?: string[];
 }
 
 const KEY = 'rageview.moments';
@@ -55,7 +57,8 @@ export function cleanMoment(raw: unknown): Moment | null {
     const x = d as Record<string, unknown>, px = num(x?.x, 0, 1), py = num(x?.y, 0, 1);
     return px !== null && py !== null ? { x: px, y: py, team: (x.team === 1 ? 1 : 0) as 0 | 1, ...(x.me === true ? { me: true } : {}) } : null;
   }).filter((d): d is MomentDot => !!d) : [];
-  return { id, game, map, at, match, when, dots, setup, options: options as MomentOption[], played: Math.round(played), cls, cost, kind };
+  const who = str(r.who, 40), why = Array.isArray(r.why) ? r.why.slice(0, 4).map(w => str(w, 200)).filter((w): w is string => !!w) : [];
+  return { id, game, map, at, match, when, dots, setup, options: options as MomentOption[], played: Math.round(played), cls, cost, kind, ...(who ? { who } : {}), ...(why.length ? { why } : {}) };
 }
 
 // ---- share links: the moment in the address (#/m/<base64url>), nothing stored anywhere ----------------------------
