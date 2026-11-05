@@ -10,7 +10,7 @@ import { Icon, type IconName } from '../ui/Icon';
 import { useProfile } from '../ui/profileApi';
 import { steamId3 } from './api';
 import type { DlMove, DlTag } from './coach';
-import { heroOf, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
+import { heroArt, heroOf, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import type { DlMatch } from './match';
 import { useDl } from './store';
 import { useCoach, useMySlot } from './useCoach';
@@ -85,7 +85,7 @@ export function DlReport() {
 
   return (
     <div className="report dl-report">
-      <header className="recap-head" style={who && heroOf(who.hero).card ? { '--map-art': `url(${heroOf(who.hero).card})`, '--hero-tint': heroOf(who.hero).color } as React.CSSProperties : undefined}>
+      <header className="recap-head" style={who && heroArt(who.hero) ? { '--map-art': `url(${heroArt(who.hero)})`, '--hero-tint': heroOf(who.hero).color } as React.CSSProperties : undefined}>
         <div className="recap-head-main">
           <span className="recap-map display">Deadlock</span>
           <span className="recap-score display">
