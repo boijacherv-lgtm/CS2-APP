@@ -81,7 +81,7 @@ export function DlReport() {
 
   return (
     <div className="report dl-report">
-      <header className="recap-head">
+      <header className="recap-head" style={who && heroOf(who.hero).card ? { '--map-art': `url(${heroOf(who.hero).card})`, '--hero-tint': heroOf(who.hero).color } as React.CSSProperties : undefined}>
         <div className="recap-head-main">
           <span className="recap-map display">Deadlock</span>
           <span className="recap-score display">
@@ -98,6 +98,7 @@ export function DlReport() {
               <b>{nameOf(who.slot)}{who.slot === coach.mine ? ' (you)' : ''}</b>
               <span className="muted small">{heroOf(who.hero).name}{card?.pos ? <span className={`dl-pos p${card.pos}`}>Pos {card.pos}</span> : null}</span>
             </div>
+            {card && card.overall !== null && <ScoreRing score={card.overall} note={card.note} size={56} />}
             <div className="dl-subject-stats">
               <span><b className="num">{who.kills}/{who.deaths}/{who.assists}</b><i>K/D/A</i></span>
               <span><b className="num">{(who.netWorth / 1000).toFixed(1)}k</b><i>souls</i></span>
@@ -112,6 +113,7 @@ export function DlReport() {
             </label>
           </div>
         )}
+        {card && <p className="recap-verdict">{cardVerdict(card)}</p>}
       </header>
 
       <nav className="recap-tabs" aria-label="Recap">
@@ -221,7 +223,7 @@ function EngineCard({ review, watch, who, ult, uses }: { review: EngineReview; w
   const shown = all ? review.worst : review.worst.slice(0, 4);
   const CLASSES: SearchClass[] = ['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'];
   const row = (x: EngineMove) => (
-    <li key={x.t}>
+    <li key={x.t} className="moment-card" style={{ '--cls': SEARCH_COLOR[x.cls] } as React.CSSProperties}>
       <span className="dl-engine-cls" style={{ background: SEARCH_COLOR[x.cls] }}>{x.cls}</span>
       <span className="dl-move-text"><b>{x.title.replace(/^[^:]+: /, '')}</b>{x.why.map((w, i) => <span key={i} className="muted small">{w}</span>)}</span>
       <span className="num muted">{mins(x.t)}</span>
@@ -313,6 +315,14 @@ const ORD = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'r
  * The report card: the overall grade with a verdict and rank in the match, the five parts as tiles, what to focus on
  * next game, then each part's numbers and moments. Every score is against players of the same hero in the same position.
  */
+/** The card in one line: "A strong game: …", for the grades and the recap's head. */
+function cardVerdict(card: ReportCard): string {
+  const scored = card.parts.filter(p => p.score !== null);
+  const best = [...scored].sort((a, b) => b.score! - a.score!)[0], worst = [...scored].sort((a, b) => a.score! - b.score!)[0];
+  return !best ? 'Not enough data to grade this match.'
+    : card.overall! >= 62 ? `A strong game: ${PRAISE[best.key]}.` : card.overall! >= 45 ? `An average game: ${PRAISE[best.key]}, ${worst.label.toLowerCase()} held it back.` : `A rough game: ${worst.label.toLowerCase()} cost the most${best.score! >= 55 ? `, though ${PRAISE[best.key]}` : ''}.`;
+}
+
 function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { card: ReportCard; match: DlMatch; name: string; hero: string; moves: DlMove[]; watch: (t: number) => void;
   level: BenchLevel; pickLevel: (l: BenchLevel) => void }) {
   const demo = useDl(s => s.demo);
@@ -327,8 +337,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
   const scored = card.parts.filter(p => p.score !== null);
   const best = [...scored].sort((a, b) => b.score! - a.score!)[0], worst = [...scored].sort((a, b) => a.score! - b.score!)[0];
   const overallRank = rankOf(card.overall, c => c.overall);
-  const verdict = !best ? 'Not enough data to grade this match.'
-    : card.overall! >= 62 ? `A strong game: ${PRAISE[best.key]}.` : card.overall! >= 45 ? `An average game: ${PRAISE[best.key]}, ${worst.label.toLowerCase()} held it back.` : `A rough game: ${worst.label.toLowerCase()} cost the most${best.score! >= 55 ? `, though ${PRAISE[best.key]}` : ''}.`;
+  const verdict = cardVerdict(card);
   const jump = (key: GradeKey) => document.getElementById(`grade-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   return (
     <>

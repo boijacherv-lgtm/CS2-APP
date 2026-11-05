@@ -19,7 +19,7 @@ export const T = {
   borderStrong: '#343C48',
   text1: '#E8ECF2',
   text2: '#9AA4B2',
-  text3: '#687384',
+  text3: '#7D889A', // 4.5:1 on the cards (was #687384, under AA)
   ct: '#5B9BFF', ctDim: '#1F3558',
   t: '#F2B13C', tDim: '#5A4317',
   smoke: '#C9D1D9', flash: '#FFF6A8', molly: '#FF6B2C', mollyCore: '#FFB020', he: '#7BD88F',
