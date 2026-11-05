@@ -14,7 +14,7 @@ import { getEngine, MAPS } from '../src/map/catalog';
 import { searchRound } from '../src/engine/search';
 import { matchFromMetadata } from '../src/deadlock/match';
 import { engineReview } from '../src/deadlock/engineReview';
-import { cs2Moment, dlMoment } from '../src/moments/build';
+import { cs2Moment, dlMoment, placeOf } from '../src/moments/build';
 import type { Moment } from '../src/moments/moments';
 
 const args = process.argv.slice(2).filter(a => a !== '--');
@@ -30,7 +30,7 @@ const margin = (m: Moment) => { const v = m.options.map(o => o.value).sort((a, b
 function pick(all: Moment[], want: number, min: number, per: number): Moment[] {
   // one per moment of a match (in a fight, every player in it has the same one)
   const seen = new Set<string>();
-  const ok = all.filter(m => margin(m) >= min && new Set(m.options.map(o => o.label)).size === m.options.length)
+  const ok = all.filter(m => margin(m) >= min && new Set(m.options.map(o => placeOf(o.label))).size === m.options.length)
     .sort((a, b) => margin(b) - margin(a)).filter(m => { const k = `${m.id.split('#')[0]}@${m.when}`; if (seen.has(k)) return false; seen.add(k); return true; });
   const by = (good: boolean) => ok.filter(m => (m.played === 0) === good).sort((a, b) => margin(b) - margin(a));
   const out: Moment[] = [], count = new Map<string, number>();

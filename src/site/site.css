@@ -576,3 +576,9 @@ a.hero-games-live:hover b { text-decoration: underline; }
 @media (max-width: 560px) { .focus-banner { grid-template-columns: auto minmax(0, 1fr); } .focus-banner .focus-streak { grid-column: 2; } .focus-banner > .icon:last-child { display: none; } }
 .puzzle-why { margin: 0; padding-left: 18px; display: grid; gap: 3px; font-size: 13px; }
 .moments-head .seg-mini + .seg-mini { margin-left: auto; }
+.clip-map { flex: none; display: grid; gap: 6px; max-width: 100%; }
+.clip-map .moment-map { max-width: 100%; height: auto; }
+.clip-map.big { flex-basis: 100%; }
+.clip-bar { display: flex; align-items: center; gap: 8px; }
+.clip-bar input[type=range] { flex: 1; min-width: 60px; accent-color: var(--theme); }
+.clip-time { min-width: 34px; text-align: right; }
