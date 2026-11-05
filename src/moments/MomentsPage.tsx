@@ -28,6 +28,75 @@ export function MomentMap({ m, size = 260 }: { m: Moment; size?: number }) {
   );
 }
 
+/**
+ * The moment's map with its clip: the 10 s before it (play, or drag through it), and once answered the 5 s after too
+ * and arrows to where the best move (green) and the real one (red) go. `big` doubles the map.
+ */
+export function ClipMap({ m, revealed }: { m: Moment; revealed: boolean }) {
+  const img = imageOf(m), clip = m.clip;
+  const frames = clip ? clip.dots[0].xy.length / 2 : 0;
+  const zero = clip ? -clip.from : 0; // the frame of the moment itself
+  const last = revealed ? frames - 1 : zero;
+  const [f, setF] = useState(zero); // fractional frame
+  const [playing, setPlaying] = useState(false);
+  const [big, setBig] = useState(false);
+  useEffect(() => { setF(zero); setPlaying(false); }, [m.id, zero]);
+  useEffect(() => {
+    if (!playing) return;
+    // a timer, not animation frames (those stop in a hidden or embedded view): real time, 1 s a second
+    let prev = Date.now();
+    const id = setInterval(() => {
+      const now = Date.now(), dt = (now - prev) / 1000; prev = now;
+      setF(x => Math.min(last, x + dt));
+    }, 40);
+    return () => clearInterval(id);
+  }, [playing, last]);
+  useEffect(() => { if (playing && f >= last) setPlaying(false); }, [playing, f, last]);
+  const [watched, setWatched] = useState(false);
+  useEffect(() => setWatched(false), [m.id]);
+  const play = () => { if (f >= last - 0.01) setF(0); setPlaying(p => !p); setWatched(true); };
+  // a dot at frame f: between the two seconds around it; hidden where either is missing
+  const at = (xy: number[]) => {
+    const i = Math.min(frames - 1, Math.floor(f)), j = Math.min(frames - 1, i + 1), k = f - i;
+    const a = [xy[2 * i], xy[2 * i + 1]], b = [xy[2 * j], xy[2 * j + 1]];
+    if (a[0] < 0) return null;
+    return b[0] < 0 ? { x: a[0], y: a[1] } : { x: a[0] + (b[0] - a[0]) * k, y: a[1] + (b[1] - a[1]) * k };
+  };
+  const dots = clip ? clip.dots.map(d => ({ ...d, p: at(d.xy) })).filter(d => d.p) as { team: 0 | 1; me?: boolean; p: { x: number; y: number } }[]
+    : m.dots.map(d => ({ team: d.team, me: d.me, p: { x: d.x, y: d.y } }));
+  const meAt = m.dots.find(d => d.me);
+  const arrow = (o: Moment['options'][number] | undefined, color: string, dash?: string) => o?.to && meAt
+    ? <line x1={meAt.x * 100} y1={meAt.y * 100} x2={o.to.x * 100} y2={o.to.y * 100} stroke={color} strokeWidth={0.9} strokeDasharray={dash} markerEnd={`url(#ah-${color === 'var(--good)' ? 'g' : 'r'})`} /> : null;
+  const sec = Math.round(f - zero);
+  const size = big ? 560 : 300;
+  return (
+    <div className={`clip-map ${big ? 'big' : ''}`} style={{ width: size }}>
+      <svg className="moment-map" viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={`${m.match}, ${m.when}: the map${clip ? `, ${sec >= 0 ? '+' : ''}${sec} s` : ''}`}>
+        <defs>
+          <marker id="ah-g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--good)" /></marker>
+          <marker id="ah-r" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--bad)" /></marker>
+        </defs>
+        <rect width="100" height="100" rx="4" fill="var(--bg-1)" />
+        {img && <image href={img} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" opacity={0.85} />}
+        {revealed && Math.abs(f - zero) < 0.5 && <>{m.played !== 0 && arrow(m.options[m.played], 'var(--bad)', '2 1.5')}{arrow(m.options[0], 'var(--good)')}</>}
+        {dots.filter(d => !d.me).map((d, i) => <circle key={i} cx={d.p.x * 100} cy={d.p.y * 100} r={big ? 1.4 : 1.9} fill={d.team ? 'var(--good)' : 'var(--bad)'} stroke="#000" strokeWidth={0.4} />)}
+        {dots.filter(d => d.me).map((d, i) => (
+          <g key={`me${i}`}>
+            <circle cx={d.p.x * 100} cy={d.p.y * 100} r={big ? 3.4 : 4.4} fill="none" stroke="var(--theme)" strokeWidth={1} />
+            <circle cx={d.p.x * 100} cy={d.p.y * 100} r={big ? 1.8 : 2.3} fill="var(--theme)" stroke="#000" strokeWidth={0.4} />
+          </g>
+        ))}
+      </svg>
+      <div className="clip-bar">
+        {clip && <button className="chip" onClick={play} aria-label={playing ? 'Pause' : 'Play the clip'}><Icon name={playing ? 'pause' : 'play'} size={12} /> {playing ? 'Pause' : revealed && f >= zero - 0.01 && f < last - 0.01 ? 'What happened next' : watched ? 'Replay' : 'Watch 10 s'}</button>}
+        {clip && <input type="range" min={0} max={last} step={0.05} value={Math.min(f, last)} onChange={e => { setPlaying(false); setF(Number(e.target.value)); }} aria-label="Time in the clip" />}
+        {clip && <span className="num muted small clip-time">{sec === 0 ? 'now' : `${sec > 0 ? '+' : ''}${sec} s`}</span>}
+        <button className="chip" onClick={() => setBig(b => !b)} aria-label={big ? 'Smaller map' : 'Bigger map'} title={big ? 'Smaller map' : 'Bigger map'}><Icon name={big ? 'close' : 'map'} size={12} /> {big ? 'Smaller' : 'Bigger'}</button>
+      </div>
+    </div>
+  );
+}
+
 /** A stable shuffle per moment, so the best move isn't always first. */
 const order = (m: Moment) => {
   let h = 0; for (const c of m.id) h = (h * 31 + c.charCodeAt(0)) | 0;
@@ -47,7 +116,7 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
   const pick = (i: number) => { if (picked !== null) return; setPicked(i); onAnswer?.(i === 0); };
   return (
     <div className="puzzle">
-      <MomentMap m={m} />
+      <ClipMap m={m} revealed={picked !== null} />
       <div className="puzzle-body">
         <span className="muted small">{GAME_NAME[m.game]} · {m.match} · {m.when}{m.who ? ` · ${m.who}` : ''}</span>
         <p className="puzzle-setup">{m.setup}</p>

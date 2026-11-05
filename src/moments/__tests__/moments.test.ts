@@ -13,6 +13,12 @@ describe('moments', () => {
     expect(back?.setup).toBe('Ünïcode & "quotes"');
     expect(back?.options[0].label).toBe('Move to Ninja');
   });
+  it('a clip and where the moves go survive a share link, cleaned', () => {
+    const back = fromShareCode(shareCode(m({ clip: { from: -2, dots: [{ team: 1, me: true, xy: [0.1, 0.2, -1, -1, 0.3, 0.4] }] }, options: [{ label: 'A', value: 0.6, to: { x: 0.5, y: 0.5 } }, { label: 'B', value: 0.4 }] })));
+    expect(back?.clip).toEqual({ from: -2, dots: [{ team: 1, me: true, xy: [0.1, 0.2, -1, -1, 0.3, 0.4] }] });
+    expect(back?.options[0].to).toEqual({ x: 0.5, y: 0.5 });
+    expect(cleanMoment({ ...m(), clip: { from: -2, dots: [{ team: 1, xy: [0.1] }] } })?.clip).toBeUndefined();
+  });
   it('rejects bad links and bad fields', () => {
     expect(fromShareCode('not-base64!!')).toBeNull();
     expect(cleanMoment({ ...m(), map: '../../evil' })).toBeNull();
