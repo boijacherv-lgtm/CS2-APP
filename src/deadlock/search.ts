@@ -51,6 +51,12 @@ export const SEARCH_COLOR: Record<SearchClass, string> = { Best: '#1baca6', Exce
 export const searchClass = (loss: number): SearchClass =>
   loss <= 0.002 ? 'Best' : loss <= TH[0] ? 'Excellent' : loss <= TH[1] ? 'Good' : loss <= TH[2] ? 'Inaccuracy' : loss <= TH[3] ? 'Mistake' : 'Blunder';
 
+/** In the first minutes, staying in lane instead of a lane fight is how lanes are played: at most an Inaccuracy. */
+const LANING_CAP_S = 5 * 60;
+export function laningCap(t: number, made: Action, best: Action, cls: SearchClass): SearchClass {
+  return t < LANING_CAP_S && made === 'lane' && best === 'fight' && (cls === 'Mistake' || cls === 'Blunder') ? 'Inaccuracy' : cls;
+}
+
 /** Moves the play network gives at least this chance are tried (its top 3), plus the one really made. */
 const MIN_P = 0.08, TOP = 3;
 /** Near enough to be in a fight with you, or to jump you within the 20 s. */
@@ -181,5 +187,5 @@ export function searchAt(m: DlMatch, demo: DlDemo | null, slot: number, t: numbe
   if (!options.length) return null;
   const made = played ? options.find(o => o.action === played) ?? null : null;
   const loss = made ? Math.max(0, options[0].value - made.value) : 0;
-  return { t, slot, team, before, options, played: made, loss, cls: made ? searchClass(loss) : null };
+  return { t, slot, team, before, options, played: made, loss, cls: made ? laningCap(t, made.action, options[0].action, searchClass(loss)) : null };
 }

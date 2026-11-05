@@ -41,7 +41,6 @@ export function Profile() {
           {error && me && <p className="warn-text small">Your account's profile couldn't be loaded ({error}); showing this browser's copy.</p>}
         </div>
         <div className="profile-actions">
-          {STEAM_AVAILABLE && loaded && !me && <SteamLoginButton compact />}
           <a className="cta" href="#/settings"><Icon name="gear" size={14} /> Settings</a>
         </div>
       </header>

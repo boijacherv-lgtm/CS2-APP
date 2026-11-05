@@ -85,8 +85,9 @@ export function DlReport() {
         <div className="recap-head-main">
           <span className="recap-map display">Deadlock</span>
           <span className="recap-score display">
-            <b style={{ color: TEAM_COLOR[0] }}>{teamKills(match, 0)}</b><i>:</i><b style={{ color: TEAM_COLOR[1] }}>{teamKills(match, 1)}</b>
+            <b style={{ color: TEAM_COLOR[0] }}>{teamKills(match, 0)}</b><i>–</i><b style={{ color: TEAM_COLOR[1] }}>{teamKills(match, 1)}</b>
           </span>
+          <span className="muted">kills</span>
           {me && <span className={`recap-result ${match.winner === me.team ? 'victory' : 'defeat'}`}>{match.winner === me.team ? 'Victory' : 'Defeat'}</span>}
         </div>
         <p className="muted">Match {match.id} · {mins(match.duration)} · {TEAM_NAME[match.winner]} won{me ? ` · you: ${heroOf(me.hero).name}` : ''}</p>
