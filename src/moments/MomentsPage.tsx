@@ -4,7 +4,7 @@ import { DL_MAP_IMAGE } from '../deadlock/data';
 import { SEARCH_COLOR } from '../deadlock/search';
 import { applyGame } from '../ui/tokens';
 import { Icon } from '../ui/Icon';
-import { focusOf, fromShareCode, isMistake, loadMoments, mistakeGroups, shareCode, type Moment, type MomentGame } from './moments';
+import { cleanMoment, focusOf, fromShareCode, isMistake, loadMoments, mistakeGroups, shareCode, type Moment, type MomentGame } from './moments';
 
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 const GAME_NAME: Record<MomentGame, string> = { cs2: 'CS2', deadlock: 'Deadlock' };
@@ -49,9 +49,9 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
     <div className="puzzle">
       <MomentMap m={m} />
       <div className="puzzle-body">
-        <span className="muted small">{GAME_NAME[m.game]} · {m.match} · {m.when}</span>
+        <span className="muted small">{GAME_NAME[m.game]} · {m.match} · {m.when}{m.who ? ` · ${m.who}` : ''}</span>
         <p className="puzzle-setup">{m.setup}</p>
-        <b>{shared ? 'What is the best move here?' : 'What should you do here?'}</b>
+        <b>{shared || m.who ? 'What is the best move here?' : 'What should you do here?'}</b>
         <div className="puzzle-options">
           {order(m).map(i => {
             const o = m.options[i];
@@ -59,7 +59,7 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
             return (
               <button key={i} className={`puzzle-option ${state}`} onClick={() => pick(i)} disabled={picked !== null && state === ''}>
                 <span>{o.label}</span>
-                {picked !== null && <span className="num muted">{Math.round(o.value * 100)}% to win{i === m.played ? (shared ? ' · what was played' : ' · what you did') : ''}</span>}
+                {picked !== null && <span className="num muted">{Math.round(o.value * 100)}% to win{i === m.played ? (shared || m.who ? ' · what was played' : ' · what you did') : ''}</span>}
               </button>
             );
           })}
@@ -67,9 +67,10 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
         {picked !== null && (
           <p className={`puzzle-verdict ${right ? 'up' : 'down'}`}>
             {right ? 'Right: that is the engine\'s best move.' : `The engine's best: ${m.options[0].label}.`}{' '}
-            {m.played !== 0 ? <>The real move, {m.options[m.played].label.toLowerCase()}, was <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span> and gave up {pct(m.cost)} win chance.</> : <>It's what was really played.</>}
+            {m.played !== 0 ? <>The real move, “{m.options[m.played].label}”, was <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span> and gave up {pct(m.cost)} win chance.</> : <>It's what was really played.</>}
           </p>
         )}
+        {picked !== null && m.why && <ul className="puzzle-why">{m.why.map((w, i) => <li key={i} className="muted">{w}</li>)}</ul>}
       </div>
     </div>
   );
@@ -87,9 +88,18 @@ export function ShareMoment({ m }: { m: Moment }) {
 
 /** Puzzles from your own matches, the next match's focus, and your mistakes grouped by type. */
 export function MomentsPage() {
-  const all = useMemo(loadMoments, []);
+  const mine = useMemo(loadMoments, []);
+  // whose puzzles: yours, or premade ones from top players' matches (tools/puzzles.ts; loaded when picked)
+  const [source, setSource] = useState<'mine' | 'top'>(() => (mine.length ? 'mine' : 'top'));
+  const [top, setTop] = useState<Moment[] | null>(null);
+  useEffect(() => {
+    if (source !== 'top' || top) return;
+    import('./generated/puzzles.json').then(j => { const d = j.default as { cs2: unknown[]; deadlock: unknown[] }; setTop([...d.cs2, ...d.deadlock].map(cleanMoment).filter((m): m is Moment => !!m)); }, () => setTop([]));
+  }, [source, top]);
   const [game, setGame] = useState<MomentGame | 'all'>('all');
-  const ms = game === 'all' ? all : all.filter(m => m.game === game);
+  // kept the same between renders: a new list would deal a new puzzle (answering re-renders)
+  const all = useMemo(() => (source === 'top' ? top ?? [] : mine), [source, top, mine]);
+  const ms = useMemo(() => (game === 'all' ? all : all.filter(m => m.game === game)), [all, game]);
   const [score, setScore] = useState(readScore);
   // the next puzzle: one you haven't seen, costliest first; once all are seen, round again
   const pool = useMemo(() => [...ms].sort((a, b) => b.cost - a.cost), [ms]);
@@ -102,16 +112,22 @@ export function MomentsPage() {
     writeScore(n); setScore(n);
   };
   const groups = mistakeGroups(ms);
-  const focus = (['cs2', 'deadlock'] as MomentGame[]).filter(g => game === 'all' || g === game).map(g => ({ g, f: focusOf(all, g) })).filter(x => x.f);
+  const focus = source === 'top' ? [] : (['cs2', 'deadlock'] as MomentGame[]).filter(g => game === 'all' || g === game).map(g => ({ g, f: focusOf(all, g) })).filter(x => x.f);
 
-  if (!all.length) return (
+  const switcher = (
+    <div className="seg-mini" role="group" aria-label="Whose puzzles">
+      <button className={source === 'mine' ? 'on' : ''} onClick={() => setSource('mine')}>Yours</button>
+      <button className={source === 'top' ? 'on' : ''} onClick={() => setSource('top')}>Top players</button>
+    </div>
+  );
+  if (source === 'mine' && !all.length) return (
     <div className="page moments">
-      <h1>Puzzles</h1>
+      <header className="moments-head"><h1>Puzzles</h1>{switcher}</header>
       <section className="site-card empty-state">
         <Icon name="target" size={28} />
         <h2>Your puzzles come from your matches</h2>
         <p className="muted">Review a CS2 match you played (and pick yourself), or open a Deadlock match of yours: the moments the engine flags become puzzles here, with your mistakes grouped by type.</p>
-        <p><a className="cta primary" href="#/cs2/review">Review a CS2 match</a> <a className="cta" href="#/deadlock/review">Open a Deadlock match</a></p>
+        <p><a className="cta primary" href="#/cs2/review">Review a CS2 match</a> <a className="cta" href="#/deadlock/review">Open a Deadlock match</a> <button className="cta" onClick={() => setSource('top')}>Solve top players' puzzles</button></p>
       </section>
     </div>
   );
@@ -119,6 +135,7 @@ export function MomentsPage() {
     <div className="page moments">
       <header className="moments-head">
         <h1>Puzzles</h1>
+        {switcher}
         <div className="seg-mini" role="group" aria-label="Game">
           {(['all', 'cs2', 'deadlock'] as const).map(g => <button key={g} className={game === g ? 'on' : ''} onClick={() => setGame(g)}>{g === 'all' ? 'All' : GAME_NAME[g]}</button>)}
         </div>
@@ -138,10 +155,10 @@ export function MomentsPage() {
         <div className="card-head"><h2><Icon name="target" size={16} /> Puzzle</h2>
           <span className="muted small">{score.solved}/{score.tried} right · streak {score.streak} · best {score.best}</span></div>
         {cur ? <><Puzzle m={cur} onAnswer={answer} /><div className="puzzle-next"><ShareMoment m={cur} /><button className="primary" onClick={next}>Next puzzle <Icon name="arrowRight" size={13} /></button></div></>
-          : <p className="muted">No moments for this game yet.</p>}
+          : <p className="muted">{source === 'top' && !top ? 'Loading puzzles…' : 'No moments for this game yet.'}</p>}
       </section>
 
-      <section className="site-card">
+      {source === 'mine' && <section className="site-card">
         <div className="card-head"><h2><Icon name="warning" size={16} /> Mistake reel</h2><span className="muted small">{ms.filter(isMistake).length} mistakes from your matches, by type</span></div>
         {groups.map(gr => (
           <details key={gr.kind} className="reel-group">
@@ -157,7 +174,7 @@ export function MomentsPage() {
             </ul>
           </details>
         ))}
-      </section>
+      </section>}
     </div>
   );
 }

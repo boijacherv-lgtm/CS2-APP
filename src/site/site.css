@@ -574,3 +574,5 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .focus-banner > span:nth-child(2) { display: grid; gap: 2px; }
 .focus-banner b { font: 700 20px/1.2 var(--font-display); }
 @media (max-width: 560px) { .focus-banner { grid-template-columns: auto minmax(0, 1fr); } .focus-banner .focus-streak { grid-column: 2; } .focus-banner > .icon:last-child { display: none; } }
+.puzzle-why { margin: 0; padding-left: 18px; display: grid; gap: 3px; font-size: 13px; }
+.moments-head .seg-mini + .seg-mini { margin-left: auto; }

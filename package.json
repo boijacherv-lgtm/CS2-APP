@@ -38,6 +38,7 @@
     "dl:play": "vite-node tools/dl-play.ts",
     "dl:fight": "vite-node tools/dl-fight.ts",
     "dl:search": "vite-node tools/dl-search.ts",
+    "puzzles": "vite-node tools/puzzles.ts",
     "dl:ults": "vite-node tools/dl-ults.ts",
     "dl:ultkinds": "vite-node tools/dl-ultkinds.ts",
     "dl:abilities": "vite-node tools/dl-abilities.ts"
