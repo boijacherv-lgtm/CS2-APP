@@ -31,7 +31,7 @@ export function NavBar({ route }: { route: Route }) {
   }, []);
   return (
     <header className="navbar">
-      <a className="brand" href="#/"><LogoMark /><span>{APP_NAME}</span></a>
+      <a className="brand" href="#/" aria-label={`${APP_NAME} home`}><LogoMark /><span>{APP_NAME}</span></a>
       <nav className="game-bar" aria-label="Games">
         {GAMES.map(g => g.status === 'live' ? (
           <a key={g.id} href={routeHref({ page: 'cs2', mode: cs2 ? route.mode : 'review' })} className={`game-btn live ${cs2 ? 'on' : ''}`} title={`${g.name}: live`}>

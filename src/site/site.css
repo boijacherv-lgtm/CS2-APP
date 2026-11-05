@@ -457,6 +457,12 @@ a.hero-games-live:hover b { text-decoration: underline; }
   .navbar:has(.modes) .game-btn.live { padding-right: 3px; }
 }
 .navbar .steam-login { white-space: nowrap; }
+/* narrow phones: the Steam button is its logo, every mode is its icon */
+@media (max-width: 420px) {
+  .navbar .steam-login > span { display: none; }
+  .navbar .steam-login { padding: 6px 8px; }
+  .modes .mode-label { display: none; }
+}
 @media (max-width: 1180px) { .navbar:has(.match-tab) .with-steam { display: none; } }
 
 /* Dev page: a health line, the key numbers, categories */
