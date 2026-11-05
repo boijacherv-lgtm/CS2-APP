@@ -111,8 +111,9 @@ export function DlProfile({ account }: { account: string | null }) {
   const chrono = [...recent].reverse();
   const half = (xs: DlHistoryRow[], f: (r: DlHistoryRow) => number) => xs.length ? xs.reduce((a, r) => a + f(r), 0) / xs.length : 0;
   const newer = recent.slice(0, Math.ceil(recent.length / 2)), older = recent.slice(Math.ceil(recent.length / 2));
-  const kpi = (label: string, f: (r: DlHistoryRow) => number, fmt: (v: number) => string, title?: string, lowerIsBetter = false) => {
-    const v = half(recent, f), raw = older.length ? half(newer, f) - half(older, f) : 0, d = lowerIsBetter ? -raw : raw;
+  // `whole`: a ratio over the rows (a mean of per-match ratios lets one deathless game dominate)
+  const kpi = (label: string, f: (r: DlHistoryRow) => number, fmt: (v: number) => string, title?: string, lowerIsBetter = false, whole: (xs: DlHistoryRow[]) => number = xs => half(xs, f)) => {
+    const v = whole(recent), raw = older.length ? whole(newer) - whole(older) : 0, d = lowerIsBetter ? -raw : raw;
     return (
       <div key={label} className="kpi-tile" title={title}>
         <span>{label}</span>
@@ -145,7 +146,8 @@ export function DlProfile({ account }: { account: string | null }) {
           </div>
           <i className="kpi-pill flat">{wins}–{recent.length - wins} in {recent.length}</i>
         </div>
-        {kpi('KDA ratio', r => (r.player_kills + r.player_assists) / Math.max(1, r.player_deaths), v => v.toFixed(2), '(kills + assists) per death')}
+        {kpi('KDA ratio', r => (r.player_kills + r.player_assists) / Math.max(1, r.player_deaths), v => v.toFixed(2), '(kills + assists) per death, over all these matches', false,
+          xs => xs.reduce((a, r) => a + r.player_kills + r.player_assists, 0) / Math.max(1, xs.reduce((a, r) => a + r.player_deaths, 0)))}
         {kpi('Souls a minute', spm, v => Math.round(v).toLocaleString())}
         {kpi('Last hits a minute', r => r.last_hits / Math.max(1, r.match_duration_s / 60), v => v.toFixed(1))}
         {kpi('Deaths', r => r.player_deaths, v => v.toFixed(1), 'deaths a match (fewer is better)', true)}
