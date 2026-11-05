@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { saveMoments } from '../moments/moments';
+import { dlMoments } from '../moments/build';
 import { MarkFace } from '../ui/MarkFace';
 import { ScoreRing } from '../ui/ScoreRing';
 import { NOTE_INFO } from '../engine/recap';
@@ -52,6 +54,8 @@ export function DlReport() {
   const subject = pick ?? coach.mine ?? match?.players[0]?.slot ?? null;
   // the engine's review of the graded player: every move, accuracy, the costliest and the best calls
   const review = useMemo(() => (match && subject !== null ? engineReview(match, demo, subject) : null), [match, demo, subject]);
+  // your own match: its moments become puzzles and go in the mistake reel
+  useEffect(() => { if (match && review && subject !== null && subject === coach.mine) saveMoments(dlMoments(match, review, subject)); }, [match, review, subject, coach.mine]);
   // their ultimate: what it does, and each time they used it, judged (needs the demo)
   const ults = useMemo(() => (match && subject !== null ? ultUses(match, demo, subject) : null), [match, demo, subject]);
   const subjectUlt = match && subject !== null ? ultOf(match.players.find(p => p.slot === subject)?.hero ?? -1) : null;
@@ -125,6 +129,7 @@ export function DlReport() {
       {tab === 'overview' && (
         <>
           <Scoreboard match={match} subject={subject} mine={coach.mine} nameOf={nameOf} pick={slot => setPick(slot)} />
+          {card && subject !== null && <DlDuo match={match} a={subject} card={card} nameOf={nameOf} moves={coach.all} />}
           <div className="dl-ov-charts">
             <WinChance match={match} team={who?.team ?? 0} watch={watch} />
             <TeamSouls match={match} team={who?.team ?? 0} />
@@ -472,3 +477,32 @@ function Abilities({ match, slot, card, watch }: { match: DlMatch; slot: number;
   );
 }
 
+
+/** Duo review: the graded player's report card next to a friend's from the same match (the better score lit). */
+function DlDuo({ match, a, card, nameOf, moves }: { match: DlMatch; a: number; card: ReportCard; nameOf: (slot: number) => string; moves: DlMove[] }) {
+  const demo = useDl(s => s.demo);
+  const me = match.players.find(p => p.slot === a)!;
+  const [bSlot, setB] = useState<number | null>(null);
+  const others = match.players.filter(p => p.slot !== a);
+  const b = others.find(p => p.slot === bSlot) ?? others.find(p => p.team === me.team)!;
+  const other = useMemo(() => reportCard(match, b.slot, demo, moves), [match, b.slot, demo, moves]);
+  const cell = (x: number | null, y: number | null, fmt = (v: number) => String(v)) => <td className={x !== null && y !== null && x > y ? 'hi' : ''}>{x === null ? '–' : fmt(x)}</td>;
+  const k = (v: number) => `${(v / 1000).toFixed(1)}k`;
+  return (
+    <section className="recap-card duo">
+      <div className="duo-head">
+        <h3>Side by side</h3>
+        <label className="muted small">with <select value={b.slot} onChange={e => setB(Number(e.target.value))}>{others.map(p => <option key={p.slot} value={p.slot}>{nameOf(p.slot)} · {heroOf(p.hero).name}{p.team === me.team ? ' (teammate)' : ''}</option>)}</select></label>
+      </div>
+      <table className="duo-table">
+        <thead><tr><th /><th>{nameOf(a)} · {heroOf(me.hero).name}</th><th>{nameOf(b.slot)} · {heroOf(b.hero).name}</th></tr></thead>
+        <tbody>
+          <tr><td>K / D / A</td><td>{me.kills}/{me.deaths}/{me.assists}</td><td>{b.kills}/{b.deaths}/{b.assists}</td></tr>
+          <tr><td>Souls</td>{cell(me.netWorth, b.netWorth, k)}{cell(b.netWorth, me.netWorth, k)}</tr>
+          <tr><td>Overall (50 is average for the hero and position)</td>{cell(card.overall, other.overall)}{cell(other.overall, card.overall)}</tr>
+          {card.parts.map(p => { const q = other.parts.find(x => x.key === p.key)?.score ?? null; return <tr key={p.key}><td>{p.label}</td>{cell(p.score, q)}{cell(q, p.score)}</tr>; })}
+        </tbody>
+      </table>
+    </section>
+  );
+}

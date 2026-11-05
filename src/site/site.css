@@ -532,3 +532,45 @@ a.hero-games-live:hover b { text-decoration: underline; }
 }
 /* the profile's game tabs: as wide as the cards under them (the recap's bleed doesn't fit this page's padding) */
 .recap-tabs.profile-games { margin: 0 0 14px; padding: 8px 0; }
+
+/* ---- puzzles, the mistake reel, the next-match focus, a shared moment (src/moments) ------------------------------ */
+.moments-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.moments .site-card { margin-bottom: 14px; }
+.moment-map { flex: none; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-1); }
+.puzzle { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.puzzle-body { flex: 1; min-width: 240px; display: grid; gap: 10px; }
+.puzzle-setup { margin: 0; font-size: 15px; line-height: 1.5; }
+.puzzle-options { display: grid; gap: 8px; }
+.puzzle-option { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; min-height: 44px; }
+.puzzle-option.best { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--surface-2)); }
+.puzzle-option.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--surface-2)); }
+.puzzle-option:disabled { opacity: .65; }
+.puzzle-verdict { margin: 0; font-size: 14px; line-height: 1.5; }
+.puzzle-next { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.focus-kind { font: 700 26px/1.2 var(--font-display); margin: 4px 0; color: var(--text-1); }
+.focus-streak { font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+.focus-streak.up { color: var(--good); }
+.focus-clips { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.focus-clip { display: grid; gap: 4px; padding: 6px; justify-items: center; }
+.reel-group { border-top: 1px solid var(--border); padding: 8px 0; }
+.reel-group summary { display: flex; justify-content: space-between; gap: 10px; cursor: pointer; padding: 6px 0; font-size: 14px; }
+.reel-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.reel-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.reel-list li > span:nth-child(2) { display: grid; gap: 2px; }
+.reel-actions { display: flex; gap: 6px; }
+@media (max-width: 560px) {
+  .reel-list li { grid-template-columns: auto minmax(0, 1fr); }
+  .reel-actions { grid-column: 1 / -1; }
+  .nav-link[href="#/puzzles"] span { display: none; }
+}
+/* duo review (CS2 recap) */
+.duo-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.duo-head select { width: auto; max-width: 220px; margin-left: 6px; }
+.duo-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13.5px; }
+.duo-table th, .duo-table td { padding: 7px 10px; border-top: 1px solid var(--border); text-align: right; }
+.duo-table th:first-child, .duo-table td:first-child { text-align: left; color: var(--text-2); }
+.duo-table td.hi { color: var(--good); font-weight: 700; }
+.focus-banner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 14px; align-items: center; padding: 14px 18px; margin-bottom: 14px; color: var(--text-1); text-decoration: none; }
+.focus-banner > span:nth-child(2) { display: grid; gap: 2px; }
+.focus-banner b { font: 700 20px/1.2 var(--font-display); }
+@media (max-width: 560px) { .focus-banner { grid-template-columns: auto minmax(0, 1fr); } .focus-banner .focus-streak { grid-column: 2; } .focus-banner > .icon:last-child { display: none; } }

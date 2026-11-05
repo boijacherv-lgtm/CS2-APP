@@ -36,7 +36,7 @@ export function MatchReportPage() {
   // your default comparison (Settings), when the pro models are there
   const [level, setLevel] = useState<Level>(() => (useProfile.getState().data.prefs.compare === 'pro' && (!!PRO_MODEL || proAnalystAvailable) ? 'pro' : 'lvl10'));
   const [fullBoard, setFullBoard] = useState(false);
-  const [tab, setTab] = useState<RecapTab>(() => { try { const t = localStorage.getItem(LS_TAB) as RecapTab | null; return t && RECAP_TABS.some(x => x.id === t) ? t : 'overview'; } catch { return 'overview'; } });
+  const [tab, setTab] = useState<RecapTab>(() => { try { const t = localStorage.getItem(LS_TAB); if (t === 'analyst' || t === 'positions' || t === 'engine') return 'coach'; return t && RECAP_TABS.some(x => x.id === t) ? t as RecapTab : 'overview'; } catch { return 'overview'; } });
   const pickTab = (t: RecapTab) => { setTab(t); try { localStorage.setItem(LS_TAB, t); } catch { /* private mode */ } document.querySelector('.report')?.scrollTo({ top: 0 }); };
   // the overview's short version: the coach's summary, the three things to fix first, two to keep
   const overviewFor = useMemo(() => {
@@ -85,6 +85,7 @@ export function MatchReportPage() {
       {tab === 'overview' && focus && (
         <>
           <Performance p={focus} players={view.players} me={me} onPlayer={setPicked} />
+          {report.done && <DuoCard a={focus} players={view.players} />}
           <section className="recap-card overview">
             {/* half-graded notes read like verdicts: wait for every round */}
             {!report.done && <p className="ov-summary muted">The coach's notes appear once every round is graded ({view.graded}/{view.total}).</p>}
@@ -116,15 +117,16 @@ export function MatchReportPage() {
           </section>
         </>
       )}
+      {/* one Coach tab (was Coach, Analyst, Positions and Engine): the notes, the engine's moments, the numbers, where you stood */}
       {tab === 'coach' && focus && (
         <>
           <CoachCard p={focus} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
+          <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />
+          <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
+          <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />
           {me && view.players.some(p => p.id === me) && <HabitsCard />}
         </>
       )}
-      {tab === 'analyst' && focus && <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
-      {tab === 'positions' && focus && <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />}
-      {tab === 'engine' && focus && <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />}
       {tab === 'scoreboard' && (
         <section className="recap-card">
           <div className="coach-head">
@@ -141,13 +143,10 @@ export function MatchReportPage() {
   );
 }
 
-type RecapTab = 'overview' | 'coach' | 'analyst' | 'positions' | 'engine' | 'scoreboard' | 'rounds';
+type RecapTab = 'overview' | 'coach' | 'scoreboard' | 'rounds';
 const RECAP_TABS: { id: RecapTab; label: string; icon: IconName }[] = [
   { id: 'overview', label: 'Overview', icon: 'star' },
   { id: 'coach', label: 'Coach', icon: 'chat' },
-  { id: 'analyst', label: 'Analyst', icon: 'stats' },
-  { id: 'positions', label: 'Positions', icon: 'map' },
-  { id: 'engine', label: 'Engine', icon: 'route' },
   { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
   { id: 'rounds', label: 'Rounds', icon: 'grid' },
 ];
@@ -716,3 +715,41 @@ function LetterChip({ letter }: { letter: Letter }) {
 }
 
 const fmt = (v: number) => Math.round(v).toLocaleString('en-US');
+
+/** Duo review: the graded player next to a friend from the same match, number by number (the better one lit). */
+function DuoCard({ a, players }: { a: PlayerReport; players: PlayerReport[] }) {
+  const mates = players.filter(p => p.id !== a.id && p.played);
+  const [bId, setB] = useState<string | null>(null);
+  const b = mates.find(p => p.id === bId) ?? mates.find(p => p.team === a.team) ?? mates[0];
+  if (!b) return null;
+  const rows: [string, (p: PlayerReport) => number | null, (v: number) => string, boolean?][] = [
+    ['Kills / deaths', p => p.kills / Math.max(1, p.deaths), v => v.toFixed(2)],
+    ['ADR', p => p.adr, v => v.toFixed(0)],
+    ['KAST', p => p.kast, v => `${Math.round(v)}%`],
+    ['Impact a round', p => p.impactPerRound, v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`],
+    ['Headshots', p => p.hs, v => `${Math.round(v)}%`],
+    ['Opening duels won', p => p.openingKills / Math.max(1, p.openingKills + p.openingDeaths), v => `${Math.round(v * 100)}%`],
+    ['Engine accuracy', p => p.engineAccuracy, v => v.toFixed(1)],
+    ['Utility damage', p => p.utilDamage, v => v.toFixed(0)],
+  ];
+  return (
+    <section className="recap-card duo">
+      <div className="duo-head">
+        <h3>Side by side</h3>
+        <label className="muted small">with <select value={b.id} onChange={e => setB(e.target.value)}>{mates.map(p => <option key={p.id} value={p.id}>{p.name}{p.team === a.team ? ' (teammate)' : ''}</option>)}</select></label>
+      </div>
+      <table className="duo-table">
+        <thead><tr><th /><th>{a.name}</th><th>{b.name}</th></tr></thead>
+        <tbody>
+          <tr><td>Grade in this lobby</td><td><b>{a.letter}</b></td><td><b>{b.letter}</b></td></tr>
+          {rows.map(([label, f, fmt]) => {
+            const x = f(a), y = f(b);
+            return <tr key={label}><td>{label}</td>
+              <td className={x !== null && y !== null && x > y ? 'hi' : ''}>{x === null ? '–' : fmt(x)}</td>
+              <td className={x !== null && y !== null && y > x ? 'hi' : ''}>{y === null ? '–' : fmt(y)}</td></tr>;
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+}
