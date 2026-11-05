@@ -38,6 +38,8 @@ const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const day = (unix: number) => new Date(unix * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 const won = (r: DlHistoryRow) => r.match_result === r.player_team;
+/** deadlock-api leaves souls at 0 for some matches (no stats recorded): those would read as a 0-soul game. */
+const hasSouls = (r: DlHistoryRow) => r.net_worth > 0;
 const spm = (r: DlHistoryRow) => r.net_worth / Math.max(1, r.match_duration_s / 60);
 
 /** Grades one match for the player (the same report card as Match recap), or reads the kept grade. */
@@ -117,7 +119,7 @@ export function DlProfile({ account }: { account: string | null }) {
     return (
       <div key={label} className="kpi-tile" title={title}>
         <span>{label}</span>
-        <div className="kpi-body"><b>{fmt(v)}</b><MiniLine values={chrono.map(f)} good={Math.abs(d) < 1e-9 ? null : d > 0} /></div>
+        <div className="kpi-body"><b>{fmt(v)}</b><MiniLine values={chrono.map(f).filter(Number.isFinite)} good={Math.abs(d) < 1e-9 ? null : d > 0} /></div>
         <i className={`kpi-pill ${Math.abs(d) < 1e-9 ? 'flat' : d > 0 ? 'up' : 'down'}`} title="Your newer half against the older half">{Math.abs(d) < 1e-9 ? `last ${recent.length}` : <><Icon name={raw > 0 ? 'trendUp' : 'trendDown'} size={11} /> {fmt(Math.abs(raw))}</>}</i>
       </div>
     );
@@ -148,15 +150,15 @@ export function DlProfile({ account }: { account: string | null }) {
         </div>
         {kpi('KDA ratio', r => (r.player_kills + r.player_assists) / Math.max(1, r.player_deaths), v => v.toFixed(2), '(kills + assists) per death, over all these matches', false,
           xs => xs.reduce((a, r) => a + r.player_kills + r.player_assists, 0) / Math.max(1, xs.reduce((a, r) => a + r.player_deaths, 0)))}
-        {kpi('Souls a minute', spm, v => Math.round(v).toLocaleString())}
-        {kpi('Last hits a minute', r => r.last_hits / Math.max(1, r.match_duration_s / 60), v => v.toFixed(1))}
+        {kpi('Souls a minute', r => (hasSouls(r) ? spm(r) : NaN), v => Math.round(v).toLocaleString(), undefined, false, xs => half(xs.filter(hasSouls), spm))}
+        {kpi('Last hits a minute', r => (hasSouls(r) ? r.last_hits / Math.max(1, r.match_duration_s / 60) : NaN), v => v.toFixed(1), undefined, false, xs => half(xs.filter(hasSouls), r => r.last_hits / Math.max(1, r.match_duration_s / 60)))}
         {kpi('Deaths', r => r.player_deaths, v => v.toFixed(1), 'deaths a match (fewer is better)', true)}
       </section>
 
       <div className="dash-row">
         <section className="site-card dash-wide">
           <div className="card-head"><h2><Icon name="trendUp" size={16} /> Souls a minute</h2><span className="muted small">last {chrono.length}</span></div>
-          {chrono.length >= 2 ? <AreaChart points={chrono.map(r => ({ label: day(r.start_time), value: spm(r), note: `${heroOf(r.hero_id).name} · ${won(r) ? 'won' : 'lost'}` }))} fmt={v => Math.round(v).toLocaleString()} />
+          {chrono.filter(hasSouls).length >= 2 ? <AreaChart points={chrono.filter(hasSouls).map(r => ({ label: day(r.start_time), value: spm(r), note: `${heroOf(r.hero_id).name} · ${won(r) ? 'won' : 'lost'}` }))} fmt={v => Math.round(v).toLocaleString()} />
             : <p className="muted">Two matches and the line starts.</p>}
         </section>
         <section className="site-card dash-narrow">
