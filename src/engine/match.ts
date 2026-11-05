@@ -138,7 +138,8 @@ export function buildMatchReport(data: DemoData, rounds: (RoundSummary | null)[]
     const r = data.rounds.find(x => x.frames.players[id] && x.frames.players[ref]);
     return !r || r.frames.players[id].side === r.frames.players[ref].side ? 0 : 1;
   };
-  const rankOf = (id: string) => data.ranks?.[id]?.rating ?? null;
+  // a Competitive (map) rank is a skill group 1–18, not on the Premier scale: only Premier ratings compare
+  const rankOf = (id: string) => { const r = data.ranks?.[id]; return r?.type === 'premier' ? r.rating : null; };
   const score: [number, number] = [0, 0];
   data.rounds.forEach(r => {
     if (!r.winner) return;
