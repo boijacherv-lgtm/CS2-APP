@@ -63,7 +63,7 @@ export function MatchReportPage() {
   ));
   return (
     <div className="report">
-      <MatchHeader data={data} view={view} me={me} done={report.done} error={report.error} />
+      <MatchHeader data={data} view={view} me={me} done={report.done} error={report.error} verdict={report.done ? overview?.summary : undefined} />
 
       {/* the categories: one at a time, so the page is short; the bar stays at the top */}
       <nav className="recap-tabs" aria-label="Recap">
@@ -154,7 +154,7 @@ const RECAP_TABS: { id: RecapTab; label: string; icon: IconName }[] = [
 const LS_TAB = 'stratboard.recapTab';
 
 /** Map art, the final score (yours first when you played) and the result. */
-function MatchHeader({ data, view, me, done, error }: { data: DemoData; view: MatchReport; me: string | null; done: boolean; error?: string }) {
+function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData; view: MatchReport; me: string | null; done: boolean; error?: string; verdict?: string }) {
   const map = MAPS.find(m => m.id === data.map);
   const mine = me ? view.players.find(p => p.id === me) : undefined;
   const [a, b] = mine && mine.team === 1 ? [view.score[1], view.score[0]] : view.score;
@@ -184,6 +184,7 @@ function MatchHeader({ data, view, me, done, error }: { data: DemoData; view: Ma
         {done && error && <> · <b className="down">grading stopped after {view.graded}/{view.total} rounds: {error}</b></>}
       </p>
       {!done && <div className="report-progress"><i style={{ width: `${(view.graded / view.total) * 100}%` }} /></div>}
+      {verdict && <p className="recap-verdict">{verdict}</p>}
     </header>
   );
 }
@@ -496,7 +497,7 @@ function DecisionsCard({ rounds, player, onRound, onHotRound }: {
           {a.engine.key.length > 0 && (
             <div className="pos-worst">
               {a.engine.key.map((m, i) => (
-                <button key={i} className="ghost" onClick={() => onRound(m.round)} onMouseEnter={() => onHotRound(m.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review (turn on Engine lines to see it on the map)">
+                <button key={i} className="ghost moment-card" style={{ '--cls': SEARCH_COLOR[m.cls] } as React.CSSProperties} onClick={() => onRound(m.round)} onMouseEnter={() => onHotRound(m.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review (turn on Engine lines to see it on the map)">
                   <span className="muted num">R{m.round + 1} {Math.floor(m.t / 60)}:{String(Math.floor(m.t % 60)).padStart(2, '0')}</span>
                   <b>{m.did.label}</b>
                   <span className="usual" style={{ color: SEARCH_COLOR[m.cls], borderColor: SEARCH_COLOR[m.cls] }}>{m.cls} −{(m.cost * 100).toFixed(1)}%</span>

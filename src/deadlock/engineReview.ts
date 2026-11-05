@@ -16,6 +16,7 @@ const SCALE = (CAL as { accuracyScale?: number }).accuracyScale ?? 9;
 export const engineAccuracy = (avgLoss: number) => Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * avgLoss * 100 * SCALE) - 3.1669));
 
 const DID: Record<Action, string> = { fight: 'took the fight', objective: 'went for the objective', farm: 'farmed', lane: 'laned', base: 'went to base', move: 'moved around' };
+const SEVERITY: Record<SearchClass, number> = { Best: 0, Excellent: 1, Good: 2, Inaccuracy: 3, Mistake: 4, Blunder: 5 };
 const DO: Record<Action, string> = { fight: 'taking the fight', objective: 'going for the objective', farm: 'farming', lane: 'laning', base: 'going to base', move: 'moving' };
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 const odds = (p: number) => `${Math.round(p * 100)}%`;
@@ -92,7 +93,8 @@ export function engineReview(m: DlMatch, demo: DlDemo | null, slot: number): Eng
   const t1 = (CAL as { thresholds?: number[] }).thresholds?.[1] ?? 0.005;
   return {
     moves, avgLoss, counts, accuracy: moves.length ? engineAccuracy(avgLoss) : 0,
-    worst: moves.filter(x => bad.has(x.cls)).sort((a, b) => b.loss - a.loss),
+    // worst class first (a softened early-lane Inaccuracy stays below real Mistakes), then the loss
+    worst: moves.filter(x => bad.has(x.cls)).sort((a, b) => SEVERITY[b.cls] - SEVERITY[a.cls] || b.loss - a.loss),
     // a best call: the best move by more than a Good move gives up
     best: moves.filter(x => x.cls === 'Best' && x.margin > t1).sort((a, b) => b.margin - a.margin),
   };
