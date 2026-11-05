@@ -148,7 +148,7 @@ export function Economy({ match, slot, watch }: { match: DlMatch; slot: number; 
         <ul className="dl-take">
           {weak && weak.avg !== null && <li className={weak.you >= weak.avg ? 'is-up' : 'is-down'}><b>{weak.label} ({weak.a}–{weak.b} min)</b>{weak.you >= weak.avg ? ' was your best stretch: ' : ' is where you fell behind: '}{Math.round(weak.you).toLocaleString()} souls a minute against {Math.round(weak.avg).toLocaleString()}.</li>}
           {short && short.avg !== null && short.you < short.avg * 0.85 && <li className="is-down"><b>{LABEL[short.k]}</b> brought {Math.round(short.you).toLocaleString()} souls by {last.minute} min; the average {who} gets {Math.round(short.avg).toLocaleString()}.{short.k === 'camps' ? ' Clear a camp on your way when the lane is pushed.' : short.k === 'lane' ? ' Last-hit more and keep up with the waves.' : short.k === 'urn' ? ' Join the urn when it spawns on your side.' : ''}</li>}
-          {carried.length > 0 && <li className="is-down"><b>Died holding souls</b> {carried.length}×: {carried.slice(0, 4).map(u => <button key={u.t} className="chip" onClick={() => watch(u.t)}>{mins(u.t)} · {(u.unspent / 1000).toFixed(1)}k</button>)} Spend before a fight or a risky push.</li>}
+          {carried.length > 0 && <li className="is-down"><b>Died holding souls</b> {carried.length}×: {carried.slice(0, 4).map(u => <button key={u.t} className="chip" onClick={() => watch(u.t)}>{mins(u.t)} · {(u.unspent / 1000).toFixed(1)}k</button>)}{carried.length > 4 && <span className="muted"> +{carried.length - 4} more</span>} Spend before a fight or a risky push.</li>}
           {!carried.length && <li className="is-up"><b>Souls spent</b> before your deaths: you never died holding much.</li>}
         </ul>
       </section>

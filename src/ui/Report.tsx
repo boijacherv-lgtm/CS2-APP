@@ -86,8 +86,10 @@ export function MatchReportPage() {
         <>
           <Performance p={focus} players={view.players} me={me} onPlayer={setPicked} />
           <section className="recap-card overview">
-            <p className="ov-summary">{overview.summary}</p>
-            {overview.fix.length > 0 && (
+            {/* half-graded notes read like verdicts: wait for every round */}
+            {!report.done && <p className="ov-summary muted">The coach's notes appear once every round is graded ({view.graded}/{view.total}).</p>}
+            {report.done && <p className="ov-summary">{overview.summary}</p>}
+            {report.done && overview.fix.length > 0 && (
               <>
                 <h3>Fix first</h3>
                 <ol className="ov-list">
@@ -100,7 +102,7 @@ export function MatchReportPage() {
                 </ol>
               </>
             )}
-            {overview.keep.length > 0 && (
+            {report.done && overview.keep.length > 0 && (
               <>
                 <h3>Keep doing</h3>
                 <ul className="ov-list keep">{overview.keep.map(n => <li key={n.title}><b>{n.title}</b></li>)}</ul>
