@@ -65,16 +65,18 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     const alone = mates === 0, outnumbered = foes >= mates + 2;
     const tags: DlTag[] = [];
     const why: string[] = [];
-    if (alone) { tags.push('ISOLATED'); why.push('No teammate within reach: nobody could help or trade.'); }
+    // the tag says it (ALONE); the line only adds what the tag can't: how many were on you
+    if (alone) tags.push('ISOLATED');
     if (outnumbered && !alone) { tags.push('OUTNUMBERED'); why.push(`${foes} enemies against ${mates + 1} of you.`); }
-    else if (outnumbered) why.push(`${foes} enemies on you.`);
+    // alone and outnumbered: the title says it ("died … alone vs 3")
     if (overextended) { tags.push('OVEREXTENDED'); why.push('Died past one of their standing Guardians: deep in their side with no way back.'); }
     if (traded) { tags.push('TRADED'); why.push('A teammate killed your killer right after: the death was traded.'); }
     if (lost) { tags.push('COST OBJECTIVE'); why.push(`Your ${lost.name} fell ${Math.round(lost.destroyed! - d.t)} s later.`); }
     if (d === firstKill) { tags.push('FIRST BLOOD'); why.push('First death of the match.'); }
     // a spot where high-rank players die a lot at this stage (the death map): a known trap, worth a second look
     const heat = heatAt(d.at.x, d.at.y, d.t, team);
-    if (heat !== null && heat >= 85) { tags.push('HOT SPOT'); why.push(`A hot spot: high-rank players die here more than in ${heat}% of the places they die at this stage.`); }
+    // a tag, not a line (it was on most cards); the share stays in the tag's tip
+    if (heat !== null && heat >= 85) tags.push('HOT SPOT');
     // from the demo: died with the ultimate ready (last used longer ago than its full cooldown, so surely back:
     // cooldown items only make it shorter)
     const ult = heroOf(m.players.find(p => p.slot === d.slot)?.hero ?? 0).abilities?.find(a => a.ult);
@@ -82,7 +84,7 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     // …and had time to use it (a fight of 2 s or more, not a burst from nowhere)
     const ultReady = !!ult && !!lastUlt && ult.cd > 0 && d.t - lastUlt.t >= ult.cd + 20 && (d.ttk ?? 0) >= 2;
     if (ultReady) { tags.push('ULT UNUSED'); why.push(`Died with ${ult!.name} ready: last used ${mins(d.t - lastUlt!.t)} before (it's back in ${ult!.cd} s at most), in a ${d.ttk} s fight.`); }
-    why.push(`Out for ${d.respawn} s.`);
+    if (d.respawn >= 30) why.push(`Out for ${d.respawn} s.`);
     const faults = Number(alone) + Number(outnumbered) + Number(overextended);
     const base: Annotation = traded ? 'book' : faults >= 2 && lost ? '??' : faults >= 1 && (lost || faults >= 2) ? '?' : faults >= 1 ? '?!' : 'book';
     // an ultimate held through a death is a step worse (a traded death too: it could have won the fight)
@@ -90,10 +92,13 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     // what it cost: the team's win chance over the next 30 s (the model, winChance.ts); a costly death is a mistake
     // whatever else, a very costly one a blunder (a traded death stays sound)
     const win = swingAt(m, demo, d.t, team);
-    if (!traded) why.splice(why.length - 1, 0, `Win chance ${pts(win.swing)} (${pc(win.before)} → ${pc(win.after)} over the next 30 s).`);
-    const worse = traded ? note : win.swing <= -0.15 ? worst(note, '??') : win.swing <= -0.1 ? worst(note, '?') : win.swing <= -0.06 ? worst(note, '?!') : note;
+    // the grade never fights the number: a death after which the team still came out ahead isn't a mistake (unless an
+    // ultimate was held through it), and says why
+    const ahead = win.swing >= 0.03 && !ultReady;
+    if (ahead) why.push('Your team still came out ahead: the fight went your way after.');
+    const worse = traded || ahead ? (ahead ? 'book' : note) : win.swing <= -0.15 ? worst(note, '??') : win.swing <= -0.1 ? worst(note, '?') : win.swing <= -0.06 ? worst(note, '?!') : note;
     moves.push({ t: d.t, slot: d.slot, team, kind: 'death', note: worse, tags, why, win,
-      title: `${nameOf(d.slot)} died${d.killer !== null && d.killer !== d.slot ? ` to ${nameOf(d.killer)}` : ''} at ${mins(d.t)}` });
+      title: `${nameOf(d.slot)} died${d.killer !== null && d.killer !== d.slot ? ` to ${nameOf(d.killer)}` : ''}${alone && foes >= 2 ? ` alone vs ${foes}` : ''}` });
   }
 
   // ---- kills ---------------------------------------------------------------------------------------------------
@@ -106,16 +111,19 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     const streak = m.deaths.filter(o => o.killer === d.killer && o.t <= d.t && d.t - o.t <= 10).length;
     const richer = worth(d.slot, d.t) - worth(d.killer, d.t);
     const tags: DlTag[] = [], why: string[] = [];
-    if (mates === 0) { tags.push('SOLO KILL'); why.push('No teammate around: a kill on your own.'); }
-    if (foes >= 2 && mates === 0) why.push(`Against ${foes} of them.`);
+    if (mates === 0) tags.push('SOLO KILL');
+    if (foes >= 2 && mates === 0) why.push(`Solo kill against ${foes}.`);
     if (streak >= 3) { tags.push('MULTI-KILL'); why.push(`${streak} kills in 10 s.`); }
     if (richer >= 3000) { tags.push('UPSET'); why.push(`They had ${richer.toLocaleString()} more souls.`); }
-    const note: Annotation = streak >= 4 || (mates === 0 && foes >= 2) ? '!!' : streak >= 3 || richer >= 3000 || (mates === 0 && foes >= 1 && richer > 0) ? '!' : 'book';
+    // Brilliant is rare: 4 kills in 10 s, or a solo kill against 3 or more (a solo kill against 2 is Great)
+    const note: Annotation = streak >= 4 || (mates === 0 && foes >= 3) ? '!!' : streak >= 3 || richer >= 3000 || (mates === 0 && foes >= 2) ? '!' : 'book';
     // what it won: the team's win chance over the next 30 s
     const win = swingAt(m, demo, d.t, team);
-    why.push(`Win chance ${pts(win.swing)} (${pc(win.before)} → ${pc(win.after)} over the next 30 s).`);
-    const better = win.swing >= 0.15 ? best(note, '!!') : win.swing >= 0.08 ? best(note, '!') : note;
-    moves.push({ t: d.t, slot: d.killer, team, kind: 'kill', note: better, tags, why, win, title: `${nameOf(d.killer)} killed ${nameOf(d.slot)} at ${mins(d.t)}` });
+    // the grade never fights the number: no praise for a kill after which the team's chance fell (the fight was lost)
+    const fell = win.swing <= -0.03;
+    if (fell && note !== 'book') why.push('Win chance fell anyway: your team lost the fight after.');
+    const better = fell ? 'book' : win.swing >= 0.15 ? best(note, '!!') : win.swing >= 0.08 ? best(note, '!') : note;
+    moves.push({ t: d.t, slot: d.killer, team, kind: 'kill', note: better, tags, why, win, title: `${nameOf(d.killer)} killed ${nameOf(d.slot)}` });
   }
 
   // ---- laning: souls at the end of the laning phase against players of the same hero in the same position --------

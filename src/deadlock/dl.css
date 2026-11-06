@@ -608,3 +608,17 @@
 .dl-abil-tiers li { display: grid; grid-template-columns: 110px 1fr; gap: 8px; color: var(--text-2); }
 .dl-abil-tiers li span { color: var(--text-3); font-weight: 600; }
 .dl-abil-tiers li.got { color: var(--text-1); } .dl-abil-tiers li.got span { color: var(--good); }
+
+/* the clean move card: grade, who, what, the win chance bar, better, tags */
+.dl-card header { display: flex; align-items: center; gap: 8px; }
+.dl-grade { font-size: 12px; font-weight: 800; letter-spacing: .03em; padding: 3px 9px; border-radius: 6px; color: #0b0e12; }
+.dl-grade.stat { background: var(--surface-3); color: var(--text-1); }
+.dl-card-who { font-weight: 600; font-size: 13px; color: var(--text-2); }
+.dl-card.stat { background: var(--surface-1); }
+.dl-card-win { display: grid; grid-template-columns: minmax(60px, 1fr) auto; gap: 8px; align-items: center; margin: 6px 0; font-size: 13px; }
+.dl-card-win .bar { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.dl-card-win .bar i { display: block; height: 100%; }
+.dl-card-better { margin: 6px 0 0; font-size: 13.5px; }
+.dl-card-better b { color: var(--good); }
+.dl-card-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.dl-card-tags span { font-size: 12px; font-weight: 800; letter-spacing: .05em; padding: 2px 7px; border-radius: 5px; background: var(--surface-3); color: var(--text-2); }

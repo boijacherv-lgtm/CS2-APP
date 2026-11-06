@@ -10,7 +10,8 @@ describe('Deadlock coach', () => {
     const moves = coachMatch(m);
     const deaths = moves.filter(x => x.kind === 'death');
     expect(deaths.length).toBe(m.deaths.length);
-    for (const d of deaths) expect(d.why.length).toBeGreaterThan(0);
+    // each says why: a line, a tag (ALONE, HOT SPOT…) or the win chance it cost
+    for (const d of deaths) expect(d.why.length + d.tags.length + (d.win ? 1 : 0)).toBeGreaterThan(0);
   });
   it('calls a death with nobody around isolated (only two heroes in this slice: never a teammate near)', () => {
     const d = coachMatch(m).find(x => x.kind === 'death')!;
@@ -34,5 +35,16 @@ describe('Deadlock coach', () => {
     expect(after.why.at(-1)).toMatch(/rulings/);
     // too few rulings, or the coach right as often: no change
     expect(coachMatch(m, {}, {}, null, { [patternOf(before.kind, before.tags)]: { better: 2, worse: 0, coach: 2 } }).find(x => x.t === before.t && x.kind === 'death')!.note).toBe(before.note);
+  });
+});
+
+describe('Deadlock coach: the grade never fights the number', () => {
+  it('no praise for a kill after which the team lost win chance, no mistake for a death after which it gained', () => {
+    const moves = coachMatch(matchFromMetadata(slice));
+    for (const x of moves) {
+      if (!x.win) continue;
+      if (x.kind === 'kill' && x.win.swing <= -0.03) expect(['!', '!!']).not.toContain(x.note);
+      if (x.kind === 'death' && x.win.swing >= 0.03 && !x.tags.includes('ULT UNUSED')) expect(['?!', '?', '??']).not.toContain(x.note);
+    }
   });
 });

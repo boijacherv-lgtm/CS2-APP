@@ -24,6 +24,7 @@ import { NOTE_INFO } from '../engine/recap';
 import PLAY from './generated/playnet.json';
 import { ACTION_LABEL, playChances, WINDOW, type Action } from './playNet';
 import { searchAt, SEARCH_COLOR } from './search';
+import { engineReview } from './engineReview';
 import { ultOf } from './ultKinds';
 import type { Mlp } from '../engine/mlp';
 
@@ -172,7 +173,7 @@ export function DlBoard() {
           </aside>
         ))}
         <DlMap match={match} time={time} selected={selected} />
-        <DlCard moves={graded} time={time} canMine={coach.canMine} />
+        <DlCard moves={graded} time={time} canMine={coach.canMine} mineLabel={coach.mine !== null ? 'Mine' : 'This player'} />
         <ol className="dl-feed" aria-label="What happened">
           {feed.map((e, i) => <FeedRow key={`${e.kind}-${e.t}-${e.slot}-${i}`} e={e} match={match} nameOf={nameOf} />)}
         </ol>
@@ -312,7 +313,8 @@ function DlPlaybar({ match, time, playing, speed, graded, full, onFull }: { matc
       </select>
       <div className="dl-step" role="group" aria-label="Graded moments">
         <button onClick={() => stepMoment(graded, -1)} disabled={!graded.length} title="Previous graded moment (←)" aria-label="Previous graded moment"><Icon name="prev" size={14} /></button>
-        <span className="num muted small">{graded.filter(m => m.t <= time).length}/{graded.length}</span>
+        {/* moments, not moves: several at the same second are one stop of ← → */}
+        <span className="num muted small">{(() => { const ts = [...new Set(graded.map(m => m.t))]; return `${ts.filter(t => t <= time + LEAD + 0.5).length}/${ts.length}`; })()}</span>
         <button onClick={() => stepMoment(graded, 1)} disabled={!graded.length} title="Next graded moment (→)" aria-label="Next graded moment"><Icon name="prev" size={14} className="flip-x" /></button>
       </div>
       <div className="dl-timeline">
@@ -394,7 +396,7 @@ function stepMoment(moves: DlMove[], dir: 1 | -1) {
 const LEAD = 4;
 
 /** The coach's card for the latest graded moment (shown from a few seconds before it until a while after). */
-function DlCard({ moves, time, canMine }: { moves: DlMove[]; time: number; canMine: boolean }) {
+function DlCard({ moves, time, canMine, mineLabel = 'Mine' }: { moves: DlMove[]; time: number; canMine: boolean; mineLabel?: string }) {
   const scope = useDl(s => s.scope);
   const m = [...moves].reverse().find(x => time >= x.t - LEAD && time <= x.t + 8);
   return (
@@ -402,22 +404,57 @@ function DlCard({ moves, time, canMine }: { moves: DlMove[]; time: number; canMi
       {canMine && (
         <div className="seg-mini dl-scope" role="group" aria-label="Whose moves">
           <button className={scope === 'all' ? 'on' : ''} onClick={() => useDl.getState().setScope('all')}>All</button>
-          <button className={scope === 'mine' ? 'on' : ''} onClick={() => useDl.getState().setScope('mine')}>Mine</button>
+          <button className={scope === 'mine' ? 'on' : ''} onClick={() => useDl.getState().setScope('mine')}>{mineLabel}</button>
         </div>
       )}
-      {m && (
-        <article className="dl-card" style={{ borderColor: NOTE_INFO[m.note].color }}>
-          <header>
-            <MarkFace note={m.note} size={24} className="dl-card-mark" />
-            <span>{NOTE_INFO[m.note].label}</span>
-            <span className="muted small num">{mins(m.t)}</span>
-          </header>
-          <p className="dl-card-title">{m.title}</p>
-          <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>
-          <Dispute m={m} />
-        </article>
-      )}
+      {m && <MoveCardDl m={m} />}
     </div>
+  );
+}
+
+const BETTER_DO: Record<Action, string> = { fight: 'take the fight', objective: 'go for the objective', farm: 'farm camps', lane: 'stay in lane', base: 'go back to base', move: 'rotate' };
+/** The engine's best move a little before a death or kill (the 2-step search, every 20 s alive): the "Better:" line. */
+const reviews = new WeakMap<DlMatch, Map<number, ReturnType<typeof engineReview>>>();
+function betterBefore(match: DlMatch, demo: ReturnType<typeof useDl.getState>['demo'], m: DlMove): string | null {
+  if (m.kind !== 'death' || m.note === 'book' || m.note === '!' || m.note === '!!') return null;
+  let per = reviews.get(match);
+  if (!per) reviews.set(match, per = new Map());
+  let rv = per.get(m.slot);
+  if (!rv) { try { rv = engineReview(match, demo, m.slot); } catch { return null; } per.set(m.slot, rv); }
+  const before = rv.moves.filter(x => x.t <= m.t - 3 && x.t >= m.t - 30).at(-1);
+  if (!before || before.played.action === before.options[0].action) return null;
+  return `${BETTER_DO[before.options[0].action]} at ${mins(before.t)}, not ${BETTER_DO[before.played.action]}`;
+}
+
+/**
+ * One graded moment, five lines at most: the grade and who, what happened, the win chance as a bar with its change,
+ * the better move (from the engine), and the tags. "Coach wrong?" only on a Mistake or a Blunder.
+ */
+function MoveCardDl({ m }: { m: DlMove }) {
+  const match = useDl(s => s.match)!, demo = useDl(s => s.demo), names = useDl(s => s.names);
+  const better = useMemo(() => betterBefore(match, demo, m), [match, demo, m]);
+  const who = names[match.players.find(p => p.slot === m.slot)?.account ?? -1]?.name ?? heroOf(match.players.find(p => p.slot === m.slot)?.hero ?? 0).name;
+  const info = NOTE_INFO[m.note];
+  const laning = m.kind === 'laning';
+  return (
+    <article className={`dl-card ${laning ? 'stat' : ''}`} style={{ borderColor: laning ? 'var(--border-strong)' : info.color }}>
+      <header>
+        {!laning && <span className="dl-grade" style={{ background: info.color }}>{info.label}</span>}
+        {laning && <span className="dl-grade stat">Laning</span>}
+        <span className="dl-card-who">{who} · <span className="num">{mins(m.t)}</span></span>
+      </header>
+      <p className="dl-card-title">{m.title}</p>
+      {m.win && (
+        <div className="dl-card-win" title="Your team's win chance just before and 30 s after">
+          <span className="bar"><i style={{ width: `${Math.round(m.win.after * 100)}%`, background: m.win.swing >= 0 ? 'var(--good)' : 'var(--bad)' }} /></span>
+          <span className="num">{Math.round(m.win.before * 100)}% → {Math.round(m.win.after * 100)}% <b className={m.win.swing >= 0 ? 'up' : 'down'}>({m.win.swing >= 0 ? '+' : '−'}{Math.abs(m.win.swing * 100).toFixed(1)})</b></span>
+        </div>
+      )}
+      {m.why.length > 0 && <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+      {better && <p className="dl-card-better"><b>Better:</b> {better.charAt(0).toUpperCase() + better.slice(1)}</p>}
+      {m.tags.length > 0 && <div className="dl-card-tags">{m.tags.map(t => <span key={t}>{t === 'ISOLATED' ? 'ALONE' : t}</span>)}</div>}
+      {(m.note === '?' || m.note === '??') && <Dispute m={m} />}
+    </article>
   );
 }
 
