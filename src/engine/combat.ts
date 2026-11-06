@@ -60,7 +60,11 @@ export interface Simulation {
   hp: Uint8Array[];
   blind: Uint8Array[];
   utilEvents: UtilEvent[];
+  /** The bomb: planted (when, where, by whom, which site), defused, gone off (round seconds). */
+  bomb?: { plantT: number; site: string; pos: Vec2; by: string; defuseT?: number; defuser?: string; explodeT?: number };
 }
+/** Planting takes 3.2 s; the fuse 40 s; a defuse 5 s (a kit assumed: CTs on a buy have one). */
+export const SIM_PLANT = 3.2, SIM_FUSE = 40, SIM_DEFUSE = 5;
 
 interface Agent {
   p: Player;
@@ -105,6 +109,12 @@ export function simulate(engine: TacticalEngine, board: BoardState, end: number,
     sim.deathT[j] = t;
     sim.kills.push({ t, killer, victim: b.p.id, at: { ...b.pos }, cause });
   };
+
+  // the bomb sites (radar px) and who's planting or defusing
+  const sites = Object.entries(engine.map.sites ?? {}) as [string, { center: Vec2; radius: number }][];
+  const siteAt = (p: Vec2) => sites.find(([, st]) => dist(p, st.center) <= st.radius)?.[0] ?? null;
+  let planter = -1, plantFrom = 0, defuser = -1, defuseFrom = 0;
+  const DEFUSE_REACH_PX = 60 / engine.map.radar.scale; // within about 60 units of the bomb
 
   for (let s = 0; s < steps; s++) {
     const t = s * SIM_DT;
@@ -199,6 +209,21 @@ export function simulate(engine: TacticalEngine, board: BoardState, end: number,
       if (rng() < 1 - Math.exp(-h * SIM_DT)) kill(j, t, a.p.id, 'gun');
     }
 
+    // 3b. The bomb: a T on a site with no enemy in sight plants (3.2 s, standing still); then the fuse runs, and a CT
+    // next to the bomb with no enemy in sight defuses (5 s). Leaving, a fight or dying resets the attempt.
+    const free = (i: number) => agents[i].alive && !sees[i].some(j => agents[j].alive);
+    if (!sim.bomb) {
+      if (planter >= 0 && (!free(planter) || !siteAt(agents[planter].pos))) planter = -1;
+      if (planter < 0) { const i = agents.findIndex((a, k) => a.p.side === 'T' && free(k) && !!siteAt(a.pos)); if (i >= 0) { planter = i; plantFrom = t; } }
+      if (planter >= 0 && t - plantFrom >= SIM_PLANT) sim.bomb = { plantT: t, site: siteAt(agents[planter].pos)!, pos: { ...agents[planter].pos }, by: agents[planter].p.id };
+    } else if (sim.bomb.defuseT === undefined && sim.bomb.explodeT === undefined) {
+      const near = (i: number) => dist(agents[i].pos, sim.bomb!.pos) <= DEFUSE_REACH_PX;
+      if (defuser >= 0 && (!free(defuser) || !near(defuser))) defuser = -1;
+      if (defuser < 0) { const i = agents.findIndex((a, k) => a.p.side === 'CT' && free(k) && near(k)); if (i >= 0) { defuser = i; defuseFrom = t; } }
+      if (defuser >= 0 && t - defuseFrom >= SIM_DEFUSE) { sim.bomb.defuseT = t; sim.bomb.defuser = agents[defuser].p.id; }
+      else if (t - sim.bomb.plantT >= SIM_FUSE) sim.bomb.explodeT = t;
+    }
+
     // 4. Move and turn.
     for (let i = 0; i < n; i++) {
       const a = agents[i];
@@ -207,7 +232,8 @@ export function simulate(engine: TacticalEngine, board: BoardState, end: number,
         const engaged = enemies.length > 0;
         const r = a.route;
         a.moving = false;
-        if (r && t >= r.start && !engaged && a.progress < r.end - r.start) {
+        const busy = (!sim.bomb && i === planter) || (!!sim.bomb && i === defuser);
+        if (r && t >= r.start && !engaged && !busy && a.progress < r.end - r.start) {
           a.progress = Math.min(r.end - r.start, a.progress + SIM_DT);
           a.moving = true;
         }
