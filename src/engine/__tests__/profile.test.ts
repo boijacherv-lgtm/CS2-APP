@@ -3,6 +3,7 @@ import { FEATURE_LABEL } from '../coach';
 import { LETTERS } from '../recap';
 import { averages, fullMatches, cleanGoals, cleanMatch, cleanNotifyGames, cleanPrefs, FEATURE_IDS, goalSeries, mapStats, MAX_GOALS, MAX_HISTORY, MECH_IDS, withMatch, type ProfileMatch } from '../profile';
 import { addMatchFromServer, profileRoute, publicProfileOf, type ProfileKV } from '../../../worker/src/profile';
+import { board, countAnswer } from '../../../worker/src/puzzles';
 
 const match = (o: Partial<ProfileMatch> = {}): ProfileMatch => ({
   id: 'de_mirage|24|1.0', map: 'de_mirage', at: 1000, rounds: 24, result: 'win', score: [13, 11],
@@ -108,5 +109,31 @@ describe('profile', () => {
 describe('fullMatches', () => {
   it('drops partial demos', () => {
     expect(fullMatches([match({ rounds: 1 }), match({ rounds: 7 }), match({ rounds: 8 }), match()]).map(m => m.rounds)).toEqual([8, 24]);
+  });
+});
+
+describe('puzzle server', () => {
+  const ME = '76561198000000001', YOU = '76561198000000002';
+  const rec = (rating: number, tried = 20) => ({ puzzles: { rating, solved: Math.min(5, tried), tried, best: 3, dailyStreak: 1, rushBest: 4 } });
+  it('counts answers to premade puzzles only', async () => {
+    const kv = memoryKV();
+    expect(await countAnswer(kv, { id: 'p:de_mirage|24|1.0#R3 0:40', right: true })).toEqual({ tried: 1, right: 1 });
+    expect(await countAnswer(kv, { id: 'p:de_mirage|24|1.0#R3 0:40', right: false })).toEqual({ tried: 2, right: 1 });
+    await expect(countAnswer(kv, { id: 'anything else', right: true })).rejects.toThrow();
+    await expect(countAnswer(kv, { id: 'p:x', right: 'yes' })).rejects.toThrow();
+  });
+  it('the board has public profiles with 10+ puzzles, best first, and follows the public switch', async () => {
+    const kv = memoryKV();
+    await profileRoute(kv, ME, 'POST', '/profile/puzzles', rec(1500));
+    expect(await board(kv)).toEqual([]); // private
+    await profileRoute(kv, ME, 'POST', '/profile/prefs', { public: true });
+    await profileRoute(kv, YOU, 'POST', '/profile/prefs', { public: true });
+    await profileRoute(kv, YOU, 'POST', '/profile/puzzles', rec(1700));
+    expect((await board(kv)).map(r => r.steamId)).toEqual([YOU, ME]);
+    await profileRoute(kv, YOU, 'POST', '/profile/puzzles', rec(1800, 3)); // too few to count
+    expect((await board(kv)).map(r => r.steamId)).toEqual([ME]);
+    await profileRoute(kv, ME, 'POST', '/profile/prefs', { public: false });
+    expect(await board(kv)).toEqual([]);
+    await expect(profileRoute(kv, ME, 'POST', '/profile/puzzles', { puzzles: { rating: 'x' } })).rejects.toThrow();
   });
 });

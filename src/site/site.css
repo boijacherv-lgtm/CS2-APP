@@ -680,3 +680,11 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .rush-bar { display: flex; gap: 18px; align-items: baseline; margin-bottom: 10px; font-weight: 600; }
 .rush-bar b { font: 700 28px/1 var(--font-display); color: var(--theme); }
 @media (max-width: 560px) { .weak-list li { grid-template-columns: 1fr auto; } .moments-head .puzzle-rating { margin-left: 0; } }
+.puzzle-crowd { font-size: 13px; margin-left: 6px; }
+.board { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.board li { display: grid; grid-template-columns: 28px 28px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+.board li.mine { outline: 2px solid var(--theme); }
+.board img { border-radius: 6px; }
+.board-n { color: var(--text-2); font-weight: 700; }
+.board-r { font: 700 20px/1 var(--font-display); }
+@media (max-width: 560px) { .board li { grid-template-columns: 24px 24px minmax(0, 1fr) auto; } .board li > .small { display: none; } }

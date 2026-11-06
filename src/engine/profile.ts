@@ -55,6 +55,19 @@ export interface ProfileData {
   notifyGames: string[];
   /** Where they told the coach it was wrong (Review's move cards): checked against, and learned from. */
   verdicts: MoveVerdict[];
+  /** Your puzzle record (Puzzles), saved with your account: the leaderboard reads it when your profile is public. */
+  puzzles?: PuzzleRecord;
+}
+
+export interface PuzzleRecord { rating: number; solved: number; tried: number; best: number; dailyStreak: number; rushBest: number; at: number }
+const intIn = (v: unknown, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(hi, Math.max(lo, v))) : null);
+/** A puzzle record from the browser, checked (null when it isn't one). */
+export function cleanPuzzles(raw: unknown): PuzzleRecord | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const rating = intIn(r.rating, 100, 3500), solved = intIn(r.solved, 0, 1e6), tried = intIn(r.tried, 0, 1e6), best = intIn(r.best, 0, 1e5), dailyStreak = intIn(r.dailyStreak, 0, 1e4), rushBest = intIn(r.rushBest, 0, 1000);
+  if (rating === null || solved === null || tried === null || solved > tried || best === null || dailyStreak === null || rushBest === null) return null;
+  return { rating, solved, tried, best, dailyStreak, rushBest, at: Date.now() };
 }
 
 /**

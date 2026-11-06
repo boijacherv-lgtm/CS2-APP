@@ -20,6 +20,7 @@ import { askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES,
 import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } from './dlDisputes';
 import { META_KEY, refreshDlMeta } from './dlMeta';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
+import { board, countAnswer, updateBoard } from './puzzles';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
 export interface Env {
@@ -84,7 +85,7 @@ export default {
     try {
       // each of these makes the Worker call Steam, so a script could burn the site's Steam API key: only the website
       // may call them, and only so often per visitor
-      if (path === '/openid/verify' || path === '/profiles' || path.startsWith('/public/')) {
+      if (path === '/openid/verify' || path === '/profiles' || path.startsWith('/public/') || path.startsWith('/puzzle/')) {
         if (await limited(env.RATE_PUBLIC, ip)) return slow();
       }
       if (req.method === 'POST' && path === '/openid/verify') return json(await verifyLogin(env, await body(req)));
@@ -106,6 +107,10 @@ export default {
         if (!allowed.includes(origin)) return json({ error: 'Not allowed from here.' }, 403);
         return json({ profiles: await profiles(env, new URL(req.url).searchParams.get('ids') ?? '') });
       }
+      // puzzles: count an answer to a premade puzzle; the leaderboard (public profiles only; names via /profiles)
+      if (req.method === 'POST' && path === '/puzzle/answer') return json(await countAnswer(env.SB, await body(req)));
+      if (req.method === 'GET' && path === '/puzzle/board')
+        return new Response(JSON.stringify({ rows: await board(env.SB) }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
       // a friend's profile, when they made it public (name, avatar and their last matches' numbers)
       const pub = path.match(/^\/public\/(7656\d{13})$/);
       if (req.method === 'GET' && pub) {
@@ -180,7 +185,7 @@ export default {
       if (req.method !== 'POST') return json({ error: 'Not found.' }, 404);
       const input = await body(req);
       if (path === '/signout') { await env.SB.delete(`session:${token}`); return json({ ok: true }); }
-      if (path === '/forget') { await env.SB.delete(`user:${steamId}`); await forgetProfile(env.SB, steamId); return json({ ok: true }); }
+      if (path === '/forget') { await env.SB.delete(`user:${steamId}`); await forgetProfile(env.SB, steamId); await updateBoard(env.SB, steamId, undefined, false); return json({ ok: true }); }
       if (path === '/settings') return json(await saveSettings(env, steamId, input));
       if (path === '/sync') return json(await sync(env, steamId));
       return json({ error: 'Not found.' }, 404);

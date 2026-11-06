@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { openMatch } from '../deadlock/open';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
 import { navigate } from '../shell/router';
+import { useStore } from '../store';
 
 /** The sample: a public Phantom+ match (46 min, both teams' fights and objectives), opened from deadlock-api. */
 const SAMPLE_MATCH = 131074890;
@@ -26,6 +27,20 @@ export function Home() {
   const top = GAMES.slice(0, 3), more = GAMES.slice(3);
   // a public high-rank Deadlock match, opened on the board: the product without a demo of your own
   const [sample, setSample] = useState<'idle' | 'opening' | 'failed'>('idle');
+  // a FACEIT level-10 Mirage match, players' names and IDs replaced (public/samples), graded here like your own demo
+  const startReview = useStore(s => s.startReview);
+  const tryCs2Sample = async () => {
+    setSample('opening');
+    try {
+      const res = await fetch('/samples/cs2-mirage.json.gz');
+      if (!res.ok) throw new Error(String(res.status));
+      // still gzipped (GitHub Pages) or already unpacked by the server (the dev server sends it gzip-encoded)
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const json = bytes[0] === 0x1f && bytes[1] === 0x8b ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text() : new TextDecoder().decode(bytes);
+      startReview(JSON.parse(json));
+      navigate({ page: 'cs2', mode: 'review' });
+    } catch { setSample('failed'); }
+  };
   const trySample = async () => {
     setSample('opening');
     try { await openMatch(SAMPLE_MATCH); navigate({ page: 'deadlock', mode: 'review' }); } catch { setSample('failed'); }
@@ -50,7 +65,12 @@ export function Home() {
             {PLAYABLE.map((g, i) => <a key={g.id} className={`cta${i === 0 ? ' primary' : ''}`} href={g.review}>Review a {g.short === 'DL' ? 'Deadlock' : g.short} match <Icon name="arrowRight" size={14} /></a>)}
             <button className="cta" onClick={toGames}>See all games <Icon name="arrowRight" size={14} /></button>
           </div>
-          <p className="hero-sample"><button className="cta" onClick={trySample} disabled={sample === 'opening'}><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening a sample match…' : 'Try a sample match'}</button> <span className="muted">{sample === 'failed' ? 'couldn\'t open it, try again' : 'a public Deadlock match: no file, no login'}</span></p>
+          <p className="hero-sample">
+            <span className="muted">Try a sample, no file, no login:</span>
+            <button className="cta" onClick={tryCs2Sample} disabled={sample === 'opening'}><Icon name="play" size={12} /> CS2 sample</button>
+            <button className="cta" onClick={trySample} disabled={sample === 'opening'}><Icon name="play" size={12} /> Deadlock sample</button>
+            {sample === 'opening' && <span className="muted">Opening…</span>}{sample === 'failed' && <span className="warn-text">Couldn't open it, try again.</span>}
+          </p>
           <ul className="hero-trust">
             <li><Icon name="shield" size={14} /> Runs in your browser</li>
             <li><Icon name="check" size={14} /> No account needed</li>
