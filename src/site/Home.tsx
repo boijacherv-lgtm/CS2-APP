@@ -104,6 +104,18 @@ export function Home() {
       </section>
 
       <section className="site-section">
+        <h2 className="section-title">See it</h2>
+        <div className="shots">
+          {SHOTS.map(x => (
+            <figure key={x.src} className="shot">
+              <img src={x.src} alt={x.alt} width={800} height={600} loading="lazy" />
+              <figcaption><b>{x.title}</b> {x.text}</figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
+      <section className="site-section">
         <h2 className="section-title">What you get</h2>
         <div className="feature-grid">
           {FEATURES.map(f => (
@@ -151,6 +163,13 @@ export function Home() {
     </div>
   );
 }
+
+/** Real screens (a public Deadlock match with the players' names hidden, a top players' CS2 puzzle). */
+const SHOTS = [
+  { src: '/images/shots/replay.jpg', title: 'The replay.', text: 'Every death graded on the map.', alt: 'Deadlock replay: the map, both teams, and a graded death explained' },
+  { src: '/images/shots/coach.jpg', title: 'The engine.', text: 'Your costliest moves and best calls.', alt: 'Recap engine card: accuracy 92, costliest moves and best calls with reasons' },
+  { src: '/images/shots/puzzle.jpg', title: 'Puzzles.', text: 'Find the best move, then see the answer.', alt: 'A CS2 puzzle on Nuke with four moves and the engine answer' },
+];
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
   { icon: 'play', title: 'Graded replay', text: 'Every play scored, with a live win-chance bar.' },
