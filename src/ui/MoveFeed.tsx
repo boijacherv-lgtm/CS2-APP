@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { simStateAt, type Simulation } from '../engine/combat';
 import { moveLook, NoteMark } from './NoteMark';
 import { gunFromName } from '../engine/guns';
-import { calloutAt, NOTE_INFO, moveKey, readMs, TAG_INFO, type DemoRound, type Move, type Review } from '../engine/recap';
+import { calloutAt, NOTE_INFO, moveKey, readMs, TAG_INFO, type DemoRound, type Move, type Review, type Tag } from '../engine/recap';
 import { useStore, whoAmI } from '../store';
 import { rageLine } from '../engine/rage';
 import { GameIcon, Icon } from './Icon';
@@ -54,8 +54,10 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   }, [time]);
   useEffect(() => setRead(new Set()), [recap, shown]);
   const [page, setPage] = useState(0);
-  const { pending, backlog } = calloutAt(recap.moves, time, queueing, read, 0, shown);
-  const { move: atMove, group } = calloutAt(recap.moves, time, false, read, page, shown);
+  // cards for graded moves only: a Book move (the expected play) stays in the killfeed, not as a card
+  const carded = (m: Move) => shown(m) && m.note !== 'book';
+  const { pending, backlog } = calloutAt(recap.moves, time, queueing, read, 0, carded);
+  const { move: atMove, group } = calloutAt(recap.moves, time, false, read, page, carded);
   const groupKey = group.map(moveKey).join('|');
   useEffect(() => setPage(group.length - 1), [groupKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // a move picked from the killfeed or the move list, or a card you closed: holds until the replay moves on
@@ -196,12 +198,18 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
             </span>
           )}
         </div>
-        {!playing && <div onClick={e => e.stopPropagation()}><VerdictBar m={card} /></div>}
+        {!playing && (card.note === '?' || card.note === '??') && <div onClick={e => e.stopPropagation()}><VerdictBar m={card} /></div>}
         {reading && !held && readFor > 0 && <i key={`r${cardKey}`} className="feed-read" style={{ animationDuration: `${readFor}ms`, background: g.color }} />}
       </div>
     </>
   );
 }
+
+/** Reasons a tag already says (the tag stays on the card, the line goes). */
+const SAID_BY_TAG: Partial<Record<Tag, RegExp>> = {
+  ISOLATED: /no teammate|nobody (could|to) trade|alone/i, TRADED: /\btraded\b/i, 'FLASH ASSIST': /flash assist/i, 'MULTI-KILL': /kills? in \d+ ?s/i,
+  'LOW HP': /\bHP\b|low health/i, 'POST-PLANT': /after the plant|bomb (was )?planted/i,
+};
 
 /** The card's parts from a move's reasons: the win-chance swing (for the meter), the engine's better play, the rest. */
 export function cardFacts(m: Move): { swing: { side: 'CT' | 'T'; before: number; after: number } | null; better: string | null; reasons: string[] } {
@@ -216,6 +224,8 @@ export function cardFacts(m: Move): { swing: { side: 'CT' | 'T'; before: number;
     const opt = w.match(/^Options: (.+?) \(best\)/);
     if (opt) { better ??= cap(opt[1]); continue; }
     // the engine's verdict is the card's grade already: keep what it adds (accuracy, cost)
+    // a line the card's tag already says is dropped (the tag stays)
+    if (m.tags.some(t => SAID_BY_TAG[t]?.test(w))) continue;
     reasons.push(brief(w).replace(/^Engine: [A-Za-z]+, a/, 'A'));
   }
   return { swing, better, reasons };
@@ -228,7 +238,7 @@ function WinMeter({ m, swing }: { m: Move; swing: { side: 'CT' | 'T'; before: nu
   if (!swing) return <div className="feed-meter only">{pill}<span className="muted">win chance</span></div>;
   return (
     <div className="feed-meter" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
-      <div className="feed-meter-top"><span className={swing.side.toLowerCase()}>{swing.side} win chance</span><b className="num">{swing.before}% → {swing.after}%</b>{pill}</div>
+      <div className="feed-meter-top"><span className={swing.side.toLowerCase()}>{swing.side} win chance</span><b className="num">{swing.before}% → {swing.after}% <span className={d > 0 ? 'up' : d < 0 ? 'down' : 'muted'}>({d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(swing.after - swing.before)})</span></b></div>
       <div className={`feed-meter-bar ${swing.side.toLowerCase()}`}>
         <i className="fill" style={{ width: `${swing.after}%` }} />
         <i className="was" style={{ left: `${swing.before}%` }} />

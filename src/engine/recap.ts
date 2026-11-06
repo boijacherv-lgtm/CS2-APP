@@ -486,7 +486,7 @@ export type Annotation = '!!' | '!' | 'book' | '?!' | '?' | '??';
 export const NOTES: Annotation[] = ['!!', '!', 'book', '?!', '?', '??'];
 export const NOTE_INFO: Record<Annotation, { mark: string; label: string; color: string; tip: string }> = {
   '!!': { mark: '!!', label: 'Brilliant', color: '#1baca6', tip: 'Exceptional, statistically unlikely: a 1v3 clutch, a ninja defuse, a solo anchor, a pistol beating full gear' },
-  '!': { mark: '!', label: 'Good move', color: '#5c9ced', tip: 'Swung the round: a quick trade, a multi-kill, the opening kill, a flash or HE that won fights' },
+  '!': { mark: '!', label: 'Great', color: '#5c9ced', tip: 'Swung the round: a quick trade, a multi-kill, the opening kill, a flash or HE that won fights' },
   book: { mark: '', label: 'Book', color: '#a88865', tip: 'The expected, sound play: a standard smoke, an ordinary kill or grenade' },
   '?!': { mark: '?!', label: 'Inaccuracy', color: '#f7c045', tip: 'Not the best: a level-10 player would have played it a little better' },
   '?': { mark: '?', label: 'Mistake', color: '#e58f2a', tip: 'Cost the team: an untraded opening or isolated death, a team flash, dying with utility' },
