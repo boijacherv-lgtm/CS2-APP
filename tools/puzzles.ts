@@ -34,7 +34,14 @@ function pick(all: Moment[], want: number, min: number, per: number): Moment[] {
     .sort((a, b) => margin(b) - margin(a)).filter(m => { const k = `${m.id.split('#')[0]}@${m.when}`; if (seen.has(k)) return false; seen.add(k); return true; });
   const by = (good: boolean) => ok.filter(m => (m.played === 0) === good).sort((a, b) => margin(b) - margin(a));
   const out: Moment[] = [], count = new Map<string, number>();
-  const take = (xs: Moment[], n: number) => { for (const m of xs) { if (n <= 0) break; const k = m.match; if ((count.get(k) ?? 0) >= per) continue; count.set(k, (count.get(k) ?? 0) + 1); out.push(m); n--; } };
+  // no one answer for most of them: plant answers at most a fifth
+  const isPlant = (m: Moment) => /plant/i.test(m.options[0].label), maxPlants = Math.round(want * 0.2);
+  const take = (xs: Moment[], n: number) => { for (const m of xs) {
+    if (n <= 0) break;
+    const k = m.match;
+    if ((count.get(k) ?? 0) >= per || (isPlant(m) && out.filter(isPlant).length >= maxPlants)) continue;
+    count.set(k, (count.get(k) ?? 0) + 1); out.push(m); n--;
+  } };
   take(by(false), Math.round(want * 0.7)); take(by(true), want - out.length);
   return out;
 }
@@ -61,7 +68,12 @@ if (folder && fs.existsSync(folder)) {
       for (const m of rs.moments) {
         if (m.cls !== 'Best' && m.cls !== 'Mistake' && m.cls !== 'Blunder') continue;
         const x = cs2Moment(d, i, m);
-        if (x) cs2.push(x);
+        if (!x) continue;
+        // the engine's known blind spot: "go plant" valued highly from across the map. A plant answer only when the
+        // site is close (within 12% of the map)
+        const me = x.dots.find(p => p.me), to = x.options[0].to;
+        if (/plant/i.test(x.options[0].label) && (!me || !to || Math.hypot(me.x - to.x, me.y - to.y) > 0.12)) continue;
+        cs2.push(x);
       }
     }
     if ((n + 1) % 10 === 0) console.log(`  ${n + 1}/${chosen.length} demos, ${cs2.length} candidates`);
@@ -82,6 +94,8 @@ for (const [n, f] of dlChosen.entries()) {
     try { rv = engineReview(m, null, p.slot); } catch { continue; }
     for (const x of [...rv.worst, ...rv.best]) {
       if (x.cls !== 'Best' && x.cls !== 'Mistake' && x.cls !== 'Blunder') continue;
+      // the engine's known blind spot: backing off to base while your side has the numbers in a fight close by
+      if (x.options[0].action === 'base' && x.options.some(o => o.sides && o.sides[0] > o.sides[1])) continue;
       const mm = dlMoment(m, x, p.slot);
       if (mm) dl.push(mm);
     }

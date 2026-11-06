@@ -612,7 +612,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .feature:hover, .game-card:hover { transform: none; } }
 /* the sample match link and the coming games' label */
 .hero-sample { margin: 10px 0 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13.5px; }
-.hero-sample .link-btn { background: none; border: 0; padding: 0; font-weight: 700; color: var(--theme); display: inline-flex; gap: 6px; align-items: center; }
+.hero-sample .cta { display: inline-flex; gap: 6px; align-items: center; }
 .hero-games-soon small { margin-right: 2px; }
 .login-failed { display: flex; align-items: center; gap: 10px; margin: 12px auto 0; max-width: 1180px; padding: 10px 14px; border-radius: 10px;
   background: color-mix(in srgb, var(--bad) 14%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--border)); }
@@ -651,3 +651,32 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .shot figcaption { font-size: 13.5px; color: var(--text-2); }
 .shot figcaption b { color: var(--text-1); }
 @media (max-width: 860px) { .shots { grid-template-columns: 1fr; } }
+
+/* ---- puzzles: teach and reward ------------------------------------------------------------------------------------ */
+.moments-head { gap: 10px; }
+.moments-head .puzzle-rating { margin-left: auto; font-size: 13px; color: var(--text-2); }
+.moments-head .puzzle-rating b { font: 700 22px/1 var(--font-display); color: var(--text-1); margin-left: 4px; }
+.moments-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 14px; }
+.puzzle-info { display: flex; gap: 6px; flex-wrap: wrap; }
+.puzzle-info span { font-size: 12.5px; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: var(--surface-3); color: var(--text-1); }
+.puzzle-info .puzzle-tag { background: color-mix(in srgb, var(--theme) 22%, var(--surface-2)); color: var(--text-1); }
+.puzzle-why { padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border-left: 3px solid var(--theme); }
+.puzzle-why b { font-size: 12.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
+.puzzle-why ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 3px; font-size: 14px; line-height: 1.5; color: var(--text-1); }
+.puzzle-delta { font-weight: 700; margin-left: 6px; }
+.map-callout { fill: #fff; paint-order: stroke; stroke: #000c; stroke-width: .6px; font-weight: 700; font-family: var(--font-ui); pointer-events: none; }
+.dl-bright { filter: brightness(1.9) contrast(1.15); }
+/* a right answer: a pulse of green on the card and the word */
+@keyframes win-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 55%, transparent); } 100% { box-shadow: 0 0 0 18px transparent; } }
+@keyframes win-pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes lose-shake { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.puzzle.won .puzzle-option.best { animation: win-pulse .7s ease-out; }
+.puzzle-win { display: inline-block; color: var(--good); font-size: 18px; animation: win-pop .45s ease-out; }
+.puzzle.lost .puzzle-option.wrong { animation: lose-shake .3s ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .puzzle.won .puzzle-option.best, .puzzle-win, .puzzle.lost .puzzle-option.wrong { animation: none; } }
+.weak-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.weak-list li { display: grid; grid-template-columns: 1fr auto auto auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.rush-start { display: grid; gap: 10px; justify-items: start; }
+.rush-bar { display: flex; gap: 18px; align-items: baseline; margin-bottom: 10px; font-weight: 600; }
+.rush-bar b { font: 700 28px/1 var(--font-display); color: var(--theme); }
+@media (max-width: 560px) { .weak-list li { grid-template-columns: 1fr auto; } .moments-head .puzzle-rating { margin-left: 0; } }

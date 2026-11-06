@@ -42,6 +42,7 @@ export function Privacy() {
 
 /** Newest first: what changed for players (not the internals). */
 const CHANGES: { date: string; items: string[] }[] = [
+  { date: 'Nov 7, 2026', items: ['Puzzles: one honest scale for every number, a Why after each answer, the situation at a glance (health, gun, bomb, time), callout names on the map, the path of each move on hover.', 'Daily puzzle, puzzle rush (3 minutes), a puzzle rating, weak spots by kind of situation.', 'Sound and a little celebration on a right answer; Rage mode has words for a wrong one.'] },
   { date: 'Nov 6, 2026', items: ['Clearer errors when a demo is zipped, from CS:GO or not a demo.', 'Rage mode asks before it turns on.', 'Try a sample match from the front page.', 'Phone menu with labels.'] },
   { date: 'Nov 5, 2026', items: ['Puzzles: from your own matches and from top players\', with a 10 s clip on the map.', 'Mistake reel, next-match focus and a fixing streak.', 'Share one moment as a link.', 'Side by side with a friend in both recaps.', 'Since the last patch, on the Deadlock profile.', 'Bolder look: each game in its own colour.'] },
   { date: 'Nov 4, 2026', items: ['Deadlock engine: win chance, likely moves, fights and a 2-step search grade every move, like a chess engine.', 'Every hero\'s abilities and ultimate explained in the recap.', 'Deadlock replay files read in your browser.'] },

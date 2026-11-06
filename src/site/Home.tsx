@@ -50,7 +50,7 @@ export function Home() {
             {PLAYABLE.map((g, i) => <a key={g.id} className={`cta${i === 0 ? ' primary' : ''}`} href={g.review}>Review a {g.short === 'DL' ? 'Deadlock' : g.short} match <Icon name="arrowRight" size={14} /></a>)}
             <button className="cta" onClick={toGames}>See all games <Icon name="arrowRight" size={14} /></button>
           </div>
-          <p className="hero-sample"><button className="link-btn" onClick={trySample} disabled={sample === 'opening'}><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening a sample match…' : 'Try a sample match'}</button> <span className="muted">{sample === 'failed' ? 'couldn\'t open it, try again' : 'a public Deadlock match: no file, no login'}</span></p>
+          <p className="hero-sample"><button className="cta" onClick={trySample} disabled={sample === 'opening'}><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening a sample match…' : 'Try a sample match'}</button> <span className="muted">{sample === 'failed' ? 'couldn\'t open it, try again' : 'a public Deadlock match: no file, no login'}</span></p>
           <ul className="hero-trust">
             <li><Icon name="shield" size={14} /> Runs in your browser</li>
             <li><Icon name="check" size={14} /> No account needed</li>

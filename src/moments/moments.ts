@@ -24,6 +24,10 @@ export interface Moment {
   /** a premade puzzle's source ("FACEIT level 10"); none for your own */ who?: string;
   /** the engine's reasons, in words */ why?: string[];
   clip?: MomentClip;
+  /** the situation at a glance: health, gun, grenades, the bomb, time left (CS2); the phase and level (Deadlock) */
+  info?: string[];
+  /** the kind of situation: "Retake", "Post-plant", "Clutch", "Teamfight"… */
+  tag?: string;
 }
 
 const KEY = 'rageview.moments';
@@ -73,8 +77,10 @@ export function cleanMoment(raw: unknown): Moment | null {
     return xy.length >= 2 && xy.length % 2 === 0 ? { team: (o.team === 1 ? 1 : 0) as 0 | 1, ...(o.me === true ? { me: true } : {}), xy } : null;
   }).filter((d): d is MomentClip['dots'][number] => !!d) : [];
   const clip = clipDots.length && from !== null ? { from: Math.round(from), dots: clipDots } : null;
+  const info = Array.isArray(r.info) ? r.info.slice(0, 6).map(w => str(w, 40)).filter((w): w is string => !!w) : [];
+  const tag = str(r.tag, 24);
   const who = str(r.who, 40), why = Array.isArray(r.why) ? r.why.slice(0, 4).map(w => str(w, 200)).filter((w): w is string => !!w) : [];
-  return { id, game, map, at, match, when, dots, setup, options: options as MomentOption[], played: Math.round(played), cls, cost, kind, ...(who ? { who } : {}), ...(why.length ? { why } : {}), ...(clip ? { clip } : {}) };
+  return { id, game, map, at, match, when, dots, setup, options: options as MomentOption[], played: Math.round(played), cls, cost, kind, ...(who ? { who } : {}), ...(why.length ? { why } : {}), ...(clip ? { clip } : {}), ...(info.length ? { info } : {}), ...(tag ? { tag } : {}) };
 }
 
 // ---- share links: the moment in the address (/m?c=<base64url>), nothing stored anywhere ----------------------------

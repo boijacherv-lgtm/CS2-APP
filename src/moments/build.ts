@@ -1,13 +1,13 @@
 // Moments from each game's engine: the CS2 search's flagged moments (recap.ts → search.ts) and the Deadlock engine's
 // graded moves (engineReview.ts), frozen as snapshots (moments.ts).
-import type { DemoData } from '../engine/recap';
+import { gearAt, type DemoData } from '../engine/recap';
 import type { RoundSummary } from '../engine/match';
-import type { OptionKind, SearchMoment, SearchOption } from '../engine/search';
+import { COST_SCALE, type OptionKind, type SearchMoment, type SearchOption } from '../engine/search';
 import { worldToRadar } from '../engine/coords';
 import { MAPS, radarOf } from '../map/catalog';
 import { matchKey } from '../engine/profile';
 import { heroOf } from '../deadlock/data';
-import { playerAt, type DlMatch } from '../deadlock/match';
+import { playerAt, statAt, type DlMatch } from '../deadlock/match';
 import type { EngineMove, EngineReview } from '../deadlock/engineReview';
 import type { Action } from '../deadlock/playNet';
 import { isMistake, type Moment, type MomentDot } from './moments';
@@ -15,6 +15,27 @@ import { isMistake, type Moment, type MomentDot } from './moments';
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const GUN: Record<string, string> = { ak47: 'AK-47', m4a1: 'M4A4', m4a1_silencer: 'M4A1-S', awp: 'AWP', deagle: 'Deagle', usp_silencer: 'USP-S', glock: 'Glock', galilar: 'Galil', famas: 'FAMAS', mac10: 'MAC-10', mp9: 'MP9', ssg08: 'Scout', p250: 'P250', tec9: 'Tec-9', fiveseven: 'Five-SeveN', knife: 'Knife', c4: 'Bomb', sg556: 'SG 553', aug: 'AUG', ump45: 'UMP-45', p90: 'P90', mp7: 'MP7', hkp2000: 'P2000', cz75a: 'CZ75' };
+const pc = (v: number) => `${Math.round(v * 100)}%`;
+/** Why the best move beats the one played, in one or two lines, from what the search measured for each. */
+function cs2Why(best: SearchOption, did: SearchOption, s: { planted: boolean; side: 'CT' | 'T'; us: number; them: number; left: number }): string[] {
+  const out: string[] = [];
+  const b = asMove(best.label);
+  if (best.kind === 'plant') out.push('Planting puts the clock on them: they have to come to you.');
+  else if (best.kind === 'defuse') out.push(`The bomb is the round: ${s.left} s left, start the defuse.`);
+  else if (s.planted && s.side === 'T' && (best.kind === 'hold' || best.kind === 'actual')) out.push('The bomb is down, so time is on your side: let them come to you.');
+  else if (s.planted && s.side === 'CT') out.push(`The bomb is down: ${s.left} s to get there, go with your team.`);
+  const often = (v: number) => (v >= 0.9 ? 'almost always' : v <= 0.05 ? 'almost never' : `${pc(v)} of the time`);
+  if (did.death - best.death > 0.08) out.push(`"${asMove(did.label)}" gets you killed ${often(did.death)}; "${b}" ${often(best.death)}.`);
+  else if (best.kills - did.kills > 0.15) out.push(`"${b}" wins more fights: about ${best.kills.toFixed(1)} kills against ${did.kills.toFixed(1)}.`);
+  if (out.length < 2 && s.us > s.them && best.kind !== 'peek') out.push('You have the numbers: play together, no solo fights.');
+  if (out.length < 2 && s.us === 1 && s.them > 1) out.push('Alone against more: take one fight at a time.');
+  if (!out.length) out.push(`"${b}" keeps more of your round: the engine played both ahead and it comes out on top.`);
+  return out.slice(0, 2);
+}
+
+/** A win chance on the puzzle's one scale: now, minus a move's cost (kept between 1% and 99%). */
+const onScale = (now: number, cost: number) => Math.min(0.99, Math.max(0.01, now - Math.max(0, cost)));
 /** The clip: seconds before and after the moment. */
 const CLIP_BEFORE = 10, CLIP_AFTER = 5;
 /** How many moments a match keeps (its costliest). */
@@ -59,6 +80,16 @@ export function cs2Moment(data: DemoData, i: number, m: SearchMoment): Moment | 
   if (played < 0 && /plant/i.test(did)) played = opts.findIndex(o => /plant/i.test(o.label));
   if (played < 0) { opts.push({ ...m.did, label: did }); played = opts.length - 1; }
   const best = m.options[0];
+  // the situation: health, gun in hand, grenades, the bomb, the clock (round 1:55, bomb 40 s)
+  const me = demo.frames.players[m.player], gear = gearAt(demo, m.player, m.t);
+  const planted = demo.plant !== null && demo.plant <= m.t;
+  const left = Math.max(0, Math.round(planted ? 40 - (m.t - demo.plant!) : 115 - m.t));
+  const nades = gear?.inv.filter(w => /flash|smoke|molotov|incgrenade|hegrenade|decoy/i.test(w)).length ?? 0;
+  const gun = me?.w?.[k];
+  const info = [planted ? 'Bomb planted' : m.side === 'T' && demo.bomb?.some(b => b.kind === 'carry' && b.id === m.player && b.t <= m.t) ? 'You have the bomb' : '',
+    me ? `${me.hp[k]} HP` : '', gun ? GUN[gun] ?? cap(gun) : '', gear ? `${nades} grenade${nades === 1 ? '' : 's'}` : '', `${clock(left)} left`].filter(Boolean);
+  // the kind of situation
+  const tag = planted ? (m.side === 'CT' ? 'Retake' : 'Post-plant') : us === 1 ? 'Clutch' : us > them ? 'Man advantage' : us < them ? 'Outnumbered' : m.t < 30 ? 'Opening' : 'Mid-round';
   // the clip: everyone once a second, 10 s before to 5 s after (from the round's start at the earliest)
   const ids = Object.keys(demo.frames.players);
   const at3 = (v: number) => +v.toFixed(3);
@@ -74,8 +105,11 @@ export function cs2Moment(data: DemoData, i: number, m: SearchMoment): Moment | 
     ...(clip ? { clip } : {}),
     id: `${match}#R${i + 1} ${clock(m.t)}`, game: 'cs2', map: data.map, at, match: mapName, when: `R${i + 1} ${clock(m.t)}`, dots,
     setup: `Round ${i + 1}, ${clock(m.t)} in. You're ${m.side}, ${us} alive against ${them}. Your side's win chance: ${pct(m.before)}.`,
-    options: opts.map(o => ({ label: o.label, value: o.win, ...toMap(o) })), played, cls: m.cls, cost: m.cost,
+    // one scale for every number: the best move keeps the win chance you have now, each other move loses its calibrated
+    // cost (the engine's raw values exaggerate: search.ts COST_SCALE), so "gave up" is best minus played
+    options: opts.map(o => ({ label: o.label, value: onScale(m.before, (best.win - o.win) * COST_SCALE), ...toMap(o) })), played, cls: m.cls, cost: (best.win - (opts[played]?.win ?? best.win)) * COST_SCALE,
     kind: `${cap(m.did.label.split(' ')[0])} instead of ${DOING[best.kind as OptionKind] ?? 'the best move'}`,
+    info, tag, why: cs2Why(best, opts[played] ?? m.did, { planted, side: m.side, us, them, left }),
   };
 }
 
@@ -86,7 +120,7 @@ export function cs2Moments(data: DemoData, rounds: (RoundSummary | null)[], play
   return out.sort((a, b) => b.cost - a.cost).slice(0, PER_MATCH);
 }
 
-const DO: Record<Action, string> = { fight: 'Take the fight', objective: 'Go for the objective', farm: 'Farm', lane: 'Stay in lane', base: 'Go to base', move: 'Move around' };
+const DO: Record<Action, string> = { fight: 'Take the fight', objective: 'Go for the objective', farm: 'Farm camps', lane: 'Stay in lane', base: 'Go back to base', move: 'Rotate to another lane' };
 
 /** Deadlock: one graded move as a snapshot. */
 export function dlMoment(match: DlMatch, x: EngineMove, slot: number): Moment | null {
@@ -112,9 +146,13 @@ export function dlMoment(match: DlMatch, x: EngineMove, slot: number): Moment | 
   return {
     clip,
     id: `${match.id}#${slot}#${clock(x.t)}`, game: 'deadlock', map: 'deadlock', at: match.start * 1000, match: hero, when: clock(x.t), dots,
-    setup: `${clock(x.t)} in, as ${hero}. Your team's win chance: ${pct(x.before)}.${fight?.sides ? ` A fight nearby: your ${fight.sides[0]} against their ${fight.sides[1]}.` : ''}`,
-    options: opts.map(o => ({ label: DO[o.action], value: o.value })), played, cls: x.cls, cost: Math.max(0, x.loss),
-    kind: cap(x.title.replace(/^[^:]+: /, '')), why: x.why.slice(0, 3),
+    setup: `${clock(x.t)} in, as ${hero}. Your team's win chance: ${pct(x.before)}.${fight?.sides ? ` A fight is close: ${fight.sides[0]} of your team against ${fight.sides[1]} of theirs.` : ''}`,
+    // the same one scale: the best move keeps the team's win chance now, the others lose what the search says they cost
+    options: opts.map(o => ({ label: DO[o.action], value: onScale(x.before, opts[0].value - o.value) })), played, cls: x.cls, cost: Math.max(0, opts[0].value - opts[played].value),
+    // the engine's reasons, without its own "gave up X%" line (on the raw scale; the puzzle shows its one scale)
+    kind: cap(x.title.replace(/^[^:]+: /, '')), why: x.why.filter(w => !/gave up|was worth/i.test(w)).slice(0, 3),
+    tag: fight ? 'Teamfight' : opts[0].action === 'objective' ? 'Objective' : x.t < 600 ? 'Laning' : 'Macro',
+    info: [x.t < 600 ? 'Laning phase' : x.t < 1500 ? 'Mid game' : 'Late game', `Level ${statAt(match, slot, x.t)?.level ?? '?'}`, `${((statAt(match, slot, x.t)?.netWorth ?? 0) / 1000).toFixed(1)}k souls`],
   };
 }
 
