@@ -4,10 +4,10 @@ import { useSyncExternalStore } from 'react';
 export type Cs2Mode = 'tactical' | 'review' | 'report';
 /** Deadlock: its landing page (home) and the same three modes as CS2. */
 export type DlMode = 'home' | 'tactical' | 'review' | 'report';
-export type SitePage = 'home' | 'profile' | 'pricing' | 'settings' | 'dev' | 'puzzles' | 'missing';
+export type SitePage = 'home' | 'profile' | 'pricing' | 'settings' | 'dev' | 'puzzles' | 'missing' | 'privacy' | 'changelog';
 /** `moment`: a shared moment, the whole of it in the address (#/m/<code>). */
 export type Route = { page: SitePage } | { page: 'cs2'; mode: Cs2Mode } | { page: 'deadlock'; mode: DlMode } | { page: 'moment'; code: string };
-const PAGES: SitePage[] = ['profile', 'pricing', 'settings', 'dev', 'puzzles'];
+const PAGES: SitePage[] = ['profile', 'pricing', 'settings', 'dev', 'puzzles', 'privacy', 'changelog'];
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('?')[0].split('/').filter(Boolean); // ?… carries messages (e.g. Steam sign-in)

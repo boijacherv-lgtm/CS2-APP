@@ -50,7 +50,7 @@ export function gameOf(page: string): GameId {
 /** The pages about the site itself rather than one game (the front page, plans, the dev page): white, the chrome's own
  * colour. */
 const NEUTRAL = { accent: T.text1, ink: T.bg0 };
-const NEUTRAL_PAGES = new Set(['home', 'pricing', 'dev', 'missing']);
+const NEUTRAL_PAGES = new Set(['home', 'pricing', 'dev', 'missing', 'privacy', 'changelog']);
 /** What a page is dressed in: neutral for the site's own pages, else its game (gameOf). */
 export function themeOf(page: string): GameId | 'neutral' {
   return NEUTRAL_PAGES.has(page) || page === '' ? 'neutral' : gameOf(page);

@@ -5,7 +5,7 @@ import { analystBench, proAnalystAvailable } from '../engine/analystModel';
 import { matchAnalysis, type AnalysisItem } from '../engine/analysis';
 import { COACH_MODEL, modelOf, PRO_MODEL, type Level } from '../engine/coachModels';
 import type { LevelGrade } from '../engine/level';
-import { buildMatchReport, IMPACT_PER_POINT, type MatchReport, type PlayerReport, type RoundSummary } from '../engine/match';
+import { buildMatchReport, IMPACT_PER_POINT, type MatchReport, type PlayerReport, type RoundLine, type RoundSummary } from '../engine/match';
 import { LETTER_COLOR, RATING_SCALE, type DemoData, type Letter, type PlayKey } from '../engine/recap';
 import { ACTION_TEXT, PLAY_MODEL } from '../engine/playModel';
 import { habits } from '../engine/habits';
@@ -85,6 +85,7 @@ export function MatchReportPage() {
       {tab === 'overview' && focus && (
         <>
           <Performance p={focus} players={view.players} me={me} onPlayer={setPicked} />
+          {report.done && <RoundCallouts p={focus} onRound={openRound} />}
           {report.done && <DuoCard a={focus} players={view.players} />}
           <section className="recap-card overview">
             {/* half-graded notes read like verdicts: wait for every round */}
@@ -756,3 +757,18 @@ function DuoCard({ a, players }: { a: PlayerReport; players: PlayerReport[] }) {
 
 /** A word for the lobby grade (the Rage brand's voice): S+ and F get the loudest. */
 const NICK: Partial<Record<string, string>> = { 'S+': 'Clutch god', S: 'Carried', A: 'Clean', B: 'Solid', C: 'Meh', D: 'Rough', F: 'Uninstall?' };
+
+/** The graded player's best and worst round, one line each, with a jump to it. */
+function RoundCallouts({ p, onRound }: { p: PlayerReport; onRound: (i: number) => void }) {
+  const lines = p.rounds.map((l, i) => (l ? { i, l } : null)).filter((x): x is { i: number; l: RoundLine } => !!x);
+  if (lines.length < 3) return null;
+  const best = lines.reduce((a, b) => (b.l.points > a.l.points ? b : a)), worst = lines.reduce((a, b) => (b.l.points < a.l.points ? b : a));
+  const top = best.l.letter === 'S+' || best.l.letter === 'S', low = worst.l.letter === 'D' || worst.l.letter === 'F';
+  if (!top && !low) return null;
+  return (
+    <div className="round-callouts">
+      {top && <button className="callout good" onClick={() => onRound(best.i)}>Round {best.i + 1}: <b>{best.l.letter}</b>. Screenshot that.</button>}
+      {low && <button className="callout bad" onClick={() => onRound(worst.i)}>Round {worst.i + 1}: <b>{worst.l.letter}</b>. We need to talk.</button>}
+    </div>
+  );
+}
