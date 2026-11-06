@@ -58,7 +58,7 @@ function useDemoLoader() {
       setStatus(null);
       startReview(data);
     } catch (e) {
-      setStatus(`Couldn't load: ${e instanceof Error ? e.message : String(e)}`);
+      setStatus(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -67,6 +67,8 @@ function useDemoLoader() {
 }
 
 const DZ_FRAMES = 28;
+/** What the drop zone says while a demo is read, a new line every 4 s (the wait feels shorter). */
+const READING = ['Reading your demo…', 'Finding every round…', 'Lining up the kills…', 'Tracking every grenade…', 'Almost there…'];
 
 /** Review mode with no match loaded: a big place to drop a demo. */
 export function ReviewStart() {
@@ -90,7 +92,7 @@ export function ReviewStart() {
           >
             <DemoReel />
             <div className="dz-icon"><Icon name={busy ? 'hourglass' : 'upload'} size={34} /></div>
-            <h2>{busy ? 'Reading your match…' : 'Drop your .dem file here'}</h2>
+            <h2>{busy ? READING[Math.floor(elapsed / 4) % READING.length] : 'Drop your .dem file here'}</h2>
             <p>{busy ? status : 'or click to pick one (a .json you saved before works too)'}</p>
             {busy && progress !== null && (
               <div className="dz-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>

@@ -54,7 +54,7 @@ export function Pricing() {
               <Icon name="bell" size={14} /> {notify ? 'You\'ll be told when Pro launches' : 'Tell me when Pro launches'}
             </button>
           ) : STEAM_AVAILABLE ? (
-            <div className="plan-login"><span className="muted">Log in to get notified when Pro launches</span><SteamLoginButton compact /></div>
+            <div className="plan-login"><span className="muted">Log in to get notified when Pro launches. We only get your SteamID, public name and avatar.</span><SteamLoginButton compact /></div>
           ) : <p className="muted">Pro launches later; everything is unlocked until then.</p>}
           {me && remote && notify && <p className="muted small">You'll see it on your profile when it launches. We don't email you.</p>}
         </section>

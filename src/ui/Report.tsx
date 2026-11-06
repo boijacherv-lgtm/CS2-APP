@@ -218,7 +218,7 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
         <div className="perf-grades">
           <div className="perf-grade" title={`Against the other players in this lobby (round grades, impact, ADR, KAST, duels): ${lobbyText(p.lobbyZ)}`}>
             <span className="perf-letter display" style={{ background: LETTER_COLOR[p.letter] }}>{p.letter}</span>
-            <span className="muted">Lobby</span>
+            <span className="muted">Lobby{NICK[p.letter] ? <> · <b className="perf-nick">{NICK[p.letter]}</b></> : null}</span>
             <span className="perf-sub muted">vs these 10</span>
           </div>
           {p.level ? (
@@ -753,3 +753,6 @@ function DuoCard({ a, players }: { a: PlayerReport; players: PlayerReport[] }) {
     </section>
   );
 }
+
+/** A word for the lobby grade (the Rage brand's voice): S+ and F get the loudest. */
+const NICK: Partial<Record<string, string>> = { 'S+': 'Clutch god', S: 'Carried', A: 'Clean', B: 'Solid', C: 'Meh', D: 'Rough', F: 'Uninstall?' };

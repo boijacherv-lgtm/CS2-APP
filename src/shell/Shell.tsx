@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { App as Cs2App } from '../App';
 import type { RoundSummary } from '../engine/match';
 import { MatchReportPage } from '../ui/Report';
 import { finishSteamLogin } from '../ui/steamApi';
+import { SteamLoginButton } from '../ui/SteamLogin';
+import { Icon } from '../ui/Icon';
 import { gradeMatch } from '../ui/gradeMatch';
 import { Home } from '../site/Home';
 import { NavBar } from '../site/Nav';
@@ -47,7 +49,9 @@ export function Shell() {
   useEffect(() => { if (report?.done && !report.error) recordIfYours(report.data, report.rounds); }, [who, report?.done]); // eslint-disable-line react-hooks/exhaustive-deps
   // website: Steam just sent us back from its login page → finish the login (once)
   // after a Steam login comes back, learn who you are (your profile; Review can evaluate only your moves)
-  useEffect(() => { finishSteamLogin().then(refreshProfile).catch(() => {}); }, []);
+  // a sign-in that came back from Steam but didn't finish says so (it used to fail silently)
+  const [loginFailed, setLoginFailed] = useState(false);
+  useEffect(() => { finishSteamLogin().then(refreshProfile).catch(() => setLoginFailed(true)); }, []);
   const steamId = useProfile(s => s.me?.steamId ?? null);
   useEffect(() => { useStore.setState({ me: steamId }); }, [steamId]);
 
@@ -55,8 +59,9 @@ export function Shell() {
     <div className="shell">
       <NavBar route={route} />
       <main className="shell-main">
+        {loginFailed && <div className="login-failed" role="alert"><span>Steam login didn't finish. Try again.</span><SteamLoginButton compact /><button className="ghost" aria-label="Dismiss" onClick={() => setLoginFailed(false)}><Icon name="close" size={14} /></button></div>}
         {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : <Cs2App />)
-          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
+          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
       </main>
       <Tours />
     </div>
@@ -89,9 +94,20 @@ function recordIfYours(data: DemoData, rounds: (RoundSummary | null)[]) {
 }
 
 const MODE_TITLE = { tactical: 'Plan', review: 'Review a match', report: 'Match recap', home: 'Coach' } as const;
-const PAGE_TITLE: Record<string, string> = { profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Dev', puzzles: 'Puzzles', moment: 'A shared moment' };
+const PAGE_TITLE: Record<string, string> = { missing: 'Page not found', profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Dev', puzzles: 'Puzzles', moment: 'A shared moment' };
 export function pageTitle(r: Route): string {
-  if (r.page === 'cs2') return `CS2 ${MODE_TITLE[r.mode]} · RageView`;
-  if (r.page === 'deadlock') return `Deadlock ${MODE_TITLE[r.mode]} · RageView`;
-  return r.page === 'home' ? 'RageView: prove you were right' : `${PAGE_TITLE[r.page] ?? r.page} · RageView`;
+  if (r.page === 'cs2') return r.mode === 'review' ? 'CS2 Demo Review · RageView' : `CS2 ${MODE_TITLE[r.mode]} · RageView`;
+  if (r.page === 'deadlock') return r.mode === 'review' ? 'Deadlock Match Review · RageView' : `Deadlock ${MODE_TITLE[r.mode]} · RageView`;
+  return r.page === 'home' ? 'RageView: Free CS2 & Deadlock Match Review' : `${PAGE_TITLE[r.page] ?? r.page} · RageView`;
+}
+
+/** An address that isn't a page. */
+function NotFound() {
+  return (
+    <div className="page not-found">
+      <h1>Whiffed.</h1>
+      <p className="muted">This page doesn't exist.</p>
+      <p><a className="cta primary" href="#/">Back to home</a></p>
+    </div>
+  );
 }

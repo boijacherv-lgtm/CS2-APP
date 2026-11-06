@@ -8,7 +8,7 @@ import { matchFromMetadata, type DlMatch } from './match';
 const API = 'https://api.deadlock-api.com';
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(API + path);
-  if (res.status === 404) throw new Error('deadlock-api doesn\'t have that match (yet). Matches show up there a few minutes to an hour after they end.');
+  if (res.status === 404) throw new Error('Match not found. Check the ID, or try again later: new matches take a few minutes to an hour to show up.');
   if (res.status === 429) throw new Error('deadlock-api is busy (too many requests): try again in a minute.');
   if (!res.ok) throw new Error(`deadlock-api answered ${res.status}.`);
   return res.json() as Promise<T>;

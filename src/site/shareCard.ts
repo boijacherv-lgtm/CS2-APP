@@ -63,7 +63,7 @@ export async function drawShareCard(canvas: HTMLCanvasElement, m: ProfileMatch, 
     g.fillStyle = T.text1; g.font = display(52); g.fillText(v, cx, cy + 52);
   });
 
-  g.fillStyle = T.text3; g.font = ui(20, 600); g.fillText('Graded by RageView · tsakhstvo.xyz', x, SHARE_H - 40);
+  g.fillStyle = T.text3; g.font = ui(20, 600); g.fillText('Graded by RageView. Prove me wrong. · tsakhstvo.xyz', x, SHARE_H - 40);
 }
 
 function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
