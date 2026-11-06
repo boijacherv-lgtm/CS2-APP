@@ -1,3 +1,4 @@
+import { go } from '../shell/router';
 import type { MoveVerdict } from '../engine/profile';
 import type { JudgeReason } from '../engine/corrections';
 import type { DemoData } from '../engine/recap';
@@ -46,7 +47,7 @@ export async function openClip(c: Clip) {
   const data = await adminCall<DemoData>(`/admin/clip/${c.id}`);
   const s = useStore.getState();
   s.startReview(data);
-  if (location.hash !== '#/cs2/review') location.hash = '#/cs2/review';
+  go('/cs2/review');
   const from = Math.max(0, c.verdict.t - CLIP_BEFORE), to = c.verdict.t + CLIP_AFTER;
   useStore.setState({ judging: { clip: c, from, to }, time: from, playing: true });
 }

@@ -149,7 +149,7 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
 export function ShareMoment({ m }: { m: Moment }) {
   const [done, setDone] = useState(false);
   const copy = async () => {
-    const url = `${location.origin}/#/m/${shareCode(m)}`;
+    const url = `${location.origin}/m?c=${shareCode(m)}`;
     try { await navigator.clipboard.writeText(url); setDone(true); setTimeout(() => setDone(false), 1800); } catch { prompt('Copy this link', url); }
   };
   return <button className="chip" onClick={copy} title="Copy a link to this moment: anyone can open it, no login"><Icon name={done ? 'check' : 'share'} size={13} /> {done ? 'Link copied' : 'Share'}</button>;
@@ -196,7 +196,7 @@ export function MomentsPage() {
         <Icon name="target" size={28} />
         <h2>Your puzzles come from your matches</h2>
         <p className="muted">Review a CS2 match you played (and pick yourself), or open a Deadlock match of yours: the moments the engine flags become puzzles here, with your mistakes grouped by type.</p>
-        <p><a className="cta primary" href="#/cs2/review">Review a CS2 match</a> <a className="cta" href="#/deadlock/review">Open a Deadlock match</a> <button className="cta" onClick={() => setSource('top')}>Solve top players' puzzles</button></p>
+        <p><a className="cta primary" href="/cs2/review">Review a CS2 match</a> <a className="cta" href="/deadlock/review">Open a Deadlock match</a> <button className="cta" onClick={() => setSource('top')}>Solve top players' puzzles</button></p>
       </section>
     </div>
   );
@@ -248,7 +248,7 @@ export function MomentsPage() {
   );
 }
 
-/** A shared moment (#/m/<code>): the puzzle for whoever opened the link. */
+/** A shared moment (/m?c=<code>): the puzzle for whoever opened the link. */
 export function SharedMoment({ code }: { code: string }) {
   const m = useMemo(() => fromShareCode(code), [code]);
   useEffect(() => { if (m) applyGame(m.game); }, [m]);
@@ -257,7 +257,7 @@ export function SharedMoment({ code }: { code: string }) {
       <h1>A moment from {m ? `a ${GAME_NAME[m.game]} match` : 'a match'}</h1>
       {m ? <section className="site-card"><Puzzle m={m} shared /></section>
         : <section className="site-card"><p className="muted">This link is broken or incomplete. Ask for it again.</p></section>}
-      <p className="muted">Graded by RageView's engine. <a href="#/">Review your own match</a>: it's free and runs in your browser.</p>
+      <p className="muted">Graded by RageView's engine. <a href="/">Review your own match</a>: it's free and runs in your browser.</p>
     </div>
   );
 }

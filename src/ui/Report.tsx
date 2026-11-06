@@ -536,7 +536,7 @@ function HabitsCard() {
     <section className="recap-card positioning habits">
       <div className="coach-head">
         <h2 className="display">Your habits</h2>
-        <span className="muted">across the {list.length} match{list.length === 1 ? '' : 'es'} on your <a href="#/profile">profile</a>, against FACEIT level 10{PRO_MODEL ? ' and pros' : ''}</span>
+        <span className="muted">across the {list.length} match{list.length === 1 ? '' : 'es'} on your <a href="/profile">profile</a>, against FACEIT level 10{PRO_MODEL ? ' and pros' : ''}</span>
       </div>
       {!h ? <p className="muted">Open another of your matches: from two on, this shows what you do differently match after match (one match is noise, several are a habit).</p> : (
         <>
