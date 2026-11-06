@@ -9,6 +9,7 @@ import { GameMark } from './gameMarks';
 import { MarkFace } from '../ui/MarkFace';
 import { useState } from 'react';
 import { openMatch } from '../deadlock/open';
+import { setNotifyGame, useProfile } from '../ui/profileApi';
 import { navigate } from '../shell/router';
 
 /** The sample: a public Phantom+ match (46 min, both teams' fights and objectives), opened from deadlock-api. */
@@ -75,7 +76,7 @@ export function Home() {
             <article key={g.id} className={`game-card soon ${g.status}`} style={{ '--game': g.color } as React.CSSProperties}>
               <div className="game-card-head"><GameMark game={g} size={44} muted={g.status !== 'next'} /><div><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></div></div>
               <p>{g.note}</p>
-              {g.page && <div className="game-card-cta"><a className="cta" href={g.page}>What's coming <Icon name="arrowRight" size={14} /></a></div>}
+              <div className="game-card-cta">{g.page ? <a className="cta" href={g.page}>What's coming <Icon name="arrowRight" size={14} /></a> : <NotifyGame id={g.id} name={g.name} />}</div>
             </article>
           ))}
         </div>
@@ -100,6 +101,18 @@ export function Home() {
           <li><b>See the better play</b><span>What you could have done instead.</span></li>
           <li><b>Fix one thing</b><span>The coach picks your top habit. You track it.</span></li>
         </ol>
+      </section>
+
+      <section className="site-section">
+        <h2 className="section-title">See it</h2>
+        <div className="shots">
+          {SHOTS.map(x => (
+            <figure key={x.src} className="shot">
+              <img src={x.src} alt={x.alt} width={800} height={600} loading="lazy" />
+              <figcaption><b>{x.title}</b> {x.text}</figcaption>
+            </figure>
+          ))}
+        </div>
       </section>
 
       <section className="site-section">
@@ -143,13 +156,20 @@ export function Home() {
       <footer className="site-footer">
         <span className="brand-small"><LogoMark size={18} /> {APP_NAME}</span>
         <nav>
-          {PLAYABLE.map(g => <a key={g.id} href={g.review}>{g.name}</a>)}<a href="#/profile">Profile</a><a href="#/pricing">Pricing</a><a href="#/settings">Settings</a><a href="#/puzzles">Puzzles</a>
+          {PLAYABLE.map(g => <a key={g.id} href={g.review}>{g.name}</a>)}<a href="#/profile">Profile</a><a href="#/pricing">Pricing</a><a href="#/settings">Settings</a><a href="#/puzzles">Puzzles</a><a href="#/changelog">What's new</a><a href="#/privacy">Privacy</a>
         </nav>
-        <span className="muted">No tracking. Your demos never leave your PC. © {new Date().getFullYear()} {APP_NAME}. Not affiliated with any game publisher. Game names and logos belong to their owners.</span>
+        <span className="muted">Made by a player who was tired of losing to bad teammates. No tracking; demos are read on your PC. © {new Date().getFullYear()} {APP_NAME}. Not affiliated with any game publisher. Game names and logos belong to their owners.</span>
       </footer>
     </div>
   );
 }
+
+/** Real screens (a public Deadlock match with the players' names hidden, a top players' CS2 puzzle). */
+const SHOTS = [
+  { src: '/images/shots/replay.jpg', title: 'The replay.', text: 'Every death graded on the map.', alt: 'Deadlock replay: the map, both teams, and a graded death explained' },
+  { src: '/images/shots/coach.jpg', title: 'The engine.', text: 'Your costliest moves and best calls.', alt: 'Recap engine card: accuracy 92, costliest moves and best calls with reasons' },
+  { src: '/images/shots/puzzle.jpg', title: 'Puzzles.', text: 'Find the best move, then see the answer.', alt: 'A CS2 puzzle on Nuke with four moves and the engine answer' },
+];
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
   { icon: 'play', title: 'Graded replay', text: 'Every play scored, with a live win-chance bar.' },
@@ -182,7 +202,7 @@ function HeroPreview() {
           <div className="pv-card-head"><MarkFace note="?" size={22} /><b>Mistake</b><span className="pv-gain">−11%</span></div>
           <p>Died alone at Palace: nobody could trade.</p>
         </div>
-        <div className="pv-eval"><i style={{ width: '58%' }} /></div>
+        <div className="pv-eval"><i style={{ width: '58%', '--from': '58%', '--to': '47%' } as React.CSSProperties} /></div>
         <span className="pv-label">CS2</span>
       </div>
       <div className="pv-frame dl">
@@ -193,9 +213,21 @@ function HeroPreview() {
           <div className="pv-card-head"><MarkFace note="??" size={22} /><b>Blunder</b><span className="pv-gain">−14%</span></div>
           <p>Fought 2 against 3 with your ultimate down.</p>
         </div>
-        <div className="pv-eval"><i style={{ width: '41%' }} /></div>
+        <div className="pv-eval"><i style={{ width: '41%', '--from': '55%', '--to': '41%' } as React.CSSProperties} /></div>
         <span className="pv-label">Deadlock</span>
       </div>
     </div>
+  );
+}
+
+/** "Ping me when it's live" for a coming game: saved on your profile (your account logged in, else this browser). */
+function NotifyGame({ id, name }: { id: string; name: string }) {
+  const on = useProfile(s => s.data.notifyGames.includes(id));
+  const [busy, setBusy] = useState(false);
+  return (
+    <button className="cta" disabled={busy} aria-pressed={on} title={`${name} is coming: it shows on your profile when it's live. No emails.`}
+      onClick={async () => { setBusy(true); await setNotifyGame(id, !on); setBusy(false); }}>
+      <Icon name={on ? 'check' : 'bell'} size={14} /> {on ? 'We\'ll ping you' : 'Ping me when it\'s live'}
+    </button>
   );
 }

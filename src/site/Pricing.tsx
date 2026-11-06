@@ -47,7 +47,7 @@ export function Pricing() {
         <section className="plan featured">
           <span className="plan-tag">{PRO_EARLY_ACCESS ? 'Free in early access' : 'Most complete'}</span>
           <h2>Pro</h2>
-          <p className="price"><b>Coming soon</b><span>{PRO_EARLY_ACCESS ? 'unlocked for you now' : ''}</span></p>
+          <p className="price"><b>$5</b><span>/ month{PRO_EARLY_ACCESS ? ' · free while in early access' : ''}</span></p>
           <ul>{PRO.map(f => <li key={f}><Icon name="check" size={14} /> {f}</li>)}</ul>
           {me && remote ? (
             <button className={notify ? 'cta' : 'cta primary'} onClick={toggle} disabled={busy} aria-pressed={notify}>

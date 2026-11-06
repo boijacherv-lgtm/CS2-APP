@@ -23,6 +23,7 @@ import { buildMatchReport } from '../engine/match';
 import { profileMatchOf } from '../engine/habits';
 import { saveMoments } from '../moments/moments';
 import { MomentsPage, SharedMoment } from '../moments/MomentsPage';
+import { Changelog, Privacy } from '../site/InfoPages';
 import { cs2Moments } from '../moments/build';
 import type { DemoData } from '../engine/recap';
 import { recordMatch, refreshProfile, useProfile } from '../ui/profileApi';
@@ -61,7 +62,7 @@ export function Shell() {
       <main className="shell-main">
         {loginFailed && <div className="login-failed" role="alert"><span>Steam login didn't finish. Try again.</span><SteamLoginButton compact /><button className="ghost" aria-label="Dismiss" onClick={() => setLoginFailed(false)}><Icon name="close" size={14} /></button></div>}
         {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : <Cs2App />)
-          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
+          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
       </main>
       <Tours />
     </div>
@@ -94,7 +95,7 @@ function recordIfYours(data: DemoData, rounds: (RoundSummary | null)[]) {
 }
 
 const MODE_TITLE = { tactical: 'Plan', review: 'Review a match', report: 'Match recap', home: 'Coach' } as const;
-const PAGE_TITLE: Record<string, string> = { missing: 'Page not found', profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Dev', puzzles: 'Puzzles', moment: 'A shared moment' };
+const PAGE_TITLE: Record<string, string> = { missing: 'Page not found', privacy: 'Privacy', changelog: 'What\'s new', profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Dev', puzzles: 'Puzzles', moment: 'A shared moment' };
 export function pageTitle(r: Route): string {
   if (r.page === 'cs2') return r.mode === 'review' ? 'CS2 Demo Review · RageView' : `CS2 ${MODE_TITLE[r.mode]} · RageView`;
   if (r.page === 'deadlock') return r.mode === 'review' ? 'Deadlock Match Review · RageView' : `Deadlock ${MODE_TITLE[r.mode]} · RageView`;
