@@ -229,12 +229,10 @@ export function DemoFolder() {
 
       {!dir && (
         <div className="steam-profile">
-          <p>Pick your <b>Steam</b> folder (or <b>SteamLibrary</b>) once: the site finds CS2's demos inside it, and your downloaded games show up here by themselves, read and ready to review. Nothing is uploaded.</p>
-          <div className="row"><button className="primary" onClick={connect}>Choose your Steam folder</button></div>
+          <p><b>Auto-find your demos.</b> Pick your Steam folder once. New matches show up here by themselves. Nothing is uploaded.</p>
+          <div className="row"><button className="primary" onClick={connect}>Choose Steam folder</button></div>
           <p className="muted">
-            Usually <code>C:\Program Files (x86)\Steam</code> or <code>D:\SteamLibrary</code> (where CS2 is installed). Picking{' '}
-            <code>…\csgo\replays</code> itself works too. CS2 saves a demo there when you press
-            Download in Watch → Your Matches (or <b>Download in CS2</b> below).
+            Usually <code>C:\Program Files (x86)\Steam</code>.
           </p>
         </div>
       )}

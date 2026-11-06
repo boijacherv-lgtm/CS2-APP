@@ -33,9 +33,9 @@ export function Home() {
     <div className="page home">
       <section className="hero">
         <div className="hero-text">
-          <span className="eyebrow"><Icon name="bolt" size={12} /> Free game coach</span>
+          <span className="eyebrow"><Icon name="bolt" size={12} /> Free · No upload · No sign-up</span>
           <h1>Prove you were right.</h1>
-          <p className="lead">Bring your match. Every play gets a grade and the better option. {names(PLAYABLE)} now, more games coming.</p>
+          <p className="lead">Drop your CS2 or Deadlock match. Every play gets a grade, and the play you should have made.</p>
           <div className="hero-games" aria-label="Games">
             {PLAYABLE.map(g => (
               <a key={g.id} className="hero-games-live" href={g.review ?? g.page}><GameMark game={g} size={30} /><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></a>
@@ -47,11 +47,11 @@ export function Home() {
           </div>
           <div className="hero-cta">
             {PLAYABLE.map((g, i) => <a key={g.id} className={`cta${i === 0 ? ' primary' : ''}`} href={g.review}>Review a {g.short === 'DL' ? 'Deadlock' : g.short} match <Icon name="arrowRight" size={14} /></a>)}
-            <button className="cta" onClick={toGames}>All games <Icon name="arrowRight" size={14} /></button>
+            <button className="cta" onClick={toGames}>See all games <Icon name="arrowRight" size={14} /></button>
           </div>
           <p className="hero-sample"><button className="link-btn" onClick={trySample} disabled={sample === 'opening'}><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening a sample match…' : 'Try a sample match'}</button> <span className="muted">{sample === 'failed' ? 'couldn\'t open it, try again' : 'a public Deadlock match: no file, no login'}</span></p>
           <ul className="hero-trust">
-            <li><Icon name="shield" size={14} /> Nothing uploaded</li>
+            <li><Icon name="shield" size={14} /> Runs in your browser</li>
             <li><Icon name="check" size={14} /> No account needed</li>
           </ul>
         </div>
@@ -68,7 +68,7 @@ export function Home() {
               {g.points && <ul className="game-card-points">{g.points.map(x => <li key={x}>{x}</li>)}</ul>}
               <div className="game-card-cta">
                 <a className="cta primary" href={g.review}>Review a match</a>
-                {g.plan && <a className="cta" href={g.plan}>Plan</a>}
+                {g.plan && <a className="cta" href={g.plan}>Tactical board</a>}
               </div>
             </article>
           ) : (
@@ -95,10 +95,10 @@ export function Home() {
       <section className="site-section">
         <h2 className="section-title">How it works</h2>
         <ol className="steps">
-          <li><b>Bring a match</b><span>A demo, replay or match ID.</span></li>
-          <li><b>Get graded</b><span>Every play, brilliant to blunder.</span></li>
-          <li><b>See the better play</b><span>What else you could have done.</span></li>
-          <li><b>Fix one thing</b><span>The coach picks it. You track it.</span></li>
+          <li><b>Bring a match</b><span>A demo file, replay or match ID.</span></li>
+          <li><b>See your grades</b><span>Every play, from S+ to F.</span></li>
+          <li><b>See the better play</b><span>What you could have done instead.</span></li>
+          <li><b>Fix one thing</b><span>The coach picks your top habit. You track it.</span></li>
         </ol>
       </section>
 
@@ -116,19 +116,19 @@ export function Home() {
       </section>
 
       <section className="site-section">
-        <h2 className="section-title">In numbers</h2>
+        <h2 className="section-title">Trained on real games</h2>
         <div className="stat-strip" aria-label="RageView in numbers">
-          <div><b>{MATCHES}</b><span>CS2 level-10 matches learned</span></div>
-          {PRO_MATCHES > 0 && <div><b>{PRO_MATCHES}</b><span>CS2 pro matches</span></div>}
-          <div><b>{DL_MATCHES.toLocaleString()}</b><span>Deadlock Phantom+ matches</span></div>
-          <div><b>0 MB</b><span>uploaded</span></div>
+          <div><b>{MATCHES}</b><span>level-10 CS2 matches</span></div>
+          {PRO_MATCHES > 0 && <div><b>{PRO_MATCHES}</b><span>pro CS2 matches</span></div>}
+          <div><b>{DL_MATCHES.toLocaleString()}</b><span>Phantom+ Deadlock matches</span></div>
+          <div><b>0 MB</b><span>uploaded. Your files stay on your PC.</span></div>
         </div>
       </section>
 
       <section className="site-section pricing-teaser">
         <div>
-          <h2 className="section-title">Free</h2>
-          <p className="muted">Everything you need is free, in every game. Pro adds unlimited history{PRO_EARLY_ACCESS ? ', and it\'s free during early access too' : ''}.</p>
+          <h2 className="section-title">Free. Really.</h2>
+          <p className="muted">Everything you need is free in every game. Pro adds unlimited history{PRO_EARLY_ACCESS ? ', and it\'s free during early access' : ''}.</p>
         </div>
         <a className="cta" href="#/pricing">See plans</a>
       </section>
@@ -152,22 +152,22 @@ export function Home() {
 }
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
-  { icon: 'play', title: 'Graded replay', text: 'Every play scored, with a live win chance.' },
-  { icon: 'route', title: 'The engine', text: 'The better play, and what it was worth.' },
-  { icon: 'star', title: 'A real coach', text: 'You against the best players in your game.' },
-  { icon: 'bolt', title: 'Rage mode', text: 'The coach yells at your plays. 18+.' },
-  { icon: 'goal', title: 'Goals', text: 'Pick 3 habits. Watch them improve.' },
-  { icon: 'friends', title: 'Friends', text: 'Your stats next to theirs.' },
-  { icon: 'share', title: 'Share card', text: 'Your match as a picture for Discord.' },
+  { icon: 'play', title: 'Graded replay', text: 'Every play scored, with a live win-chance bar.' },
+  { icon: 'route', title: 'The engine', text: 'The better play, and how much it would have helped.' },
+  { icon: 'star', title: 'Pro comparison', text: 'You next to the best players in your game.' },
+  { icon: 'bolt', title: 'Rage mode', text: 'The coach roasts your plays. Loud. 18+.' },
+  { icon: 'goal', title: 'Goals', text: 'Pick 3 habits. Watch them get better.' },
+  { icon: 'friends', title: 'Friends', text: 'Your stats next to theirs. Settle it.' },
+  { icon: 'share', title: 'Share card', text: 'Your match as an image. Post it in Discord.' },
 ];
 
 const FAQ = [
-  { q: 'Which games?', a: `${names(PLAYABLE)} now. Next: ${SOON_GAMES.slice(0, 3).map(g => g.name).join(', ')}, then more.` },
+  { q: 'What games work?', a: `${names(PLAYABLE)} now. Next: ${SOON_GAMES.slice(0, 3).map(g => g.name).join(', ')}, then more.` },
   { q: 'Is it free?', a: 'Yes. Pro adds unlimited history and is free during early access. No card needed.' },
-  { q: 'Is my match uploaded?', a: 'No. Demos and replay files are read in your browser. A Deadlock match ID is looked up in deadlock-api\'s public match data. Logged in, only your numbers are saved, never the replay.' },
+  { q: 'Do you upload my files?', a: 'No. Demos and replay files are read in your browser. A Deadlock match ID is looked up in deadlock-api\'s public match data. Logged in, only your numbers are saved, never the replay.' },
   { q: 'Do I need an account?', a: 'No. Log in with Steam only to sync your profile between devices.' },
   { q: 'What do I bring?', a: PLAYABLE.map(g => `${g.name}: ${g.source}`).join('. ') + '.' },
-  { q: 'How good is the coach?', a: `In CS2 it learned from ${MATCHES} FACEIT level-10 matches${PRO_MATCHES ? ` and ${PRO_MATCHES} pro ones` : ''}; in Deadlock from ${DL_MATCHES.toLocaleString()} Phantom-and-up matches since the patch. It can't hear your team's calls, and says so.` },
+  { q: 'How smart is the coach?', a: `In CS2 it learned from ${MATCHES} FACEIT level-10 matches${PRO_MATCHES ? ` and ${PRO_MATCHES} pro ones` : ''}; in Deadlock from ${DL_MATCHES.toLocaleString()} Phantom-and-up matches since the patch. It can't hear your team's calls, and says so.` },
 ];
 
 /** A picture of two reviews, one per game: a graded moment on each map (illustrations, not real matches). */
