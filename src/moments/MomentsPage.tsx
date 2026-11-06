@@ -7,6 +7,8 @@ import { applyGame } from '../ui/tokens';
 import { Icon } from '../ui/Icon';
 import { cleanMoment, focusOf, fromShareCode, isMistake, loadMoments, mistakeGroups, shareCode, type Moment, type MomentGame } from './moments';
 import { dailyOf, dayNumber, puzzleRating, readScore, record, recordDaily, recordRush, weakSpots, type Score } from './score';
+import { loadBoard, sendAnswer, syncRecord, type BoardRow } from './puzzleApi';
+import { useProfile } from '../ui/profileApi';
 
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 const GAME_NAME: Record<MomentGame, string> = { cs2: 'CS2', deadlock: 'Deadlock' };
@@ -138,10 +140,17 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
   const [picked, setPicked] = useState<number | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [delta, setDelta] = useState<number | null>(null);
+  const [crowd, setCrowd] = useState<{ tried: number; right: number } | null>(null);
   const rage = useStore(s => s.rage);
-  useEffect(() => { setPicked(null); setDelta(null); setHover(null); }, [m.id]);
+  useEffect(() => { setPicked(null); setDelta(null); setHover(null); setCrowd(null); }, [m.id]);
   const right = picked === 0;
-  const pick = (i: number) => { if (picked !== null) return; setPicked(i); chime(i === 0); const d = onAnswer?.(i === 0); if (typeof d === 'number') setDelta(d); };
+  const pick = (i: number) => {
+    if (picked !== null) return;
+    setPicked(i); chime(i === 0);
+    const d = onAnswer?.(i === 0); if (typeof d === 'number') setDelta(d);
+    // everyone's answers to this premade puzzle (yours counted once: only when it counts for your score)
+    if (onAnswer) sendAnswer(m.id, i === 0).then(setCrowd);
+  };
   const theirs = shared || !!m.who;
   return (
     <div className={`puzzle ${picked === null ? '' : right ? 'won' : 'lost'}`}>
@@ -171,6 +180,7 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
               {right ? 'That is the engine\'s best move.' : `The engine's best: ${m.options[0].label}.`}{' '}
               {m.played !== 0 ? <>The real move, “{m.options[m.played].label}”, was <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span> and gave up {pct(Math.max(0, m.options[0].value - m.options[m.played].value))} win chance ({Math.round(m.options[0].value * 100)}% → {Math.round(m.options[m.played].value * 100)}%).</> : <>It's what was really played.</>}
               {delta !== null && <span className={`puzzle-delta ${delta >= 0 ? 'up' : 'down'}`}> Rating {delta >= 0 ? '+' : '−'}{Math.abs(delta)}</span>}
+              {crowd && crowd.tried >= 5 && <span className="puzzle-crowd muted"> {Math.round((crowd.right / crowd.tried) * 100)}% of {crowd.tried} players got this.</span>}
             </p>
             {m.why?.length ? <div className="puzzle-why"><b>Why</b><ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul></div> : null}
           </>
@@ -190,7 +200,7 @@ export function ShareMoment({ m }: { m: Moment }) {
   return <button className="chip" onClick={copy} title="Copy a link to this moment: anyone can open it, no login"><Icon name={done ? 'check' : 'share'} size={13} /> {done ? 'Link copied' : 'Share'}</button>;
 }
 
-type Mode = 'practice' | 'daily' | 'rush' | 'weak';
+type Mode = 'practice' | 'daily' | 'rush' | 'weak' | 'board';
 const RUSH_SECONDS = 180, RUSH_LIVES = 3;
 
 /** Puzzles: practice (yours or top players', at your rating), the daily puzzle, a 3-minute rush, your weak spots; and
@@ -223,7 +233,7 @@ export function MomentsPage() {
     setCur([...from].sort((a, b) => Math.abs(puzzleRating(a) - s.rating) - Math.abs(puzzleRating(b) - s.rating))[0] ?? null);
   };
   useEffect(next, [ms]); // eslint-disable-line react-hooks/exhaustive-deps
-  const answer = (m: Moment) => (right: boolean) => { const r = record(m, right); setScore(r.score); return r.delta; };
+  const answer = (m: Moment) => (right: boolean) => { const r = record(m, right); setScore(r.score); syncRecord(r.score); return r.delta; };
 
   const groups = mistakeGroups(mine.filter(m => game === 'all' || m.game === game));
   const focus = source === 'top' ? [] : (['cs2', 'deadlock'] as MomentGame[]).filter(g => game === 'all' || g === game).map(g => ({ g, f: focusOf(mine, g) })).filter(x => x.f);
@@ -231,7 +241,7 @@ export function MomentsPage() {
     <header className="moments-head">
       <h1>Puzzles</h1>
       <div className="seg-mini" role="tablist" aria-label="Mode">
-        {([['practice', 'Practice'], ['daily', 'Daily'], ['rush', 'Rush'], ['weak', 'Weak spots']] as [Mode, string][]).map(([k, l]) =>
+        {([['practice', 'Practice'], ['daily', 'Daily'], ['rush', 'Rush'], ['weak', 'Weak spots'], ['board', 'Leaderboard']] as [Mode, string][]).map(([k, l]) =>
           <button key={k} role="tab" aria-selected={mode === k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}
       </div>
       <span className="puzzle-rating" title="Your puzzle rating: it goes up more for harder puzzles">Rating <b className="num">{score.rating}</b></span>
@@ -241,6 +251,7 @@ export function MomentsPage() {
 
   if (mode === 'daily') return <div className="page moments">{header}<DailyPuzzle pool={top} onScore={setScore} /></div>;
   if (mode === 'rush') return <div className="page moments">{header}<Rush pool={top} onScore={setScore} /></div>;
+  if (mode === 'board') return <div className="page moments">{header}<Leaderboard rating={score.rating} tried={score.tried} /></div>;
   if (mode === 'weak') {
     const spots = weakSpots(score);
     return (
@@ -339,7 +350,7 @@ function DailyPuzzle({ pool, onScore }: { pool: Moment[] | null; onScore: (s: Sc
     <section className="site-card">
       <div className="card-head"><h2><Icon name="star" size={16} /> Daily puzzle #{day}</h2><span className="muted small">the same for everyone today · streak {s.daily.streak}</span></div>
       {done && <p className="muted">You've played today's: come back tomorrow for #{day + 1}.</p>}
-      <Puzzle key={done ? 'done' : 'play'} m={m} onAnswer={done ? undefined : right => { const n = recordDaily(right, day); const r = record(m, right); setS(r.score); onScore(r.score); void n; return r.delta; }} />
+      <Puzzle key={done ? 'done' : 'play'} m={m} onAnswer={done ? undefined : right => { recordDaily(right, day); const r = record(m, right); setS(r.score); onScore(r.score); syncRecord(r.score); return r.delta; }} />
       {(done || s.daily.day === day) && (
         <div className="puzzle-next"><button className="chip" onClick={async () => { try { await navigator.clipboard.writeText(line); setCopied(true); } catch { prompt('Copy', line); } }}><Icon name={copied ? 'check' : 'share'} size={13} /> {copied ? 'Copied' : 'Share result'}</button></div>
       )}
@@ -368,7 +379,7 @@ function Rush({ pool, onScore }: { pool: Moment[] | null; onScore: (s: Score) =>
     const id = setInterval(() => setLeft(l => { if (l <= 1) { setState('over'); return 0; } return l - 1; }), 1000);
     return () => clearInterval(id);
   }, [state]);
-  useEffect(() => { if (state === 'over') onScore(recordRush(right)); }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (state === 'over') { const s = recordRush(right); onScore(s); syncRecord(s); } }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
   const onAnswer = (ok: boolean) => {
     setAnswered(true);
     if (ok) setRight(r => r + 1); else setLives(l => { if (l <= 1) setTimeout(() => setState('over'), 900); return l - 1; });
@@ -386,6 +397,33 @@ function Rush({ pool, onScore }: { pool: Moment[] | null; onScore: (s: Score) =>
         </>
       )}
       {state === 'over' && <div className="rush-start"><p className="focus-kind">{right} right</p><p className="muted">{right > best ? 'A new best.' : `Your best: ${Math.max(best, right)}.`}</p><button className="primary" onClick={start}>Again</button></div>}
+    </section>
+  );
+}
+
+/** The top puzzle ratings (players with a public profile and 10+ puzzles), and where you'd stand. */
+function Leaderboard({ rating, tried }: { rating: number; tried: number }) {
+  const me = useProfile(s => s.me), isPublic = useProfile(s => s.data.prefs.public);
+  const [rows, setRows] = useState<BoardRow[] | null>(null), [err, setErr] = useState<string | null>(null);
+  useEffect(() => { loadBoard().then(setRows, e => setErr(e instanceof Error ? e.message : String(e))); }, []);
+  const place = rows ? rows.filter(r => r.rating > rating).length + 1 : null;
+  return (
+    <section className="site-card">
+      <div className="card-head"><h2><Icon name="trophy" size={16} /> Leaderboard</h2><span className="muted small">puzzle rating · public profiles · 10+ puzzles</span></div>
+      <p className="muted small">{!me ? 'Log in with Steam and make your profile public (Settings) to be on it.' : !isPublic ? 'Your profile is private: make it public in Settings to show up here.' : tried < 10 ? `Solve ${10 - tried} more to show up.` : place ? `Your rating ${rating} would be #${place}.` : ''}</p>
+      {err ? <p className="warn-text">{err}</p> : !rows ? <p className="muted">Loading…</p> : !rows.length ? <p className="muted">Nobody yet. Be first.</p> : (
+        <ol className="board">
+          {rows.map((r, i) => (
+            <li key={r.steamId} className={me?.steamId === r.steamId ? 'mine' : ''}>
+              <span className="num board-n">{i + 1}</span>
+              {r.avatar ? <img src={r.avatar} alt="" width={28} height={28} /> : <Icon name="user" size={20} />}
+              <b>{r.name ?? 'A player'}</b>
+              <span className="num board-r">{r.rating}</span>
+              <span className="muted small">{r.solved}/{r.tried} · best streak {r.best}</span>
+            </li>
+          ))}
+        </ol>
+      )}
     </section>
   );
 }

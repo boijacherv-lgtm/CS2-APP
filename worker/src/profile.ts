@@ -13,13 +13,15 @@
  *   GET  /resolve?q=        a Steam profile link, vanity name or SteamID → SteamID (logged-in only)
  *   POST /internal/profile/:steamId   the demo bot adds a match it graded (server token only)
  */
-import { cleanGoals, cleanMatch, cleanNotifyGames, cleanPrefs, cleanVerdict, cleanVerdicts, EMPTY_PROFILE, withVerdict, FREE_HISTORY, withMatch, type ProfileData } from '../../src/engine/profile';
+import { cleanPuzzles, cleanGoals, cleanMatch, cleanNotifyGames, cleanPrefs, cleanVerdict, cleanVerdicts, EMPTY_PROFILE, withVerdict, FREE_HISTORY, withMatch, type ProfileData } from '../../src/engine/profile';
 
 export interface ProfileKV {
   get(key: string, type: 'json'): Promise<unknown>;
   put(key: string, value: string): Promise<void>;
   delete(key: string): Promise<void>;
 }
+
+import { updateBoard } from './puzzles';
 
 const KEY = (steamId: string) => `stats:${steamId}`;
 
@@ -54,8 +56,15 @@ export async function profileRoute(kv: ProfileKV, steamId: string, method: strin
     if (!game) throw new Error('Which game?');
     p.notifyGames = input.on === true ? cleanNotifyGames([...p.notifyGames, game]) : p.notifyGames.filter(g => g !== game);
   }
+  else if (path === '/profile/puzzles') {
+    const rec = cleanPuzzles(input.puzzles);
+    if (!rec) throw new Error('That isn\'t a puzzle record.');
+    p.puzzles = rec;
+  }
   else return null;
   await save(kv, steamId, p);
+  // the puzzle leaderboard follows the record and the public switch
+  if (path === '/profile/puzzles' || path === '/profile/prefs') await updateBoard(kv, steamId, p.puzzles, p.prefs.public);
   return p;
 }
 
