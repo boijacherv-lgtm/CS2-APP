@@ -688,3 +688,10 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .board-n { color: var(--text-2); font-weight: 700; }
 .board-r { font: 700 20px/1 var(--font-display); }
 @media (max-width: 560px) { .board li { grid-template-columns: 24px 24px minmax(0, 1fr) auto; } .board li > .small { display: none; } }
+/* review on a phone: no drop zone, a way to get the link to your PC */
+.rs-phone { display: none; }
+@media (max-width: 600px) and (pointer: coarse) {
+  .rs-phone { display: grid; gap: 10px; padding: 18px; border-radius: 14px; background: var(--surface-1); border: 1px solid var(--border); margin-bottom: 14px; }
+  .rs-phone + .dropzone { display: none; }
+}
+.dropzone:focus-visible { outline: 2px solid var(--theme); outline-offset: 3px; }

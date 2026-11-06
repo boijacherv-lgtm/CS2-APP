@@ -28,8 +28,9 @@ function cs2Why(best: SearchOption, did: SearchOption, s: { planted: boolean; si
   const often = (v: number) => (v >= 0.9 ? 'almost always' : v <= 0.05 ? 'almost never' : `${pc(v)} of the time`);
   if (did.death - best.death > 0.08) out.push(`"${asMove(did.label)}" gets you killed ${often(did.death)}; "${b}" ${often(best.death)}.`);
   else if (best.kills - did.kills > 0.15) out.push(`"${b}" wins more fights: about ${best.kills.toFixed(1)} kills against ${did.kills.toFixed(1)}.`);
-  if (out.length < 2 && s.us > s.them && best.kind !== 'peek') out.push('You have the numbers: play together, no solo fights.');
-  if (out.length < 2 && s.us === 1 && s.them > 1) out.push('Alone against more: take one fight at a time.');
+  const where = placeOf(best.label).replace(/^on /, '');
+  if (out.length < 2 && s.us > s.them && best.kind !== 'peek') out.push(`You have the numbers: "${b}" keeps you with your team, no solo fights.`);
+  if (out.length < 2 && s.us === 1 && s.them > 1) out.push(best.kind === 'hold' || best.kind === 'actual' ? `Alone against ${s.them}: holding ${where} makes them come one at a time.` : `Alone against ${s.them}: ${where} lets you take one fight at a time instead of all of them.`);
   if (!out.length) out.push(`"${b}" keeps more of your round: the engine played both ahead and it comes out on top.`);
   return out.slice(0, 2);
 }
@@ -87,7 +88,7 @@ export function cs2Moment(data: DemoData, i: number, m: SearchMoment): Moment | 
   const nades = gear?.inv.filter(w => /flash|smoke|molotov|incgrenade|hegrenade|decoy/i.test(w)).length ?? 0;
   const gun = me?.w?.[k];
   const info = [planted ? 'Bomb planted' : m.side === 'T' && demo.bomb?.some(b => b.kind === 'carry' && b.id === m.player && b.t <= m.t) ? 'You have the bomb' : '',
-    me ? `${me.hp[k]} HP` : '', gun ? GUN[gun] ?? cap(gun) : '', gear ? `${nades} grenade${nades === 1 ? '' : 's'}` : '', `${clock(left)} left`].filter(Boolean);
+    me ? `${me.hp[k]} HP` : '', gun ? GUN[gun] ?? cap(gun) : '', gear ? `${nades} grenade${nades === 1 ? '' : 's'}` : '', planted ? `${left} s on the bomb` : `${clock(left)} left`].filter(Boolean);
   // the kind of situation
   const tag = planted ? (m.side === 'CT' ? 'Retake' : 'Post-plant') : us === 1 ? 'Clutch' : us > them ? 'Man advantage' : us < them ? 'Outnumbered' : m.t < 30 ? 'Opening' : 'Mid-round';
   // the clip: everyone once a second, 10 s before to 5 s after (from the round's start at the earliest)
@@ -104,7 +105,7 @@ export function cs2Moment(data: DemoData, i: number, m: SearchMoment): Moment | 
   return {
     ...(clip ? { clip } : {}),
     id: `${match}#R${i + 1} ${clock(m.t)}`, game: 'cs2', map: data.map, at, match: mapName, when: `R${i + 1} ${clock(m.t)}`, dots,
-    setup: `Round ${i + 1}, ${clock(m.t)} in. You're ${m.side}, ${us} alive against ${them}. Your side's win chance: ${pct(m.before)}.`,
+    setup: `Round ${i + 1}. ${planted ? `Bomb planted · ${left} s on the bomb. ` : `${clock(left)} left in the round. `}You're ${m.side}, ${us} alive against ${them}. Your side's win chance: ${pct(m.before)}.`,
     // one scale for every number: the best move keeps the win chance you have now, each other move loses its calibrated
     // cost (the engine's raw values exaggerate: search.ts COST_SCALE), so "gave up" is best minus played
     options: opts.map(o => ({ label: o.label, value: onScale(m.before, (best.win - o.win) * COST_SCALE), ...toMap(o) })), played, cls: m.cls, cost: (best.win - (opts[played]?.win ?? best.win)) * COST_SCALE,

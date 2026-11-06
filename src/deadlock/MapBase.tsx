@@ -1,3 +1,4 @@
+import { useCanvasLabel } from '../ui/canvasLabel';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Layer, Rect, Stage } from 'react-konva';
 import type Konva from 'konva';
@@ -60,6 +61,7 @@ export function MapBase({ layers, children, onBackground, you = 0 }: {
     const p = stage.current?.getPointerPosition();
     return p ? { x: (p.x - view.x) / view.scale / S, y: (p.y - view.y) / view.scale / S } : null;
   };
+  useCanvasLabel(wrap, 'Deadlock tactical map: lanes, objectives and your plan');
   return (
     <div className="dl-map" ref={wrap}>
       <Stage ref={stage} width={S} height={S} scaleX={view.scale} scaleY={view.scale} x={view.x} y={view.y}

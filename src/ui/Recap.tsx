@@ -75,6 +75,12 @@ export function ReviewStart() {
   const { load, status, busy, progress, elapsed } = useDemoLoader();
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
+  const [sent, setSent] = useState(false);
+  // the phone's share sheet (message it to yourself), else the link copied
+  const sendLink = async () => {
+    const url = `${location.origin}/cs2/review`;
+    try { if (navigator.share) { await navigator.share({ title: 'RageView: review a CS2 match', url }); return; } await navigator.clipboard.writeText(url); setSent(true); } catch { /* closed the share sheet */ }
+  };
   return (
     <div className="review-start">
       <header className="rs-head">
@@ -83,8 +89,18 @@ export function ReviewStart() {
       </header>
       <div className="rs-grid">
         <div className="rs-left">
+          {/* phones: nobody has a demo there; send the link to your PC instead */}
+          <div className="rs-phone">
+            <b>Open this on your PC</b>
+            <span className="muted">Demos live on your computer. Send yourself the link and drop one in there.</span>
+            <button className="cta primary" onClick={sendLink}><Icon name="share" size={14} /> {sent ? 'Link copied' : 'Send me the link'}</button>
+            <a className="cta" href="/puzzles">Solve puzzles here instead</a>
+          </div>
           <div
             className={`dropzone ${over ? 'over' : ''} ${busy ? 'busy' : ''}`}
+            // a keyboard can reach it too: Tab to it, Enter or Space opens the file picker
+            role="button" tabIndex={0} aria-label="Choose a .dem file" aria-disabled={busy}
+            onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && !busy) { e.preventDefault(); input.current?.click(); } }}
             onClick={() => !busy && input.current?.click()}
             onDragOver={e => { e.preventDefault(); setOver(true); }}
             onDragLeave={() => setOver(false)}
@@ -93,7 +109,7 @@ export function ReviewStart() {
             <DemoReel />
             <div className="dz-icon"><Icon name={busy ? 'hourglass' : 'upload'} size={34} /></div>
             <h2>{busy ? READING[Math.floor(elapsed / 4) % READING.length] : 'Drop your .dem file here'}</h2>
-            <p>{busy ? status : 'or click to pick one (a .json you saved before works too)'}</p>
+            <p>{busy ? status : 'or click to choose · .dem or saved .json'}</p>
             {busy && progress !== null && (
               <div className="dz-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
                 {/* the demo as a strip of frames, lighting up as they're read; a scan line sweeps the one being read */}
@@ -112,7 +128,7 @@ export function ReviewStart() {
           <div className="review-how">
             <div><b>1. Get a demo</b><span>CS2 → Watch → Your Matches → download. FACEIT and HLTV demos work too (unzip them first).</span></div>
             <div><b>2. Drop it in</b><span>{ONLINE ? "It's read right here in your browser; nothing is uploaded." : "It's read on this computer only; nothing is uploaded anywhere."}</span></div>
-            <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar, and every kill, grenade and costly death gets a letter from S+ (round-swinging) to F.</span></div>
+            <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar. Every kill, grenade and costly death is graded from Brilliant to Blunder, and each round gets a letter from S+ to F.</span></div>
           </div>
           {/* nothing to drop yet: see what it does first */}
           <p className="rs-nodemo muted">No demo handy? <a href="/">Open the CS2 sample match</a> from the front page, or <a href="/puzzles">try top players' puzzles</a>.</p>

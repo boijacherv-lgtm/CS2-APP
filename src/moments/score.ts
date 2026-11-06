@@ -6,7 +6,11 @@ export interface Score {
   solved: number; tried: number; streak: number; best: number; seen: string[];
   rating: number; tags: Record<string, { tried: number; right: number }>;
   daily: { day: number; right: boolean | null; streak: number }; rushBest: number;
+  /** the daily puzzle per game ("cs2", "deadlock"); `daily` is the CS2 one from before there was one per game */
+  dailies?: Record<string, { day: number; right: boolean | null; streak: number }>;
 }
+/** A game's daily record. */
+export const dailyFor = (s: Score, game: string) => s.dailies?.[game] ?? (game === 'cs2' ? s.daily : { day: -1, right: null, streak: 0 });
 const KEY = 'rageview.puzzles';
 const START: Score = { solved: 0, tried: 0, streak: 0, best: 0, seen: [], rating: 1200, tags: {}, daily: { day: -1, right: null, streak: 0 }, rushBest: 0 };
 export const readScore = (): Score => { try { return { ...START, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { return { ...START }; } };
@@ -41,11 +45,11 @@ export function dailyOf(pool: Moment[], day = dayNumber()): Moment | null {
   const sorted = [...pool].sort((a, b) => (a.id < b.id ? -1 : 1));
   return sorted[(day * 7919) % sorted.length];
 }
-export function recordDaily(right: boolean, day = dayNumber()): Score {
-  const s = readScore();
-  if (s.daily.day === day) return s;
-  const streak = right ? (s.daily.day === day - 1 && s.daily.right ? s.daily.streak + 1 : 1) : 0;
-  const score = { ...s, daily: { day, right, streak } };
+export function recordDaily(right: boolean, day = dayNumber(), game = 'cs2'): Score {
+  const s = readScore(), was = dailyFor(s, game);
+  if (was.day === day) return s;
+  const streak = right ? (was.day === day - 1 && was.right ? was.streak + 1 : 1) : 0;
+  const score = { ...s, dailies: { ...(s.dailies ?? { cs2: s.daily }), [game]: { day, right, streak } } };
   write(score);
   return score;
 }

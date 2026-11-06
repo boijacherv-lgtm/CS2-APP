@@ -1,4 +1,6 @@
 import Konva from 'konva';
+import { MAPS } from '../map/catalog';
+import { useCanvasLabel } from './canvasLabel';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import { KonvaFace } from './KonvaFace';
@@ -465,9 +467,11 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const spotImg = useMemo(() => (spots ? spotCanvas(engine, spots) : null), [engine, spots]);
   const walkImg = useMemo(() => (tools && s.overlays.walkable ? walkableCanvas(engine) : null), [engine, tools, s.overlays.walkable]);
   const radarImg = useRadarImage(MAP.radarImage);
+  useCanvasLabel(wrap, `${MAPS.find(m => m.id === s.mapId)?.name ?? 'The'} map: ${recap ? 'the round replaying' : 'the tactical board'}, players and grenades`);
 
   return (
     <div ref={wrap} className={`board tool-${s.tool}`}>
+      <h1 className="sr-only">{recap ? 'CS2 match replay' : `CS2 Tactical board: ${MAPS.find(m => m.id === s.mapId)?.name ?? ''}`}</h1>
       <Stage
         ref={stageRef}
         width={size.w}
@@ -595,9 +599,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               const hot = named(c.name);
               const fs = (c.minor && !hot ? 8 : 9.5) / view.scale;
               return (
-                <Text key={`${c.name}-${i}`} text={c.name.toUpperCase()} x={c.pos.x - 80} y={c.pos.y - fs / 2} width={160} align="center" fontSize={fs}
+                <Text key={`${c.name}-${i}`} text={c.name.toUpperCase()} x={c.pos.x - 400} y={c.pos.y - fs / 2} width={800} align="center" fontSize={fs}
                   letterSpacing={0.6 / view.scale} fill={hot ? TOK.highlight : c.minor ? '#b9c1cc' : '#eef1f5'} stroke="#000" strokeWidth={2.2 / view.scale} fillAfterStrokeEnabled
-                  fontStyle={c.minor && !hot ? 'normal' : 'bold'} opacity={hot ? 1 : c.minor ? 0.6 : 0.78} />
+                  fontStyle={c.minor && !hot ? 'normal' : 'bold'} opacity={hot ? 1 : c.minor ? 0.6 : 0.78} wrap="none" />
               );
             })}
           {visionLayer && visionLayer.cones.map(v => (
@@ -858,6 +862,15 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
       {/* everything over the map lives in fixed slots around its edges, so nothing overlaps */}
       <div className={`board-ui ${rosterRound ? 'broadcast' : ''}`}>
         <div className="slot tl">
+          {/* the map, named and changeable right here (it was only in Setup) */}
+          {!recap && (
+            <label className="tl-btn map-pick" title="Map">
+              <Icon name="map" />
+              <select value={s.mapId} onChange={e => s.setMap(e.target.value)} aria-label="Map">
+                {MAPS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </label>
+          )}
           <LayersBar />
           {rosterRound && (
             <button className={`tl-btn ${s.autoCam ? 'on' : ''}`} onClick={() => s.setAutoCam(!s.autoCam)} aria-pressed={s.autoCam}
@@ -895,6 +908,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           </div>
         </div>
         <div className="slot tr">
+          {!recap && sim && <SimFeed sim={sim} time={s.time} players={s.board.players} />}
           {recap && s.review && (
             <KillFeed recap={recap} round={s.review.data.rounds[s.review.round]} time={s.time} names={s.review.data.names} />
           )}
@@ -1306,4 +1320,25 @@ function toolHint(t: string) {
     case 'erase': return 'Click or drag over players, utility and routes to delete them (red = will be deleted)';
     default: return 'Click to place utility. It is thrown at the current round time on the slider';
   }
+}
+
+/** A simulated play: who killed whom so far, and once it's over, how it ended ("T win: 5 left against 0 at 1:21"). */
+function SimFeed({ sim, time, players }: { sim: Simulation; time: number; players: { id: string; side: 'CT' | 'T'; label: string }[] }) {
+  const who = (id: string) => { const p = players.find(x => x.id === id); return p ? `${p.side} ${p.label}` : 'a grenade'; };
+  const sideOf = (id: string) => players.find(x => x.id === id)?.side;
+  const kills = sim.kills.filter(k => k.t <= time).slice(-5);
+  const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  const over = time >= sim.end - 0.05;
+  const alive = (side: 'CT' | 'T') => sim.ids.filter((id, i) => sideOf(id) === side && !(sim.deathT[i] <= time)).length;
+  const ct = alive('CT'), t = alive('T');
+  const end = !over ? null : ct === 0 && t > 0 ? `T win: ${t} left, CTs all down by ${clock(sim.end)}` : t === 0 && ct > 0 ? `CT win: ${ct} left, Ts all down by ${clock(sim.end)}` : `Sim over at ${clock(sim.end)}: ${ct} CT and ${t} T alive`;
+  if (!kills.length && !end) return null;
+  return (
+    <div className="sim-feed" aria-live="polite">
+      {kills.map((k, i) => (
+        <div key={i} className="sim-kill"><span className={sideOf(k.killer)?.toLowerCase()}>{k.killer ? who(k.killer) : 'Grenade'}</span> <Icon name="crosshair" size={11} /> <span className={sideOf(k.victim)?.toLowerCase()}>{who(k.victim)}</span><em className="num">{clock(k.t)}</em></div>
+      ))}
+      {end && <div className="sim-end">{end}</div>}
+    </div>
+  );
 }
