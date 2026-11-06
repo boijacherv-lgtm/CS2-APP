@@ -90,8 +90,8 @@ export function ReviewStart() {
           >
             <DemoReel />
             <div className="dz-icon"><Icon name={busy ? 'hourglass' : 'upload'} size={34} /></div>
-            <h2>{busy ? 'Reading your match…' : 'Drop a demo here'}</h2>
-            <p>{busy ? status : 'or click to choose a .dem file (or a .json you saved before)'}</p>
+            <h2>{busy ? 'Reading your match…' : 'Drop your .dem file here'}</h2>
+            <p>{busy ? status : 'or click to pick one (a .json you saved before works too)'}</p>
             {busy && progress !== null && (
               <div className="dz-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
                 {/* the demo as a strip of frames, lighting up as they're read; a scan line sweeps the one being read */}
