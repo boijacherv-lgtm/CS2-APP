@@ -143,7 +143,7 @@ export function Home() {
           <h2 className="section-title">Free. Really.</h2>
           <p className="muted">Everything you need is free in every game. Pro adds unlimited history{PRO_EARLY_ACCESS ? ', and it\'s free during early access' : ''}.</p>
         </div>
-        <a className="cta" href="#/pricing">See plans</a>
+        <a className="cta" href="/pricing">See plans</a>
       </section>
 
       <section className="site-section">
@@ -156,7 +156,7 @@ export function Home() {
       <footer className="site-footer">
         <span className="brand-small"><LogoMark size={18} /> {APP_NAME}</span>
         <nav>
-          {PLAYABLE.map(g => <a key={g.id} href={g.review}>{g.name}</a>)}<a href="#/profile">Profile</a><a href="#/pricing">Pricing</a><a href="#/settings">Settings</a><a href="#/puzzles">Puzzles</a><a href="#/changelog">What's new</a><a href="#/privacy">Privacy</a>
+          {PLAYABLE.map(g => <a key={g.id} href={g.review}>{g.name}</a>)}<a href="/profile">Profile</a><a href="/pricing">Pricing</a><a href="/settings">Settings</a><a href="/puzzles">Puzzles</a><a href="/changelog">What's new</a><a href="/privacy">Privacy</a>
         </nav>
         <span className="muted">Made by a player who was tired of losing to bad teammates. No tracking; demos are read on your PC. © {new Date().getFullYear()} {APP_NAME}. Not affiliated with any game publisher. Game names and logos belong to their owners.</span>
       </footer>

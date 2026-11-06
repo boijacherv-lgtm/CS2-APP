@@ -159,7 +159,7 @@ function DlStart() {
             <div className="dl-bot on">
               <span className="muted small">New matches load by themselves every {bot.pollMinutes} min.</span>
               {me?.pro ? <button className="ghost small-btn" disabled={botBusy} onClick={() => void checkNow()}>{botBusy ? 'Checking…' : 'Check now'}</button>
-                : <a className="muted small" href="#/pricing" title="Pro can ask the bot to look right away">Check now: Pro</a>}
+                : <a className="muted small" href="/pricing" title="Pro can ask the bot to look right away">Check now: Pro</a>}
             </div>
           ) : (
             <div className="dl-bot">

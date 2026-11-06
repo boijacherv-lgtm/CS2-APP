@@ -452,7 +452,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
   .modes button:not(.on) .mode-label { display: none; }
   .modes button { padding: 5px 8px; }
   /* on CS2's pages the modes need the room: the CS2 button is its logo, Pricing waits on the other pages */
-  .modes ~ .nav-right a[href="#/pricing"] { display: none; }
+  .modes ~ .nav-right a[href="/pricing"] { display: none; }
   .navbar:has(.modes) .game-btn.live > span:last-child { display: none; }
   .navbar:has(.modes) .game-btn.live { padding-right: 3px; }
 }
@@ -501,7 +501,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 @media (max-width: 900px) { .dev-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .dev-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* a match open (the match tab in the nav): make room on narrower screens, Pricing first, then the labels */
-@media (max-width: 1380px) { .navbar:has(.match-tab) .nav-link[href="#/pricing"], .navbar:has(.match-tab) .with-steam { display: none; } }
+@media (max-width: 1380px) { .navbar:has(.match-tab) .nav-link[href="/pricing"], .navbar:has(.match-tab) .with-steam { display: none; } }
 @media (max-width: 1240px) { .navbar:has(.match-tab) .mode-label { display: none; } }
 @media (max-width: 1100px) { .navbar:has(.match-tab) .nav-link span, .navbar:has(.match-tab) .steam-login.compact span { display: none; } .navbar:has(.match-tab) .game-btn.live > span:last-child { display: none; } }
 
@@ -561,7 +561,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 @media (max-width: 560px) {
   .reel-list li { grid-template-columns: auto minmax(0, 1fr); }
   .reel-actions { grid-column: 1 / -1; }
-  .nav-link[href="#/puzzles"] span { display: none; }
+  .nav-link[href="/puzzles"] span { display: none; }
 }
 /* duo review (CS2 recap) */
 .duo-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }

@@ -31,7 +31,7 @@ export function NavBar({ route }: { route: Route }) {
   }, []);
   return (
     <header className="navbar">
-      <a className="brand" href="#/" aria-label={`${APP_NAME} home`}><LogoMark /><span>{APP_NAME}</span></a>
+      <a className="brand" href="/" aria-label={`${APP_NAME} home`}><LogoMark /><span>{APP_NAME}</span></a>
       <nav className="game-bar" aria-label="Games">
         {GAMES.map(g => g.status === 'live' ? (
           <a key={g.id} href={routeHref({ page: 'cs2', mode: cs2 ? route.mode : 'review' })} className={`game-btn live ${cs2 ? 'on' : ''}`} title={`${g.name}: live`}>
@@ -84,18 +84,18 @@ export function NavBar({ route }: { route: Route }) {
       )}
       {route.page === 'deadlock' && <DlNav route={route} />}
       <div className="nav-right">
-        <a className={`nav-link nav-wide ${route.page === 'puzzles' ? 'on' : ''}`} href="#/puzzles" aria-label="Puzzles"><Icon name="target" size={16} /> <span>Puzzles</span></a>
+        <a className={`nav-link nav-wide ${route.page === 'puzzles' ? 'on' : ''}`} href="/puzzles" aria-label="Puzzles"><Icon name="target" size={16} /> <span>Puzzles</span></a>
         {/* phones: the page links in a labelled menu instead of bare icons */}
         <details className="nav-menu" key={routeHref(route)}>
           <summary aria-label="Menu"><Icon name="menu" size={18} /></summary>
           <div className="account-pop" role="menu">
-            <a role="menuitem" href="#/puzzles"><Icon name="target" size={16} /> Puzzles</a>
-            <a role="menuitem" href="#/profile"><Icon name="user" size={16} /> Profile</a>
-            <a role="menuitem" href="#/pricing"><Icon name="coins" size={16} /> Pricing</a>
-            <a role="menuitem" href="#/settings"><Icon name="gear" size={16} /> Settings</a>
+            <a role="menuitem" href="/puzzles"><Icon name="target" size={16} /> Puzzles</a>
+            <a role="menuitem" href="/profile"><Icon name="user" size={16} /> Profile</a>
+            <a role="menuitem" href="/pricing"><Icon name="coins" size={16} /> Pricing</a>
+            <a role="menuitem" href="/settings"><Icon name="gear" size={16} /> Settings</a>
           </div>
         </details>
-        <a className={`nav-link nav-wide ${route.page === 'pricing' ? 'on' : ''}`} href="#/pricing">Pricing</a>
+        <a className={`nav-link nav-wide ${route.page === 'pricing' ? 'on' : ''}`} href="/pricing">Pricing</a>
         <AccountMenu route={route} />
       </div>
     </header>
@@ -111,7 +111,7 @@ function AccountMenu({ route }: { route: Route }) {
   if (me === undefined && STEAM_AVAILABLE) return <span className="account-wait" />;
   if (!me) return (
     <div className="account">
-      <a className={`nav-link nav-wide ${route.page === 'profile' ? 'on' : ''}`} href="#/profile" aria-label="Profile"><Icon name="user" size={16} /> <span>Profile</span></a>
+      <a className={`nav-link nav-wide ${route.page === 'profile' ? 'on' : ''}`} href="/profile" aria-label="Profile"><Icon name="user" size={16} /> <span>Profile</span></a>
       {STEAM_AVAILABLE && <SteamLoginButton compact />}
     </div>
   );
@@ -125,9 +125,9 @@ function AccountMenu({ route }: { route: Route }) {
         <Icon name="chevronDown" size={12} />
       </summary>
       <div className="account-pop" role="menu">
-        <a role="menuitem" href="#/profile"><Icon name="user" size={16} /> Profile</a>
-        <a role="menuitem" href="#/settings"><Icon name="gear" size={16} /> Settings</a>
-        {me.owner && <a role="menuitem" href="#/dev"><Icon name="stats" size={16} /> Dev</a>}
+        <a role="menuitem" href="/profile"><Icon name="user" size={16} /> Profile</a>
+        <a role="menuitem" href="/settings"><Icon name="gear" size={16} /> Settings</a>
+        {me.owner && <a role="menuitem" href="/dev"><Icon name="stats" size={16} /> Dev</a>}
         <a role="menuitem" href={`https://steamcommunity.com/profiles/${me.steamId}`} target="_blank" rel="noreferrer"><Icon name="arrowRight" size={16} /> Steam profile</a>
         <button role="menuitem" className="ghost" onClick={signOut}><Icon name="signOut" size={16} /> Sign out</button>
       </div>

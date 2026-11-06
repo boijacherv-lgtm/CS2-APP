@@ -40,7 +40,7 @@ const LOCAL = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1
 const ago = (ms: number) => (!ms ? 'never' : `${fmtDate(ms)}${Date.now() - ms < 86400000 ? `, ${new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}`);
 
 /**
- * The owner's dev page (#/dev), in the neutral theme: a tab for the site (the build, everything the Worker counts, this
+ * The owner's dev page (/dev), in the neutral theme: a tab for the site (the build, everything the Worker counts, this
  * browser's storage) and one per game (its coach's models, training data and disputes). Only the owner (OWNER_IDS in worker/wrangler.toml) gets the server numbers; the page itself hides from
  * everyone else (and is open on a local copy, where there's nothing private to show).
  */
@@ -66,7 +66,7 @@ export function Dev() {
   const pickTab = (t: DevTab) => { setTab(t); try { localStorage.setItem('stratboard.devTab', t); } catch { /* private mode */ } };
 
   if (!loaded && !LOCAL) return <div className="page"><Loading>Loading…</Loading></div>;
-  if (!allowed) return <div className="page"><h1>Not found</h1><p className="muted">There's nothing here. <a href="#/">Go home</a></p></div>;
+  if (!allowed) return <div className="page"><h1>Not found</h1><p className="muted">There's nothing here. <a href="/">Go home</a></p></div>;
 
   const storage = (() => {
     const rows: { key: string; size: number }[] = [];

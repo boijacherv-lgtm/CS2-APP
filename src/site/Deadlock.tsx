@@ -25,7 +25,7 @@ export function Deadlock() {
           <h1>The same coach, for Deadlock.</h1>
           <p className="lead">Replay any match on the real map with the coach grading every death, kill and lane, then plan your next one in Tactical. Beta on {APP_NAME}.</p>
           <div className="hero-cta">
-            <a className="cta primary" href="#/deadlock/review">Review a match <Icon name="arrowRight" size={14} /></a>
+            <a className="cta primary" href="/deadlock/review">Review a match <Icon name="arrowRight" size={14} /></a>
             <button className="cta" onClick={toggle} disabled={busy} aria-pressed={on}>
               <Icon name={on ? 'check' : 'bell'} size={14} /> {on ? 'You\'ll be told about new Deadlock features' : 'Tell me about new Deadlock features'}
             </button>

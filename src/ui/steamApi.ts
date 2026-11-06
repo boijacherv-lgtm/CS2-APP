@@ -1,3 +1,4 @@
+import { go } from '../shell/router';
 import { openIdLoginUrl } from '../engine/sharecode';
 import { API_URL, ONLINE } from '../env';
 
@@ -52,7 +53,9 @@ export async function finishSteamLogin(): Promise<void> {
   if (!ONLINE) return;
   const q = new URLSearchParams(location.search);
   if (!q.get('openid.mode')) return;
-  const back = /^#\/[\w/-]*$/.test(q.get('back') ?? '') ? q.get('back')! : '#/cs2/review';
+  // only an in-app page to go back to (a path; "#/…" from before real paths)
+  const asked = (q.get('back') ?? '').replace(/^#/, '');
+  const back = /^\/[\w/-]*$/.test(asked) ? asked : '/cs2/review';
   const params = Object.fromEntries([...q].filter(([k]) => k.startsWith('openid.')));
   let to = back;
   try {
@@ -65,8 +68,7 @@ export async function finishSteamLogin(): Promise<void> {
     if (!res.ok || !out.token) throw new Error(out.error ?? 'Steam login failed.');
     setToken(out.token);
   } catch (e) {
-    to = `#/cs2/review?steam_error=${encodeURIComponent(e instanceof Error ? e.message : String(e))}`;
+    to = `/cs2/review?steam_error=${encodeURIComponent(e instanceof Error ? e.message : String(e))}`;
   }
-  history.replaceState(null, '', `${location.pathname}${to}`);
-  window.dispatchEvent(new HashChangeEvent('hashchange'));
+  go(to, true);
 }

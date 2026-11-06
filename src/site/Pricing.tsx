@@ -42,7 +42,7 @@ export function Pricing() {
           <h2>Free</h2>
           <p className="price"><b>$0</b><span>forever</span></p>
           <ul>{FREE.map(f => <li key={f}><Icon name="check" size={14} /> {f}</li>)}</ul>
-          <a className="cta" href="#/cs2/review">Review a match</a>
+          <a className="cta" href="/cs2/review">Review a match</a>
         </section>
         <section className="plan featured">
           <span className="plan-tag">{PRO_EARLY_ACCESS ? 'Free in early access' : 'Most complete'}</span>

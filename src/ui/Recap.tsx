@@ -115,7 +115,7 @@ export function ReviewStart() {
             <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar, and every kill, grenade and costly death gets a letter from S+ (round-swinging) to F.</span></div>
           </div>
           {/* nothing to drop yet: see what it does first */}
-          <p className="rs-nodemo muted">No demo handy? <a href="#/puzzles">Try top players' puzzles</a> or <a href="#/">open the sample Deadlock match</a> from the front page.</p>
+          <p className="rs-nodemo muted">No demo handy? <a href="/puzzles">Try top players' puzzles</a> or <a href="/">open the sample Deadlock match</a> from the front page.</p>
         </div>
         <div className="rs-right">
           {ONLINE && <DemoFolder />}

@@ -77,7 +77,7 @@ export function cleanMoment(raw: unknown): Moment | null {
   return { id, game, map, at, match, when, dots, setup, options: options as MomentOption[], played: Math.round(played), cls, cost, kind, ...(who ? { who } : {}), ...(why.length ? { why } : {}), ...(clip ? { clip } : {}) };
 }
 
-// ---- share links: the moment in the address (#/m/<base64url>), nothing stored anywhere ----------------------------
+// ---- share links: the moment in the address (/m?c=<base64url>), nothing stored anywhere ----------------------------
 const b64url = (s: string) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64url = (s: string) => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
 const round3 = (v: number) => Math.round(v * 1000) / 1000;

@@ -74,7 +74,7 @@ export function DlReport() {
   useEffect(() => { setPick(null); }, [match?.id]);
   if (!match) return (
     <div className="page"><p className="muted">{auto === 'opening' ? 'Opening your latest match…' : auto === 'none' ? 'No matches of yours on deadlock-api yet. ' : auto === 'failed' ? 'Couldn\'t open your latest match. ' : 'No match open. '}
-      {auto !== 'opening' && <a href="#/deadlock/review">Pick one</a>}</p></div>
+      {auto !== 'opening' && <a href="/deadlock/review">Pick one</a>}</p></div>
   );
   const me = coach.mine !== null ? match.players.find(p => p.slot === coach.mine)! : null;
   const who = match.players.find(p => p.slot === subject) ?? null;

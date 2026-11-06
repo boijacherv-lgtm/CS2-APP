@@ -108,7 +108,7 @@ function NotFound() {
     <div className="page not-found">
       <h1>Whiffed.</h1>
       <p className="muted">This page doesn't exist.</p>
-      <p><a className="cta primary" href="#/">Back to home</a></p>
+      <p><a className="cta primary" href="/">Back to home</a></p>
     </div>
   );
 }

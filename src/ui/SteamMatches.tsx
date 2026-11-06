@@ -1,3 +1,4 @@
+import { go } from '../shell/router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoData } from '../engine/recap';
 import { MAPS } from '../map/catalog';
@@ -66,8 +67,8 @@ export function SteamMatches() {
 
   // coming back from Steam's login page with a problem: show it once and tidy the URL
   useEffect(() => {
-    const err = new URLSearchParams(location.hash.split('?')[1] ?? '').get('steam_error');
-    if (err) { setMsg(`Log in with Steam didn't work: ${err}`); history.replaceState(null, '', '#/cs2/review'); }
+    const err = new URLSearchParams(location.search).get('steam_error');
+    if (err) { setMsg(`Log in with Steam didn't work: ${err}`); go('/cs2/review', true); }
   }, []);
   // status every few seconds (imports land by themselves), Valve every few minutes once set up
   useEffect(() => { refresh(); const t = setInterval(refresh, 4000); return () => clearInterval(t); }, [refresh]);

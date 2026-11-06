@@ -42,7 +42,7 @@ export function Profile() {
           {error && me && <p className="warn-text small">Your account's profile couldn't be loaded ({error}); showing this browser's copy.</p>}
         </div>
         <div className="profile-actions">
-          <a className="cta" href="#/settings"><Icon name="gear" size={14} /> Settings</a>
+          <a className="cta" href="/settings"><Icon name="gear" size={14} /> Settings</a>
         </div>
       </header>
 
@@ -62,7 +62,7 @@ export function Profile() {
           <Icon name="trophy" size={30} />
           <h2>No matches yet</h2>
           <p className="muted">Review your first one and your stats show up here. Log in with Steam (we only get your SteamID, public name and avatar), or pick yourself in the recap (This is me).</p>
-          <a className="cta primary" href="#/cs2/review">Review a match</a>
+          <a className="cta primary" href="/cs2/review">Review a match</a>
         </section>
       ) : null}
       <AddMatches />
@@ -78,7 +78,7 @@ export function Profile() {
                   <h2>{all && pro ? 'All matches' : `Last ${Math.min(FREE_HISTORY, matches.length)} matches`}</h2>
                   {matches.length > FREE_HISTORY && (pro
                     ? <button className="ghost small-btn" onClick={() => setAll(!all)}>{all ? 'Show the last 5' : `Show all ${matches.length}`}</button>
-                    : <a className="muted small" href="#/pricing"><Icon name="lock" size={12} /> {matches.length - FREE_HISTORY} older with Pro</a>)}
+                    : <a className="muted small" href="/pricing"><Icon name="lock" size={12} /> {matches.length - FREE_HISTORY} older with Pro</a>)}
                 </div>
                 <div className="match-list">
                   {shown.map(m => <MatchRow key={m.id} m={m} onShare={() => setShare(m)} />)}
@@ -419,7 +419,7 @@ function FocusBanner({ game }: { game: GameId }) {
   const f = useMemo(() => focusOf(loadMoments(), game), [game]);
   if (!f) return null;
   return (
-    <a className="site-card focus-banner" href="#/puzzles">
+    <a className="site-card focus-banner" href="/puzzles">
       <Icon name="goal" size={20} />
       <span><span className="muted small">Next match, one thing</span><b>{f.kind}</b></span>
       <span className={`focus-streak ${f.streak ? 'up' : ''}`}>{f.streak ? `Fixing it: ${f.streak} in a row` : 'Practise it in Puzzles'}</span>
