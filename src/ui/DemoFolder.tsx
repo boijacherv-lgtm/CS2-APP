@@ -232,7 +232,8 @@ export function DemoFolder() {
           <p><b>Auto-find your demos.</b> Pick your Steam folder once. New matches show up here by themselves. Nothing is uploaded.</p>
           <div className="row"><button className="primary" onClick={connect}>Choose Steam folder</button></div>
           <p className="muted">
-            Usually <code>C:\Program Files (x86)\Steam</code>.
+            Windows: usually <code>C:\Program Files (x86)\Steam</code>. Mac: <code>~/Library/Application Support/Steam</code>.
+            Linux: <code>~/.steam/steam</code>. Anywhere else: Steam → CS2 → Properties → Installed Files → Browse.
           </p>
         </div>
       )}

@@ -6,7 +6,7 @@ import { SEARCH_COLOR } from '../deadlock/search';
 import { applyGame } from '../ui/tokens';
 import { Icon } from '../ui/Icon';
 import { cleanMoment, focusOf, fromShareCode, isMistake, loadMoments, mistakeGroups, shareCode, type Moment, type MomentGame } from './moments';
-import { dailyOf, dayNumber, puzzleRating, readScore, record, recordDaily, recordRush, weakSpots, type Score } from './score';
+import { dailyFor, dailyOf, dayNumber, puzzleRating, readScore, record, recordDaily, recordRush, weakSpots, type Score } from './score';
 import { loadBoard, sendAnswer, syncRecord, type BoardRow } from './puzzleApi';
 import { useProfile } from '../ui/profileApi';
 
@@ -89,7 +89,8 @@ export function ClipMap({ m, revealed, hover = null }: { m: Moment; revealed: bo
         {/* Deadlock's map image is dark buildings over clear streets: a light floor under it makes the streets readable */}
         <rect width="100" height="100" rx="4" fill={m.game === 'deadlock' ? '#6b7686' : 'var(--bg-1)'} />
         {img && <image href={img} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" opacity={m.game === 'deadlock' ? 1 : 0.85} />}
-        {names && labels.map(c => <text key={c.name} x={c.x} y={c.y} className="map-callout" textAnchor="middle" fontSize={big ? 2.2 : 2.8}>{c.name}</text>)}
+        {/* small labels, and none under the player you are (it would hide both) */}
+        {names && labels.filter(c => !meAt || Math.hypot(c.x - meAt.x * 100, c.y - meAt.y * 100) > 5).map(c => <text key={c.name} x={c.x} y={c.y} className="map-callout" textAnchor="middle" fontSize={big ? 1.7 : 2.1}>{c.name}</text>)}
         {!revealed && hover !== null && Math.abs(f - zero) < 0.5 && arrow(m.options[hover], 'var(--text-1)', '1.5 1')}
         {revealed && Math.abs(f - zero) < 0.5 && <>{m.played !== 0 && arrow(m.options[m.played], 'var(--bad)', '2 1.5')}{arrow(m.options[0], 'var(--good)')}</>}
         {dots.filter(d => !d.me).map((d, i) => <circle key={i} cx={d.p.x * 100} cy={d.p.y * 100} r={big ? 1.4 : 1.9} fill={d.team ? 'var(--good)' : 'var(--bad)'} stroke="#000" strokeWidth={0.4} />)}
@@ -178,7 +179,7 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
             <p className={`puzzle-verdict ${right ? 'up' : 'down'}`}>
               {right ? <b className="puzzle-win">Right.</b> : rage ? <b>{RAGE[m.id.length % RAGE.length].replace('{x}', m.options[picked].label)}</b> : null}{' '}
               {right ? 'That is the engine\'s best move.' : `The engine's best: ${m.options[0].label}.`}{' '}
-              {m.played !== 0 ? <>The real move, “{m.options[m.played].label}”, was <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span> and gave up {pct(Math.max(0, m.options[0].value - m.options[m.played].value))} win chance ({Math.round(m.options[0].value * 100)}% → {Math.round(m.options[m.played].value * 100)}%).</> : <>It's what was really played.</>}
+              {m.played !== 0 && picked === m.played ? <>You picked what was really played: <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best move' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span>, {pct(Math.max(0, m.options[0].value - m.options[m.played].value))} win chance given up ({Math.round(m.options[0].value * 100)}% → {Math.round(m.options[m.played].value * 100)}%).</> : m.played !== 0 ? <>The real move, “{m.options[m.played].label}”, was <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span> and gave up {pct(Math.max(0, m.options[0].value - m.options[m.played].value))} win chance ({Math.round(m.options[0].value * 100)}% → {Math.round(m.options[m.played].value * 100)}%).</> : <>It's what was really played.</>}
               {delta !== null && <span className={`puzzle-delta ${delta >= 0 ? 'up' : 'down'}`}> Rating {delta >= 0 ? '+' : '−'}{Math.abs(delta)}</span>}
               {crowd && crowd.tried >= 5 && <span className="puzzle-crowd muted"> {Math.round((crowd.right / crowd.tried) * 100)}% of {crowd.tried} players got this.</span>}
             </p>
@@ -199,6 +200,9 @@ export function ShareMoment({ m }: { m: Moment }) {
   };
   return <button className="chip" onClick={copy} title="Copy a link to this moment: anyone can open it, no login"><Icon name={done ? 'check' : 'share'} size={13} /> {done ? 'Link copied' : 'Share'}</button>;
 }
+
+/** The game you were last in (the site's colour), for the daily when no game is picked. */
+const lastGame = (): MomentGame => (document.documentElement.dataset.game === 'deadlock' ? 'deadlock' : (() => { try { return localStorage.getItem('stratboard.game') === 'deadlock' ? 'deadlock' : 'cs2'; } catch { return 'cs2'; } })());
 
 type Mode = 'practice' | 'daily' | 'rush' | 'weak' | 'board';
 const RUSH_SECONDS = 180, RUSH_LIVES = 3;
@@ -249,7 +253,12 @@ export function MomentsPage() {
     </header>
   );
 
-  if (mode === 'daily') return <div className="page moments">{header}<DailyPuzzle pool={top} onScore={setScore} /></div>;
+  const gamePick = (
+    <div className="moments-filters"><div className="seg-mini" role="group" aria-label="Game">
+      {(['cs2', 'deadlock'] as const).map(g => <button key={g} className={(game === 'all' ? lastGame() : game) === g ? 'on' : ''} onClick={() => setGame(g)}>{GAME_NAME[g]}</button>)}
+    </div></div>
+  );
+  if (mode === 'daily') return <div className="page moments">{header}{gamePick}<DailyPuzzle pool={top?.filter(m => game === 'all' ? m.game === lastGame() : m.game === game) ?? null} game={game === 'all' ? lastGame() : game} onScore={setScore} /></div>;
   if (mode === 'rush') return <div className="page moments">{header}<Rush pool={top} onScore={setScore} /></div>;
   if (mode === 'board') return <div className="page moments">{header}<Leaderboard rating={score.rating} tried={score.tried} /></div>;
   if (mode === 'weak') {
@@ -339,19 +348,19 @@ export function MomentsPage() {
 }
 
 /** Today's puzzle: the same one for everyone; one try; a day streak; a share line. */
-function DailyPuzzle({ pool, onScore }: { pool: Moment[] | null; onScore: (s: Score) => void }) {
+function DailyPuzzle({ pool, game, onScore }: { pool: Moment[] | null; game: MomentGame; onScore: (s: Score) => void }) {
   const day = dayNumber(), m = useMemo(() => (pool ? dailyOf(pool, day) : null), [pool, day]);
   const [s, setS] = useState(readScore);
-  const done = s.daily.day === day;
+  const d = dailyFor(s, game), done = d.day === day;
   const [copied, setCopied] = useState(false);
   if (!m) return <p className="muted">Loading today's puzzle…</p>;
-  const line = `RageView daily #${day}: ${s.daily.right ? 'solved' : 'missed'}${s.daily.streak > 1 ? `, ${s.daily.streak} days in a row` : ''}. tsakhstvo.xyz/puzzles`;
+  const line = `RageView ${GAME_NAME[game]} daily #${day}: ${d.right ? 'solved' : 'missed'}${d.streak > 1 ? `, ${d.streak} days in a row` : ''}. tsakhstvo.xyz/puzzles`;
   return (
     <section className="site-card">
-      <div className="card-head"><h2><Icon name="star" size={16} /> Daily puzzle #{day}</h2><span className="muted small">the same for everyone today · streak {s.daily.streak}</span></div>
+      <div className="card-head"><h2><Icon name="star" size={16} /> {GAME_NAME[game]} daily #{day}</h2><span className="muted small">the same for everyone today · streak {d.streak}</span></div>
       {done && <p className="muted">You've played today's: come back tomorrow for #{day + 1}.</p>}
-      <Puzzle key={done ? 'done' : 'play'} m={m} onAnswer={done ? undefined : right => { recordDaily(right, day); const r = record(m, right); setS(r.score); onScore(r.score); syncRecord(r.score); return r.delta; }} />
-      {(done || s.daily.day === day) && (
+      <Puzzle key={done ? 'done' : 'play'} m={m} onAnswer={done ? undefined : right => { recordDaily(right, day, game); const r = record(m, right); setS(r.score); onScore(r.score); syncRecord(r.score); return r.delta; }} />
+      {done && (
         <div className="puzzle-next"><button className="chip" onClick={async () => { try { await navigator.clipboard.writeText(line); setCopied(true); } catch { prompt('Copy', line); } }}><Icon name={copied ? 'check' : 'share'} size={13} /> {copied ? 'Copied' : 'Share result'}</button></div>
       )}
     </section>

@@ -1,6 +1,6 @@
 :root {
   /* colours come from src/ui/tokens.ts (applyTokens) */
-  --rail-w: 56px; --drawer-w: 360px;
+  --rail-w: 64px; --drawer-w: 360px;
   --motion-fast: 160ms; --motion-smooth: 220ms; --ease-out: cubic-bezier(.22, 1, .36, 1);
   color-scheme: dark;
 }
@@ -44,9 +44,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .rail-wrap { position: relative; z-index: 30; min-height: 0; }
 .rail { height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; background: var(--surface-1);
   border-right: 1px solid var(--border); overflow-y: auto; scrollbar-width: none; }
-.rail-btn { position: relative; width: 44px; min-height: 40px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+.rail-btn { position: relative; width: 56px; min-height: 40px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 2px; padding: 4px 0; background: transparent; border-color: transparent; text-align: center; }
-.rail-btn small { font-size: 9px; font-weight: 700; color: var(--text-3); letter-spacing: .04em; line-height: 1; }
+.rail-btn small { font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: .04em; line-height: 1; }
 .rail-btn.on small { color: var(--text-1); }
 .rail-ico { font-size: 16px; line-height: 16px; color: var(--text-2); }
 .rail-btn.on .rail-ico { color: var(--text-1); }
@@ -1057,3 +1057,17 @@ a.btn:hover { border-color: #45505e; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 .modes::before { content: ''; position: absolute; left: -13px; top: 7px; bottom: 7px; width: 1px; background: var(--border-strong); }
+.map-pick { display: inline-flex; align-items: center; gap: 4px; padding: 0 4px 0 8px; }
+.map-pick select { width: auto; background: transparent; border: 0; font-weight: 700; color: var(--text-1); padding: 5px 2px; }
+.sim-feed { display: grid; gap: 4px; justify-items: end; }
+.sim-kill { background: var(--overlay); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.sim-kill .ct { color: var(--ct); } .sim-kill .t { color: var(--t); }
+.sim-kill em { font-style: normal; color: var(--text-3); }
+.sim-end { background: var(--overlay); border: 1px solid var(--theme); border-radius: 8px; padding: 6px 10px; font-weight: 700; font-size: 13px; }
+/* phones: the tool row scrolls sideways; a fade on the right edge says there's more */
+@media (max-width: 820px) {
+  .rail { -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); mask-image: linear-gradient(to right, #000 85%, transparent); scroll-snap-type: x proximity; }
+  .rail-btn { scroll-snap-align: start; width: 52px; }
+}
+/* Setup open: the board's top-left buttons sit under it; hide them so the panel's titles don't overlap */
+.app:has(.flyout) .slot.tl { visibility: hidden; }

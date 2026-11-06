@@ -25,6 +25,7 @@ import PLAY from './generated/playnet.json';
 import { ACTION_LABEL, playChances, WINDOW, type Action } from './playNet';
 import { searchAt, SEARCH_COLOR } from './search';
 import { engineReview } from './engineReview';
+import { useCanvasLabel } from '../ui/canvasLabel';
 import { ultOf } from './ultKinds';
 import type { Mlp } from '../engine/mlp';
 
@@ -244,6 +245,7 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
     return pts;
   }, [selected, Math.floor(time), S, match]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useCanvasLabel(wrap, 'Deadlock map: the match replaying, heroes, objectives and camps');
   return (
     <div className="dl-map" ref={wrap}>
       <Stage width={S} height={S}>

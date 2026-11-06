@@ -21,7 +21,7 @@ export function syncRecord(s: Score) {
   if (timer) clearTimeout(timer);
   timer = setTimeout(() => {
     void steamFetch('/profile/puzzles', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ puzzles: { rating: s.rating, solved: s.solved, tried: s.tried, best: s.best, dailyStreak: s.daily.streak, rushBest: s.rushBest } }) }).catch(() => {});
+      body: JSON.stringify({ puzzles: { rating: s.rating, solved: s.solved, tried: s.tried, best: s.best, dailyStreak: Math.max(s.daily.streak, ...Object.values(s.dailies ?? {}).map(d => d.streak)), rushBest: s.rushBest } }) }).catch(() => {});
   }, 4000);
 }
 
