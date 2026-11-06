@@ -9,7 +9,7 @@ import type { ControlMap } from '../engine/control';
 import { FOV, type Analysis, type TacticalEngine } from '../engine/predict';
 import { activeSmokes, distToSegment, smokeOpenAt, SMOKE_RADIUS_UNITS } from '../engine/grid';
 import { radarToWorld, worldToRadar } from '../engine/coords';
-import { simStateAt, type Simulation } from '../engine/combat';
+import { SIM_FUSE, simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
 import type { SpotMap } from '../engine/spots';
 import { bombAt, evalAt, type Review } from '../engine/recap';
@@ -778,6 +778,10 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             </Group>
             );
           })}
+          {/* a simulated play's bomb, once planted (ticking, then defused or gone off) */}
+          {!recap && sim?.bomb && s.time >= sim.bomb.plantT && (
+            <BombOnMap at={sim.bomb.pos} k={k} state={sim.bomb.explodeT !== undefined && s.time >= sim.bomb.explodeT ? 'explode' : sim.bomb.defuseT !== undefined && s.time >= sim.bomb.defuseT ? 'defuse' : 'plant'} age={s.time - (sim.bomb.explodeT !== undefined && s.time >= sim.bomb.explodeT ? sim.bomb.explodeT : sim.bomb.plantT)} planted={s.time - sim.bomb.plantT} />
+          )}
           {recap && s.review && (() => {
             const b = bombAt(s.review.data.rounds[s.review.round], s.time);
             if (!b) return null;
@@ -1002,9 +1006,12 @@ const TEAMBAR = { w: 330, h: 248 }, ROSTER_MIN_W = 700;
  * map stays between them (narrower), or above them (shorter), whichever leaves it bigger.
  */
 function fitView(w: number, h: number, rosters = false) {
+  // phones: the radar picture has empty borders around the map itself, so a narrow board zooms in a little past
+  // them (only the borders go off screen) and keeps almost no side margin
+  const narrow = w < 600;
   const fit = (side: number, bottom: number) => {
-    const aw = Math.max(200, w * 0.5, w - side * 2), ah = Math.max(200, h - FIT_PAD.top - bottom);
-    const scale = Math.min(aw, ah) / 1024;
+    const aw = Math.max(200, w * 0.5, w - (narrow ? 6 : side) * 2), ah = Math.max(200, h - FIT_PAD.top - bottom);
+    const scale = (Math.min(aw, ah) / 1024) * (narrow ? 1.12 : 1);
     return { scale, x: (w - 1024 * scale) / 2, y: FIT_PAD.top + (ah - 1024 * scale) / 2 };
   };
   const plain = fit(FIT_PAD.side, FIT_PAD.bottom);
@@ -1331,13 +1338,24 @@ function SimFeed({ sim, time, players }: { sim: Simulation; time: number; player
   const over = time >= sim.end - 0.05;
   const alive = (side: 'CT' | 'T') => sim.ids.filter((id, i) => sideOf(id) === side && !(sim.deathT[i] <= time)).length;
   const ct = alive('CT'), t = alive('T');
-  const end = !over ? null : ct === 0 && t > 0 ? `T win: ${t} left, CTs all down by ${clock(sim.end)}` : t === 0 && ct > 0 ? `CT win: ${ct} left, Ts all down by ${clock(sim.end)}` : `Sim over at ${clock(sim.end)}: ${ct} CT and ${t} T alive`;
-  if (!kills.length && !end) return null;
+  const b = sim.bomb && time >= sim.bomb.plantT ? sim.bomb : null;
+  const lastDeath = (side: 'CT' | 'T') => Math.max(...sim.ids.map((id, i) => (sideOf(id) === side ? sim.deathT[i] : -1)));
+  // how the round went: the bomb first (it ends rounds), then who's left
+  const end = b?.explodeT !== undefined && time >= b.explodeT ? `T win: the bomb went off on ${b.site} at ${clock(b.explodeT)}`
+    : b?.defuseT !== undefined && time >= b.defuseT ? `CT win: ${who(b.defuser!)} defused on ${b.site} at ${clock(b.defuseT)}`
+    : ct === 0 && t > 0 ? `T win: CTs all down by ${clock(lastDeath('CT'))}`
+    : t === 0 && ct > 0 && !b ? `CT win: Ts all down by ${clock(lastDeath('T'))}, no plant`
+    : !over ? null
+    : b ? `Bomb down on ${b.site}: it goes off at ${clock(b.plantT + SIM_FUSE)} unless ${ct} CT retake${t === 0 ? ' (and no T left to stop them)' : ''}`
+    // the play's end isn't the round's (1:55): no win to call yet
+    : sim.end >= 115 ? `Time: no plant, CT win (${ct} CT and ${t} T alive)` : `No plant by ${clock(sim.end)}: ${ct} CT and ${t} T alive`;
+  if (!kills.length && !end && !b) return null;
   return (
     <div className="sim-feed" aria-live="polite">
       {kills.map((k, i) => (
         <div key={i} className="sim-kill"><span className={sideOf(k.killer)?.toLowerCase()}>{k.killer ? who(k.killer) : 'Grenade'}</span> <Icon name="crosshair" size={11} /> <span className={sideOf(k.victim)?.toLowerCase()}>{who(k.victim)}</span><em className="num">{clock(k.t)}</em></div>
       ))}
+      {b && <div className="sim-kill"><Icon name="bomb" size={12} /> <span className="t">{who(b.by)}</span> planted on {b.site}<em className="num">{clock(b.plantT)}</em></div>}
       {end && <div className="sim-end">{end}</div>}
     </div>
   );

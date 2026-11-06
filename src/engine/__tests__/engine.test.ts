@@ -432,3 +432,15 @@ describe('spot finder', () => {
     }
   });
 });
+
+describe('sim bomb', () => {
+  it('a T play that reaches a site plants, and the fuse or a defuse ends it', async () => {
+    const { tPlaysFor, getEngine } = await import('../../map/catalog');
+    const { simulate, SIM_FUSE } = await import('../combat');
+    const e = getEngine('de_mirage', 0);
+    const b = { players: tPlaysFor('de_mirage')['A execute'](), utility: [], routes: [] } as unknown as Parameters<typeof simulate>[1];
+    const sim = simulate(e, b, 120, 1);
+    expect(sim.bomb?.site).toBe('A');
+    expect(sim.bomb!.explodeT! - sim.bomb!.plantT).toBeCloseTo(SIM_FUSE, 0);
+  });
+});

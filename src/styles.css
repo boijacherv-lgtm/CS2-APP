@@ -133,7 +133,9 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: v
 .foot { margin-top: 12px; }
 
 @media (max-width: 820px) {
-  .app, .app.drawer-closed { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 70vh auto; height: auto; }
+  /* the board takes the rest of the screen (at least 60%), the panel below it when it's open */
+  .app, .app.drawer-closed { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+  .app:not(.drawer-closed) { grid-template-rows: auto minmax(55vh, 1fr) auto; height: auto; min-height: 100%; }
   .rail-wrap { min-width: 0; }
   .rail { flex-direction: row; overflow-x: auto; height: auto; padding: 4px 8px; border-right: 0; border-bottom: 1px solid var(--border); }
   .rail-grow, .rail-sep { display: none; }
@@ -350,7 +352,6 @@ td.loadout { white-space: nowrap; }
   .navbar { gap: 10px; padding: 0 10px; }
   .brand span { display: none; }
   .modes button { padding: 5px 9px; }
-  .app { height: auto; }
 }
 
 /* review: context tags, round letter grades, roles */
