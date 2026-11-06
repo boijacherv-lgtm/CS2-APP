@@ -7,6 +7,12 @@ import { Icon, type IconName } from '../ui/Icon';
 import { GAMES, PLAYABLE, SOON_GAMES, STATUS_LABEL } from './games';
 import { GameMark } from './gameMarks';
 import { MarkFace } from '../ui/MarkFace';
+import { useState } from 'react';
+import { openMatch } from '../deadlock/open';
+import { navigate } from '../shell/router';
+
+/** The sample: a public Phantom+ match (46 min, both teams' fights and objectives), opened from deadlock-api. */
+const SAMPLE_MATCH = 131074890;
 
 const MATCHES = COACH_MODEL.source?.demos ?? COACH_MODEL.trainedOn;
 const PRO_MATCHES = PRO_MODEL?.source?.demos ?? 0;
@@ -17,6 +23,12 @@ const toGames = () => document.getElementById('games')?.scrollIntoView({ behavio
  * costs. Short on purpose; dressed in the neutral theme (tokens.ts themeOf). */
 export function Home() {
   const top = GAMES.slice(0, 3), more = GAMES.slice(3);
+  // a public high-rank Deadlock match, opened on the board: the product without a demo of your own
+  const [sample, setSample] = useState<'idle' | 'opening' | 'failed'>('idle');
+  const trySample = async () => {
+    setSample('opening');
+    try { await openMatch(SAMPLE_MATCH); navigate({ page: 'deadlock', mode: 'review' }); } catch { setSample('failed'); }
+  };
   return (
     <div className="page home">
       <section className="hero">
@@ -28,14 +40,16 @@ export function Home() {
             {PLAYABLE.map(g => (
               <a key={g.id} className="hero-games-live" href={g.review ?? g.page}><GameMark game={g} size={30} /><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></a>
             ))}
-            <span className="hero-games-soon">
+            <span className="hero-games-soon" aria-label="Coming later">
+              <small className="muted">Coming:</small>
               {SOON_GAMES.map(g => <span key={g.id} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`}><GameMark game={g} size={30} muted /></span>)}
             </span>
           </div>
           <div className="hero-cta">
             {PLAYABLE.map((g, i) => <a key={g.id} className={`cta${i === 0 ? ' primary' : ''}`} href={g.review}>Review a {g.short === 'DL' ? 'Deadlock' : g.short} match <Icon name="arrowRight" size={14} /></a>)}
-            <button className="cta ghost" onClick={toGames}>All games</button>
+            <button className="cta" onClick={toGames}>All games <Icon name="arrowRight" size={14} /></button>
           </div>
+          <p className="hero-sample"><button className="link-btn" onClick={trySample} disabled={sample === 'opening'}><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening a sample match…' : 'Try a sample match'}</button> <span className="muted">{sample === 'failed' ? 'couldn\'t open it, try again' : 'a public Deadlock match: no file, no login'}</span></p>
           <ul className="hero-trust">
             <li><Icon name="shield" size={14} /> Nothing uploaded</li>
             <li><Icon name="check" size={14} /> No account needed</li>
@@ -107,7 +121,6 @@ export function Home() {
           <div><b>{MATCHES}</b><span>CS2 level-10 matches learned</span></div>
           {PRO_MATCHES > 0 && <div><b>{PRO_MATCHES}</b><span>CS2 pro matches</span></div>}
           <div><b>{DL_MATCHES.toLocaleString()}</b><span>Deadlock Phantom+ matches</span></div>
-          <div><b>{PLAYABLE.length}</b><span>games now</span></div>
           <div><b>0 MB</b><span>uploaded</span></div>
         </div>
       </section>
@@ -130,9 +143,9 @@ export function Home() {
       <footer className="site-footer">
         <span className="brand-small"><LogoMark size={18} /> {APP_NAME}</span>
         <nav>
-          {PLAYABLE.map(g => <a key={g.id} href={g.review}>{g.name}</a>)}<a href="#/profile">Profile</a><a href="#/pricing">Pricing</a><a href="#/settings">Settings</a>
+          {PLAYABLE.map(g => <a key={g.id} href={g.review}>{g.name}</a>)}<a href="#/profile">Profile</a><a href="#/pricing">Pricing</a><a href="#/settings">Settings</a><a href="#/puzzles">Puzzles</a>
         </nav>
-        <span className="muted">Not affiliated with any game publisher. Game names and logos belong to their owners.</span>
+        <span className="muted">© {new Date().getFullYear()} {APP_NAME}. Not affiliated with any game publisher. Game names and logos belong to their owners.</span>
       </footer>
     </div>
   );
@@ -162,7 +175,7 @@ function HeroPreview() {
   return (
     <div className="hero-preview duo" aria-hidden="true">
       <div className="pv-frame cs2">
-        <img className="pv-map" src="/images/maps/de_mirage.png" alt="" />
+        <img className="pv-map" src="/images/maps/de_mirage.png" alt="Mirage radar with a graded CS2 moment" />
         <i className="pv-dot ct" style={{ left: '62%', top: '30%' }} /><i className="pv-dot ct" style={{ left: '44%', top: '55%' }} />
         <i className="pv-dot t" style={{ left: '70%', top: '64%' }} /><i className="pv-dot t dead" style={{ left: '55%', top: '72%' }} />
         <div className="pv-card">
@@ -173,7 +186,7 @@ function HeroPreview() {
         <span className="pv-label">CS2</span>
       </div>
       <div className="pv-frame dl">
-        <img className="pv-map" src={DL_MAP_IMAGE} alt="" />
+        <img className="pv-map" src={DL_MAP_IMAGE} alt="Deadlock map with a graded fight" />
         <i className="pv-dot t" style={{ left: '40%', top: '60%' }} /><i className="pv-dot t" style={{ left: '46%', top: '64%' }} />
         <i className="pv-dot ct" style={{ left: '50%', top: '47%' }} /><i className="pv-dot ct" style={{ left: '56%', top: '52%' }} /><i className="pv-dot ct" style={{ left: '44%', top: '45%' }} />
         <div className="pv-card">

@@ -24,7 +24,7 @@ import { MomentsPage, SharedMoment } from '../moments/MomentsPage';
 import { cs2Moments } from '../moments/build';
 import type { DemoData } from '../engine/recap';
 import { recordMatch, refreshProfile, useProfile } from '../ui/profileApi';
-import { useRoute, type Route } from './router';
+import { routeHref, useRoute, type Route } from './router';
 import { applyGame, themeOf } from '../ui/tokens';
 
 export function Shell() {
@@ -32,6 +32,9 @@ export function Shell() {
   // the site wears the colours of the game you're in
   // a shared moment dresses itself in its own game's colours (SharedMoment)
   useEffect(() => { if (route.page !== 'moment') applyGame(themeOf(route.page)); }, [route.page]);
+  // a new page starts at its top (the page scrolls inside .shell-main, which stays mounted between pages)
+  const where = routeHref(route);
+  useEffect(() => { document.querySelector('.shell-main')?.scrollTo(0, 0); window.scrollTo(0, 0); }, [where]);
   // each page its own tab title (browser history, bookmarks, search results)
   useEffect(() => { document.title = pageTitle(route); }, [route]);
   const setMode = useStore(s => s.setMode);
