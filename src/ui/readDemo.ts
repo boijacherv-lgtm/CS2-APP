@@ -26,7 +26,21 @@ export function readDemoInBrowser(file: File, onProgress: (pass: number) => void
  * Any demo file into match data: a saved .json, or a .dem read in the browser (website) or by the dev server
  * (locally). `onProgress` gets the share done (0–1) when it can be told. Throws when it isn't a playable match.
  */
+/** What's wrong with a file before reading it (null: looks like a CS2 demo or a saved .json), in words with the fix. */
+export async function demoProblem(file: File): Promise<string | null> {
+  if (/\.json$/i.test(file.name)) return null;
+  if (/\.(zip|rar|7z|gz|bz2|zst|tar)$/i.test(file.name)) return 'This demo is zipped. Unzip it first, then drop the .dem file.';
+  const head = new TextDecoder('latin1').decode(await file.slice(0, 8).arrayBuffer());
+  if (head.startsWith('PBDEMS2')) return null;
+  if (head.startsWith('HL2DEMO')) return 'This demo is from CS:GO, before CS2. Download a CS2 match.';
+  // zip, gzip, zstd, bzip2, 7z, rar signatures: a zipped demo renamed .dem
+  if (/^(PK\x03\x04|\x1f\x8b|\x28\xb5\x2f\xfd|BZh|7z\xbc\xaf|Rar!)/.test(head)) return 'This demo is zipped. Unzip it first, then drop the .dem file.';
+  return "That's not a CS2 demo. Pick a .dem file from your replays folder.";
+}
+
 export async function readDemoFile(file: File, onProgress: (share: number) => void = () => {}): Promise<DemoData> {
+  const problem = await demoProblem(file);
+  if (problem) throw new Error(problem);
   let data: DemoData;
   if (file.name.endsWith('.json')) data = JSON.parse(await file.text());
   else if (ONLINE) data = await readDemoInBrowser(file, pass => onProgress(Math.min(0.97, pass / DEMO_PASSES)));

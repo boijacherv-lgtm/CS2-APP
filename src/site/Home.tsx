@@ -145,7 +145,7 @@ export function Home() {
         <nav>
           {PLAYABLE.map(g => <a key={g.id} href={g.review}>{g.name}</a>)}<a href="#/profile">Profile</a><a href="#/pricing">Pricing</a><a href="#/settings">Settings</a><a href="#/puzzles">Puzzles</a>
         </nav>
-        <span className="muted">© {new Date().getFullYear()} {APP_NAME}. Not affiliated with any game publisher. Game names and logos belong to their owners.</span>
+        <span className="muted">No tracking. Your demos never leave your PC. © {new Date().getFullYear()} {APP_NAME}. Not affiliated with any game publisher. Game names and logos belong to their owners.</span>
       </footer>
     </div>
   );

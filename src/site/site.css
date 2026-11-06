@@ -614,3 +614,11 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .hero-sample { margin: 10px 0 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13.5px; }
 .hero-sample .link-btn { background: none; border: 0; padding: 0; font-weight: 700; color: var(--theme); display: inline-flex; gap: 6px; align-items: center; }
 .hero-games-soon small { margin-right: 2px; }
+.login-failed { display: flex; align-items: center; gap: 10px; margin: 12px auto 0; max-width: 1180px; padding: 10px 14px; border-radius: 10px;
+  background: color-mix(in srgb, var(--bad) 14%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--border)); }
+.login-failed span { flex: 1; font-weight: 600; }
+.rage-ask { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 12px; margin: 4px 0 8px; border-radius: 10px;
+  background: color-mix(in srgb, var(--bad) 12%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--bad) 35%, var(--border)); font-weight: 600; }
+.perf-nick { color: var(--text-1); }
+.not-found { text-align: center; padding-top: 12vh; }
+.not-found h1 { font-size: 56px; margin: 0; }

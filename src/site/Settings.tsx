@@ -14,6 +14,8 @@ export function Settings() {
   const { me, data, remote } = useProfile();
   const s = useStore();
   const [confirm, setConfirm] = useState(false);
+  // Rage mode asks first: turning it on is a choice to be sworn at
+  const [askRage, setAskRage] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [tipsReset, setTipsReset] = useState(false);
   const signOut = async () => { await steamSignOut(); useStore.setState({ me: null }); await refreshProfile(); };
@@ -67,7 +69,13 @@ export function Settings() {
 
       <section className="site-card">
         <h2>Coach</h2>
-        <Toggle label="Rage mode" on={s.rage} text="The coach loses it at your plays: a blunt, sweary line on every graded move and in the recap (18+, strong language). It swears at the play, never at you as a person. The grades don't change." onChange={s.setRage} />
+        <Toggle label="Rage mode" on={s.rage || askRage} text="The coach loses it at your plays: a blunt, sweary line on every graded move and in the recap (18+, strong language). It swears at the play, never at you as a person. The grades don't change." onChange={v => (v ? setAskRage(true) : s.setRage(false))} />
+        {askRage && !s.rage && (
+          <div className="rage-ask" role="alertdialog" aria-label="Turn on Rage mode">
+            <span>Turn on Rage mode? The coach will not be nice. 18+.</span>
+            <span className="confirm-row"><button className="cta danger" onClick={() => { s.setRage(true); setAskRage(false); }}>Roast me</button><button className="ghost" onClick={() => setAskRage(false)}>Keep it calm</button></span>
+          </div>
+        )}
         <div className="setting">
           <div className="setting-text"><b>Compare with</b><span className="muted">What the recap's coach and analyst compare you with first.</span></div>
           <div className="seg-mini">

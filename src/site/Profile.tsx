@@ -60,9 +60,8 @@ export function Profile() {
       {!matches.length ? (
         <section className="empty-card">
           <Icon name="trophy" size={30} />
-          <h2>Review a match you played</h2>
-          <p className="muted">Drop one of your demos in Review and pick yourself (Mine…, or This is me in the recap). Once it's graded it shows up here, with your
-            numbers, your trends and your goals.</p>
+          <h2>No matches yet</h2>
+          <p className="muted">Review your first one and your stats show up here. Log in with Steam (we only get your SteamID, public name and avatar), or pick yourself in the recap (This is me).</p>
           <a className="cta primary" href="#/cs2/review">Review a match</a>
         </section>
       ) : null}
@@ -226,7 +225,7 @@ function Goals({ matches }: { matches: ProfileMatch[] }) {
         </div>
       ) : !ids.length ? (
         <div className="goal-empty">
-          <p className="muted">Pick up to {MAX_GOALS} habits to work on: each new match shows whether they got better.</p>
+          <p className="muted">No goals yet. Pick up to {MAX_GOALS} habits, or take the coach's picks: each new match shows if they got better.</p>
           {suggested.length > 0 && (
             <button className="cta" onClick={() => setGoals(suggested.slice(0, MAX_GOALS))}>Use the coach's picks: {suggested.slice(0, MAX_GOALS).map(id => goalInfo(id).label.toLowerCase()).join(', ')}</button>
           )}
@@ -360,7 +359,7 @@ function Friend({ mine }: { mine: Averages | null }) {
       <div className="card-head"><h2><Icon name="friends" size={16} /> Compare with a friend</h2></div>
       {!me || !remote ? (
         <div className="goal-empty">
-          <p className="muted">Log in with Steam to look up a friend. They need a public profile (Settings → Public profile).</p>
+          <p className="muted">No friends added. Log in with Steam, add one and see who's better. They need a public profile (Settings → Public profile).</p>
           {STEAM_AVAILABLE && !me && <SteamLoginButton compact />}
         </div>
       ) : (
