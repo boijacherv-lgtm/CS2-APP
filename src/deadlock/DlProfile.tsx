@@ -14,6 +14,9 @@ import { gameplayPatches } from './patchFeed';
 import type { Patch } from './patches';
 import { noteOf, reportCard, type GradeKey } from './grade';
 import { openMatch } from './open';
+import { engineReview } from './engineReview';
+import { saveMoments } from '../moments/moments';
+import { dlMoments } from '../moments/build';
 import './dl.css';
 
 /**
@@ -59,6 +62,8 @@ async function grade(account: string, r: DlHistoryRow): Promise<Graded | null> {
   const g: Graded = { id: m.id, at: m.start, hero: me.hero, won: m.winner === me.team, overall: card.overall,
     parts: Object.fromEntries(card.parts.map(p => [p.key, p.score])), mistakes };
   await setItem(KEY(account, r.match_id), g);
+  // its moments become puzzles too (the engine is a few hundred ms a match; once per match, as the grade is kept)
+  try { saveMoments(dlMoments(m, engineReview(m, null, me.slot), me.slot)); } catch { /* a puzzle less, the grade stands */ }
   return g;
 }
 
