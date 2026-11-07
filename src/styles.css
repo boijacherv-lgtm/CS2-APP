@@ -1072,3 +1072,16 @@ a.btn:hover { border-color: #45505e; }
 }
 /* Setup open: the board's top-left buttons sit under it; hide them so the panel's titles don't overlap */
 .app:has(.flyout) .slot.tl { visibility: hidden; }
+
+/* the CS2 move card in Deadlock's style: grade pill, who · time, title, a thin win bar, Better, grey tags */
+.feed-card-head { gap: 8px; }
+.feed-grade { font-size: 12px; font-weight: 800; letter-spacing: .03em; padding: 3px 9px; border-radius: 6px; color: #0b0e12; flex: none; }
+.feed-card-head .feed-who { display: block; flex: 1; min-width: 0; font-weight: 600; font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed-card-head .feed-who i { font-style: normal; } .feed-card-head .feed-who i.ct { color: var(--ct); } .feed-card-head .feed-who i.t { color: var(--t); }
+.feed-card-head .feed-who em { font-style: normal; }
+.feed-win { display: grid; grid-template-columns: minmax(60px, 1fr) auto; gap: 8px; align-items: center; margin: 6px 0; font-size: 13px; }
+.feed-win .bar { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.feed-win .bar i { display: block; height: 100%; }
+.feed-card p.feed-better { margin: 6px 0 0; font-size: 13.5px; }
+.feed-card p.feed-better b { color: var(--good); }
+.feed-tag { font-size: 12px; font-weight: 800; letter-spacing: .05em; padding: 2px 7px; border-radius: 5px; background: var(--surface-3); color: var(--text-2); }

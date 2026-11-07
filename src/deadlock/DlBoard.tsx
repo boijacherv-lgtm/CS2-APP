@@ -186,6 +186,10 @@ export function DlBoard() {
   );
 }
 
+/** Inside the round map (its circle, with the bases at the top and bottom edge): outside it is where the game parks
+ * dead and waiting heroes. */
+const onMap = (p: { x: number; y: number }) => Math.hypot(p.x - 0.5, p.y - 0.5) <= 0.5 && p.x > 0.02 && p.x < 0.98 && p.y > 0 && p.y < 1;
+
 function DlMap({ match, time, selected }: { match: DlMatch; time: number; selected: number | null }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(600);
@@ -202,9 +206,11 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
   const demo = useDl(s => s.demo);
   const spotOf = (slot: number) => {
     const base = playerAt(match, slot, time);
-    if (!base) return null;
+    // dead (no health) or parked off the map (a dead or not-yet-spawned hero's spot): not drawn
+    if (!base || base.hp <= 0) return null;
     const d = demo ? heroAt(demo, slot, time) : null;
-    return d ? { x: d.x, y: d.y, hp: base.hp, under: d.z < UNDERGROUND_Z } : { ...base, under: false };
+    const at = d ? { x: d.x, y: d.y, hp: base.hp, under: d.z < UNDERGROUND_Z } : { ...base, under: false };
+    return onMap(at) ? at : null;
   };
   // the urn from the demo: on the ground where it lay, or with whoever carried it
   const urnNow = useMemo(() => {

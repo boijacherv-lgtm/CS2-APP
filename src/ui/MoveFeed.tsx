@@ -156,12 +156,10 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
       <div className={`feed-card ${reading && !held ? 'reading' : ''} ${open ? 'open' : ''}`} key={cardKey} ref={anchorEl}
         style={{ '--grade': g.color } as React.CSSProperties} onClick={skip} title={reading && !held ? 'Click for the next move' : undefined}>
         {/* 1. the grade, who, when */}
+        {/* the same card as Deadlock's: the grade as a coloured pill, then who and when */}
         <div className="feed-card-head">
-          <NoteMark m={card} className="feed-mark" size={14} />
-          <div className="feed-who">
-            <b>{g.label}</b>
-            <span><i className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</i><em className="num">{fmtT(card.t)}</em></span>
-          </div>
+          <span className="feed-grade" style={{ background: g.color }}>{g.label}</span>
+          <span className="feed-who"><i className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</i> · <em className="num">{fmtT(card.t)}</em></span>
           {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close"><Icon name="close" /></button>}
         </div>
         {/* 2. what happened */}
@@ -169,7 +167,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
         {/* 3. what it did to the round: the win chance before and after */}
         <WinMeter m={card} swing={facts.swing} />
         {/* 4. the better play, when the engine had one */}
-        {facts.better && <div className="feed-better"><Icon name="arrowRight" size={13} /><span>Better: <b>{facts.better}</b></span></div>}
+        {facts.better && <p className="feed-better"><b>Better:</b> {facts.better}</p>}
         {rage && rageLine(card) && <div className="feed-rage">{rageLine(card)}</div>}
         {/* 5. why: the two that matter most, the rest on demand */}
         {facts.reasons.length > 0 && (
@@ -182,7 +180,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
         )}
         {card.tags.length > 0 && (
           <div className="feed-tags">
-            {card.tags.map(t => <span key={t} className="tag" title={TAG_INFO[t].tip} style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }}>{t}</span>)}
+            {card.tags.map(t => <span key={t} className="feed-tag" title={TAG_INFO[t].tip}>{t === 'ISOLATED' ? 'ALONE' : t}</span>)}
           </div>
         )}
         {/* 7. what you can do with it */}
@@ -238,12 +236,9 @@ function WinMeter({ m, swing }: { m: Move; swing: { side: 'CT' | 'T'; before: nu
   // a choice that didn't change the round's chance (a positioning card): no "0% win chance" line
   if (!swing) return d === 0 ? null : <div className="feed-meter only">{pill}<span className="muted">win chance</span></div>;
   return (
-    <div className="feed-meter" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
-      <div className="feed-meter-top"><span className={swing.side.toLowerCase()}>{swing.side} win chance</span><b className="num">{swing.before}% → {swing.after}% <span className={d > 0 ? 'up' : d < 0 ? 'down' : 'muted'}>({d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(swing.after - swing.before)})</span></b></div>
-      <div className={`feed-meter-bar ${swing.side.toLowerCase()}`}>
-        <i className="fill" style={{ width: `${swing.after}%` }} />
-        <i className="was" style={{ left: `${swing.before}%` }} />
-      </div>
+    <div className="feed-win" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
+      <span className="bar"><i style={{ width: `${swing.after}%`, background: swing.after >= swing.before ? 'var(--good)' : 'var(--bad)' }} /></span>
+      <span className="num">{swing.before}% → {swing.after}% <b className={d > 0 ? 'up' : d < 0 ? 'down' : 'muted'}>({d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(swing.after - swing.before)})</b></span>
     </div>
   );
 }
