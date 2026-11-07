@@ -92,7 +92,7 @@ export function MatchReportPage() {
           <section className="recap-card overview">
             {/* half-graded notes read like verdicts: wait for every round */}
             {!report.done && <p className="ov-summary muted">The coach's notes appear once every round is graded ({view.graded}/{view.total}).</p>}
-            {report.done && <p className="ov-summary">{overview.summary}</p>}
+            {/* the summary is the header's one line (recap-verdict): not repeated here */}
             {report.done && overview.fix.length > 0 && (
               <>
                 <h3>Fix first</h3>
@@ -151,7 +151,7 @@ const RECAP_TABS: { id: RecapTab; label: string; icon: IconName }[] = [
   { id: 'overview', label: 'Overview', icon: 'star' },
   { id: 'coach', label: 'Coach', icon: 'chat' },
   { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
-  { id: 'rounds', label: 'Rounds', icon: 'grid' },
+  { id: 'rounds', label: 'Timeline', icon: 'grid' },
 ];
 const LS_TAB = 'stratboard.recapTab';
 
@@ -181,7 +181,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
       <p className="muted">
         {data.rounds.length} rounds · {mine ? 'your team first' : 'team that started CT first'}
         {mine && mine.gameRating !== null && <> · you: game rating <b>{fmt(mine.gameRating)}</b>{delta !== null && <span className={delta >= 0 ? 'up' : 'down'}> ({delta >= 0 ? '+' : '−'}{fmt(Math.abs(delta))} vs your Premier)</span>}</>}
-        {!ranked && ' · no ratings in this demo (estimates are relative to an average 10,000 player)'}
+        {!ranked && ' · No Premier ratings in this demo. Estimates use a 10,000 player as base.'}
         {!done && <> · <b>grading rounds {view.graded}/{view.total}…</b></>}
         {done && error && <> · <b className="down">grading stopped after {view.graded}/{view.total} rounds: {error}</b></>}
       </p>
@@ -244,7 +244,7 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
         {kpi('kast', 'KAST', `${p.kast.toFixed(0)}%`, p.kast)}
         {kpi('impact', 'Impact', `${p.impactPerRound >= 0 ? '+' : ''}${p.impactPerRound.toFixed(1)}%`, p.impactPerRound)}
       </div>
-      <p className="muted perf-line num">{p.kills} kills · {p.deaths} deaths · {p.hs.toFixed(0)}% HS · openings {p.openingKills}–{p.openingDeaths}{p.clutches ? ` · ${p.clutches} clutch kills` : ''}</p>
+      <p className="muted perf-line num">{p.kills} kills · {p.deaths} deaths · {p.hs.toFixed(0)}% HS · openings {p.openingKills}–{p.openingDeaths}{p.clutches ? ` · ${p.clutches} clutch kill${p.clutches === 1 ? '' : 's'}` : ''}</p>
     </section>
   );
 }
@@ -723,7 +723,9 @@ const fmt = (v: number) => Math.round(v).toLocaleString('en-US');
 function DuoCard({ a, players }: { a: PlayerReport; players: PlayerReport[] }) {
   const mates = players.filter(p => p.id !== a.id && p.played);
   const [bId, setB] = useState<string | null>(null);
-  const b = mates.find(p => p.id === bId) ?? mates.find(p => p.team === a.team) ?? mates[0];
+  // by default the enemy who played the same role (your opposite number), else any enemy
+  const role = a.roles[0]?.role;
+  const b = mates.find(p => p.id === bId) ?? mates.find(p => p.team !== a.team && p.roles[0]?.role === role) ?? mates.find(p => p.team !== a.team) ?? mates[0];
   if (!b) return null;
   const rows: [string, (p: PlayerReport) => number | null, (v: number) => string, boolean?][] = [
     ['Kills / deaths', p => p.kills / Math.max(1, p.deaths), v => v.toFixed(2)],
@@ -739,7 +741,7 @@ function DuoCard({ a, players }: { a: PlayerReport; players: PlayerReport[] }) {
     <section className="recap-card duo">
       <div className="duo-head">
         <h3>Side by side</h3>
-        <label className="muted small">with <select value={b.id} onChange={e => setB(e.target.value)}>{mates.map(p => <option key={p.id} value={p.id}>{p.name}{p.team === a.team ? ' (teammate)' : ''}</option>)}</select></label>
+        <label className="muted small">with <select value={b.id} onChange={e => setB(e.target.value)}>{mates.map(p => <option key={p.id} value={p.id}>{p.name}{p.team === a.team ? ' (teammate)' : ' (enemy)'}</option>)}</select></label>
       </div>
       <table className="duo-table">
         <thead><tr><th /><th>{a.name}</th><th>{b.name}</th></tr></thead>

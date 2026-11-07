@@ -65,6 +65,10 @@ function rectOf(sel: string): DOMRect | null {
 const visible = (sel: string) => !!rectOf(sel);
 
 /** Runs the first tour this page has that this browser hasn't seen. */
+const SESSION_KEY = 'rageview.touredThisSession';
+const touredThisSession = () => { try { return sessionStorage.getItem(SESSION_KEY) === '1'; } catch { return false; } };
+const markToured = () => { try { sessionStorage.setItem(SESSION_KEY, '1'); } catch { /* private mode */ } };
+
 export function Tours() {
   const route = useRoute();
   // the tour on screen: counted as seen as soon as it starts (leaving halfway doesn't bring it back each visit)
@@ -74,7 +78,8 @@ export function Tours() {
   // one tour per visit to a page: when one ends, the next waits for another visit (two in a row felt like a wall)
   const here0 = `${route.page}/${'mode' in route ? route.mode : ''}`;
   const [rested, setRested] = useState<string | null>(null);
-  const tour = TOURS.find(t => t.id === active) ?? (rested === here0 ? undefined : TOURS.find(t => t.when(route) && !done.includes(t.id)));
+  // and one tour a session: the next page's tour waits for another day (two in a row felt like a wall)
+  const tour = TOURS.find(t => t.id === active) ?? (rested === here0 || touredThisSession() ? undefined : TOURS.find(t => t.when(route) && !done.includes(t.id)));
   const here = !!tour && tour.when(route);
   // wait for the page to draw its controls (a demo loading, a report being worked out)
   useEffect(() => {
@@ -82,7 +87,7 @@ export function Tours() {
     const t = setInterval(() => {
       // ready once a couple of steps are there, so a page half-drawn doesn't lose its later steps
       const on = tour.steps.filter(s => visible(s.target)).length;
-      if (on >= Math.min(2, tour.steps.length)) { clearInterval(t); markSeen(tour.id); setActive(tour.id); }
+      if (on >= Math.min(2, tour.steps.length)) { clearInterval(t); markSeen(tour.id); markToured(); setActive(tour.id); }
     }, 400);
     return () => clearInterval(t);
   }, [tour?.id, here, active]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { saveMoments } from '../moments/moments';
+import { matchPosition } from './bench';
 import { dlMoments } from '../moments/build';
 import { MarkFace } from '../ui/MarkFace';
 import { ScoreRing } from '../ui/ScoreRing';
@@ -30,10 +31,11 @@ import FIGHT_MODEL from './generated/fightmodel.json';
 const ULTS_IN = !!(FIGHT_MODEL as { ults?: unknown }).ults;
 
 const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-type Tab = 'overview' | 'grades' | 'coach' | 'build' | 'objectives';
+// the same tabs, in the same order, as CS2's recap (Overview · Coach · Scoreboard · Timeline), then this game's own
+type Tab = 'overview' | 'coach' | 'scoreboard' | 'objectives' | 'build';
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
-  { id: 'overview', label: 'Overview', icon: 'star' }, { id: 'grades', label: 'Report card', icon: 'trophy' }, { id: 'coach', label: 'Coach', icon: 'target' },
-  { id: 'build', label: 'Souls, items and abilities', icon: 'coins' }, { id: 'objectives', label: 'Objectives', icon: 'map' },
+  { id: 'overview', label: 'Overview', icon: 'star' }, { id: 'coach', label: 'Coach', icon: 'chat' }, { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
+  { id: 'objectives', label: 'Timeline', icon: 'grid' }, { id: 'build', label: 'Economy & items', icon: 'coins' },
 ];
 /** What each kind of mistake means, and what to do instead (the coach's lessons). */
 const LESSON: Partial<Record<DlTag, { title: string; fix: string }>> = {
@@ -128,7 +130,8 @@ export function DlReport() {
 
       {tab === 'overview' && (
         <>
-          <Scoreboard match={match} subject={subject} mine={coach.mine} nameOf={nameOf} pick={slot => setPick(slot)} />
+          {/* the report card is the overview's top (it was its own tab) */}
+          {card && who && <Grades card={card} match={match} name={nameOf(who.slot)} hero={heroOf(who.hero).name} moves={coach.all} watch={watch} level={level} pickLevel={pickLevel} />}
           {card && subject !== null && <DlDuo match={match} a={subject} card={card} nameOf={nameOf} moves={coach.all} />}
           <div className="dl-ov-charts">
             <WinChance match={match} team={who?.team ?? 0} watch={watch} />
@@ -137,7 +140,7 @@ export function DlReport() {
           <Moments moves={[...myMoves, ...(review ? engineMoves(review, myMoves) : [])]} watch={watch} />
         </>
       )}
-      {tab === 'grades' && card && who && <Grades card={card} match={match} name={nameOf(who.slot)} hero={heroOf(who.hero).name} moves={coach.all} watch={watch} level={level} pickLevel={pickLevel} />}
+      {tab === 'scoreboard' && <Scoreboard match={match} subject={subject} mine={coach.mine} nameOf={nameOf} pick={slot => setPick(slot)} />}
       {tab === 'build' && who && (
         <>
           <Economy match={match} slot={who.slot} watch={watch} />
@@ -484,7 +487,9 @@ function DlDuo({ match, a, card, nameOf, moves }: { match: DlMatch; a: number; c
   const me = match.players.find(p => p.slot === a)!;
   const [bSlot, setB] = useState<number | null>(null);
   const others = match.players.filter(p => p.slot !== a);
-  const b = others.find(p => p.slot === bSlot) ?? others.find(p => p.team === me.team)!;
+  // by default the enemy in the same position (your lane opposite), else any enemy
+  const myPos = matchPosition(match, a);
+  const b = others.find(p => p.slot === bSlot) ?? others.find(p => p.team !== me.team && matchPosition(match, p.slot) === myPos) ?? others.find(p => p.team !== me.team)!;
   const other = useMemo(() => reportCard(match, b.slot, demo, moves), [match, b.slot, demo, moves]);
   const cell = (x: number | null, y: number | null, fmt = (v: number) => String(v)) => <td className={x !== null && y !== null && x > y ? 'hi' : ''}>{x === null ? '–' : fmt(x)}</td>;
   const k = (v: number) => `${(v / 1000).toFixed(1)}k`;
@@ -492,7 +497,7 @@ function DlDuo({ match, a, card, nameOf, moves }: { match: DlMatch; a: number; c
     <section className="recap-card duo">
       <div className="duo-head">
         <h3>Side by side</h3>
-        <label className="muted small">with <select value={b.slot} onChange={e => setB(Number(e.target.value))}>{others.map(p => <option key={p.slot} value={p.slot}>{nameOf(p.slot)} · {heroOf(p.hero).name}{p.team === me.team ? ' (teammate)' : ''}</option>)}</select></label>
+        <label className="muted small">with <select value={b.slot} onChange={e => setB(Number(e.target.value))}>{others.map(p => <option key={p.slot} value={p.slot}>{nameOf(p.slot)} · {heroOf(p.hero).name}{p.team === me.team ? ' (teammate)' : ' (enemy)'}</option>)}</select></label>
       </div>
       <table className="duo-table">
         <thead><tr><th /><th>{nameOf(a)} · {heroOf(me.hero).name}</th><th>{nameOf(b.slot)} · {heroOf(b.hero).name}</th></tr></thead>

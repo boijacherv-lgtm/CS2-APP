@@ -55,13 +55,7 @@ export function NavBar({ route }: { route: Route }) {
       </nav>
       {cs2 && (
         <div className="modes" role="tablist" aria-label="Mode">
-          {/* before a match is loaded: plan (Tactical) or load one (Review); with a match: Review and its recap */}
-          {!loaded && (
-            <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
-              onClick={() => navigate({ page: 'cs2', mode: 'tactical' })} title="Plan rounds on the board">
-              <Icon name="grid" className="mode-ico" /> <span className="mode-label">Tactical board</span>
-            </button>
-          )}
+          {/* Review first (the main job), its recap with a match open, then the Tactical board without one */}
           <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
             onClick={() => navigate({ page: 'cs2', mode: 'review' })} title={loaded ? 'Replay and grade this match' : 'Load a match to replay and grade it'}>
             <Icon name="play" className="mode-ico" /> <span className="mode-label">Review</span>{loaded ? <i className="dot-live" title="A match is loaded" /> : null}
@@ -70,6 +64,12 @@ export function NavBar({ route }: { route: Route }) {
             <button role="tab" aria-selected={route.mode === 'report'} className={route.mode === 'report' ? 'on' : ''}
               onClick={() => navigate({ page: 'cs2', mode: 'report' })} title="The coach's notes, every player's grades and estimated rating for the match">
               <Icon name="star" className="mode-ico" /> <span className="mode-label">Match recap</span>
+            </button>
+          )}
+          {!loaded && (
+            <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
+              onClick={() => navigate({ page: 'cs2', mode: 'tactical' })} title="Plan rounds on the board">
+              <Icon name="grid" className="mode-ico" /> <span className="mode-label">Tactical board</span>
             </button>
           )}
         </div>
@@ -143,10 +143,6 @@ function DlNav({ route }: { route: Extract<Route, { page: 'deadlock' }> }) {
   return (
     <>
       <div className="modes" role="tablist" aria-label="Mode">
-        <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
-          onClick={() => navigate({ page: 'deadlock', mode: 'tactical' })} title="The meta, builds, a draft and a macro planner for this patch">
-          <Icon name="stats" className="mode-ico" /> <span className="mode-label">Meta &amp; builds</span>
-        </button>
         <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
           onClick={() => navigate({ page: 'deadlock', mode: 'review' })} title={match ? 'Replay this match' : 'Pick a match to replay'}>
           <Icon name="play" className="mode-ico" /> <span className="mode-label">Review</span>{match ? <i className="dot-live" title="A match is loaded" /> : null}
@@ -157,6 +153,10 @@ function DlNav({ route }: { route: Extract<Route, { page: 'deadlock' }> }) {
             <Icon name="star" className="mode-ico" /> <span className="mode-label">Match recap</span>
           </button>
         )}
+        <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
+          onClick={() => navigate({ page: 'deadlock', mode: 'tactical' })} title="The meta, builds, a draft and a macro planner for this patch">
+          <Icon name="stats" className="mode-ico" /> <span className="mode-label">Meta &amp; builds</span>
+        </button>
       </div>
       {match && (
         <div className="match-tab" title={`Open match ${match.id}, ${mins(match.duration)}`}>
