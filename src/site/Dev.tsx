@@ -66,7 +66,7 @@ export function Dev() {
   const pickTab = (t: DevTab) => { setTab(t); try { localStorage.setItem('stratboard.devTab', t); } catch { /* private mode */ } };
 
   if (!loaded && !LOCAL) return <div className="page"><Loading>Loading…</Loading></div>;
-  if (!allowed) return <div className="page"><h1>Not found</h1><p className="muted">There's nothing here. <a href="/">Go home</a></p></div>;
+  if (!allowed) return <div className="page not-found"><h1>Owner only.</h1><p className="muted">This page is for the site's owner. Log in with Steam as the owner to see it.</p><p><a className="cta" href="/">Back to home</a></p></div>;
 
   const storage = (() => {
     const rows: { key: string; size: number }[] = [];
@@ -96,7 +96,8 @@ export function Dev() {
     ['This week', lastWeek !== null ? fmtInt(lastWeek) : '–', 'matches played'],
     ['Want Pro', stats ? fmtInt(stats.profiles.notifyPro) : '–', 'notify me'],
     ['Want Deadlock', stats ? fmtInt(stats.profiles.notifyGames?.deadlock ?? 0) : '–', 'notify me'],
-    ['Trained on', w ? fmtInt(w.trainMatches + w.testMatches) : '–', 'level-10 matches', 'cs2'],
+    // the coach's number, the same as the front page's (the win model's own count is in the CS2 tab)
+    ['Trained on', fmtInt(COACH_MODEL.source?.demos ?? COACH_MODEL.trainedOn), 'level-10 matches', 'cs2'],
   ];
 
   return (

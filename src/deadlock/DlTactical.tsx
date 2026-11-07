@@ -40,7 +40,8 @@ export function DlTactical() {
   const pickHero = (h: number) => { setHero(h); try { localStorage.setItem('stratboard.dl.metaHero', String(h)); } catch { /* private mode */ } };
   return (
     <div className="dl-tac dl-tac-top">
-      <nav className="recap-tabs dl-tac-tabs" aria-label="Tactical">
+      <h1 className="sr-only">Deadlock meta and builds</h1>
+      <nav className="recap-tabs dl-tac-tabs" aria-label="Meta and builds">
         <div className="recap-tabs-list" role="tablist">
           {TOP.map(t => <button key={t.id} role="tab" aria-selected={top === t.id} className={top === t.id ? 'on' : ''} onClick={() => pickTop(t.id)} title={t.tip}><Icon name={t.icon} size={14} /> {t.label}</button>)}
         </div>

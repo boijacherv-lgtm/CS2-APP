@@ -34,7 +34,7 @@ interface DlState {
 }
 
 export const useDl = create<DlState>(set => ({
-  match: null, names: {}, time: 0, playing: false, speed: 1, danger: (() => { try { return localStorage.getItem('stratboard.dl.danger') === '1'; } catch { return false; } })(), selected: null, bench: {}, scope: 'mine', demo: null, demoStatus: null,
+  match: null, names: {}, time: 0, playing: false, speed: 1, danger: (() => { try { return localStorage.getItem('stratboard.dl.danger') === '1'; } catch { return false; } })(), selected: null, bench: {}, scope: (() => { try { return localStorage.getItem('stratboard.dl.scope') === 'all' ? 'all' : 'mine'; } catch { return 'mine'; } })() as 'all' | 'mine', demo: null, demoStatus: null,
   open: match => set({ match, time: 0, playing: false, selected: null, names: {}, bench: {}, demo: null, demoStatus: null }),
   close: () => set({ match: null, time: 0, playing: false, selected: null, demo: null, demoStatus: null }),
   setTime: time => set(s => ({ time: Math.max(0, Math.min(s.match?.duration ?? 0, time)) })),
@@ -42,5 +42,5 @@ export const useDl = create<DlState>(set => ({
   setSpeed: speed => set({ speed }),
   toggleDanger: () => set(s => { try { localStorage.setItem('stratboard.dl.danger', s.danger ? '0' : '1'); } catch { /* private mode */ } return { danger: !s.danger }; }),
   select: selected => set({ selected }),
-  setScope: scope => set({ scope }),
+  setScope: scope => set(() => { try { localStorage.setItem('stratboard.dl.scope', scope); } catch { /* private mode */ } return { scope }; }),
 }));

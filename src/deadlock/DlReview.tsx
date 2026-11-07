@@ -10,6 +10,9 @@ import { demoState, loadDemo, NoDemo } from './demo';
 import { heroOf } from './data';
 import { DlBoard } from './DlBoard';
 import { openMatch } from './open';
+
+/** A public Phantom+ match to try (also the front page's sample). */
+const SAMPLE_MATCH = 131074890;
 import { addLocalReplay, replayId } from './localReplays';
 import { DlSteamFolder } from './DlSteamFolder';
 import { BOT_ON, botFriend, botInfo, botMatches, botRefresh, type BotRelation } from './botApi';
@@ -148,6 +151,11 @@ function DlStart() {
           <input type="file" accept=".dem" className="sr-only" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) openFile(f); }} />
         </label>
       </form>
+      {/* where the number is, and a match to try without one */}
+      <p className="dl-id-help muted small">
+        Your match ID: open the match in Deadlock's match history, the ID is shown with it (or log in: your matches list below). Or{' '}
+        <button className="link-btn" onClick={() => void open(SAMPLE_MATCH)} disabled={busy !== null}>open the Deadlock sample</button> (a Phantom+ match).
+      </p>
       {err && <p className="warn-text">{err}</p>}
 
       <DlSteamFolder account={account} open={id => void open(id)} busy={busy} />

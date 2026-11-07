@@ -622,3 +622,29 @@
 .dl-card-better b { color: var(--good); }
 .dl-card-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
 .dl-card-tags span { font-size: 12px; font-weight: 800; letter-spacing: .05em; padding: 2px 7px; border-radius: 5px; background: var(--surface-3); color: var(--text-2); }
+.dl-id-help { margin: 6px 0 14px; } .dl-id-help .link-btn { background: none; border: 0; padding: 0; color: var(--theme); font-weight: 700; cursor: pointer; }
+
+/* phones: the meta table as one card per hero: name · tier · win rate · pick rate · Builds (the rest hides) */
+@media (max-width: 600px) {
+  .dl-meta-table thead { display: none; }
+  .dl-meta-table, .dl-meta-table tbody { display: block; width: 100%; }
+  .dl-meta-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 10px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--border); }
+  .dl-meta-table tr.dl-meta-group { display: block; }
+  .dl-meta-table td { padding: 0; border: 0; }
+  .dl-meta-table td:nth-child(5), .dl-meta-table td:nth-child(6), .dl-meta-table td:nth-child(7), .dl-meta-table td:nth-child(8) { display: none; }
+  .dl-meta-table td:nth-child(3)::before { content: 'WR '; color: var(--text-3); font-size: 12px; }
+  .dl-meta-table td:nth-child(4)::before { content: 'Pick '; color: var(--text-3); font-size: 12px; }
+  .dl-meta-table .dl-rate i { display: none; }
+  .dl-meta-table .dl-meta-name { min-width: 0; overflow: hidden; }
+  .dl-meta-table .dl-meta-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dl-meta-table td:nth-child(9) { display: none; } /* Builds: the Builds tab */
+  .dl-meta-table td { min-width: 0 !important; width: auto !important; font-size: 13px; white-space: nowrap; }
+  .dl-meta-table .dl-rate { min-width: 0; display: inline; }
+}
+@media (max-width: 600px) {
+  .dl-meta-table tr.dl-meta-group td { white-space: normal; }
+  .dl-meta-table { max-width: 100%; }
+}
+/* the meta page's columns never grow past the screen (a grid item's min width is its content: the filters row) */
+.dl-tac > * { min-width: 0; }
+.dl-meta-head { flex-wrap: wrap; }

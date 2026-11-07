@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { PRO_MODEL } from '../engine/coachModels';
 import { useStore } from '../store';
+import { useDl } from '../deadlock/store';
 import { Icon } from '../ui/Icon';
 import { forgetProfile, refreshProfile, setPrefs, useProfile } from '../ui/profileApi';
 import { VERDICT_LABEL, type MoveVerdict } from '../engine/profile';
@@ -14,6 +15,7 @@ export function Settings() {
   const { me, data, remote } = useProfile();
   const s = useStore();
   const [confirm, setConfirm] = useState(false);
+  const dlScope = useDl(x => x.scope), dlDanger = useDl(x => x.danger);
   // Rage mode asks first: turning it on is a choice to be sworn at
   const [askRage, setAskRage] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -68,7 +70,13 @@ export function Settings() {
       </section>
 
       <section className="site-card">
-        <h2>Coach</h2>
+        <h2>Deadlock</h2>
+        <Toggle label="Only one player's moves" on={dlScope === 'mine'} text="On the Review board: the coach's cards for you (or the player you click), not all twelve. Off: everyone's." onChange={v => useDl.getState().setScope(v ? 'mine' : 'all')} />
+        <Toggle label="Danger map" on={dlDanger} text="On the Review board: where high-rank players die at this stage of the match, as a heat map." onChange={() => useDl.getState().toggleDanger()} />
+      </section>
+
+      <section className="site-card">
+        <h2>Coach (CS2)</h2>
         <Toggle label="Rage mode" on={s.rage || askRage} text="The coach loses it at your plays: a blunt, sweary line on every graded move and in the recap (18+, strong language). It swears at the play, never at you as a person. The grades don't change." onChange={v => (v ? setAskRage(true) : s.setRage(false))} />
         {askRage && !s.rage && (
           <div className="rage-ask" role="alertdialog" aria-label="Turn on Rage mode">
@@ -77,7 +85,7 @@ export function Settings() {
           </div>
         )}
         <div className="setting">
-          <div className="setting-text"><b>Compare with</b><span className="muted">What the recap's coach and analyst compare you with first.</span></div>
+          <div className="setting-text"><b>Compare with</b><span className="muted">Who the coach compares you with first.</span></div>
           <div className="seg-mini">
             <button className={data.prefs.compare === 'lvl10' ? 'on' : ''} onClick={() => setPrefs({ compare: 'lvl10' })}>Level 10</button>
             <button className={data.prefs.compare === 'pro' ? 'on' : ''} disabled={!PRO_MODEL} onClick={() => setPrefs({ compare: 'pro' })}>Pro</button>
@@ -85,12 +93,12 @@ export function Settings() {
         </div>
         <div className="setting">
           <div className="setting-text">
-            <b>Where the coach was wrong</b>
+            <b>Your "Coach wrong" marks</b>
             <span className="muted">{data.verdicts.length
               ? `${data.verdicts.length} move${data.verdicts.length > 1 ? 's' : ''} you marked in Review. The coach is checked against them when it learns.`
               : 'Mark moves in Review ("Coach wrong?" on a move card). The coach is checked against them when it learns.'}</span>
           </div>
-          <button className="cta" disabled={!data.verdicts.length} onClick={() => downloadVerdicts(data.verdicts)} title="A file for the coach's learning tools (my-demos folder)">Download</button>
+          <button className="cta" disabled={!data.verdicts.length} onClick={() => downloadVerdicts(data.verdicts)} title="A file for the coach's learning tools (my-demos folder)">Download my "Coach wrong" marks</button>
         </div>
       </section>
 

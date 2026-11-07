@@ -124,7 +124,8 @@ const matches = all.length;
 const sorted = losses.filter(l => l > 0.002).sort((a, b) => a - b);
 const q = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
 const thresholds: number[] = [];
-for (const p of [0.3, 0.55, 0.8, 0.93]) thresholds.push(+Math.max(q(p), (thresholds.at(-1) ?? 0.002) + 0.0005).toFixed(4));
+// fixed cut-offs (src/deadlock/search.ts): a Mistake 3+ points, a Blunder 8+
+thresholds.push(0.005, 0.012, 0.03, 0.08);
 const cls = (l: number) => (l <= 0.002 ? 'Best' : l <= thresholds[0] ? 'Excellent' : l <= thresholds[1] ? 'Good' : l <= thresholds[2] ? 'Inaccuracy' : l <= thresholds[3] ? 'Mistake' : 'Blunder');
 const classes: Record<string, number> = {};
 for (const l of losses) classes[cls(l)] = (classes[cls(l)] ?? 0) + 1;

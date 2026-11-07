@@ -71,7 +71,10 @@ export function Tours() {
   const [active, setActive] = useState<string | null>(null);
   // read on every render (route changes re-render): Settings can bring the tours back
   const done = seen();
-  const tour = TOURS.find(t => t.id === active) ?? TOURS.find(t => t.when(route) && !done.includes(t.id));
+  // one tour per visit to a page: when one ends, the next waits for another visit (two in a row felt like a wall)
+  const here0 = `${route.page}/${'mode' in route ? route.mode : ''}`;
+  const [rested, setRested] = useState<string | null>(null);
+  const tour = TOURS.find(t => t.id === active) ?? (rested === here0 ? undefined : TOURS.find(t => t.when(route) && !done.includes(t.id)));
   const here = !!tour && tour.when(route);
   // wait for the page to draw its controls (a demo loading, a report being worked out)
   useEffect(() => {
@@ -86,7 +89,7 @@ export function Tours() {
   // left the page it belongs to: it's over
   useEffect(() => { if (active && !here) setActive(null); }, [active, here]);
   if (!tour || !here || active !== tour.id) return null;
-  return <TourRun key={tour.id} tour={tour} onEnd={() => setActive(null)} />;
+  return <TourRun key={tour.id} tour={tour} onEnd={() => { setActive(null); setRested(here0); }} />;
 }
 
 function TourRun({ tour, onEnd }: { tour: Tour; onEnd: () => void }) {

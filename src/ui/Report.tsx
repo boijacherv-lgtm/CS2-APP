@@ -46,7 +46,9 @@ export function MatchReportPage() {
     return { summary: c.summary, fix: c.improve.slice(0, 3), keep: c.strengths.slice(0, 2) };
   }, [view, picked, me, level]);
   const overview = overviewFor;
-  if (!report || !view) return <div className="app single"><ReviewStart /></div>;
+  if (!report || !view) return (
+    <div className="page not-found"><h1>Open a match first.</h1><p className="muted">Match recap shows a match you've opened in Review.</p><p><a className="cta primary" href="/cs2/review">Review a match</a></p></div>
+  );
 
   // the pro level, once it's trained (HLTV demos): the coach and the analyst compare with it instead
   const hasPro = !!PRO_MODEL || proAnalystAvailable;

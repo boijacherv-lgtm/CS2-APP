@@ -21,7 +21,8 @@ export function NavBar({ route }: { route: Route }) {
   // with a match loaded there's no Tactical tab: its address goes to Review (Load another closes the match);
   // without one there's no recap to show: Match recap goes to Review too
   useEffect(() => {
-    if (cs2 && ((loaded && route.mode === 'tactical') || (!loaded && route.mode === 'report'))) navigate({ page: 'cs2', mode: 'review' });
+    // (no match and Match recap: the recap page says so, instead of jumping away)
+    if (cs2 && loaded && route.mode === 'tactical') navigate({ page: 'cs2', mode: 'review' });
   }, [cs2, loaded, route]); // eslint-disable-line react-hooks/exhaustive-deps
   // who's logged in, again whenever you come back to the tab (a login in another tab, a session that ran out)
   useEffect(() => {
@@ -143,8 +144,8 @@ function DlNav({ route }: { route: Extract<Route, { page: 'deadlock' }> }) {
     <>
       <div className="modes" role="tablist" aria-label="Mode">
         <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
-          onClick={() => navigate({ page: 'deadlock', mode: 'tactical' })} title="Plan: lanes and rotations, a teamfight, builds and power spikes">
-          <Icon name="grid" className="mode-ico" /> <span className="mode-label">Tactical board</span>
+          onClick={() => navigate({ page: 'deadlock', mode: 'tactical' })} title="The meta, builds, a draft and a macro planner for this patch">
+          <Icon name="stats" className="mode-ico" /> <span className="mode-label">Meta &amp; builds</span>
         </button>
         <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
           onClick={() => navigate({ page: 'deadlock', mode: 'review' })} title={match ? 'Replay this match' : 'Pick a match to replay'}>

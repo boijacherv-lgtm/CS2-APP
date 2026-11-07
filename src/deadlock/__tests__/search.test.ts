@@ -13,12 +13,16 @@ describe('the 2-step search', () => {
       seen++;
       for (let i = 1; i < s.options.length; i++) expect(s.options[i - 1].value).toBeGreaterThanOrEqual(s.options[i].value);
       expect(s.loss).toBeGreaterThanOrEqual(0);
-      if (s.played) expect(s.cls).toBe(searchClass(s.loss));
+      if (s.played) expect(s.cls).toBe(laningCap(s.t, s.played.action, s.options[0].action, searchClass(s.loss, s.options.length > 1 ? s.options[0].value - s.options[1].value : 1)));
     }
     expect(seen).toBeGreaterThan(0);
   });
   it('names classes from Best to Blunder as the loss grows', () => {
     expect(searchClass(0)).toBe('Best');
+    expect(searchClass(0, 0.001)).toBe('Good'); // the obvious move
+    expect(searchClass(0.02)).toBe('Inaccuracy');
+    expect(searchClass(0.05)).toBe('Mistake');
+    expect(searchClass(0.09)).toBe('Blunder');
     expect(searchClass(0.5)).toBe('Blunder');
   });
 });

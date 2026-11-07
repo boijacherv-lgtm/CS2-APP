@@ -1086,3 +1086,9 @@ a.btn:hover { border-color: #45505e; }
 .feed-card p.feed-better b { color: var(--good); }
 .feed-tag { font-size: 12px; font-weight: 800; letter-spacing: .05em; padding: 2px 7px; border-radius: 5px; background: var(--surface-3); color: var(--text-2); }
 .pb-options-pop .opt-seg { margin: 0 4px 6px; justify-self: start; }
+
+/* tap targets: at least 24 px tall (WCAG 2.5.8) */
+.site-footer nav a { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 0; }
+input.switch { min-height: 24px; height: 24px; }
+.dl-sort { min-height: 24px; padding: 4px 2px; }
+.playbar-range { min-height: 24px; }
