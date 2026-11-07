@@ -281,6 +281,15 @@ Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings an
 | Website: reading a .dem fails or the tab crashes | very large demo on a low-memory device | try a desktop browser, or the desktop version |
 | CT / T player button does nothing | that side already has 5 players | the 5/5 counter shows it; select a player first to move it, or Clear |
 
+## Dev page notes
+
+- **Weekly numbers** (Site tab, "Matches played per week") come from the Worker's stats: after changing them,
+  redeploy it (`cd worker && npx wrangler deploy`).
+- **Coach asks** (CS2 tab, disputes): `npm run ask:coach` sends the moments the coach is least sure of, to judge like a
+  dispute.
+- **Demo bot** setup: `server/README.md`.
+- Experiments that didn't ship: `docs/notes/`.
+
 ## Features
 
 | Area | What it does |
