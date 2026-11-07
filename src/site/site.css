@@ -706,3 +706,10 @@ a.hero-games-live:hover b { text-decoration: underline; }
   .puzzle-setup { font-size: 14px; }
   .puzzle-option { padding: 9px 12px; min-height: 44px; }
 }
+.sample-menu { position: relative; }
+.sample-menu > summary { list-style: none; cursor: pointer; }
+.sample-menu > summary::-webkit-details-marker { display: none; }
+.sample-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; display: grid; gap: 4px; padding: 6px; min-width: 240px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-strong); box-shadow: 0 14px 40px -12px #000; }
+.sample-pop button { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; text-align: left; padding: 9px 10px; min-height: 44px; background: transparent; border: 0; border-radius: 8px; font-weight: 700; }
+.sample-pop button:hover { background: var(--surface-2); }
+.sample-pop button .muted { grid-column: 2; font-weight: 400; }

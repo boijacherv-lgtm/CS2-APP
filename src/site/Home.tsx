@@ -60,7 +60,14 @@ export function Home() {
           {/* two actions: review a match (the game chips above pick the game), or try a sample */}
           <div className="hero-cta">
             <a className="cta primary" href="/cs2/review">Review a match <Icon name="arrowRight" size={14} /></a>
-            <button className="cta" onClick={tryCs2Sample} disabled={sample === 'opening'}><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening…' : 'Try a sample'}</button>
+            {/* a sample in either game: a small menu, CS2 or Deadlock */}
+            <details className="sample-menu">
+              <summary className="cta"><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening…' : 'Try a sample'}</summary>
+              <div className="sample-pop">
+                <button onClick={tryCs2Sample} disabled={sample === 'opening'}><Icon name="crosshair" size={14} /> CS2 sample <span className="muted small">a FACEIT Mirage match</span></button>
+                <button onClick={trySample} disabled={sample === 'opening'}><Icon name="target" size={14} /> Deadlock sample <span className="muted small">a Phantom+ match</span></button>
+              </div>
+            </details>
           </div>
           {sample === 'failed' && <p className="warn-text">Couldn't open the sample, try again.</p>}
           <ul className="hero-trust">
