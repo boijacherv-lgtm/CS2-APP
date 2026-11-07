@@ -184,10 +184,13 @@ export function Home() {
 }
 
 /** Real screens (a public Deadlock match with the players' names hidden, a top players' CS2 puzzle). */
+/** Real screens from both games (sample matches, players' names hidden). */
 const SHOTS = [
-  { src: '/images/shots/replay.jpg', title: 'The replay.', text: 'Every death graded on the map.', alt: 'Deadlock replay: the map, both teams, and a graded death explained' },
-  { src: '/images/shots/coach.jpg', title: 'The engine.', text: 'Your costliest moves and best calls.', alt: 'Recap engine card: accuracy 92, costliest moves and best calls with reasons' },
+  { src: '/images/shots/cs2-replay.jpg', title: 'CS2 · The replay.', text: 'Every kill graded on the radar.', alt: 'CS2 replay on Mirage: both teams, the killfeed and a graded kill card' },
+  { src: '/images/shots/replay.jpg', title: 'Deadlock · The replay.', text: 'Every death graded on the map.', alt: 'Deadlock replay: the map, both teams, and a graded death explained' },
   { src: '/images/shots/puzzle.jpg', title: 'Puzzles.', text: 'Find the best move, then see the answer.', alt: 'A CS2 puzzle on Nuke with four moves and the engine answer' },
+  { src: '/images/shots/coach.jpg', title: 'Deadlock · The engine.', text: 'Your costliest moves and best calls.', alt: 'Recap engine card: accuracy 92, costliest moves and best calls with reasons' },
+  { src: '/images/shots/dl-meta.jpg', title: 'Deadlock · Meta & builds.', text: 'Every hero on this patch, by position.', alt: 'Deadlock meta table: heroes by position with tier, win rate and pick rate' },
 ];
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [

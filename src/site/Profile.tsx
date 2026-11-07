@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { GOAL_CHOICES, goalInfo, habits } from '../engine/habits';
 import { focusOf, loadMoments } from '../moments/moments';
+import { EmptyArt } from '../ui/Art';
 import { averages, fullMatches, FREE_HISTORY, premierOf, goalSeries, hasPro, mapStats, MAX_GOALS, type Averages, type GoalId, type ProfileMatch } from '../engine/profile';
 import { LETTER_COLOR } from '../engine/recap';
 import { Icon } from '../ui/Icon';
@@ -60,7 +61,7 @@ export function Profile() {
       {game === 'deadlock' ? <DlProfile account={me?.steamId ? steamId3(me.steamId) : null} /> : <>
       {!matches.length ? (
         <section className="empty-card">
-          <Icon name="trophy" size={30} />
+          <EmptyArt />
           <h2>No matches yet</h2>
           <p className="muted">Review your first one and your stats show up here. Log in with Steam (we only get your SteamID, public name and avatar), or pick yourself in the recap (This is me).</p>
           <a className="cta primary" href="/cs2/review">Review a match</a>
@@ -360,7 +361,7 @@ function Friend({ mine }: { mine: Averages | null }) {
       <div className="card-head"><h2><Icon name="friends" size={16} /> Compare with a friend</h2></div>
       {!me || !remote ? (
         <div className="goal-empty">
-          <p className="muted">No friends added. Log in with Steam, add one and see who's better. They need a public profile (Settings → Public profile).</p>
+          <div className="empty-art-row"><EmptyArt size={72} /><p className="muted">No friends added. Log in with Steam, add one and see who's better. They need a public profile (Settings → Public profile).</p></div>
           {STEAM_AVAILABLE && !me && <SteamLoginButton compact />}
         </div>
       ) : (

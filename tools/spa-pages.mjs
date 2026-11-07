@@ -16,7 +16,14 @@ for (const p of PAGES) {
   // cs2/review.html, not cs2/review/index.html: GitHub Pages serves /cs2/review from it with a 200 (a folder would
   // 301 to /cs2/review/ first); each page names itself as the canonical address
   fs.mkdirSync(path.dirname(path.join(DIST, p)), { recursive: true });
-  fs.writeFileSync(path.join(DIST, `${p}.html`), html.replace('<link rel="canonical" href="https://tsakhstvo.xyz/" />', `<link rel="canonical" href="${SITE}/${p}" />`));
+  let page = html.replace('<link rel="canonical" href="https://tsakhstvo.xyz/" />', `<link rel="canonical" href="${SITE}/${p}" />`);
+  // Deadlock's pages get Deadlock's link preview (Discord, X): its own picture and words
+  if (p.startsWith('deadlock')) page = page
+    .replace('content="https://tsakhstvo.xyz/images/og.png"', 'content="https://tsakhstvo.xyz/images/og-deadlock.png"')
+    .replace('content="Was it your fault? Find out free."', 'content="Who lost the fight? Find out free."')
+    .replace(/(<meta property="og:description" content=")[^"]*"/, '$1Replay any Deadlock match. Every kill, death and move graded, with the better play."')
+    .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${SITE}/${p}"`);
+  fs.writeFileSync(path.join(DIST, `${p}.html`), page);
 }
 fs.writeFileSync(path.join(DIST, '404.html'), html);
 fs.writeFileSync(path.join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${PUBLIC.map(p => `  <url><loc>${SITE}/${p}</loc></url>`).join('\n')}\n</urlset>\n`);

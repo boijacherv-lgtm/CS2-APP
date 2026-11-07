@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { FREE_HISTORY, MAX_HISTORY, PRO_EARLY_ACCESS } from '../engine/profile';
-import { Icon } from '../ui/Icon';
+import { Icon, type IconName } from '../ui/Icon';
 import { setNotifyPro, useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 
@@ -23,6 +23,10 @@ const PRO = [
   'New features first',
 ];
 
+/** A small picture per feature (instead of a tick on every row). */
+const iconFor = (f: string): IconName => /replay/i.test(f) ? 'play' : /coach|level 10/i.test(f) ? 'chat' : /engine/i.test(f) ? 'route' : /profile|history/i.test(f) ? 'stats'
+  : /goals/i.test(f) ? 'goal' : /friend|pro players/i.test(f) ? 'friends' : /deadlock/i.test(f) ? 'bolt' : /badge/i.test(f) ? 'trophy' : /new features/i.test(f) ? 'star' : 'check';
+
 /** Plans. There are no payments yet: during early access everyone has Pro. */
 export function Pricing() {
   const me = useProfile(s => s.me), notify = useProfile(s => s.data.notifyPro), remote = useProfile(s => s.remote);
@@ -42,14 +46,14 @@ export function Pricing() {
         <section className="plan">
           <h2>Free</h2>
           <p className="price"><b>$0</b><span>forever</span></p>
-          <ul>{FREE.map(f => <li key={f}><Icon name="check" size={14} /> {f}</li>)}</ul>
+          <ul>{FREE.map(f => <li key={f}><Icon name={iconFor(f)} size={14} /> {f}</li>)}</ul>
           <a className="cta" href="/cs2/review">Review a match</a>
         </section>
         <section className="plan featured">
           <span className="plan-tag">{PRO_EARLY_ACCESS ? 'Free in early access' : 'Most complete'}</span>
           <h2>Pro</h2>
           <p className="price"><b>$5</b><span>/ month{PRO_EARLY_ACCESS ? ' · free while in early access' : ''}</span></p>
-          <ul>{PRO.map(f => <li key={f}><Icon name="check" size={14} /> {f}</li>)}</ul>
+          <ul>{PRO.map(f => <li key={f}><Icon name={iconFor(f)} size={14} /> {f}</li>)}</ul>
           {me && remote ? (
             <button className={notify ? 'cta' : 'cta primary'} onClick={toggle} disabled={busy} aria-pressed={notify}>
               <Icon name="bell" size={14} /> {notify ? 'You\'ll be told when Pro launches' : 'Tell me when Pro launches'}
