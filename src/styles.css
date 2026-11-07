@@ -1085,3 +1085,4 @@ a.btn:hover { border-color: #45505e; }
 .feed-card p.feed-better { margin: 6px 0 0; font-size: 13.5px; }
 .feed-card p.feed-better b { color: var(--good); }
 .feed-tag { font-size: 12px; font-weight: 800; letter-spacing: .05em; padding: 2px 7px; border-radius: 5px; background: var(--surface-3); color: var(--text-2); }
+.pb-options-pop .opt-seg { margin: 0 4px 6px; justify-self: start; }
