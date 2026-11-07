@@ -235,7 +235,8 @@ export function cardFacts(m: Move): { swing: { side: 'CT' | 'T'; before: number;
 function WinMeter({ m, swing }: { m: Move; swing: { side: 'CT' | 'T'; before: number; after: number } | null }) {
   const d = Math.round(m.gain * 100);
   const pill = <span className={`feed-gain ${d > 0 ? 'up' : d < 0 ? 'down' : 'flat'}`} title="Change in their team's win chance">{signedPct(m.gain)}</span>;
-  if (!swing) return <div className="feed-meter only">{pill}<span className="muted">win chance</span></div>;
+  // a choice that didn't change the round's chance (a positioning card): no "0% win chance" line
+  if (!swing) return d === 0 ? null : <div className="feed-meter only">{pill}<span className="muted">win chance</span></div>;
   return (
     <div className="feed-meter" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
       <div className="feed-meter-top"><span className={swing.side.toLowerCase()}>{swing.side} win chance</span><b className="num">{swing.before}% → {swing.after}% <span className={d > 0 ? 'up' : d < 0 ? 'down' : 'muted'}>({d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(swing.after - swing.before)})</span></b></div>
