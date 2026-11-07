@@ -421,7 +421,7 @@ function Leaderboard({ rating, tried }: { rating: number; tried: number }) {
       <div className="card-head"><h2><Icon name="trophy" size={16} /> Leaderboard</h2><span className="muted small">puzzle rating · public profiles · 10+ puzzles</span></div>
       <p className="muted small">{!me ? 'Log in with Steam and make your profile public (Settings) to be on it.' : !isPublic ? 'Your profile is private: make it public in Settings to show up here.' : tried < 10 ? `Solve ${10 - tried} more to show up.` : place ? `Your rating ${rating} would be #${place}.` : ''}</p>
       {err ? <p className="warn-text">{err}</p> : !rows ? <p className="muted">Loading…</p> : !rows.length ? <p className="muted">Nobody yet. Be first.</p> : (
-        <ol className="board">
+        <ol className="leaderboard">
           {rows.map((r, i) => (
             <li key={r.steamId} className={me?.steamId === r.steamId ? 'mine' : ''}>
               <span className="num board-n">{i + 1}</span>
