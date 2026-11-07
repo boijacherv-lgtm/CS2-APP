@@ -7,9 +7,9 @@ import path from 'node:path';
 const DIST = path.resolve(import.meta.dirname, '../dist');
 const SITE = 'https://tsakhstvo.xyz';
 // the pages (src/shell/router.ts); /m is a shared moment (its code in the query)
-const PAGES = ['cs2/review', 'cs2/tactical', 'cs2/report', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'deadlock/report',
+const PAGES = ['cs2', 'cs2/review', 'cs2/tactical', 'cs2/report', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'deadlock/report',
   'puzzles', 'profile', 'pricing', 'settings', 'privacy', 'changelog', 'dev', 'm'];
-const PUBLIC = ['', 'cs2/review', 'cs2/tactical', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'puzzles', 'pricing', 'privacy', 'changelog'];
+const PUBLIC = ['', 'cs2', 'cs2/review', 'cs2/tactical', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'puzzles', 'pricing', 'privacy', 'changelog'];
 
 const html = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
 for (const p of PAGES) {

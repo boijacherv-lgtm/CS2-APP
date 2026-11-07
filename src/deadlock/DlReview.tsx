@@ -157,6 +157,12 @@ function DlStart() {
         <button className="link-btn" onClick={() => void open(SAMPLE_MATCH)} disabled={busy !== null}>open the Deadlock sample</button> (a Phantom+ match).
       </p>
       {err && <p className="warn-text">{err}</p>}
+      {/* the same 3 steps as CS2's review page */}
+      <div className="review-how dl-review-how">
+        <div><b>1. Pick a match</b><span>Its match ID, a replay file you saved, or one of your matches below (log in with Steam).</span></div>
+        <div><b>2. Open it</b><span>The match comes from deadlock-api; a replay file is read in your browser. Nothing is uploaded.</span></div>
+        <div><b>3. Watch it back</b><span>Every hero on the map with a live win-chance bar. Every kill and death is graded from Brilliant to Blunder.</span></div>
+      </div>
 
       <DlSteamFolder account={account} open={id => void open(id)} busy={busy} />
 

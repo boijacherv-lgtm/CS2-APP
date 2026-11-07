@@ -22,7 +22,7 @@ export interface Game {
 
 export const GAMES: Game[] = [
   { id: 'cs2', short: 'CS2', name: 'Counter-Strike 2', status: 'live', mark: 'crosshair', color: '#F2B13C', source: 'a .dem demo', note: 'Every round graded, the better play, and a coach built on level-10 games.',
-    review: '/cs2/review', plan: '/cs2/tactical', points: ['Graded replay', 'Engine', 'Coach', 'Tactical board'] },
+    page: '/cs2', review: '/cs2/review', plan: '/cs2/tactical', points: ['Graded replay', 'Engine', 'Coach', 'Tactical board'] },
   { id: 'deadlock', short: 'DL', name: 'Deadlock', status: 'beta', mark: 'lock', color: '#E8E0D2', source: 'a match ID', note: 'Paste a match ID. Get your fights graded and what top players do instead.',
     page: '/deadlock', review: '/deadlock/review', plan: '/deadlock/tactical', points: ['Replay', 'Coach', 'Where you played', 'Meta and draft'] },
   { id: 'dota2', short: 'D2', name: 'Dota 2', status: 'planned', mark: 'tower', color: '#BF2E1A', source: 'a replay or match ID', note: 'Coming soon: lanes, rotations, fights.' },

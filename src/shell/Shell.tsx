@@ -24,6 +24,7 @@ import { profileMatchOf } from '../engine/habits';
 import { saveMoments } from '../moments/moments';
 import { MomentsPage, SharedMoment } from '../moments/MomentsPage';
 import { Changelog, Privacy } from '../site/InfoPages';
+import { Cs2Home } from '../site/Cs2Home';
 import { cs2Moments } from '../moments/build';
 import type { DemoData } from '../engine/recap';
 import { recordMatch, refreshProfile, useProfile } from '../ui/profileApi';
@@ -43,7 +44,7 @@ export function Shell() {
   const setMode = useStore(s => s.setMode);
 
   // the URL decides the CS2 mode (so Back/Forward and bookmarks work); the report page has no board
-  useEffect(() => { if (route.page === 'cs2' && route.mode !== 'report') setMode(route.mode); }, [route, setMode]);
+  useEffect(() => { if (route.page === 'cs2' && route.mode !== 'report' && route.mode !== 'home') setMode(route.mode); }, [route, setMode]);
   useMatchGrader();
   // a graded match you played in goes on your profile (also when you say "This is me" afterwards)
   const who = useStore(whoAmI), report = useStore(s => s.report);
@@ -61,7 +62,7 @@ export function Shell() {
       <NavBar route={route} />
       <main className="shell-main">
         {loginFailed && <div className="login-failed" role="alert"><span>Steam login didn't finish. Try again.</span><SteamLoginButton compact /><button className="ghost" aria-label="Dismiss" onClick={() => setLoginFailed(false)}><Icon name="close" size={14} /></button></div>}
-        {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : <Cs2App />)
+        {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : route.mode === 'home' ? <Cs2Home /> : <Cs2App />)
           : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
       </main>
       <Tours />
