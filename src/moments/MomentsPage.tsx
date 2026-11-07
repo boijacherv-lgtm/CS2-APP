@@ -9,6 +9,7 @@ import { cleanMoment, focusOf, fromShareCode, isMistake, loadMoments, mistakeGro
 import { dailyFor, dailyOf, dayNumber, puzzleRating, readScore, record, recordDaily, recordRush, weakSpots, type Score } from './score';
 import { loadBoard, sendAnswer, syncRecord, type BoardRow } from './puzzleApi';
 import { useProfile } from '../ui/profileApi';
+import { EmptyArt } from '../ui/Art';
 
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 const GAME_NAME: Record<MomentGame, string> = { cs2: 'CS2', deadlock: 'Deadlock' };
@@ -267,7 +268,7 @@ export function MomentsPage() {
       <div className="page moments">{header}
         <section className="site-card">
           <div className="card-head"><h2><Icon name="warning" size={16} /> Your weak spots</h2><span className="muted small">kinds of situation you've tried 3 or more times</span></div>
-          {!spots.length ? <p className="muted">Solve a few more puzzles: once you've tried a kind of situation 3 times, it shows here.</p> : (
+          {!spots.length ? <div className="empty-art-row"><EmptyArt size={72} /><p className="muted">Solve a few more puzzles: once you've tried a kind of situation 3 times, it shows here.</p></div> : (
             <ul className="weak-list">
               {spots.map(w => (
                 <li key={w.tag}><b>{w.tag}</b><span className={w.rate < 0.5 ? 'down' : 'up'}>You get {Math.round((1 - w.rate) * 100)}% wrong</span><span className="muted small">{w.tried} tried</span>

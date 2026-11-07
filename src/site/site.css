@@ -645,7 +645,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .clip-bar .chip { white-space: nowrap; flex: none; }
 .clip-bar { flex-wrap: wrap; min-width: 0; }
 .clip-bar input[type=range] { min-width: 40px; }
-.shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
 .shot { margin: 0; display: grid; gap: 8px; }
 .shot img { width: 100%; height: auto; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--theme) 25%, var(--border)); box-shadow: 0 14px 40px -18px #000; }
 .shot figcaption { font-size: 13.5px; color: var(--text-2); }
@@ -713,3 +713,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .sample-pop button { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; text-align: left; padding: 9px 10px; min-height: 44px; background: transparent; border: 0; border-radius: 8px; font-weight: 700; }
 .sample-pop button:hover { background: var(--surface-2); }
 .sample-pop button .muted { grid-column: 2; font-weight: 400; }
+.art { display: block; }
+.not-found .art { margin: 0 auto 10px; }
+.empty-card .art, .empty-state .art { margin: 0 auto 8px; }
+.empty-art-row { display: flex; align-items: center; gap: 14px; }

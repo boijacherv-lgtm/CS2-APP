@@ -25,6 +25,7 @@ import { saveMoments } from '../moments/moments';
 import { MomentsPage, SharedMoment } from '../moments/MomentsPage';
 import { Changelog, Privacy } from '../site/InfoPages';
 import { Cs2Home } from '../site/Cs2Home';
+import { MissArt } from '../ui/Art';
 import { cs2Moments } from '../moments/build';
 import type { DemoData } from '../engine/recap';
 import { recordMatch, refreshProfile, useProfile } from '../ui/profileApi';
@@ -107,6 +108,7 @@ export function pageTitle(r: Route): string {
 function NotFound() {
   return (
     <div className="page not-found">
+      <MissArt />
       <h1>Whiffed.</h1>
       <p className="muted">This page doesn't exist.</p>
       <p><a className="cta primary" href="/">Back to home</a></p>
