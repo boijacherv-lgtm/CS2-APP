@@ -13,7 +13,7 @@ export interface Tour { id: string; when: (r: Route) => boolean; steps: TourStep
 
 export const TOURS: Tour[] = [
   {
-    id: 'cs2', when: r => r.page === 'cs2' && r.mode !== 'report',
+    id: 'cs2', when: r => r.page === 'cs2' && (r.mode === 'tactical' || r.mode === 'review'),
     steps: [
       { target: '.game-bar', title: 'Games', text: 'Pick the game here. CS2 is live; the others are on the way.' },
       { target: '.modes', title: 'Two modes', text: 'Tactical: draw a plan on the map and play it out. Review: load a demo and the coach grades every move. Once a demo is in, Match recap shows up here too.' },

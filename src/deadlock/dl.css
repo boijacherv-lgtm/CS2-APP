@@ -652,3 +652,6 @@
 @media (prefers-reduced-motion: reduce) {
   .dl-report *, .dl-tac *, .dl-map *, .dl-card, .dl-meta * { animation: none !important; transition: none !important; }
 }
+.dl-review-how { margin: 4px 0 18px; }
+.dl-subject-grade { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.dl-subject-grade b { font: 700 13px/1 var(--font-display); letter-spacing: .03em; }

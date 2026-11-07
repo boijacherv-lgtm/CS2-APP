@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
 /** Pages, addressed by real paths (/cs2/review); each has its own copy of index.html (tools/spa-pages.mjs). */
-export type Cs2Mode = 'tactical' | 'review' | 'report';
+/** home: the game's page (/cs2), like Deadlock's. */
+export type Cs2Mode = 'home' | 'tactical' | 'review' | 'report';
 /** Deadlock: its landing page (home) and the same three modes as CS2. */
 export type DlMode = 'home' | 'tactical' | 'review' | 'report';
 export type SitePage = 'home' | 'profile' | 'pricing' | 'settings' | 'dev' | 'puzzles' | 'missing' | 'privacy' | 'changelog';
@@ -13,7 +14,7 @@ const PAGES: SitePage[] = ['profile', 'pricing', 'settings', 'dev', 'puzzles', '
 export function parseRoute(path: string): Route {
   const [where, query = ''] = path.replace(/^#/, '').split('?'); // ?… carries messages (e.g. Steam sign-in) and a shared moment
   const parts = where.split('/').filter(Boolean);
-  if (parts[0] === 'cs2') return { page: 'cs2', mode: parts[1] === 'review' || parts[1] === 'report' ? parts[1] : 'tactical' };
+  if (parts[0] === 'cs2') return { page: 'cs2', mode: parts[1] === 'review' || parts[1] === 'report' || parts[1] === 'tactical' ? parts[1] : 'home' };
   if (parts[0] === 'deadlock') return { page: 'deadlock', mode: parts[1] === 'review' || parts[1] === 'report' || parts[1] === 'tactical' ? parts[1] : 'home' };
   if (parts[0] === 'm') { const code = parts[1] ?? new URLSearchParams(query).get('c'); if (code) return { page: 'moment', code }; }
   if (PAGES.includes(parts[0] as SitePage)) return { page: parts[0] as SitePage };
@@ -22,7 +23,7 @@ export function parseRoute(path: string): Route {
 }
 
 /** A page's address. A shared moment's code goes in the query (/m?c=…): /m is a real page, so the link loads as one. */
-export const routeHref = (r: Route) => (r.page === 'cs2' ? `/cs2/${r.mode}` : r.page === 'deadlock' ? (r.mode === 'home' ? '/deadlock' : `/deadlock/${r.mode}`)
+export const routeHref = (r: Route) => (r.page === 'cs2' ? (r.mode === 'home' ? '/cs2' : `/cs2/${r.mode}`) : r.page === 'deadlock' ? (r.mode === 'home' ? '/deadlock' : `/deadlock/${r.mode}`)
   : r.page === 'moment' ? `/m?c=${r.code}` : r.page === 'home' ? '/' : `/${r.page}`);
 
 const NAV = 'rv:navigate';

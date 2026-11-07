@@ -23,7 +23,7 @@ export function Deadlock() {
         <div className="dl-hero-text">
           <span className="eyebrow"><GameMark game={GAME} size={14} /> {GAME.name} <span className={`games-status ${GAME.status}`}>{STATUS_LABEL[GAME.status]}</span></span>
           <h1>The same coach, for Deadlock.</h1>
-          <p className="lead">Replay any match on the real map with the coach grading every death, kill and lane, then plan your next one in Tactical. Beta on {APP_NAME}.</p>
+          <p className="lead">Replay any match on the real map with the coach grading every death, kill and lane, then plan your next one in Meta &amp; builds. Beta on {APP_NAME}.</p>
           <div className="hero-cta">
             <a className="cta primary" href="/deadlock/review">Review a match <Icon name="arrowRight" size={14} /></a>
             <button className="cta" onClick={toggle} disabled={busy} aria-pressed={on}>
@@ -63,7 +63,7 @@ export function Deadlock() {
 
       <section className="site-section">
         <h2 className="section-title">Where it's at</h2>
-        <p className="muted dl-why">Match data comes from deadlock-api.com (positions every second, deaths, items, souls, objectives), so any match works without a file; when Valve kept the replay, its demo adds the fine detail.. A replay file you saved opens with the Replay file button.</p>
+        <p className="muted dl-why">Match data comes from deadlock-api.com (positions every second, deaths, items, souls, objectives), so any match works without a file; when Valve kept the replay, its demo adds the fine detail. A replay file you saved opens with the Replay file button.</p>
         <ol className="dl-road">
           {ROAD.map(r => (
             <li key={r.title} className={r.state === 'next' ? 'next' : ''}>

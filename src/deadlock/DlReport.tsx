@@ -105,7 +105,7 @@ export function DlReport() {
               <b>{nameOf(who.slot)}{who.slot === coach.mine ? ' (you)' : ''}</b>
               <span className="muted small">{heroOf(who.hero).name}{card?.pos ? <span className={`dl-pos p${card.pos}`}>Pos {card.pos}</span> : null}</span>
             </div>
-            {card && card.overall !== null && <ScoreRing score={card.overall} note={card.note} size={56} />}
+            {card && card.overall !== null && <span className="dl-subject-grade"><ScoreRing score={card.overall} note={card.note} size={56} /><b title="The match grade: 50 is average for the hero and position">{letterOf(card.overall)} · {card.overall}</b></span>}
             <div className="dl-subject-stats">
               <span><b className="num">{who.kills}/{who.deaths}/{who.assists}</b><i>K/D/A</i></span>
               <span><b className="num"><CountUp text={`${(who.netWorth / 1000).toFixed(1)}k`} id={`${match.id}:${who.slot}:nw`} /></b><i>souls</i></span>
@@ -324,6 +324,9 @@ const ORD = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'r
  * The report card: the overall grade with a verdict and rank in the match, the five parts as tiles, what to focus on
  * next game, then each part's numbers and moments. Every score is against players of the same hero in the same position.
  */
+/** A 0–100 grade as a letter, as CS2's (S+ … F), so both games show "B · 63". */
+export const letterOf = (score: number) => (score >= 85 ? 'S+' : score >= 75 ? 'S' : score >= 62 ? 'A' : score >= 50 ? 'B' : score >= 40 ? 'C' : score >= 30 ? 'D' : 'F');
+
 /** The card in one line: "A strong game: …", for the grades and the recap's head. */
 function cardVerdict(card: ReportCard): string {
   const scored = card.parts.filter(p => p.score !== null);
