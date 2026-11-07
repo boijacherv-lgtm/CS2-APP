@@ -37,7 +37,6 @@ const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 /** A body stays where the hero died, fading out (like CS2's), gone this long after. */
 const BODY_GONE = 3;
 /** The game's phases, to jump between on a long match. */
-const PHASES = [{ label: 'Laning', t: 0 }, { label: 'Mid game', t: 600 }, { label: 'Late game', t: 1500 }];
 const SPEEDS = [1, 2, 4, 8, 16, 32];
 
 function useImages(urls: (string | null)[]) {
@@ -303,45 +302,93 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
   );
 }
 
+/**
+ * The playback dock, the same as CS2's: play, speed, the match as a timeline (the win chance as a curve, Amber Hand
+ * above and Sapphire Flame below; every kill a tick in the killer's team colour; the graded moments as their face;
+ * objectives that fell), the options, and the moment bar (‹ n/N what happened ↺ ›).
+ */
 function DlPlaybar({ match, time, playing, speed, graded, full, onFull }: { match: DlMatch; time: number; playing: boolean; speed: number; graded: DlMove[]; full: boolean; onFull: () => void }) {
-  const s = useDl.getState(), danger = useDl(x => x.danger);
-  // on the track: the objectives that fell and the graded moments (kills are in the feed)
-  const marks = useMemo(() => [
-    ...match.objectives.filter(o => o.destroyed).map(o => ({ t: o.destroyed!, color: TEAM_COLOR[o.team === 0 ? 1 : 0], kind: 'objective' as const, tip: `${o.name} destroyed` })),
-    ...graded.map(m => ({ t: m.t, color: NOTE_INFO[m.note].color, kind: 'graded' as const, tip: m.title })),
-  ], [match, graded]);
-  const pct = (t: number) => `${(t / match.duration) * 100}%`;
+  const s = useDl.getState(), danger = useDl(x => x.danger), demo = useDl(x => x.demo);
+  const dur = Math.max(1, match.duration);
+  const pct = (t: number) => `${Math.max(0, Math.min(100, (t / dur) * 100))}%`;
+  const track = useRef<HTMLDivElement>(null);
+  const seekAt = (clientX: number) => { const r = track.current!.getBoundingClientRect(); s.setPlaying(false); s.setTime(Math.max(0, Math.min(dur, ((clientX - r.left) / r.width) * dur))); };
+  // the win chance every 20 s, as an area from the middle line (Amber Hand up)
+  const curve = useMemo(() => {
+    const pts: [number, number][] = [];
+    for (let t = 0; t <= dur; t += 20) pts.push([t, winChance(match, demo, t, 0)]);
+    return `M 0 ${TL_H / 2} ${pts.map(([t, p]) => `L ${(t / dur) * TL_W} ${TL_H / 2 - (p - 0.5) * TL_H * 0.92}`).join(' ')} L ${TL_W} ${TL_H / 2} Z`;
+  }, [match, demo, dur]);
+  const teamOf = new Map(match.players.map(p => [p.slot, p.team]));
+  // moments: several moves at the same second are one stop
+  const times = useMemo(() => [...new Set(graded.map(m => m.t))].sort((a, b) => a - b), [graded]);
+  const idx = times.reduce((a, t, i) => (t <= time + LEAD + 0.5 ? i : a), -1);
+  const here = idx >= 0 ? graded.filter(m => m.t === times[idx]) : [];
+  const main = here.find(m => m.note !== 'book') ?? here[0];
+  const watch = () => { if (main) { s.setTime(Math.max(0, main.t - LEAD)); s.setPlaying(true); } };
   return (
-    <div className="dl-playbar">
-      <button className="play-main" onClick={() => { if (!playing && time >= match.duration) s.setTime(0); s.setPlaying(!playing); }} title="Play / pause (Space)">
-        <Icon name={playing ? 'pause' : 'play'} /> {playing ? 'Pause' : 'Play'}
+    <div className="playbar dl-bar">
+      <button className={`play-main ${playing ? 'on' : ''}`} onClick={() => { if (!playing && time >= dur) s.setTime(0); s.setPlaying(!playing); }} title="Play / pause (Space)">
+        <Icon name={playing ? 'pause' : 'play'} /><span> {playing ? 'Pause' : 'Play'}</span>
       </button>
-      <select value={speed} onChange={e => s.setSpeed(Number(e.target.value))} aria-label="Speed">
+      <select value={speed} onChange={e => s.setSpeed(Number(e.target.value))} title="Playback speed" aria-label="Speed">
         {SPEEDS.map(x => <option key={x} value={x}>{x}×</option>)}
       </select>
-      <div className="dl-step" role="group" aria-label="Graded moments">
-        <button onClick={() => stepMoment(graded, -1)} disabled={!graded.length} title="Previous graded moment (←)" aria-label="Previous graded moment"><Icon name="prev" size={14} /></button>
-        {/* moments, not moves: several at the same second are one stop of ← → */}
-        <span className="num muted small">{(() => { const ts = [...new Set(graded.map(m => m.t))]; return `${ts.filter(t => t <= time + LEAD + 0.5).length}/${ts.length}`; })()}</span>
-        <button onClick={() => stepMoment(graded, 1)} disabled={!graded.length} title="Next graded moment (→)" aria-label="Next graded moment"><Icon name="prev" size={14} className="flip-x" /></button>
+      <div className="timeline" ref={track} role="slider" aria-label="Match timeline" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(time)}
+        onPointerDown={e => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); seekAt(e.clientX); }}
+        onPointerMove={e => { if (e.buttons & 1) seekAt(e.clientX); }}>
+        <svg className="tl-curve" viewBox={`0 0 ${TL_W} ${TL_H}`} preserveAspectRatio="none" aria-hidden>
+          <defs>
+            <linearGradient id="dl-tl-eval" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={TL_H}>
+              <stop offset="0" stopColor={TEAM_COLOR[0]} stopOpacity=".5" /><stop offset=".5" stopColor={TEAM_COLOR[0]} stopOpacity=".18" />
+              <stop offset=".5" stopColor={TEAM_COLOR[1]} stopOpacity=".18" /><stop offset="1" stopColor={TEAM_COLOR[1]} stopOpacity=".5" />
+            </linearGradient>
+          </defs>
+          <line x1="0" x2={TL_W} y1={TL_H / 2} y2={TL_H / 2} stroke="var(--border)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <path d={curve} fill="url(#dl-tl-eval)" />
+        </svg>
+        {match.deaths.filter(d => d.killer !== null && d.killer !== d.slot).map((d, i) => {
+          const team = teamOf.get(d.killer!) ?? 0;
+          return <i key={`k${i}`} className={`tl-kill ${team === 0 ? 'ct' : 't'}`} style={{ left: pct(d.t), background: TEAM_COLOR[team] }} />;
+        })}
+        {match.objectives.filter(o => o.destroyed).map((o, i) => (
+          <span key={`o${i}`} className="tl-bomb" style={{ left: pct(o.destroyed!), color: TEAM_COLOR[o.team === 0 ? 1 : 0] }} title={`${o.name} destroyed at ${mins(o.destroyed!)}`}><Icon name="target" size={11} /></span>
+        ))}
+        {/* a whole match has far more moments than a CS2 round: faces for the big ones (Brilliant, Mistake, Blunder), dots
+            in the grade's colour for the rest */}
+        {graded.filter(m => m.note !== 'book').map((m, i) => {
+          const big = m.note === '!!' || m.note === '?' || m.note === '??';
+          return (
+            <button key={`m${i}`} className={big ? 'tl-mark' : 'tl-dot'} style={{ left: pct(m.t), background: big ? 'none' : NOTE_INFO[m.note].color }} title={`${NOTE_INFO[m.note].label} · ${m.title}`}
+              onPointerDown={e => { e.stopPropagation(); s.setPlaying(false); s.setTime(Math.max(0, m.t - LEAD)); }}>{big && <MarkFace note={m.note} size={15} title={`${NOTE_INFO[m.note].label} · ${m.title}`} />}</button>
+          );
+        })}
+        <i className="tl-head" style={{ left: pct(time) }} />
       </div>
-      <div className="dl-timeline">
-        <div className="dl-marks" aria-hidden>
-          {marks.map((m, i) => <i key={i} className={m.kind} title={m.tip} style={{ left: pct(m.t), background: m.color }} />)}
-        </div>
-        <input type="range" min={0} max={match.duration} step={1} value={Math.floor(time)} onChange={e => s.setTime(Number(e.target.value))} aria-label="Match time" />
-        {/* the game's stages, under the track where they start: click to jump */}
-        <div className="dl-jump">
-          {PHASES.filter(p => p.t < match.duration).map(p => <button key={p.label} style={{ left: pct(p.t) }} onClick={() => s.setTime(p.t)}>{p.label}</button>)}
-        </div>
-      </div>
-      <span className="num dl-time">{mins(time)} / {mins(match.duration)}</span>
+      <span className="num dl-time">{mins(time)} / {mins(dur)}</span>
       <button className={`ghost icon-btn dl-danger-btn ${danger ? 'on' : ''}`} onClick={() => useDl.getState().toggleDanger()} aria-pressed={danger}
         title={`Danger map: where high-rank players die at this stage of the match (${DEATH_SOURCE.matches.toLocaleString()} Phantom+ matches since the patch)`}><Icon name="skull" /></button>
       <button className="ghost icon-btn" onClick={onFull} title={full ? 'Leave full screen (Esc)' : 'Full screen'} aria-label="Full screen"><Icon name={full ? 'close' : 'grid'} /></button>
+      {/* the moment bar, as in CS2: previous, which moment and what happened, watch the lead-up, next */}
+      <div className="moment-nav">
+        <button onClick={() => stepMoment(graded, -1)} disabled={!times.length} title="Previous moment (←)" aria-label="Previous moment"><Icon name="prev" /></button>
+        <div className="moment-label">
+          {idx < 0 || !main
+            ? <span className="muted">{mins(time)} · {times.length} moments</span>
+            : <>
+                <span className="muted">{idx + 1}/{times.length}</span>
+                <MarkFace note={main.note} size={16} />
+                <span>{main.title}{here.length > 1 ? ` +${here.length - 1}` : ''}</span>
+                <button className="mini" onClick={watch} title="Watch the lead-up" aria-label="Watch the lead-up"><Icon name="rewind" size={12} /></button>
+              </>}
+        </div>
+        <button onClick={() => stepMoment(graded, 1)} disabled={!times.length} title="Next moment (→)" aria-label="Next moment"><Icon name="next" /></button>
+      </div>
     </div>
   );
 }
+/** The timeline's drawing box (as CS2's). */
+const TL_W = 1000, TL_H = 40;
 
 /**
  * Under the picked player: the engine's verdict on what they did over the next 20 s (the 2-step search, search.ts): the
