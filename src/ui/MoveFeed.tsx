@@ -237,7 +237,7 @@ function WinMeter({ m, swing }: { m: Move; swing: { side: 'CT' | 'T'; before: nu
   if (!swing) return d === 0 ? null : <div className="feed-meter only">{pill}<span className="muted">win chance</span></div>;
   return (
     <div className="feed-win" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
-      <span className="bar"><i style={{ width: `${swing.after}%`, background: swing.after >= swing.before ? 'var(--good)' : 'var(--bad)' }} /></span>
+      <span className="bar"><i style={{ '--from': `${swing.before}%`, width: `${swing.after}%`, background: swing.after >= swing.before ? 'var(--good)' : 'var(--bad)' } as React.CSSProperties} /></span>
       <span className="num">{swing.before}% → {swing.after}% <b className={d > 0 ? 'up' : d < 0 ? 'down' : 'muted'}>({d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(swing.after - swing.before)} pts)</b></span>
     </div>
   );

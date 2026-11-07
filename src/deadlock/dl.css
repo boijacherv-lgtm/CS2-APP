@@ -648,3 +648,7 @@
 /* the meta page's columns never grow past the screen (a grid item's min width is its content: the filters row) */
 .dl-tac > * { min-width: 0; }
 .dl-meta-head { flex-wrap: wrap; }
+/* motion: Deadlock's pages follow the system's reduced-motion setting too */
+@media (prefers-reduced-motion: reduce) {
+  .dl-report *, .dl-tac *, .dl-map *, .dl-card, .dl-meta * { animation: none !important; transition: none !important; }
+}

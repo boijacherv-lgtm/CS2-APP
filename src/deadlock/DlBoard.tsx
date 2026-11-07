@@ -525,7 +525,7 @@ function MoveCardDl({ m }: { m: DlMove }) {
       <p className="dl-card-title">{m.title}</p>
       {m.win && (
         <div className="dl-card-win" title="Your team's win chance just before and 30 s after">
-          <span className="bar"><i style={{ width: `${Math.round(m.win.after * 100)}%`, background: m.win.swing >= 0 ? 'var(--good)' : 'var(--bad)' }} /></span>
+          <span className="bar"><i style={{ '--from': `${Math.round(m.win.before * 100)}%`, width: `${Math.round(m.win.after * 100)}%`, background: m.win.swing >= 0 ? 'var(--good)' : 'var(--bad)' } as React.CSSProperties} /></span>
           <span className="num">{Math.round(m.win.before * 100)}% → {Math.round(m.win.after * 100)}% <b className={m.win.swing >= 0 ? 'up' : 'down'}>({m.win.swing >= 0 ? '+' : '−'}{Math.abs(m.win.swing * 100).toFixed(1)} pts)</b></span>
         </div>
       )}

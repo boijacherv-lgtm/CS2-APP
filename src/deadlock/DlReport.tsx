@@ -1,3 +1,4 @@
+import { CountUp } from '../ui/CountUp';
 import { useEffect, useMemo, useState } from 'react';
 import { saveMoments } from '../moments/moments';
 import { matchPosition } from './bench';
@@ -107,8 +108,8 @@ export function DlReport() {
             {card && card.overall !== null && <ScoreRing score={card.overall} note={card.note} size={56} />}
             <div className="dl-subject-stats">
               <span><b className="num">{who.kills}/{who.deaths}/{who.assists}</b><i>K/D/A</i></span>
-              <span><b className="num">{(who.netWorth / 1000).toFixed(1)}k</b><i>souls</i></span>
-              <span><b className="num">{who.lastHits}</b><i>last hits</i></span>
+              <span><b className="num"><CountUp text={`${(who.netWorth / 1000).toFixed(1)}k`} id={`${match.id}:${who.slot}:nw`} /></b><i>souls</i></span>
+              <span><b className="num"><CountUp text={String(who.lastHits)} id={`${match.id}:${who.slot}:lh`} /></b><i>last hits</i></span>
               <span className={`dl-subject-result ${match.winner === who.team ? 'won' : 'lost'}`}>{match.winner === who.team ? 'Won' : 'Lost'}</span>
             </div>
             <label className="dl-subject-pick">
