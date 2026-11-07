@@ -259,16 +259,17 @@ function ReviewOptions() {
 }
 
 /** What the grade marks mean (on the map, the timeline, the killfeed and the cards). */
-function NoteKeyRows() {
+/** `tips` / `foot`: another game's wording (Deadlock's board). */
+export function NoteKeyRows({ tips, foot }: { tips?: Partial<Record<Annotation, string>>; foot?: string } = {}) {
   return (
     <div className="note-key-rows">
         {(Object.keys(NOTE_INFO) as Annotation[]).map(a => (
           <div key={a} className="note-key-row">
             <NoteMark m={{ note: a, kind: 'kill' }} />
-            <span><b>{NOTE_INFO[a].label}</b> <span className="muted">{NOTE_INFO[a].tip}</span></span>
+            <span><b>{NOTE_INFO[a].label}</b> <span className="muted">{tips?.[a] ?? NOTE_INFO[a].tip}</span></span>
           </div>
         ))}
-        <p className="muted">The % on a card is how much the move changed its team's chance to win the round.</p>
+        <p className="muted">{foot ?? 'The % on a card is how much the move changed its team\'s chance to win the round.'}</p>
     </div>
   );
 }

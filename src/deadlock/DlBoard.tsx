@@ -24,6 +24,7 @@ import { NOTE_INFO } from '../engine/recap';
 import PLAY from './generated/playnet.json';
 import { ACTION_LABEL, playChances, WINDOW, type Action } from './playNet';
 import { searchAt, SEARCH_COLOR } from './search';
+import { NoteKeyRows } from '../ui/Playback';
 import { engineReview } from './engineReview';
 import { useCanvasLabel } from '../ui/canvasLabel';
 import { ultOf } from './ultKinds';
@@ -180,7 +181,8 @@ export function DlBoard() {
       </div>
 
       <DlPlaybar match={match} time={time} playing={playing} speed={speed} graded={graded}
-        full={full} onFull={() => (document.fullscreenElement ? document.exitFullscreen() : board.current?.requestFullscreen())} />
+        full={full} onFull={() => (document.fullscreenElement ? document.exitFullscreen() : board.current?.requestFullscreen())}
+        canMine={coach.canMine} mineLabel={coach.mine !== null ? 'Mine' : 'This player'} />
     </div>
   );
 }
@@ -307,8 +309,8 @@ function DlMap({ match, time, selected }: { match: DlMatch; time: number; select
  * above and Sapphire Flame below; every kill a tick in the killer's team colour; the graded moments as their face;
  * objectives that fell), the options, and the moment bar (‹ n/N what happened ↺ ›).
  */
-function DlPlaybar({ match, time, playing, speed, graded, full, onFull }: { match: DlMatch; time: number; playing: boolean; speed: number; graded: DlMove[]; full: boolean; onFull: () => void }) {
-  const s = useDl.getState(), danger = useDl(x => x.danger), demo = useDl(x => x.demo);
+function DlPlaybar({ match, time, playing, speed, graded, full, onFull, canMine, mineLabel }: { match: DlMatch; time: number; playing: boolean; speed: number; graded: DlMove[]; full: boolean; onFull: () => void; canMine: boolean; mineLabel: string }) {
+  const s = useDl.getState(), danger = useDl(x => x.danger), demo = useDl(x => x.demo), scope = useDl(x => x.scope);
   const dur = Math.max(1, match.duration);
   const pct = (t: number) => `${Math.max(0, Math.min(100, (t / dur) * 100))}%`;
   const track = useRef<HTMLDivElement>(null);
@@ -366,9 +368,28 @@ function DlPlaybar({ match, time, playing, speed, graded, full, onFull }: { matc
         <i className="tl-head" style={{ left: pct(time) }} />
       </div>
       <span className="num dl-time">{mins(time)} / {mins(dur)}</span>
-      <button className={`ghost icon-btn dl-danger-btn ${danger ? 'on' : ''}`} onClick={() => useDl.getState().toggleDanger()} aria-pressed={danger}
-        title={`Danger map: where high-rank players die at this stage of the match (${DEATH_SOURCE.matches.toLocaleString()} Phantom+ matches since the patch)`}><Icon name="skull" /></button>
-      <button className="ghost icon-btn" onClick={onFull} title={full ? 'Leave full screen (Esc)' : 'Full screen'} aria-label="Full screen"><Icon name={full ? 'close' : 'grid'} /></button>
+      {/* the same Options menu as CS2's: whose moves, the danger map, full screen, what the marks mean */}
+      <details className="pb-options">
+        <summary title="Review settings"><Icon name="gear" /><span className="pb-label">Options</span></summary>
+        <div className="pb-options-pop">
+          <div className="opt-head">Graded moves</div>
+          {canMine && (
+            <div className="seg-mini opt-seg" role="group" aria-label="Whose moves">
+              <button className={scope === 'all' ? 'on' : ''} onClick={() => useDl.getState().setScope('all')}>Everyone</button>
+              <button className={scope === 'mine' ? 'on' : ''} onClick={() => useDl.getState().setScope('mine')}>{mineLabel}</button>
+            </div>
+          )}
+          <button className={`opt-row ${danger ? 'on' : ''}`} onClick={() => useDl.getState().toggleDanger()} aria-pressed={danger}
+            title={`Where high-rank players die at this stage of the match (${DEATH_SOURCE.matches.toLocaleString()} Phantom+ matches since the patch)`}>
+            <Icon name="skull" /><span>Danger map</span><i className="opt-switch" />
+          </button>
+          <button className={`opt-row ${full ? 'on' : ''}`} onClick={onFull} aria-pressed={full} title="Full screen (Esc leaves)">
+            <Icon name="grid" /><span>Full screen</span><i className="opt-switch" />
+          </button>
+          <div className="opt-head">What the marks mean</div>
+          <NoteKeyRows tips={DL_TIPS} foot="The bar on a card is the team's chance to win the match, just before and 30 s after." />
+        </div>
+      </details>
       {/* the moment bar, as in CS2: previous, which moment and what happened, watch the lead-up, next */}
       <div className="moment-nav">
         <button onClick={() => stepMoment(graded, -1)} disabled={!times.length} title="Previous moment (←)" aria-label="Previous moment"><Icon name="prev" /></button>
@@ -387,6 +408,15 @@ function DlPlaybar({ match, time, playing, speed, graded, full, onFull }: { matc
     </div>
   );
 }
+/** What each mark means in Deadlock (coach.ts). */
+const DL_TIPS = {
+  '!!': '4 kills in 10 s, or a solo kill against 3 or more',
+  '!': '3 kills in 10 s, a solo kill against 2, or killing someone 3,000+ souls richer',
+  book: 'The expected play: an ordinary kill or a traded death',
+  '?!': 'Not the best: a death alone, outnumbered or past their Guardian',
+  '?': 'Cost the team: two of those, or a death that lost an objective',
+  '??': 'A big swing lost: a costly death that dropped the win chance 15+ points',
+} as const;
 /** The timeline's drawing box (as CS2's). */
 const TL_W = 1000, TL_H = 40;
 
@@ -456,12 +486,6 @@ function DlCard({ moves, time, canMine, mineLabel = 'Mine' }: { moves: DlMove[];
   const m = [...moves].reverse().find(x => time >= x.t - LEAD && time <= x.t + 8);
   return (
     <div className="dl-card-slot">
-      {canMine && (
-        <div className="seg-mini dl-scope" role="group" aria-label="Whose moves">
-          <button className={scope === 'all' ? 'on' : ''} onClick={() => useDl.getState().setScope('all')}>All</button>
-          <button className={scope === 'mine' ? 'on' : ''} onClick={() => useDl.getState().setScope('mine')}>{mineLabel}</button>
-        </div>
-      )}
       {m && <MoveCardDl m={m} />}
     </div>
   );
