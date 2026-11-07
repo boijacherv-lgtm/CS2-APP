@@ -34,9 +34,8 @@ export function Deadlock() {
             ? <p className="muted small">It'll show on your profile when Deadlock is live. No emails.</p>
             : <div className="dl-login"><span className="muted small">Saved in this browser. Log in so it follows you to any device:</span><SteamLoginButton compact /></div>)}
         </div>
-        <div className="dl-hero-mark" aria-hidden>
-          <GameMark game={GAME} size={168} />
-        </div>
+        {/* a real replay (the public sample, players' names hidden) instead of an empty box with the logo */}
+        <img className="dl-hero-shot" src="/images/shots/replay.jpg" alt="A Deadlock replay: both teams on the map and a graded death explained" width={800} height={600} />
       </section>
 
       <section className="site-section">
@@ -64,7 +63,7 @@ export function Deadlock() {
 
       <section className="site-section">
         <h2 className="section-title">Where it's at</h2>
-        <p className="muted dl-why">Match data comes from deadlock-api.com (positions every second, deaths, items, souls, objectives), so any match works without a file; when Valve kept the replay, its demo adds the fine detail. Opening a .dem you saved comes later.</p>
+        <p className="muted dl-why">Match data comes from deadlock-api.com (positions every second, deaths, items, souls, objectives), so any match works without a file; when Valve kept the replay, its demo adds the fine detail.. A replay file you saved opens with the Replay file button.</p>
         <ol className="dl-road">
           {ROAD.map(r => (
             <li key={r.title} className={r.state === 'next' ? 'next' : ''}>
@@ -103,8 +102,8 @@ const ROAD: { title: string; text: string; state: 'done' | 'next' | 'planned' }[
   { title: 'Map and replay', text: 'Any match by its ID on the real map: heroes, kills, objectives, souls.', state: 'done' },
   { title: 'The coach and Match recap', text: 'A report card, why the match was won or lost, economy, items and abilities against the patch.', state: 'done' },
   { title: 'Demos', text: 'Heroes 4 times a second, every lane creep, camps, the Urn, the Rift and ultimates, read from the match\'s replay.', state: 'done' },
-  { title: 'Tactical', text: 'Meta heroes, builds, a draft planner and a macro planner for this patch.', state: 'done' },
-  { title: 'Your .dem files', text: 'Open a demo you saved, like CS2.', state: 'next' },
+  { title: 'Meta & builds', text: 'Meta heroes, builds, a draft planner and a macro planner for this patch.', state: 'done' },
+  { title: 'Your replay files', text: 'Open a replay you saved (Review → Replay file), read in your browser.', state: 'done' },
 ];
 
 const FAQ = [

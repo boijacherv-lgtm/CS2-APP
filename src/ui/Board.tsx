@@ -472,6 +472,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   return (
     <div ref={wrap} className={`board tool-${s.tool}`}>
       <h1 className="sr-only">{recap ? 'CS2 match replay' : `CS2 Tactical board: ${MAPS.find(m => m.id === s.mapId)?.name ?? ''}`}</h1>
+      {/* the panels' sections are h3: an h2 between keeps the outline without a skipped level */}
+      <h2 className="sr-only">{recap ? 'The round' : 'The board and your plan'}</h2>
       <Stage
         ref={stageRef}
         width={size.w}

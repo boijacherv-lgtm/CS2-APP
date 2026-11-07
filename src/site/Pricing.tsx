@@ -34,9 +34,10 @@ export function Pricing() {
         <h1>Plans</h1>
         <p className="lead">The coach is free. Pro is for people who review every match{PRO_EARLY_ACCESS ? ', and right now it\'s free too.' : '.'}</p>
       </header>
-      {PRO_EARLY_ACCESS && (
+      {PRO_EARLY_ACCESS && (<>
         <div className="notice"><Icon name="bolt" size={16} /> <span><b>Early access:</b> every Pro feature is unlocked for everyone while RageView is new. Nothing to pay, no card needed.</span></div>
-      )}
+        <p className="muted small pricing-after"><b>When early access ends:</b> Pro costs $5 a month. Everything in Free stays free, and the matches you've reviewed stay saved (Free shows your last 5). You'll see it on your profile before anything changes.</p>
+      </>)}
       <div className="plans">
         <section className="plan">
           <h2>Free</h2>

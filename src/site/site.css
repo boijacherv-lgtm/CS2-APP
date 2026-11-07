@@ -695,3 +695,14 @@ a.hero-games-live:hover b { text-decoration: underline; }
   .rs-phone + .dropzone { display: none; }
 }
 .dropzone:focus-visible { outline: 2px solid var(--theme); outline-offset: 3px; }
+.profile-title { display: flex; align-items: center; gap: 10px; } .profile-title h1 { margin: 0; }
+.dl-hero-shot { width: min(520px, 100%); height: auto; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--theme) 30%, var(--border)); box-shadow: 0 20px 50px -24px #000; }
+/* phones: a smaller puzzle map (Bigger still opens it full width) so the moves come right after it */
+@media (max-width: 600px) {
+  .puzzle { gap: 10px; }
+  .clip-map:not(.big) { width: min(230px, 100%) !important; margin: 0 auto; }
+  .clip-map:not(.big) .moment-map { width: 100%; height: auto; }
+  .puzzle-body { gap: 8px; }
+  .puzzle-setup { font-size: 14px; }
+  .puzzle-option { padding: 9px 12px; min-height: 44px; }
+}

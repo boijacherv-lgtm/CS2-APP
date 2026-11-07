@@ -56,21 +56,13 @@ export function Home() {
             {PLAYABLE.map(g => (
               <a key={g.id} className="hero-games-live" href={g.review ?? g.page}><GameMark game={g} size={30} /><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></a>
             ))}
-            <span className="hero-games-soon" aria-label="Coming later">
-              <small className="muted">Coming:</small>
-              {SOON_GAMES.map(g => <span key={g.id} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`}><GameMark game={g} size={30} muted /></span>)}
-            </span>
           </div>
+          {/* two actions: review a match (the game chips above pick the game), or try a sample */}
           <div className="hero-cta">
-            {PLAYABLE.map((g, i) => <a key={g.id} className={`cta${i === 0 ? ' primary' : ''}`} href={g.review}>Review a {g.short === 'DL' ? 'Deadlock' : g.short} match <Icon name="arrowRight" size={14} /></a>)}
-            <button className="cta" onClick={toGames}>See all games <Icon name="arrowRight" size={14} /></button>
+            <a className="cta primary" href="/cs2/review">Review a match <Icon name="arrowRight" size={14} /></a>
+            <button className="cta" onClick={tryCs2Sample} disabled={sample === 'opening'}><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening…' : 'Try a sample'}</button>
           </div>
-          <p className="hero-sample">
-            <span className="muted">Try a sample, no file, no login:</span>
-            <button className="cta" onClick={tryCs2Sample} disabled={sample === 'opening'}><Icon name="play" size={12} /> CS2 sample</button>
-            <button className="cta" onClick={trySample} disabled={sample === 'opening'}><Icon name="play" size={12} /> Deadlock sample</button>
-            {sample === 'opening' && <span className="muted">Opening…</span>}{sample === 'failed' && <span className="warn-text">Couldn't open it, try again.</span>}
-          </p>
+          {sample === 'failed' && <p className="warn-text">Couldn't open the sample, try again.</p>}
           <ul className="hero-trust">
             <li><Icon name="shield" size={14} /> Runs in your browser</li>
             <li><Icon name="check" size={14} /> No account needed</li>
@@ -219,7 +211,7 @@ function HeroPreview() {
         <i className="pv-dot ct" style={{ left: '62%', top: '30%' }} /><i className="pv-dot ct" style={{ left: '44%', top: '55%' }} />
         <i className="pv-dot t" style={{ left: '70%', top: '64%' }} /><i className="pv-dot t dead" style={{ left: '55%', top: '72%' }} />
         <div className="pv-card">
-          <div className="pv-card-head"><MarkFace note="?" size={22} /><b>Mistake</b><span className="pv-gain">−11%</span></div>
+          <div className="pv-card-head"><MarkFace note="?" size={22} /><b>Mistake</b><span className="pv-gain">−11 pts</span></div>
           <p>Died alone at Palace: nobody could trade.</p>
         </div>
         <div className="pv-eval"><i style={{ width: '58%', '--from': '58%', '--to': '47%' } as React.CSSProperties} /></div>
@@ -230,7 +222,7 @@ function HeroPreview() {
         <i className="pv-dot t" style={{ left: '40%', top: '60%' }} /><i className="pv-dot t" style={{ left: '46%', top: '64%' }} />
         <i className="pv-dot ct" style={{ left: '50%', top: '47%' }} /><i className="pv-dot ct" style={{ left: '56%', top: '52%' }} /><i className="pv-dot ct" style={{ left: '44%', top: '45%' }} />
         <div className="pv-card">
-          <div className="pv-card-head"><MarkFace note="??" size={22} /><b>Blunder</b><span className="pv-gain">−14%</span></div>
+          <div className="pv-card-head"><MarkFace note="??" size={22} /><b>Blunder</b><span className="pv-gain">−14 pts</span></div>
           <p>Fought 2 against 3 with your ultimate down.</p>
         </div>
         <div className="pv-eval"><i style={{ width: '41%', '--from': '55%', '--to': '41%' } as React.CSSProperties} /></div>

@@ -98,7 +98,7 @@ const MODE_TITLE = { tactical: 'Tactical Board', review: 'Review a match', repor
 const PAGE_TITLE: Record<string, string> = { missing: 'Page not found', privacy: 'Privacy', changelog: 'What\'s new', profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Dev', puzzles: 'Puzzles', moment: 'A shared moment' };
 export function pageTitle(r: Route): string {
   if (r.page === 'cs2') return r.mode === 'review' ? 'CS2 Demo Review · RageView' : `CS2 ${MODE_TITLE[r.mode]} · RageView`;
-  if (r.page === 'deadlock') return r.mode === 'review' ? 'Deadlock Match Review · RageView' : `Deadlock ${MODE_TITLE[r.mode]} · RageView`;
+  if (r.page === 'deadlock') return r.mode === 'review' ? 'Deadlock Match Review · RageView' : r.mode === 'tactical' ? 'Deadlock Meta & Builds · RageView' : `Deadlock ${MODE_TITLE[r.mode]} · RageView`;
   return r.page === 'home' ? 'RageView: Free CS2 & Deadlock Match Review' : `${PAGE_TITLE[r.page] ?? r.page} · RageView`;
 }
 

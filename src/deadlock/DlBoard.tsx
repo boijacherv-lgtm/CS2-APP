@@ -526,7 +526,7 @@ function MoveCardDl({ m }: { m: DlMove }) {
       {m.win && (
         <div className="dl-card-win" title="Your team's win chance just before and 30 s after">
           <span className="bar"><i style={{ width: `${Math.round(m.win.after * 100)}%`, background: m.win.swing >= 0 ? 'var(--good)' : 'var(--bad)' }} /></span>
-          <span className="num">{Math.round(m.win.before * 100)}% → {Math.round(m.win.after * 100)}% <b className={m.win.swing >= 0 ? 'up' : 'down'}>({m.win.swing >= 0 ? '+' : '−'}{Math.abs(m.win.swing * 100).toFixed(1)})</b></span>
+          <span className="num">{Math.round(m.win.before * 100)}% → {Math.round(m.win.after * 100)}% <b className={m.win.swing >= 0 ? 'up' : 'down'}>({m.win.swing >= 0 ? '+' : '−'}{Math.abs(m.win.swing * 100).toFixed(1)} pts)</b></span>
         </div>
       )}
       {m.why.length > 0 && <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}

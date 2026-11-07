@@ -238,7 +238,7 @@ function WinMeter({ m, swing }: { m: Move; swing: { side: 'CT' | 'T'; before: nu
   return (
     <div className="feed-win" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
       <span className="bar"><i style={{ width: `${swing.after}%`, background: swing.after >= swing.before ? 'var(--good)' : 'var(--bad)' }} /></span>
-      <span className="num">{swing.before}% → {swing.after}% <b className={d > 0 ? 'up' : d < 0 ? 'down' : 'muted'}>({d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(swing.after - swing.before)})</b></span>
+      <span className="num">{swing.before}% → {swing.after}% <b className={d > 0 ? 'up' : d < 0 ? 'down' : 'muted'}>({d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(swing.after - swing.before)} pts)</b></span>
     </div>
   );
 }

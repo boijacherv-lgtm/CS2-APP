@@ -32,10 +32,16 @@ export function Privacy() {
         <li>You can take it back from the same button.</li>
       </ul>
 
+      <h2>Login and storage</h2>
+      <ul>
+        <li>No cookies. After you log in, a session key is kept in this browser's local storage so you stay logged in; Sign out (or clearing site data) removes it, and it stops working on our side too.</li>
+        <li>Your settings, puzzles and the profile kept without logging in are in local storage too.</li>
+      </ul>
+
       <h2>Deleting</h2>
       <p>Settings → Delete my data removes your profile, goals and match list from your account, or from this browser when you're not logged in.</p>
 
-      <p className="muted small">{APP_NAME} isn't affiliated with Valve or any game publisher.</p>
+      <p className="muted small">Last updated 7 November 2026. {APP_NAME} isn't affiliated with Valve or any game publisher.</p>
     </div>
   );
 }

@@ -34,7 +34,8 @@ export function Profile() {
       <header className="profile-head">
         {me?.avatar ? <img className="avatar" src={me.avatar} alt="" width={64} height={64} /> : <span className="avatar empty"><Icon name="user" size={34} /></span>}
         <div className="profile-id">
-          <h1>{name}{pro && <span className="pro-badge" title="Pro is free during early access">PRO</span>}</h1>
+          {/* the badge sits next to the heading, not in it (a screen reader read "Your profilePRO"); only when logged in */}
+          <div className="profile-title"><h1>{name}</h1>{pro && me && <span className="pro-badge" title="Pro is free during early access">PRO</span>}</div>
           <p className="muted">
             {remote ? <><Icon name="shield" size={13} /> Saved to your Steam account{game === 'cs2' && ` · ${matches.length} CS2 match${matches.length === 1 ? '' : 'es'}`}</>
               : <>Kept in this browser{game === 'cs2' && matches.length ? ` · ${matches.length} CS2 match${matches.length === 1 ? '' : 'es'}` : ''}{STEAM_AVAILABLE && !me ? '. Log in with Steam to keep it on every device.' : ''}</>}

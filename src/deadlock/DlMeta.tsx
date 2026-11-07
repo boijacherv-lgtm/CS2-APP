@@ -110,11 +110,11 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
           {groups.map(g => (
             <tbody key={g.pos ?? 'all'}>
               {g.pos && (
-                <tr className="dl-meta-group"><td colSpan={9}><span className={`dl-pos p${g.pos}`}>Pos {g.pos}</span> <b>{POS_NAME[g.pos]}</b> <span className="muted small">{POS_JOB[g.pos]} · {g.rows.length} hero{g.rows.length === 1 ? '' : 's'}</span></td></tr>
+                <tr className="dl-meta-group"><td colSpan={9}><span className={`dl-pos p${g.pos}`}>Pos {g.pos}</span> <b>{POS_NAME[g.pos]}</b> <span className="muted small">{POS_JOB[g.pos]} · {g.rows.length} {g.rows.length === 1 ? 'hero' : 'heroes'}</span></td></tr>
               )}
             {g.rows.map(r => (
                 <tr key={r.hero}>
-                  <td><span className="dl-meta-name"><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b><PosChip hero={r.hero} />{r.patch && <PatchChip p={r.patch} />}</span></td>
+                  <td><span className="dl-meta-name"><HeroIcon id={r.hero} /><b>{heroOf(r.hero).name}</b>{!g.pos && <PosChip hero={r.hero} />}{r.patch && <PatchChip p={r.patch} />}</span></td>
                   <td><span className={`dl-tier t${r.tier}`}>{r.tier}</span></td>
                   <td className={`num ${r.winRate >= 0.51 ? 'up' : r.winRate < 0.49 ? 'down' : ''}`}>
                     <span className="dl-rate" title={r.early ? `Early: ${pct(r.early.raw)} from its ${r.early.games.toLocaleString()} games on this patch, leaning on the previous patch` : undefined}>{pct(r.winRate)}{r.early ? '*' : ''}<i style={{ '--w': `${Math.max(0, Math.min(1, (r.winRate - 0.44) / 0.14)) * 100}%` } as React.CSSProperties} /></span>

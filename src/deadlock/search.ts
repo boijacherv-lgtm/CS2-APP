@@ -33,7 +33,10 @@ export type { SearchClass };
 const FIGHT = FM as unknown as FightModel;
 const PLAY_NET = (PLAY as { net: Mlp | null }).net;
 /** The win chance (0–1) a move may give up and still be Excellent, Good, an Inaccuracy, a Mistake (more: a Blunder). */
-const TH = (CAL as { thresholds?: number[] }).thresholds ?? [0.005, 0.012, 0.025, 0.045];
+// fixed, not percentiles: a Mistake is 3+ points of win chance, a Blunder 8+ (percentiles made 1.2 points a Mistake)
+const TH = [0.005, 0.012, 0.03, 0.08];
+/** The best move only counts as Best when it was a real choice: ahead of the next option by this much (else Good). */
+const REAL_CHOICE = 0.005;
 /** What each move does to the win chance over 20 s from a moment, learned (tools/dl-search.ts): a linear model per
  * action on the play network's inputs, standardized. */
 export interface Effects { mu: number[]; sd: number[]; w: Record<Action, number[]> }
@@ -48,8 +51,8 @@ export function effectOf(fx: Effects | null, f: number[], a: Action) {
 export const DL_SEARCH = CAL as { thresholds?: number[]; moments?: number; matches?: number; calibratedAt?: string; check?: { corr: number; teams: number } | null };
 /** The same colours as the CS2 engine's classes. */
 export const SEARCH_COLOR: Record<SearchClass, string> = { Best: '#1baca6', Excellent: '#5c9ced', Good: '#7fbf4d', Inaccuracy: '#f7c045', Mistake: '#e58f2a', Blunder: '#ca3431' };
-export const searchClass = (loss: number): SearchClass =>
-  loss <= 0.002 ? 'Best' : loss <= TH[0] ? 'Excellent' : loss <= TH[1] ? 'Good' : loss <= TH[2] ? 'Inaccuracy' : loss <= TH[3] ? 'Mistake' : 'Blunder';
+export const searchClass = (loss: number, margin = 1): SearchClass =>
+  loss <= 0.002 ? (margin >= REAL_CHOICE ? 'Best' : 'Good') : loss <= TH[0] ? 'Excellent' : loss <= TH[1] ? 'Good' : loss <= TH[2] ? 'Inaccuracy' : loss <= TH[3] ? 'Mistake' : 'Blunder';
 
 /** In the first minutes, staying in lane instead of a lane fight is how lanes are played: at most an Inaccuracy. */
 const LANING_CAP_S = 5 * 60;
@@ -187,5 +190,5 @@ export function searchAt(m: DlMatch, demo: DlDemo | null, slot: number, t: numbe
   if (!options.length) return null;
   const made = played ? options.find(o => o.action === played) ?? null : null;
   const loss = made ? Math.max(0, options[0].value - made.value) : 0;
-  return { t, slot, team, before, options, played: made, loss, cls: made ? laningCap(t, made.action, options[0].action, searchClass(loss)) : null };
+  return { t, slot, team, before, options, played: made, loss, cls: made ? laningCap(t, made.action, options[0].action, searchClass(loss, options.length > 1 ? options[0].value - options[1].value : 1)) : null };
 }
