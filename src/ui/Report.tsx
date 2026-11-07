@@ -1,3 +1,4 @@
+import { CountUp } from './CountUp';
 import { useEffect, useMemo, useState } from 'react';
 import { coach, modelFor, type CoachNote, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
 import { analystReport, type Finding, type Topic } from '../engine/analystBench';
@@ -200,7 +201,7 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
     return (
       <div className="kpi" title={`Normal: ${id === 'impact' ? `${m.baseline}%` : Math.round(m.baseline)}`}>
         <span>{label}</span>
-        <b className="num">{value}</b>
+        <b className="num"><CountUp text={value} id={`${p.id}:${id}:${value}`} /></b>
         <i className={z > 0.5 ? 'up' : z < -0.5 ? 'down' : ''}><Icon name={z > 0.5 ? 'up' : z < -0.5 ? 'down' : 'dot'} size={9} /> {z > 0.5 ? 'above normal' : z < -0.5 ? 'below normal' : 'normal'}</i>
       </div>
     );

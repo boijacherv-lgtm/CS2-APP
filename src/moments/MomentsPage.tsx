@@ -401,7 +401,7 @@ function Rush({ pool, onScore }: { pool: Moment[] | null; onScore: (s: Score) =>
       {state === 'idle' && <div className="rush-start"><p className="muted">Solve as many as you can in 3 minutes. They get harder as you go. Three wrong and it's over.</p><button className="primary" onClick={start} disabled={!pool?.length}>{pool ? 'Start' : 'Loading…'}</button></div>}
       {state === 'on' && cur && (
         <>
-          <div className="rush-bar"><b className="num">{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</b><span>{right} right</span><span>{'Lives: ' + lives}</span></div>
+          <div className="rush-bar"><b className="num">{Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</b><span key={right}>{right} right</span><span>{'Lives: ' + lives}</span></div>
           <Puzzle key={cur.id + n.current} m={cur} onAnswer={answered ? undefined : onAnswer} />
         </>
       )}
