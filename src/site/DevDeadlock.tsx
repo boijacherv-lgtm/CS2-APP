@@ -35,11 +35,12 @@ export function DevDeadlock({ owner }: { owner: boolean }) {
     <>
       <section className="site-card">
         <div className="card-head"><h2>Engine</h2><span className="muted small">right on matches they never saw · retrain: the patch routine</span></div>
+        <p className="muted small dev-jargon"><b>Log loss</b>: how wrong the win % was; lower is better, 0.69 = a coin flip. <b>Right</b>: share of matches or moves called right. <b>r</b>: correlation, from 0 (none) to 1 (perfect).</p>
         <div className="gauge-row">
           <Gauge value={W.kind === 'network' && wc ? wc.network.accuracy : wc?.simple.accuracy ?? 0} label="Evaluation" sub={`win chance · ${W.kind === 'network' ? 'value network' : 'simple model'}`} tone="up" />
-          <Gauge value={P.test.network.top2} label="Play network" sub={`top 2 of 6 actions · ${pct(P.test.network.accuracy)} first`} tone={P.ships ? 'up' : 'flat'} />
+          <Gauge value={P.test.network.accuracy} label="Play network" sub={`first guess of 6 actions · top 2: ${pct(P.test.network.top2)}`} tone={P.test.network.accuracy >= 0.6 ? 'up' : P.test.network.accuracy < 0.5 ? 'down' : 'flat'} />
           <Gauge value={fc.network.accuracy >= fc.logistic.accuracy ? fc.network.accuracy : fc.logistic.accuracy} label="Fight model" sub={`who wins · ${F.kind}`} tone="up" />
-          <Gauge value={Math.max(0, S.check.corr)} label="2-step search" sub={`matches results · ${S.replies} replies`} tone={S.check.corr > 0.1 ? 'up' : 'flat'} />
+          <Gauge value={Math.max(0, S.check.corr)} text={`r = ${S.check.corr.toFixed(2)}`} label="2-step search" sub={`correlation with real results · ${S.replies} replies`} tone={S.check.corr > 0.1 ? 'up' : 'flat'} />
         </div>
       </section>
 
@@ -76,16 +77,8 @@ export function DevDeadlock({ owner }: { owner: boolean }) {
           ))}
         </tbody></table>
         <p className="muted small">Read 12 s before the first death (when you'd decide), from the match data. Said → won: {calib(F.test.calibration, 60)}</p>
-        {F.ultCompare ? (
-          <>
-            <table className="site-table"><thead><tr><th>Ultimates ready ({F.ultCompare.matches} matches with demos)</th><th>Log loss</th><th>Right</th></tr></thead><tbody>
-              <tr className={F.ultCompare.shipped ? '' : 'on'}><td>Without ultimates{F.ultCompare.shipped ? '' : ' · in use'}</td><td className="num">{F.ultCompare.without.logloss}</td><td className="num">{pct(F.ultCompare.without.accuracy)}</td></tr>
-              <tr className={F.ultCompare.shipped === 'count' ? 'on' : ''}><td>+ how many ready</td><td className="num">{F.ultCompare.count.logloss}</td><td className="num">{pct(F.ultCompare.count.accuracy)}</td></tr>
-              <tr className={F.ultCompare.shipped === 'count and kinds' ? 'on' : ''}><td>+ how many, and area / control / protect</td><td className="num">{F.ultCompare.kinds.logloss}</td><td className="num">{pct(F.ultCompare.kinds.accuracy)}</td></tr>
-            </tbody></table>
-            <p className="muted small">A correction on top of the model above, on the same {fmtInt(F.ultCompare.fights)} test fights with demos. {F.ultCompare.shipped ? `In use with a demo: ${F.ultCompare.shipped}.` : 'Not shipped: ultimates ready 12 s before a fight barely change who wins once numbers, health, souls and help are known (each ultimate ready: +' + (F.ultCompare.weights.ultsReady ?? 0).toFixed(2) + ' log-odds). How they\'re used decides it: Match recap judges every use.'}</p>
-          </>
-        ) : <p className="muted small">No ultimates yet: npm run dl:ults reads them from demos.</p>}
+        {/* the full write-up of the ultimates experiment lives in docs/notes/ult-experiment.md */}
+        {F.ultCompare && <p className="muted small">Ultimates ready as a correction: {F.ultCompare.shipped ? `in use (${F.ultCompare.shipped})` : `tested on ${F.ultCompare.matches} matches, no gain, not shipped`} (docs/notes/ult-experiment.md).</p>}
       </section>
 
       <section className="site-card">
@@ -112,4 +105,15 @@ export function DevDeadlock({ owner }: { owner: boolean }) {
       {owner ? <DevDlDisputes /> : <p className="muted">Log in with Steam as the owner to see disputed moments.</p>}
     </>
   );
+}
+
+/** Days since a date (yyyy-mm-dd or ISO). */
+export const daysSince = (d: string | undefined) => (d ? Math.floor((Date.now() - Date.parse(d)) / 86400e3) : null);
+/** The Deadlock tab's chips in the dev page's check row: each model's age (yellow past 7 days) and the engine's check. */
+export function dlChecks(): { label: string; value: string; tone: 'ok' | 'warn' | 'bad' | 'off'; tip: string; tab: 'deadlock' }[] {
+  const age = (label: string, d: string | undefined, tip: string) => { const n = daysSince(d); return { label, value: n === null ? '–' : n === 0 ? 'today' : `${n} d old`, tone: (n === null ? 'off' : n > 7 ? 'warn' : 'ok') as 'ok' | 'warn' | 'off', tip: `${tip} · yellow: older than 7 days, retrain (the patch routine)`, tab: 'deadlock' as const }; };
+  return [
+    age('Win model', W.since, 'The value network: matches since the patch'), age('Fight model', F.at, 'Who wins a fight'), age('Search', S.calibratedAt, 'The 2-step search'),
+    { label: 'Engine check', value: `r = ${S.check.corr.toFixed(2)}`, tone: S.check.corr > 0.1 ? 'ok' : 'warn', tip: 'How well the grades match real results (correlation)', tab: 'deadlock' },
+  ];
 }

@@ -43,14 +43,15 @@ export function MiniLine({ values, good = true }: { values: number[]; good?: boo
 }
 
 /** A half-ring gauge with a value in the middle (a model's accuracy, a share). `value` is 0–1. */
-export function Gauge({ value, label, sub, tone = 'flat' }: { value: number; label: string; sub?: string; tone?: 'up' | 'down' | 'flat' }) {
+/** `text`: what to print in the middle when the value isn't a share (a correlation: "r = 0.29"). */
+export function Gauge({ value, label, sub, tone = 'flat', text }: { value: number; label: string; sub?: string; tone?: 'up' | 'down' | 'flat'; text?: string }) {
   const v = Math.max(0, Math.min(1, value)), R = 52, half = Math.PI * R;
   return (
     <div className="gauge-card">
-      <svg viewBox="0 0 140 84" role="img" aria-label={`${label}: ${Math.round(v * 100)}%`}>
+      <svg viewBox="0 0 140 84" role="img" aria-label={`${label}: ${text ?? `${Math.round(v * 100)}%`}`}>
         <path d="M18 74 A52 52 0 0 1 122 74" className="gauge-track" />
         <path d="M18 74 A52 52 0 0 1 122 74" className={`gauge-fill ${tone}`} strokeDasharray={`${v * half} ${half}`} />
-        <text x={70} y={64} textAnchor="middle" className="gauge-value">{Math.round(v * 100)}%</text>
+        <text x={70} y={64} textAnchor="middle" className="gauge-value">{text ?? `${Math.round(v * 100)}%`}</text>
       </svg>
       <b>{label}</b>
       {sub && <span className="muted small">{sub}</span>}

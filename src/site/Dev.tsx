@@ -19,7 +19,8 @@ import { fmtDate, fmtInt, mapName } from './format';
 import { AreaChart, BarList, Donut, Gauge } from './charts';
 import { T } from '../ui/tokens';
 import { DevDisputes } from './DevDisputes';
-import { DevDeadlock } from './DevDeadlock';
+import { daysSince, DevDeadlock, dlChecks } from './DevDeadlock';
+import { MAPS } from '../map/catalog';
 import { GAMES } from './games';
 import { GameMark } from './gameMarks';
 
@@ -66,6 +67,15 @@ export function Dev() {
   const pickTab = (t: DevTab) => { setTab(t); try { localStorage.setItem('stratboard.devTab', t); } catch { /* private mode */ } };
 
   if (!loaded && !LOCAL) return <div className="page"><Loading>Loading…</Loading></div>;
+  // the most active players' names (the Worker's /profiles: Steam names, cached there)
+  const [topNames, setTopNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const ids = stats?.profiles.top.map(t => t.steamId) ?? [];
+    if (!ids.length) return;
+    steamFetch(`/profiles?ids=${ids.slice(0, 20).join(',')}`).then(r => (r.ok ? r.json() : null)).then(j => {
+      if (j?.profiles) setTopNames(Object.fromEntries(Object.entries(j.profiles as Record<string, { name: string | null }>).filter(([, v]) => v.name).map(([k, v]) => [k, v.name!])));
+    }).catch(() => {});
+  }, [stats]);
   if (!allowed) return <div className="page not-found"><h1>Owner only.</h1><p className="muted">This page is for the site's owner. Log in with Steam as the owner to see it.</p><p><a className="cta" href="/">Back to home</a></p></div>;
 
   const storage = (() => {
@@ -88,7 +98,9 @@ export function Dev() {
     { label: 'Worker', value: !owner ? 'log in as owner' : err ? 'error' : !stats ? 'counting…' : stats.profiles.weeks ? 'up to date' : 'old: redeploy', tone: !owner ? 'off' : err ? 'bad' : !stats ? 'off' : stats.profiles.weeks ? 'ok' : 'warn', tip: err ?? 'Profiles, Steam and the owner stats (npx wrangler deploy in worker/)', tab: 'site' },
     { label: 'Demo bot', value: !stats ? '–' : stats.bot ? (botOk ? `ran ${ago(stats.bot.at)}` : `last ${ago(stats.bot.at)}`) : 'not set up', tone: !stats ? 'off' : stats.bot ? (botOk ? 'ok' : 'warn') : 'off', tip: 'Downloads and reads new matches for users who pasted their codes (server/README.md)', tab: 'cs2' },
     { label: 'Failing demos', value: !stats ? '–' : String(stats.lists.failing), tone: !stats ? 'off' : stats.lists.failing ? 'warn' : 'ok', tip: 'Matches the bot tried 3 times and couldn\'t read', tab: 'cs2' },
+    (() => { const n = daysSince(COACH_MODEL.source?.trainedAt); return { label: 'Coach model', value: n === null ? '–' : n === 0 ? 'today' : `${n} d old`, tone: (n === null ? 'off' : n > 7 ? 'warn' : 'ok') as 'ok' | 'warn' | 'off', tip: 'When the CS2 coach was last trained · yellow: older than 7 days (npm run learn:all)', tab: 'cs2' as DevTab }; })(),
     { label: 'Coach', value: v ? `agrees ${v.right}/${v.total}` : 'not measured', tone: v ? (v.right / Math.max(1, v.total) >= 0.8 ? 'ok' : 'warn') : 'off', tip: 'Agreement with your own verdicts (npm run eval:coach)', tab: 'cs2' },
+    ...dlChecks(),
   ];
   const kpis: [string, string, string?, DevTab?][] = [
     ['Accounts', stats ? fmtInt(stats.keys.profiles) : '–', 'with a profile'],
@@ -107,7 +119,9 @@ export function Dev() {
         {owner && <button className="ghost small-btn" onClick={load} disabled={busy}>{busy ? 'Counting…' : 'Refresh'}</button>}
       </header>
       <div className="dev-checks">
-        {checks.filter(c => c.tab === 'site' || c.tab === tab).map(c => <span key={c.label} className={`dev-check ${c.tone}`} title={c.tip}><i />{c.label}<b>{c.value}</b></span>)}
+        {checks.filter(c => c.tab === 'site' || c.tab === tab).map(c => c.label === 'Demo bot' && c.value === 'not set up'
+          ? <a key={c.label} className={`dev-check ${c.tone}`} title="How to set up the demo bot" href="https://github.com/boijacherv-lgtm/CS2-APP/blob/main/server/README.md" target="_blank" rel="noreferrer"><i />{c.label}<b>{c.value} · setup</b></a>
+          : <span key={c.label} className={`dev-check ${c.tone}`} title={c.tip}><i />{c.label}<b>{c.value}</b></span>)}
       </div>
       {!owner && <p className="muted small">{LOCAL ? 'Server numbers come from the Worker: open this page on the website, logged in as the owner.' : 'Log in with Steam as the owner for the server numbers.'}</p>}
       {err && <p className="warn-text small">{err}</p>}
@@ -126,14 +140,14 @@ export function Dev() {
       {tab === 'site' && (!stats ? <p className="muted">{owner ? 'Counting…' : 'No server numbers here.'}</p> : (
         <>
           <section className="site-card">
-            <div className="card-head"><h2>Matches played per week</h2><span className="muted small">last 12 weeks</span></div>
+            <div className="card-head"><h2>Matches played per week</h2><span className="muted small">{(() => { const wk = Object.keys(stats.profiles.weeks ?? {}).sort(); const f = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); return wk.length ? `${f(wk[0])} – ${f(wk[wk.length - 1])} (${wk.length} weeks)` : 'no weeks yet'; })()}</span></div>
             {stats.profiles.weeks ? <AreaChart fmt={x => fmtInt(x)} height={180}
               points={Object.entries(stats.profiles.weeks).sort((a, b) => a[0].localeCompare(b[0])).map(([wk, n]) => ({ label: new Date(wk).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value: n, note: `week of ${wk}` }))} />
-              : <p className="muted">Redeploy the Worker for weekly numbers.</p>}
+              : <p className="muted">No weekly numbers yet.</p>}
           </section>
           <section className="site-card">
             <div className="card-head"><h2>Most active</h2><span className="muted small">{stats.profiles.public} public · {stats.profiles.withGoals} with goals · last match {ago(stats.profiles.lastMatchAt)}</span></div>
-            <div>{stats.profiles.top.map(t => <a key={t.steamId} href={`https://steamcommunity.com/profiles/${t.steamId}`} target="_blank" rel="noreferrer" className="dev-chip">{t.steamId.slice(-6)} · {t.matches}</a>)}</div>
+            <div>{stats.profiles.top.map(t => <a key={t.steamId} href={`https://steamcommunity.com/profiles/${t.steamId}`} target="_blank" rel="noreferrer" className="dev-chip">{topNames[t.steamId] ?? t.steamId.slice(-6)} · {t.matches} matches</a>)}</div>
           </section>
         </>
       ))}
@@ -169,7 +183,7 @@ export function Dev() {
             <div className="gauge-row">
               {du ? <Gauge value={du[du.shipped].accuracy} label="Duels" sub={`${fmtInt(du.testFights)} fights · ${du.shipped}`} tone={du[du.shipped].accuracy >= 0.6 ? 'up' : 'flat'} />
                 : <Gauge value={duel.testAccuracy} label="Duels" sub={`${fmtInt(duel.samples)} fights`} tone={duel.testAccuracy >= 0.6 ? 'up' : 'flat'} />}
-              <Gauge value={play.mlp.accuracy} label="Play network" sub="what level 10 does next" tone="up" />
+              <Gauge value={play.mlp.accuracy} label="Play network" sub="what level 10 does next" tone={play.mlp.accuracy >= 0.6 ? 'up' : play.mlp.accuracy < 0.55 ? 'down' : 'flat'} />
               {v && <Gauge value={v.right / Math.max(1, v.total)} label="Your verdicts" sub={`${v.right} of ${v.total} agree`} tone={v.right / Math.max(1, v.total) >= 0.8 ? 'up' : 'flat'} />}
             </div>
             <table className="site-table dev-models"><tbody>
@@ -228,7 +242,9 @@ export function Dev() {
             {(() => {
               const demos = COACH_MODEL.source?.maps ?? {}, max = Math.max(...Object.values(demos), 1);
               const nades = utilSpots as Record<string, unknown[]>;
-              return <BarList rows={Object.entries(demos).sort((a, b) => b[1] - a[1]).map(([m, n]) => ({ label: mapName(m), value: `${n} demos · ${nades[m]?.length ?? 0} grenade spots`, share: n / max, tone: n >= 70 ? 'up' as const : n >= 40 ? 'flat' as const : 'down' as const }))} />;
+              // every map the tactical board offers, those with no demos too (0, in red)
+              const all = Object.fromEntries(MAPS.map(m => [m.id, demos[m.id] ?? 0]));
+              return <BarList rows={Object.entries(all).sort((a, b) => b[1] - a[1]).map(([m, n]) => ({ label: mapName(m), value: `${n} demos · ${nades[m]?.length ?? 0} grenade spots`, share: n / max, tone: n >= 70 ? 'up' as const : n >= 40 ? 'flat' as const : 'down' as const }))} />;
             })()}
           </section>
           <section className="site-card">
@@ -257,10 +273,12 @@ export function Dev() {
       {tab === 'site' && (
         <section className="site-card">
           <div className="card-head"><h2>This browser</h2><span className="muted small">{data.matches.length} matches here ({remote ? 'synced to the account' : 'browser only'}) · you: {whoAmI(s) ?? 'unknown'} · {me ? `${me.name ?? me.steamId}${me.owner ? ' (owner)' : ''}` : 'not logged in'}</span></div>
-          <table className="site-table"><tbody>
-            {storage.map(r => <tr key={r.key}><td className="num">{r.key}</td><td className="num">{r.size > 1024 ? `${(r.size / 1024).toFixed(1)} KB` : `${r.size} B`}</td></tr>)}
-          </tbody></table>
-          <p className="muted small">{ONLINE ? 'Website' : 'Local'} · API {API_URL || (STEAM_AVAILABLE ? 'dev server' : 'none')} · Pro {PRO_EARLY_ACCESS ? 'early access' : 'on'} (free history {FREE_HISTORY}, kept {MAX_HISTORY})</p>
+          <details className="dev-storage"><summary>Storage ({storage.length} keys)</summary>
+            <table className="site-table"><tbody>
+              {storage.map(r => <tr key={r.key}><td className="num">{r.key.replace(/^stratboard\./, '')}</td><td className="num">{r.size > 1024 ? `${(r.size / 1024).toFixed(1)} KB` : `${r.size} B`}</td></tr>)}
+            </tbody></table>
+          </details>
+          <p className="muted small">{ONLINE ? 'Website' : 'Local'} · API {API_URL ? 'Cloudflare Worker' : STEAM_AVAILABLE ? 'dev server' : 'none'} · Pro {PRO_EARLY_ACCESS ? 'early access' : 'on'} (free history {FREE_HISTORY}, kept {MAX_HISTORY})</p>
         </section>
       )}
     </div>

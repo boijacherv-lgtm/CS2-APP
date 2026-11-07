@@ -19,7 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { matchFromMetadata } from '../src/deadlock/match';
-import { effectOf, searchAt, type Effects, type Replies } from '../src/deadlock/search';
+import { effectOf, searchAt, searchClass, type Effects, type Replies } from '../src/deadlock/search';
 import { ACTIONS, actionAt, playInput, WINDOW, type Action } from '../src/deadlock/playNet';
 import { winChance } from '../src/deadlock/winChance';
 import type { DlMatch } from '../src/deadlock/match';
@@ -89,6 +89,7 @@ function run(mode: Replies) {
   const losses: number[] = [], players: number[] = [];
   const teams: { lossDiff: number; surprise: number }[] = [];
   let best = 0;
+  const classCount: Record<string, number> = {};
   const t0 = Date.now();
   for (const m of all) {
     const byTeam: number[][] = [[], []], bySlot = new Map<number, number[]>();
@@ -99,7 +100,10 @@ function run(mode: Replies) {
         byTeam[p.team].push(s.loss);
         bySlot.set(p.slot, [...(bySlot.get(p.slot) ?? []), s.loss]);
         losses.push(s.loss);
-        if (s.loss <= 0.002) best++;
+        // the class the site gives it (search.ts searchClass, with the real-choice rule)
+        const k = s.cls ?? searchClass(s.loss);
+        classCount[k] = (classCount[k] ?? 0) + 1;
+        if (k === 'Best') best++;
       }
     }
     const avg = (xs: number[]) => xs.reduce((a, v) => a + v, 0) / Math.max(1, xs.length);
@@ -112,11 +116,11 @@ function run(mode: Replies) {
   for (const r of teams) { sxy += (r.lossDiff - mx) * (r.surprise - my); sxx += (r.lossDiff - mx) ** 2; syy += (r.surprise - my) ** 2; }
   const corr = sxx && syy ? +(sxy / Math.sqrt(sxx * syy)).toFixed(3) : 0;
   console.log(`  replies '${mode}': check ${corr} on ${n} matches, ${Math.round((best / losses.length) * 100)}% of moves the best (${Math.round((Date.now() - t0) / 1000)} s)`);
-  return { mode, losses, best, corr, teams: n, players };
+  return { mode, losses, best, corr, teams: n, players, classCount };
 }
 const runs = MODES.map(run);
 const chosen = runs.reduce((a, b) => (b.corr > a.corr ? b : a));
-const { losses, best } = chosen;
+const { losses, best, classCount } = chosen;
 // accuracy (chess.com's curve on the average win chance given up, in points): a typical good player's game scores 90
 const ps = [...chosen.players].sort((a, b) => a - b), med = ps[ps.length >> 1] * 100;
 const accuracyScale = +((-Math.log(93.1669 / 103.1668) / 0.04354) / Math.max(1e-6, med)).toFixed(4);
@@ -126,9 +130,7 @@ const q = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorte
 const thresholds: number[] = [];
 // fixed cut-offs (src/deadlock/search.ts): a Mistake 3+ points, a Blunder 8+
 thresholds.push(0.005, 0.012, 0.03, 0.08);
-const cls = (l: number) => (l <= 0.002 ? 'Best' : l <= thresholds[0] ? 'Excellent' : l <= thresholds[1] ? 'Good' : l <= thresholds[2] ? 'Inaccuracy' : l <= thresholds[3] ? 'Mistake' : 'Blunder');
-const classes: Record<string, number> = {};
-for (const l of losses) classes[cls(l)] = (classes[cls(l)] ?? 0) + 1;
+const classes = classCount;
 const out = {
   thresholds, replies: chosen.mode, accuracyScale, playerLoss: { median: +(med / 100).toFixed(5), p25: +ps[Math.floor(ps.length * 0.25)].toFixed(5), p75: +ps[Math.floor(ps.length * 0.75)].toFixed(5) }, moments: losses.length, matches, step: STEP, calibratedAt: new Date().toISOString().slice(0, 10), effects, effectFit,
   bestShare: +(best / losses.length).toFixed(3), classes: Object.fromEntries(Object.entries(classes).map(([k, v]) => [k, +(v / losses.length).toFixed(3)])),

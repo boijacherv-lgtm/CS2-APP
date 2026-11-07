@@ -35,8 +35,8 @@ const PLAY_NET = (PLAY as { net: Mlp | null }).net;
 /** The win chance (0–1) a move may give up and still be Excellent, Good, an Inaccuracy, a Mistake (more: a Blunder). */
 // fixed, not percentiles: a Mistake is 3+ points of win chance, a Blunder 8+ (percentiles made 1.2 points a Mistake)
 const TH = [0.005, 0.012, 0.03, 0.08];
-/** The best move only counts as Best when it was a real choice: ahead of the next option by this much (else Good). */
-const REAL_CHOICE = 0.005;
+/** The best move only counts as Best when it was a real choice: ahead of the next option by 0.2 points (else Good: the obvious move). About a third of moves end up Best or Excellent. */
+const REAL_CHOICE = 0.002;
 /** What each move does to the win chance over 20 s from a moment, learned (tools/dl-search.ts): a linear model per
  * action on the play network's inputs, standardized. */
 export interface Effects { mu: number[]; sd: number[]; w: Record<Action, number[]> }
