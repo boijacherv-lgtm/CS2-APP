@@ -27,14 +27,26 @@ export function syncRecord(s: Score) {
 
 export interface BoardRow { steamId: string; rating: number; solved: number; tried: number; best: number; name: string | null; avatar: string | null }
 /** The top ratings (public profiles), with names and avatars. */
-export async function loadBoard(): Promise<BoardRow[]> {
-  const res = await steamFetch('/puzzle/board');
-  if (!res.ok) throw new Error(`The server answered ${res.status}.`);
-  const { rows } = await res.json() as { rows: Omit<BoardRow, 'name' | 'avatar'>[] };
+/** Names and avatars for board rows (the Worker's /profiles, 20 at a time). */
+async function named(rows: Omit<BoardRow, 'name' | 'avatar'>[]): Promise<BoardRow[]> {
   const names: Record<string, { name: string | null; avatar: string | null }> = {};
   for (let i = 0; i < rows.length; i += 20) {
     const r = await steamFetch(`/profiles?ids=${rows.slice(i, i + 20).map(x => x.steamId).join(',')}`).catch(() => null);
     if (r?.ok) Object.assign(names, (await r.json()).profiles ?? {});
   }
   return rows.map(r => ({ ...r, name: names[r.steamId]?.name ?? null, avatar: names[r.steamId]?.avatar ?? null }));
+}
+
+export async function loadBoard(): Promise<BoardRow[]> {
+  const res = await steamFetch('/puzzle/board');
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`);
+  return named((await res.json() as { rows: Omit<BoardRow, 'name' | 'avatar'>[] }).rows);
+}
+
+/** You and your Steam friends with public profiles (logged in). `note`: why it's short (a private friends list…). */
+export async function loadFriendsBoard(): Promise<{ rows: BoardRow[]; note: string | null }> {
+  const res = await steamFetch('/puzzle/friends');
+  const out = await res.json().catch(() => ({})) as { rows?: Omit<BoardRow, 'name' | 'avatar'>[]; note?: string | null; error?: string };
+  if (!res.ok) throw new Error(out.error ?? `The server answered ${res.status}.`);
+  return { rows: await named(out.rows ?? []), note: out.note ?? null };
 }

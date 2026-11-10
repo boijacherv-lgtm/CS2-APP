@@ -7,7 +7,7 @@ import { applyGame } from '../ui/tokens';
 import { Icon } from '../ui/Icon';
 import { cleanMoment, focusOf, fromShareCode, isMistake, loadMoments, mistakeGroups, shareCode, type Moment, type MomentGame } from './moments';
 import { dailyFor, dailyOf, dayNumber, puzzleRating, readScore, record, recordDaily, recordRush, weakSpots, type Score } from './score';
-import { loadBoard, sendAnswer, syncRecord, type BoardRow } from './puzzleApi';
+import { loadBoard, loadFriendsBoard, sendAnswer, syncRecord, type BoardRow } from './puzzleApi';
 import { useProfile } from '../ui/profileApi';
 import { EmptyArt } from '../ui/Art';
 
@@ -415,13 +415,28 @@ function Rush({ pool, onScore }: { pool: Moment[] | null; onScore: (s: Score) =>
 function Leaderboard({ rating, tried }: { rating: number; tried: number }) {
   const me = useProfile(s => s.me), isPublic = useProfile(s => s.data.prefs.public);
   const [rows, setRows] = useState<BoardRow[] | null>(null), [err, setErr] = useState<string | null>(null);
-  useEffect(() => { loadBoard().then(setRows, e => setErr(e instanceof Error ? e.message : String(e))); }, []);
+  // everyone, or you and your Steam friends (needs a login)
+  const [who, setWho] = useState<'all' | 'friends'>('all'), [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    setRows(null); setErr(null); setNote(null);
+    const fail = (e: unknown) => setErr(e instanceof Error ? e.message : String(e));
+    if (who === 'friends') loadFriendsBoard().then(r => { setRows(r.rows); setNote(r.note); }, fail);
+    else loadBoard().then(setRows, fail);
+  }, [who]);
   const place = rows ? rows.filter(r => r.rating > rating).length + 1 : null;
   return (
     <section className="site-card">
-      <div className="card-head"><h2><Icon name="trophy" size={16} /> Leaderboard</h2><span className="muted small">puzzle rating · public profiles · 10+ puzzles</span></div>
-      <p className="muted small">{!me ? 'Log in with Steam and make your profile public (Settings) to be on it.' : !isPublic ? 'Your profile is private: make it public in Settings to show up here.' : tried < 10 ? `Solve ${10 - tried} more to show up.` : place ? `Your rating ${rating} would be #${place}.` : ''}</p>
-      {err ? <p className="warn-text">{err}</p> : !rows ? <p className="muted">Loading…</p> : !rows.length ? <p className="muted">Nobody yet. Be first.</p> : (
+      <div className="card-head"><h2><Icon name="trophy" size={16} /> Leaderboard</h2>
+        {me ? (
+          <span className="seg-mini" role="group" aria-label="Whose ratings">
+            <button className={who === 'all' ? 'on' : ''} aria-pressed={who === 'all'} onClick={() => setWho('all')}>Everyone</button>
+            <button className={who === 'friends' ? 'on' : ''} aria-pressed={who === 'friends'} onClick={() => setWho('friends')}>Friends</button>
+          </span>
+        ) : <span className="muted small">puzzle rating · public profiles · 10+ puzzles</span>}
+      </div>
+      {who === 'friends' && note && <p className="muted small">{note}</p>}
+      {who === 'all' && <p className="muted small">{!me ? 'Log in with Steam and make your profile public (Settings) to be on it.' : !isPublic ? 'Your profile is private: make it public in Settings to show up here.' : tried < 10 ? `Solve ${10 - tried} more to show up.` : place ? `Your rating ${rating} would be #${place}.` : ''}</p>}
+      {err ? <p className="warn-text">{err}</p> : !rows ? <p className="muted">Loading…</p> : !rows.length ? <p className="muted">{who === 'friends' ? 'No ratings among your friends yet.' : 'Nobody yet. Be first.'}</p> : (
         <ol className="leaderboard">
           {rows.map((r, i) => (
             <li key={r.steamId} className={me?.steamId === r.steamId ? 'mine' : ''}>
