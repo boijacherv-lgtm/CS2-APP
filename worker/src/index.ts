@@ -327,6 +327,7 @@ async function sync(env: Env, steamId: string) {
   const known = new Set(u.matches.map(m => m.code));
   const t0 = Date.now();
   let code = u.lastCode ?? u.knownCode, found = 0;
+  const skipped: string[] = [];
   try {
     for (let i = 0; i < 40; i++) { // a Worker may make 50 requests per call
       const res = await fetch(`${STEAM_API}/ICSGOPlayers_730/GetNextMatchSharingCode/v1?key=${encodeURIComponent(env.STEAM_API_KEY)}`
@@ -335,6 +336,16 @@ async function sync(env: Env, steamId: string) {
       if (res.status === 403) throw new Error('Steam refused the site\'s Web API key; tell the site owner.');
       if (res.status === 412) throw new Error('Steam says your authentication code or match code doesn\'t belong to your account. Paste them again from the Steam Support page.');
       if (res.status === 429) break;
+      // Valve can't walk on from this code (too old for its history, or a mode it doesn't list): start again from the
+      // next code you pasted, newer than it, and say which one it skipped
+      if (res.status >= 500) {
+        const later = u.matches.map(m => m.code).filter(c => BigInt(decodeShareCode(c).matchId) > BigInt(decodeShareCode(code).matchId))
+          .sort((x, y) => (BigInt(decodeShareCode(x).matchId) < BigInt(decodeShareCode(y).matchId) ? -1 : 1));
+        skipped.push(code);
+        if (!later.length) throw new Error(`Steam's match history couldn't go on from ${skipped.join(', ')} (it answered ${res.status}). Paste a newer match code, or try again later.`);
+        code = later[0];
+        continue;
+      }
       if (!res.ok) throw new Error(`Steam's match-history API answered ${res.status}.`);
       const next = ((await res.json()) as { result?: { nextcode?: string } })?.result?.nextcode;
       if (!next || next === 'n/a') break;
@@ -342,6 +353,7 @@ async function sync(env: Env, steamId: string) {
       code = next;
     }
   } catch (e) { u.note = e instanceof Error ? e.message : String(e); }
+  if (!u.note && skipped.length) u.note = `Steam's match history couldn't go on from ${skipped.join(', ')}; it went on from your next code instead.`;
   const changed = found > 0 || u.lastCode !== code || u.note !== noteBefore;
   u.lastCode = code;
   u.lastSyncAt = Date.now();
