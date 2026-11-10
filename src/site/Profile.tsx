@@ -64,7 +64,7 @@ export function Profile() {
           <EmptyArt />
           <h2>No matches yet</h2>
           <p className="muted">Review your first one and your stats show up here. Log in with Steam (we only get your SteamID, public name and avatar), or pick yourself in the recap (This is me).</p>
-          <a className="cta primary" href="/cs2/review">Review a match</a>
+          <a className="cta primary" href="/cs2/review">Review a CS2 match</a>
         </section>
       ) : null}
       <AddMatches />

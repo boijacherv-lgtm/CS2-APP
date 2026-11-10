@@ -20,12 +20,13 @@ export function SteamLogo({ size = 18 }: { size?: number }) {
 }
 
 /** Link that starts the sign-in and brings you back to the page you were on. */
-export function SteamLoginButton({ compact }: { compact?: boolean }) {
+/** `label`: what the button says instead of "Log in with Steam" (it still logs in with Steam). */
+export function SteamLoginButton({ compact, label }: { compact?: boolean; label?: string }) {
   const back = typeof location !== 'undefined' && location.pathname !== '/' ? location.pathname : '/cs2/review';
   return (
-    <a className={`steam-login ${compact ? 'compact' : ''}`} href={steamLoginHref(back)} aria-label="Log in with Steam"
+    <a className={`steam-login ${compact ? 'compact' : ''}`} href={steamLoginHref(back)} aria-label={label ? `${label}: log in with Steam` : 'Log in with Steam'}
       title="Opens Steam's own login page; you can scan its QR code with the Steam app. The app only receives your SteamID.">
-      <SteamLogo /><span>Log in<span className="with-steam"> with Steam</span></span>
+      <SteamLogo />{label ? <span>{label}</span> : <span>Log in<span className="with-steam"> with Steam</span></span>}
     </a>
   );
 }

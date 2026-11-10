@@ -19,7 +19,7 @@ export function Cs2Home() {
           <h1>Every round, graded.</h1>
           <p className="lead">Drop a demo and replay it on the radar, with every kill, grenade and death graded against FACEIT level-10 players, and the play the engine would have made.</p>
           <div className="hero-cta">
-            <a className="cta primary" href="/cs2/review">Review a match <Icon name="arrowRight" size={14} /></a>
+            <a className="cta primary" href="/cs2/review">Review a CS2 match <Icon name="arrowRight" size={14} /></a>
             <a className="cta" href="/cs2/tactical">Tactical board</a>
           </div>
         </div>

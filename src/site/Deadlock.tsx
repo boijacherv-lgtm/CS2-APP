@@ -22,10 +22,10 @@ export function Deadlock() {
       <section className="dl-hero">
         <div className="dl-hero-text">
           <span className="eyebrow"><GameMark game={GAME} size={14} /> {GAME.name} <span className={`games-status ${GAME.status}`}>{STATUS_LABEL[GAME.status]}</span></span>
-          <h1>The same coach, for Deadlock.</h1>
+          <h1>Every Deadlock fight, graded.</h1>
           <p className="lead">Replay any match on the real map with the coach grading every death, kill and lane, then plan your next one in Meta &amp; builds. Beta on {APP_NAME}.</p>
           <div className="hero-cta">
-            <a className="cta primary" href="/deadlock/review">Review a match <Icon name="arrowRight" size={14} /></a>
+            <a className="cta primary" href="/deadlock/review">Review a Deadlock match <Icon name="arrowRight" size={14} /></a>
             <button className="cta" onClick={toggle} disabled={busy} aria-pressed={on}>
               <Icon name={on ? 'check' : 'bell'} size={14} /> {on ? 'You\'ll be told about new Deadlock features' : 'Tell me about new Deadlock features'}
             </button>
