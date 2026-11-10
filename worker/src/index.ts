@@ -21,7 +21,7 @@ import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } f
 import { META_KEY, refreshDlMeta } from './dlMeta';
 import { botRoute, saveBotState } from './dlBot';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
-import { board, countAnswer, updateBoard } from './puzzles';
+import { board, countAnswer, friendsBoard, updateBoard } from './puzzles';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
 export interface Env {
@@ -133,6 +133,11 @@ export default {
       if ((req.method === 'POST' || path === '/resolve') && await limited(env.RATE_USER, steamId)) return slow();
 
       if (req.method === 'GET' && path === '/status') return json(status(env, steamId, await loadUser(env, steamId)));
+      // the puzzle board among your Steam friends (their public profiles)
+      if (req.method === 'GET' && path === '/puzzle/friends') {
+        if (await limited(env.RATE_USER, steamId)) return slow();
+        return json(await friendsBoard(env.SB, steamId, env.STEAM_API_KEY));
+      }
       if (req.method === 'GET' && path === '/admin/stats') {
         if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);
         return json(await adminStats(env.SB));
