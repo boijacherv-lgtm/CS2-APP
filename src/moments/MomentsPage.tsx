@@ -13,6 +13,8 @@ import { EmptyArt } from '../ui/Art';
 
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 const GAME_NAME: Record<MomentGame, string> = { cs2: 'CS2', deadlock: 'Deadlock' };
+/** A board with fewer players than this looks empty: it says how many more it needs instead. */
+const BOARD_OPENS = 3;
 const imageOf = (m: Moment) => (m.game === 'deadlock' ? DL_MAP_IMAGE : MAPS.find(x => x.id === m.map)?.levels[0].image ?? null);
 
 /** The moment on its map: your team's dots, theirs, you ringed. */
@@ -433,7 +435,8 @@ function Leaderboard({ game, rating, tried }: { game: MomentGame; rating: number
       </div>
       {who === 'friends' && note && <p className="muted small">{note}</p>}
       {who === 'all' && <p className="muted small">{!me ? 'Log in with Steam and make your profile public (Settings) to be on it.' : !isPublic ? 'Your profile is private: make it public in Settings to show up here.' : tried < 10 ? `Solve ${10 - tried} more to show up.` : place ? `Your rating ${rating} would be #${place}.` : ''}</p>}
-      {err ? <p className="warn-text">{err}</p> : !rows ? <p className="muted">Loading…</p> : !rows.length ? <p className="muted">{who === 'friends' ? 'No ratings among your friends yet.' : 'Nobody yet. Be first.'}</p> : (
+      {err ? <p className="warn-text">{err}</p> : !rows ? <p className="muted">Loading…</p> : !rows.length ? <p className="muted">{who === 'friends' ? 'No ratings among your friends yet.' : 'Nobody yet. Be first.'}</p>
+        : who === 'all' && rows.length < BOARD_OPENS ? <p className="muted">The {GAME_NAME[game]} leaderboard opens when {BOARD_OPENS} players with a public profile have solved 10 or more puzzles ({rows.length} so far).</p> : (
         <ol className="leaderboard">
           {rows.map((r, i) => (
             <li key={r.steamId} className={me?.steamId === r.steamId ? 'mine' : ''}>

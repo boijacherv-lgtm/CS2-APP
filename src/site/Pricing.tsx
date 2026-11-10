@@ -47,7 +47,7 @@ export function Pricing() {
           <h2>Free</h2>
           <p className="price"><b>$0</b><span>forever</span></p>
           <ul>{FREE.map(f => <li key={f}><Icon name={iconFor(f)} size={14} /> {f}</li>)}</ul>
-          <a className="cta" href="/cs2/review">Review a match</a>
+          <a className="cta" href="/cs2/review">Review a CS2 match</a>
         </section>
         <section className="plan featured">
           <span className="plan-tag">{PRO_EARLY_ACCESS ? 'Free in early access' : 'Most complete'}</span>
@@ -59,7 +59,7 @@ export function Pricing() {
               <Icon name="bell" size={14} /> {notify ? 'You\'ll be told when Pro launches' : 'Tell me when Pro launches'}
             </button>
           ) : STEAM_AVAILABLE ? (
-            <div className="plan-login"><span className="muted">Pro is free for everyone right now. Log in to hear before it starts costing $5. We only get your SteamID, public name and avatar.</span><SteamLoginButton compact /></div>
+            <div className="plan-login"><span className="muted">Pro is free for everyone right now: log in with Steam and it's on. We only get your SteamID, public name and avatar.</span><SteamLoginButton compact label="Get Pro free (early access)" /></div>
           ) : <p className="muted">Pro launches later; everything is unlocked until then.</p>}
           {me && remote && notify && <p className="muted small">You'll see it on your profile when it launches. We don't email you.</p>}
         </section>

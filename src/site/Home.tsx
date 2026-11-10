@@ -54,7 +54,7 @@ export function Home() {
           </div>
           {/* two actions: review a match (the game chips above pick the game), or try a sample */}
           <div className="hero-cta">
-            <a className="cta primary" href="/cs2/review">Review a match <Icon name="arrowRight" size={14} /></a>
+            <a className="cta primary" href="/cs2/review">Review a CS2 match <Icon name="arrowRight" size={14} /></a>
             {/* a sample in either game: a small menu, CS2 or Deadlock */}
             <details className="sample-menu">
               <summary className="cta"><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening…' : 'Try a sample'}</summary>
@@ -82,7 +82,7 @@ export function Home() {
               <p>{g.note}</p>
               {g.points && <ul className="game-card-points">{g.points.map(x => <li key={x}>{x}</li>)}</ul>}
               <div className="game-card-cta">
-                <a className="cta primary" href={g.review}>Review a match</a>
+                <a className="cta primary" href={g.review}>Review a {g.short} match</a>
                 {g.plan && <a className="cta" href={g.plan}>{g.planLabel ?? 'Tactical board'}</a>}
                 {g.page && <a className="cta ghost" href={g.page}>About {g.short}</a>}
               </div>
@@ -159,6 +159,15 @@ export function Home() {
           <p className="muted">Everything you need is free in every game. Pro adds unlimited history{PRO_EARLY_ACCESS ? ', and it\'s free during early access' : ''}.</p>
         </div>
         <a className="cta" href="/pricing">See plans</a>
+      </section>
+
+      {/* the last word: back to the main job */}
+      <section className="site-section final-cta">
+        <h2 className="section-title">Review your last match. Free, 30 seconds.</h2>
+        <div className="hero-cta">
+          <a className="cta primary" href="/cs2/review">Review a CS2 match <Icon name="arrowRight" size={14} /></a>
+          <a className="cta" href="/deadlock/review">Review a Deadlock match</a>
+        </div>
       </section>
 
       <section className="site-section">
