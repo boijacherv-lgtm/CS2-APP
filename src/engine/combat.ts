@@ -63,8 +63,8 @@ export interface Simulation {
   /** The bomb: planted (when, where, by whom, which site), defused, gone off (round seconds). */
   bomb?: { plantT: number; site: string; pos: Vec2; by: string; defuseT?: number; defuser?: string; explodeT?: number };
 }
-/** Planting takes 3.2 s; the fuse 40 s; a defuse 5 s (a kit assumed: CTs on a buy have one). */
-export const SIM_PLANT = 3.2, SIM_FUSE = 40, SIM_DEFUSE = 5;
+/** Planting takes 3.2 s; the fuse 40 s; a defuse 5 s with a kit, 10 s without (CTs on a half or full buy have kits). */
+export const SIM_PLANT = 3.2, SIM_FUSE = 40, SIM_DEFUSE = 5, SIM_DEFUSE_NO_KIT = 10;
 
 interface Agent {
   p: Player;
@@ -115,6 +115,11 @@ export function simulate(engine: TacticalEngine, board: BoardState, end: number,
   const siteAt = (p: Vec2) => sites.find(([, st]) => dist(p, st.center) <= st.radius)?.[0] ?? null;
   let planter = -1, plantFrom = 0, defuser = -1, defuseFrom = 0;
   const DEFUSE_REACH_PX = 60 / engine.map.radar.scale; // within about 60 units of the bomb
+  // kits: the CTs' buy (eco and force buys usually go without)
+  const ctEcon = board.context ? (board.context.userSide === 'CT' ? board.context.economy.user : board.context.economy.enemy) : 'full';
+  const defuseSecs = ctEcon === 'full' || ctEcon === 'half' ? SIM_DEFUSE : SIM_DEFUSE_NO_KIT;
+  /** CTs already sent to the planted bomb. */
+  const retaking = new Set<number>();
 
   for (let s = 0; s < steps; s++) {
     const t = s * SIM_DT;
@@ -220,8 +225,18 @@ export function simulate(engine: TacticalEngine, board: BoardState, end: number,
       const near = (i: number) => dist(agents[i].pos, sim.bomb!.pos) <= DEFUSE_REACH_PX;
       if (defuser >= 0 && (!free(defuser) || !near(defuser))) defuser = -1;
       if (defuser < 0) { const i = agents.findIndex((a, k) => a.p.side === 'CT' && free(k) && near(k)); if (i >= 0) { defuser = i; defuseFrom = t; } }
-      if (defuser >= 0 && t - defuseFrom >= SIM_DEFUSE) { sim.bomb.defuseT = t; sim.bomb.defuser = agents[defuser].p.id; }
+      if (defuser >= 0 && t - defuseFrom >= defuseSecs) { sim.bomb.defuseT = t; sim.bomb.defuser = agents[defuser].p.id; }
       else if (t - sim.bomb.plantT >= SIM_FUSE) sim.bomb.explodeT = t;
+      // the retake: a CT who's done with their own route (or has none) heads for the bomb
+      for (let i = 0; i < n; i++) {
+        const a = agents[i];
+        if (a.p.side !== 'CT' || !a.alive || retaking.has(i) || near(i)) continue;
+        const own = a.route && a.progress < a.route.end - a.route.start;
+        if (own) continue;
+        retaking.add(i);
+        const r = bakeRoute(engine, { ...a.p, pos: a.pos, route: { pts: [sim.bomb.pos], start: t, mode: 'run' } });
+        if (r) { a.route = r; a.progress = 0; }
+      }
     }
 
     // 4. Move and turn.

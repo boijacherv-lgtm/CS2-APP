@@ -443,4 +443,21 @@ describe('sim bomb', () => {
     expect(sim.bomb?.site).toBe('A');
     expect(sim.bomb!.explodeT! - sim.bomb!.plantT).toBeCloseTo(SIM_FUSE, 0);
   });
+  it('a CT with nothing to do goes to the planted bomb (the retake)', async () => {
+    const { tPlaysFor, getEngine } = await import('../../map/catalog');
+    const { simulate } = await import('../combat');
+    const e = getEngine('de_mirage', 0);
+    const ts = tPlaysFor('de_mirage')['A execute']();
+    const spawn = e.map.sites!.B.center; // a B anchor, free once A is hit
+    const ct = { ...ts[0], id: 'ct-1', side: 'CT', pos: spawn, route: undefined };
+    const b = { players: [...ts, ct], utility: [], routes: [] } as unknown as Parameters<typeof simulate>[1];
+    const sim = simulate(e, b, 120, 1);
+    expect(sim.bomb).toBeTruthy();
+    const i = sim.ids.indexOf('ct-1'), at = (s: number) => ({ x: sim.x[i][s], y: sim.y[i][s] });
+    const d = (p: { x: number; y: number }) => Math.hypot(p.x - sim.bomb!.pos.x, p.y - sim.bomb!.pos.y);
+    const plantStep = Math.ceil(sim.bomb!.plantT / (sim.end / (sim.steps - 1)));
+    const last = Number.isFinite(sim.deathT[i]) ? Math.floor(sim.deathT[i] / (sim.end / (sim.steps - 1))) : sim.steps - 1;
+    // moved toward the bomb after the plant (or reached and defused it)
+    expect(sim.bomb!.defuser === 'ct-1' || d(at(last)) < d(at(plantStep)) - 20).toBe(true);
+  });
 });
