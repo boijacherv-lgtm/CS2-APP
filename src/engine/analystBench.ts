@@ -384,10 +384,11 @@ export function analystReport(rounds: (AnalystRound | null | undefined)[], playe
     { label: 'Time to rotate', you: rotT.length ? `${s1(avg(rotT))} s` : '–', pro: `${s1(bench.rotations.avgTime)} s`, better: rotT.length ? cmp(avg(rotT), bench.rotations.avgTime, false, 1) : null },
     { label: 'Over-rotations', you: `${rots.filter(o => o.overRotated).length}`, pro: pct(bench.rotations.overRate), better: null },
   ];
-  const badRot = rots.filter(o => o.overRotated || o.late);
-  if (badRot.length >= 2)
-    findings.push({ topic: 'Rotations', good: false, weight: 2 + badRot.length, rounds: [...new Set(badRot.map(o => o.i))],
-      title: 'Rotate on information, not on a feeling', detail: `${badRot.filter(o => o.overRotated).length} over-rotations (you left a site that then got hit), ${badRot.filter(o => o.late).length} late. Level-10 CTs rotate in ${s1(bench.rotations.avgTime)} s and over-rotate ${pct(bench.rotations.overRate)} of the time: wait for a second piece of info (two players seen, utility on the site) before leaving.` });
+  const badRot = rots.filter(o => o.overRotated || o.late), over = badRot.filter(o => o.overRotated).length;
+  // late counts half: the rule can't see calls or a move already on its way
+  if (over + badRot.filter(o => o.late).length / 2 >= 2)
+    findings.push({ topic: 'Rotations', good: false, weight: 2 + over + (badRot.length - over) / 2, rounds: [...new Set(badRot.map(o => o.i))],
+      title: 'Rotate on information, not on a feeling', detail: `${badRot.filter(o => o.overRotated).length} over-rotations (you left a site that then got hit), ${badRot.filter(o => o.late).length} maybe late. Level-10 CTs rotate in ${s1(bench.rotations.avgTime)} s and over-rotate ${pct(bench.rotations.overRate)} of the time: wait for a second piece of info (two players seen, utility on the site) before leaving.` });
 
   // the team's round plans and setups
   const tRounds = rs.filter(x => x.side === 'T' && !['eco', 'pistol'].includes(x.r.plan.tType));
