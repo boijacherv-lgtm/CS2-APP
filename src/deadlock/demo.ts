@@ -481,10 +481,14 @@ export class NoDemo extends Error {
     markMissing(id);
   }
 }
-const MISSING = 'stratboard.dldemo.missing';
-const missing = (): number[] => { try { return JSON.parse(localStorage.getItem(MISSING) ?? '[]'); } catch { return []; } };
-function markMissing(id: number) { try { localStorage.setItem(MISSING, JSON.stringify([...new Set([id, ...missing()])].slice(0, 500))); } catch { /* private mode */ } }
-function unmarkMissing(id: number) { try { localStorage.setItem(MISSING, JSON.stringify(missing().filter(x => x !== id))); } catch { /* private mode */ } }
+// matches found without a demo, and when: the bot can hand deadlock-api a replay later, so a "none" is asked again
+// after a while (older lists held bare IDs: those count as old)
+const MISSING = 'stratboard.dldemo.missing', MISSING_FOR_MS = 2 * 3600e3;
+type Miss = [id: number, at: number];
+const misses = (): Miss[] => { try { return (JSON.parse(localStorage.getItem(MISSING) ?? '[]') as (number | Miss)[]).map(x => (Array.isArray(x) ? x : [x, 0])); } catch { return []; } };
+const missing = (): number[] => misses().filter(([, at]) => Date.now() - at < MISSING_FOR_MS).map(([id]) => id);
+function markMissing(id: number) { try { localStorage.setItem(MISSING, JSON.stringify([[id, Date.now()], ...misses().filter(([x]) => x !== id)].slice(0, 500))); } catch { /* private mode */ } }
+function unmarkMissing(id: number) { try { localStorage.setItem(MISSING, JSON.stringify(misses().filter(([x]) => x !== id))); } catch { /* private mode */ } }
 
 const KEY = (id: number) => `dldemo${DEMO_V}:${id}`;
 /**
