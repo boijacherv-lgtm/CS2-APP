@@ -231,6 +231,8 @@ export interface DemoData {
   ranks?: Record<string, PlayerRank>;
   /** When the match was played (ms): the demo file's date, which CS2 sets as it saves the demo after the match. */
   playedAt?: number;
+  /** The front page's sample (names replaced): the recap says so. */
+  sample?: boolean;
 }
 
 // ---- replay -----------------------------------------------------------------------------------

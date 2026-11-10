@@ -1,3 +1,4 @@
+import { SteamLoginButton } from '../ui/SteamLogin';
 import { useEffect, useMemo, useState } from 'react';
 import { navigate } from '../shell/router';
 import { AreaChart, Donut, MiniLine } from '../site/charts';
@@ -112,7 +113,7 @@ export function DlProfile({ account }: { account: string | null }) {
     const parts = Object.fromEntries(PARTS.map(p => { const xs = graded.map(g => g.parts[p.key]).filter((v): v is number => typeof v === 'number'); return [p.key, xs.length ? Math.round(xs.reduce((a, v) => a + v, 0) / xs.length) : null]; }));
     try { localStorage.setItem(MY_GRADES, JSON.stringify({ at: Date.now(), games: graded.length, parts })); } catch { /* private mode */ }
   }, [graded, grading]);
-  if (!account) return <section className="empty-card"><Icon name="user" size={30} /><h2>Log in with Steam</h2><p className="muted">Your Deadlock profile comes from your matches: log in to see it.</p></section>;
+  if (!account) return <section className="empty-card"><Icon name="user" size={30} /><h2>Your Deadlock profile</h2><p className="muted">It comes from your matches: log in with Steam to see it.</p><SteamLoginButton /></section>;
   if (err) return <p className="warn-text">{err}</p>;
   if (!rows) return <Loading>Loading your Deadlock matches…</Loading>;
   if (!rows.length) return <p className="empty-state">No normal Deadlock matches yet. Add RageView bot in Review (or pick your Steam folder there) and they come in by themselves.</p>;

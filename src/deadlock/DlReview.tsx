@@ -31,7 +31,7 @@ const ago = (unix: number) => {
 /** Deadlock Review: pick a match (yours, or any by its ID), then replay it on the map. */
 export function DlReview() {
   const match = useDl(s => s.match);
-  return match ? <DlBoard /> : <DlStart />;
+  return match ? <><h1 className="sr-only">Deadlock match replay</h1><DlBoard /></> : <DlStart />;
 }
 
 function DlStart() {

@@ -171,7 +171,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
   return (
     <header className="recap-head" style={{ '--map-art': map ? `url(${map.levels[0].image})` : 'none' } as React.CSSProperties}>
       <div className="recap-head-main">
-        <span className="recap-map display">{map?.name ?? data.map}</span>
+        <h1 className="recap-map display">{map?.name ?? data.map} <span className="sr-only">{a}–{b}</span></h1>{data.sample && <span className="chip">Sample match · names replaced</span>}
         <span className="recap-score display">
           <b className={mine ? (mine.team === 0 ? 'ct' : 't') : 'ct'}>{a}</b><i>:</i><b className={mine ? (mine.team === 0 ? 't' : 'ct') : 't'}>{b}</b>
         </span>
@@ -222,14 +222,14 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
         <div className="perf-grades">
           <div className="perf-grade" title={`Against the other players in this lobby (round grades, impact, ADR, KAST, duels): ${lobbyText(p.lobbyZ)}`}>
             <span className="perf-letter display" style={{ background: LETTER_COLOR[p.letter] }}>{p.letter}</span>
-            <span className="muted">Lobby{NICK[p.letter] ? <> · <b className="perf-nick">{NICK[p.letter]}</b></> : null}</span>
-            <span className="perf-sub muted">vs these 10</span>
+            <span className="muted">{p.letter} in this lobby{NICK[p.letter] ? <> · <b className="perf-nick">{NICK[p.letter]}</b></> : null}</span>
+            <span className="perf-sub muted">vs the other 9</span>
           </div>
           {p.level ? (
             <div className="perf-grade" title={levelText(p.level)}>
               <span className="perf-letter display small" style={{ background: LETTER_COLOR[p.level.letter] }}>{p.level.letter}</span>
-              <span className="muted">Level</span>
-              <span className="perf-sub muted">B lvl 10 · S pro</span>
+              <span className="muted">{p.level.letter} vs level 10</span>
+              <span className="perf-sub muted">level 10 = B, pros = S</span>
             </div>
           ) : p.lvl10 && (
             <div className="perf-grade" title={`Against FACEIT level-10 players (the coach's numbers): ${lvl10Text(p.lvl10.z)}`}>
