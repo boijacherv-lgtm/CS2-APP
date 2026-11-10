@@ -62,7 +62,7 @@ export function MatchReportPage() {
   };
 
   const watch = (rounds: number[]) => rounds.slice(0, 6).map(i => (
-    <button key={i} onClick={() => openRound(i)} onMouseEnter={() => setHotRound(i)} onMouseLeave={() => setHotRound(null)} title="Open this round in Review">R{i + 1}</button>
+    <button key={i} className="round-link" onClick={() => openRound(i)} onMouseEnter={() => setHotRound(i)} onMouseLeave={() => setHotRound(null)} title="Open this round in Review">R{i + 1}</button>
   ));
   return (
     <div className="report">
@@ -324,7 +324,7 @@ function DevRow({ d, open, onToggle, onRound, onHotRound }: {
             <div className="coach-rounds">
               <span className="muted">Watch:</span>
               {d.note.rounds.slice(0, 10).map(i => (
-                <button key={i} onClick={() => onRound(i)} onMouseEnter={() => onHotRound(i)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">R{i + 1}</button>
+                <button key={i} className="round-link" onClick={() => onRound(i)} onMouseEnter={() => onHotRound(i)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">R{i + 1}</button>
               ))}
               {d.note.rounds.length > 10 && <span className="muted">+{d.note.rounds.length - 10}</span>}
             </div>
@@ -364,7 +364,7 @@ function AnalystCard({ data, rounds, player, level, done, onRound, onHotRound }:
       {f.rounds.length > 0 && (
         <div className="coach-rounds">
           <span className="muted">Watch:</span>
-          {f.rounds.slice(0, 10).map(i => <button key={i} onClick={() => onRound(i)} onMouseEnter={() => onHotRound(i)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">R{i + 1}</button>)}
+          {f.rounds.slice(0, 10).map(i => <button key={i} className="round-link" onClick={() => onRound(i)} onMouseEnter={() => onHotRound(i)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">R{i + 1}</button>)}
         </div>
       )}
     </div>
@@ -421,7 +421,7 @@ function PositioningCard({ data, rounds, player, done, onRound, onHotRound }: {
       {x.rounds.length > 0 && (
         <div className="coach-rounds">
           <span className="muted">Watch:</span>
-          {x.rounds.slice(0, 10).map(i => <button key={i} onClick={() => onRound(i)} onMouseEnter={() => onHotRound(i)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">R{i + 1}</button>)}
+          {x.rounds.slice(0, 10).map(i => <button key={i} className="round-link" onClick={() => onRound(i)} onMouseEnter={() => onHotRound(i)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">R{i + 1}</button>)}
         </div>
       )}
     </div>
