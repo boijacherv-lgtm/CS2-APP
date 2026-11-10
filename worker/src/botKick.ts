@@ -7,6 +7,7 @@
 const REPO = 'boijacherv-lgtm/CS2-APP', WORKFLOW = 'bots.yml', GAP_MS = 12 * 60_000;
 
 export async function kickBots(token: string | undefined): Promise<string> {
+  token = token?.trim();
   if (!token) return 'no GH_TOKEN';
   const gh = (path: string, init?: RequestInit) => fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}${path}`, {
     ...init, headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'rageview-worker', 'X-GitHub-Api-Version': '2022-11-28', ...(init?.headers ?? {}) },
