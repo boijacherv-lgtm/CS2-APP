@@ -20,7 +20,21 @@ import { routeHref, useRoute, type Route } from './router';
 import { applyGame, themeOf } from '../ui/tokens';
 
 // each big page is its own download, fetched when you open it (the front page doesn't carry the replay and the engine)
-const named = <K extends string>(load: () => Promise<Record<K, React.ComponentType<any>>>, k: K) => lazy(() => load().then(m => ({ default: m[k] })));
+const named = <K extends string>(load: () => Promise<Record<K, React.ComponentType<any>>>, k: K) => lazy(() => load().then(m => ({ default: m[k] }), reloadIfStale));
+/**
+ * A page's file missing: a new version of the site went up since this tab opened (each version names its files anew).
+ * The tab reloads once to get the new version; a second failure within a minute is a real error (shown by PageGuard).
+ */
+function reloadIfStale(e: unknown): never {
+  const KEY = 'rv.staleReload';
+  let last = 0;
+  try { last = Number(sessionStorage.getItem(KEY) ?? 0); } catch { /* private mode */ }
+  if (Date.now() - last > 60_000) {
+    try { sessionStorage.setItem(KEY, String(Date.now())); } catch { /* private mode */ }
+    location.reload();
+  }
+  throw e;
+}
 const Cs2App = named(() => import('../App'), 'App');
 const MatchReportPage = named(() => import('../ui/Report'), 'MatchReportPage');
 const Dev = named(() => import('../site/Dev'), 'Dev');

@@ -17,6 +17,7 @@ import { useDl } from '../deadlock/store';
 export function NavBar({ route }: { route: Route }) {
   const loaded = useStore(s => s.review);
   const exitReview = useStore(s => s.exitReview);
+  const dlMatch = useDl(s => s.match), dlClose = useDl(s => s.close);
   const cs2 = route.page === 'cs2';
   // with a match loaded there's no Tactical tab: its address goes to Review (Load another closes the match);
   // without one there's no recap to show: Match recap goes to Review too
@@ -75,6 +76,15 @@ export function NavBar({ route }: { route: Route }) {
         </div>
       )}
       {route.page === 'deadlock' && <DlNav route={route} />}
+      {/* on the other pages (home, puzzles, profile…): each open match as a tab too, to go back to it or close it */}
+      {!cs2 && loaded && <span className="match-tab away">
+        <a href="/cs2/review" title="Back to the open CS2 match"><Icon name="map" size={14} /><b>{MAPS.find(m => m.id === loaded.data.map)?.name ?? loaded.data.map}</b></a>
+        <button className="match-tab-x" onClick={exitReview} aria-label="Close the CS2 match" title="Close this match"><Icon name="close" size={13} /></button>
+      </span>}
+      {route.page !== 'deadlock' && dlMatch && <span className="match-tab away">
+        <a href="/deadlock/review" title="Back to the open Deadlock match"><Icon name="map" size={14} /><b>Match {dlMatch.id}</b></a>
+        <button className="match-tab-x" onClick={dlClose} aria-label="Close the Deadlock match" title="Close this match"><Icon name="close" size={13} /></button>
+      </span>}
       <div className="nav-right">
         <a className={`nav-link nav-wide ${route.page === 'puzzles' ? 'on' : ''}`} href="/puzzles" aria-label="Puzzles"><Icon name="target" size={16} /> <span>Puzzles</span></a>
         {/* phones: the page links in a labelled menu instead of bare icons */}
