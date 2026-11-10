@@ -35,7 +35,7 @@ export function Deadlock() {
             : <div className="dl-login"><span className="muted small">Saved in this browser. Log in so it follows you to any device:</span><SteamLoginButton compact /></div>)}
         </div>
         {/* a real replay (the public sample, players' names hidden) instead of an empty box with the logo */}
-        <img className="dl-hero-shot" src="/images/shots/replay.jpg" alt="A Deadlock replay: both teams on the map and a graded death explained" width={800} height={600} />
+        <img className="dl-hero-shot" src="/images/shots/replay.jpg" alt="A Deadlock replay: both teams on the map and a graded death explained" width={800} height={562} />
       </section>
 
       <section className="site-section">

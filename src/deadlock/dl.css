@@ -294,7 +294,8 @@
 .dl-swings li.up .dl-swing-delta { color: var(--good); } .dl-swings li.down .dl-swing-delta { color: var(--bad); }
 .dl-swing-delta { text-align: right; }
 @media (max-width: 760px) { .dl-swings li { grid-template-columns: auto minmax(0, 1fr) auto; } .dl-swing-bar { grid-column: 1 / -1; grid-row: 2; } .dl-swing-what { grid-column: 1 / -1; } .dl-swings li .chip { grid-row: 1; grid-column: 3; } .dl-swing-delta { grid-column: 2; } }
-.dl-grade h3 { display: flex; align-items: center; gap: 10px; }
+.dl-grade-head { display: flex; align-items: center; gap: 10px; }
+.dl-grade-title h3 { display: inline; margin: 0; font: inherit; color: inherit; }
 .dl-grade-lines { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .dl-grade-lines li { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13.5px; }
 .dl-grade-lines li i { width: 8px; height: 8px; border-radius: 50%; }

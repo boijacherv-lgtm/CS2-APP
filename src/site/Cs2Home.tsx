@@ -23,7 +23,7 @@ export function Cs2Home() {
             <a className="cta" href="/cs2/tactical">Tactical board</a>
           </div>
         </div>
-        <img className="dl-hero-shot" src="/images/shots/coach.jpg" alt="A recap's engine card: accuracy, costliest moves and best calls" width={800} height={600} />
+        <img className="dl-hero-shot" src="/images/shots/cs2-recap.jpg" alt="A CS2 match recap on Mirage: the score, the player's grades against the lobby and level 10, and their key numbers" width={800} height={562} />
       </section>
 
       <section className="site-section">

@@ -36,7 +36,7 @@ export function Home() {
       // still gzipped (GitHub Pages) or already unpacked by the server (the dev server sends it gzip-encoded)
       const bytes = new Uint8Array(await res.arrayBuffer());
       const json = bytes[0] === 0x1f && bytes[1] === 0x8b ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text() : new TextDecoder().decode(bytes);
-      startReview(JSON.parse(json));
+      startReview({ ...JSON.parse(json), sample: true });
       navigate({ page: 'cs2', mode: 'review' });
     } catch { setSample('failed'); }
   };
@@ -189,7 +189,7 @@ const SHOTS = [
   { src: '/images/shots/cs2-replay.jpg', title: 'CS2 · The replay.', text: 'Every kill graded on the radar.', alt: 'CS2 replay on Mirage: both teams, the killfeed and a graded kill card' },
   { src: '/images/shots/replay.jpg', title: 'Deadlock · The replay.', text: 'Every death graded on the map.', alt: 'Deadlock replay: the map, both teams, and a graded death explained' },
   { src: '/images/shots/puzzle.jpg', title: 'Puzzles.', text: 'Find the best move, then see the answer.', alt: 'A CS2 puzzle on Nuke with four moves and the engine answer' },
-  { src: '/images/shots/coach.jpg', title: 'Deadlock · The engine.', text: 'Your costliest moves and best calls.', alt: 'Recap engine card: accuracy 92, costliest moves and best calls with reasons' },
+  { src: '/images/shots/coach.jpg', title: 'Deadlock · The engine.', text: 'Your costliest moves and best calls.', alt: 'Deadlock recap engine card: accuracy 92, costliest moves and best calls with reasons' },
   { src: '/images/shots/dl-meta.jpg', title: 'Deadlock · Meta & builds.', text: 'Every hero on this patch, by position.', alt: 'Deadlock meta table: heroes by position with tier, win rate and pick rate' },
 ];
 

@@ -90,7 +90,7 @@ export function DlReport() {
     <div className="report dl-report">
       <header className="recap-head" style={who && heroArt(who.hero) ? { '--map-art': `url(${heroArt(who.hero)})`, '--hero-tint': heroOf(who.hero).color } as React.CSSProperties : undefined}>
         <div className="recap-head-main">
-          <span className="recap-map display">Deadlock</span>
+          <h1 className="recap-map display">Deadlock <span className="sr-only">{teamKills(match, 0)}–{teamKills(match, 1)}</span></h1>
           <span className="recap-score display">
             <b style={{ color: TEAM_COLOR[0] }}>{teamKills(match, 0)}</b><i>–</i><b style={{ color: TEAM_COLOR[1] }}>{teamKills(match, 1)}</b>
           </span>
@@ -105,7 +105,7 @@ export function DlReport() {
               <b>{nameOf(who.slot)}{who.slot === coach.mine ? ' (you)' : ''}</b>
               <span className="muted small">{heroOf(who.hero).name}{card?.pos ? <span className={`dl-pos p${card.pos}`}>Pos {card.pos}</span> : null}</span>
             </div>
-            {card && card.overall !== null && <span className="dl-subject-grade"><ScoreRing score={card.overall} note={card.note} size={56} /><b title="The match grade: 50 is average for the hero and position">{letterOf(card.overall)} · {card.overall}</b></span>}
+            {card && card.overall !== null && <span className="dl-subject-grade"><ScoreRing score={card.overall} note={card.note} size={56} /><b title="The match grade: 50 is average for the hero and position">{letterOf(card.overall)}</b></span>}
             <div className="dl-subject-stats">
               <span><b className="num">{who.kills}/{who.deaths}/{who.assists}</b><i>K/D/A</i></span>
               <span><b className="num"><CountUp text={`${(who.netWorth / 1000).toFixed(1)}k`} id={`${match.id}:${who.slot}:nw`} /></b><i>souls</i></span>
@@ -357,7 +357,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
           <ScoreRing score={card.overall} note={card.note} size={104} />
           <div>
             <span className="muted small">{name}'s report card · {hero}{card.pos ? ` · Pos ${card.pos}` : ''}</span>
-            <h3 className="dl-rc-verdict">{verdict}</h3>
+            <p className="dl-rc-verdict">{verdict}</p>
             <span className="muted small">{overallRank ? `${ORD(overallRank.n)} of ${overallRank.of} in this match · ` : ''}50 is an average game for {hero} in this position {level === 'high' ? 'among Phantom+ players' : ''} ({src.matches.toLocaleString()} {level === 'high' ? 'high-rank' : 'public'} matches since the patch)</span>
             {HAS_HIGH && (
               <span className="dl-level" role="group" aria-label="Compare with">
@@ -396,12 +396,12 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
         const r = rankOf(p.score, c => c.parts.find(x => x.key === p.key)?.score ?? null);
         return (
           <section key={p.key} id={`grade-${p.key}`} className="recap-card dl-grade">
-            <h3>
+            <div className="dl-grade-head">
               <ScoreRing score={p.score} note={p.note} size={40} />
-              <span className="dl-grade-title">{p.label}<span className="muted small">{p.summary}</span></span>
+              <span className="dl-grade-title"><h3>{p.label}</h3><span className="muted small">{p.summary}</span></span>
               {p.note !== 'book' && <MarkFace note={p.note} size={22} className="dl-card-mark" />}
               {r && <span className="dl-grade-rank muted small">{ORD(r.n)} of {r.of}</span>}
-            </h3>
+            </div>
             {facts.length > 0 && (
               <ul className="dl-grade-facts">
                 {facts.map((l, i) => <li key={i} className={`t-${l.tone ?? 'flat'}`}>{l.text}</li>)}
