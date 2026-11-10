@@ -209,12 +209,36 @@ export function DemoFolder() {
       if ((e as Error).name !== 'AbortError') setMsg(`Couldn't open that folder: ${(e as Error).message}`);
     }
   };
+  // logged in: every read game also goes to your account (once), so it opens on your other devices. Valve matches keep
+  // their match ID (match730_<id>_…); any other demo gets a number from its name and size
+  useEffect(() => {
+    if (!steamId) return;
+    const sent = (() => { try { return new Set<string>(JSON.parse(localStorage.getItem('rv.uploaded') ?? '[]')); } catch { return new Set<string>(); } })();
+    const todo = files.slice(0, SHOW).filter(f => sums[f.name] && !sent.has(`${steamId}:${f.name}`));
+    if (!todo.length) return;
+    let live = true;
+    (async () => {
+      for (const f of todo) {
+        if (!live) return;
+        const blob = await getItem<Blob>(DEMO(f.name));
+        if (!blob) continue;
+        const s = sums[f.name], id = outcomeFromFileName(f.name) ?? numberOf(`${f.name}:${f.size}`);
+        const info = JSON.stringify({ time: f.modified, map: s.map, scores: s.score, result: s.result, kd: s.kd });
+        const res = await steamFetch(`/demo/upload?id=${id}&info=${encodeURIComponent(info)}`, { method: 'POST', headers: { 'Content-Type': 'application/gzip' }, body: blob }).catch(() => null);
+        if (!res?.ok) continue;
+        sent.add(`${steamId}:${f.name}`);
+        try { localStorage.setItem('rv.uploaded', JSON.stringify([...sent].slice(-1000))); } catch { /* private mode */ }
+      }
+    })();
+    return () => { live = false; };
+  }, [files, sums, steamId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // the rows for the combined "Your matches" list (SteamMatches): the newest SHOW, each with how to open or read it
   const merged = useFolder(s => s.merged);
   useEffect(() => {
     useFolder.setState({ rows: perm === 'granted' ? files.slice(0, SHOW).map(f => {
       const s = sums[f.name];
-      return { name: f.name, modified: f.modified, outcomeId: outcomeFromFileName(f.name), map: s?.map ?? null, score: s?.score ?? null, result: s?.result ?? null,
+      return { name: f.name, modified: f.modified, outcomeId: outcomeFromFileName(f.name) ?? numberOf(`${f.name}:${f.size}`), map: s?.map ?? null, score: s?.score ?? null, result: s?.result ?? null,
         kd: s?.kd ?? null, rounds: s?.rounds ?? null, state: s ? 'read' : reading?.name === f.name ? 'reading' : failed[f.name] ? 'failed' : 'unread', error: failed[f.name],
         open: () => { void open(f); }, read: () => { void read(f); } };
     }) : [] });
@@ -285,4 +309,11 @@ export function DemoFolder() {
         ))}
     </section>
   );
+}
+
+/** A demo without a Valve match ID: a stable 18-digit number from its name and size (FNV-1a, 64 bit). */
+function numberOf(text: string): string {
+  let h = 0xcbf29ce484222325n;
+  for (const c of new TextEncoder().encode(text)) { h ^= BigInt(c); h = (h * 0x100000001b3n) & 0xffffffffffffffffn; }
+  return `9${(h % 10n ** 17n).toString().padStart(17, '0')}`;
 }
