@@ -110,6 +110,10 @@ export class DeadlockBot {
   friends() {
     return Object.entries(this.user?.myFriends ?? {}).filter(([, r]) => r === EFriendRelationship.Friend).map(([id]) => accountOf(id));
   }
+  /** Accounts that asked to be friends and aren't accepted yet (accepted in a moment). */
+  pending() {
+    return Object.entries(this.user?.myFriends ?? {}).filter(([, r]) => r === EFriendRelationship.RequestRecipient).map(([id]) => accountOf(id));
+  }
   /** 'friend', 'pending' (asked, not accepted yet) or 'none'. */
   relation(account) {
     const r = this.user?.myFriends?.[id64Of(account)];

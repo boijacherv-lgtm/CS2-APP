@@ -19,6 +19,7 @@ import { adminStats, isOwner, isPro, saveHeartbeat } from './admin';
 import { askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
 import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } from './dlDisputes';
 import { META_KEY, refreshDlMeta } from './dlMeta';
+import { botRoute, saveBotState } from './dlBot';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { board, countAnswer, updateBoard } from './puzzles';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
@@ -94,6 +95,11 @@ export default {
       // the coach's corrections from checked disputes: public (they're counts per kind of move), cached a few minutes
       if (req.method === 'GET' && path === '/corrections')
         return new Response(JSON.stringify(await corrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });
+      // Deadlock bot: who to add, whether you're its friend, your matches as it saw them (dlBot.ts)
+      if (req.method === 'GET' && path.startsWith('/dl/') && /^\/dl\/(bot|friend\/\d+|matches\/\d+)$/.test(path)) {
+        const out = await botRoute(env.SB, path);
+        if (out) return json(out);
+      }
       // Deadlock: what the owner's rulings on disputed marks change (public, cached a few minutes)
       if (req.method === 'GET' && path === '/dl/corrections')
         return new Response(JSON.stringify(await dlCorrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });
@@ -305,6 +311,7 @@ async function sync(env: Env, steamId: string) {
   if (!u.authCode || !u.knownCode) return { added: 0, note: 'Paste your authentication code and one match code first.', source: null };
   if (!env.STEAM_API_KEY) return { added: 0, note: 'The site has no Steam Web API key configured yet.', source: null };
   if (u.lastSyncAt && Date.now() - u.lastSyncAt < SYNC_EVERY_MS) return { added: 0, note: u.note ?? null, source: 'valve' };
+  const noteBefore = u.note ?? null;
   u.note = null;
   const known = new Set(u.matches.map(m => m.code));
   const t0 = Date.now();
@@ -324,9 +331,11 @@ async function sync(env: Env, steamId: string) {
       code = next;
     }
   } catch (e) { u.note = e instanceof Error ? e.message : String(e); }
+  const changed = found > 0 || u.lastCode !== code || u.note !== noteBefore;
   u.lastCode = code;
   u.lastSyncAt = Date.now();
-  await saveUser(env, steamId, u);
+  // KV's free plan has 1,000 writes a day and the bot asks for every user every 15 minutes: write only news
+  if (changed) await saveUser(env, steamId, u);
   return { added: u.matches.length - before, note: u.note ?? null, source: 'valve' };
 }
 
@@ -414,6 +423,8 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
   }
   // the bot's report after each round (for the dev page)
   if (req.method === 'POST' && path === '/internal/heartbeat') return json(await saveHeartbeat(env.SB, await body(req)));
+  // the Deadlock bot's friends and their matches, for the site (dlBot.ts)
+  if (req.method === 'POST' && path === '/internal/dlbot') return json(await saveBotState(env.SB, await body(req)));
   // a match the server graded, for this user's profile
   const profileFor = path.match(/^\/internal\/profile\/(7656\d{13})$/);
   if (req.method === 'POST' && profileFor) {

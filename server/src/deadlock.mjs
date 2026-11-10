@@ -15,6 +15,7 @@ import { Bot, TOKEN_FILE } from './bot.mjs';
 import { cs2Configured, cs2Loop } from './cs2.mjs';
 import { APP_ID } from './deadlock/proto.mjs';
 import { accountOf, DeadlockBot, readToken } from './deadlock/bot.mjs';
+import { pollFriend } from './deadlock/poll.mjs';
 
 const PORT = Number(process.env.PORT || 8080);
 const POLL_MINUTES = Number(process.env.DL_POLL_MINUTES || 10);
@@ -22,7 +23,6 @@ const POLL_MINUTES = Number(process.env.DL_POLL_MINUTES || 10);
 const WORKER_URL = (process.env.WORKER_URL || 'https://stratboard-api.stratboard.workers.dev').replace(/\/$/, '');
 const ORIGINS = (process.env.DL_ALLOW_ORIGINS || 'https://tsakhstvo.xyz,http://localhost:5173').split(',').map(s => s.trim());
 const STATE_FILE = path.join(DATA, 'deadlock-state.json');
-const API = 'https://api.deadlock-api.com';
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
 // what's been seen: each friend's recent matches (for the site) and which matches were already handed on
@@ -38,43 +38,8 @@ const cs2 = cs2Configured() && process.env.CS2_BOT !== 'off' ? new Bot(log) : nu
 const bot = new DeadlockBot({ token: readToken(TOKEN_FILE), saveToken: t => fs.writeFileSync(TOKEN_FILE, t, { mode: 0o600 }), log,
   games: cs2 ? [730, APP_ID] : [APP_ID], onUser: user => cs2?.attach(user) });
 
-/** The match file on Valve's server answers: the salts and cluster are right. */
-async function checkSalts(s) {
-  if (!s.cluster_id || !s.metadata_salt) return false;
-  const res = await fetch(`http://replay${s.cluster_id}.valve.net/1422450/${s.match_id}_${s.metadata_salt}.meta.bz2`, { method: 'HEAD' }).catch(() => null);
-  return !!res?.ok;
-}
-
-/** Hands a match's salts to deadlock-api, which then fetches the match (and its replay when there is one). */
-async function submit(s) {
-  const body = [{ match_id: s.match_id, cluster_id: s.cluster_id, metadata_salt: s.metadata_salt, replay_salt: s.replay_salt, username: 'rageview-bot' }];
-  const res = await fetch(`${API}/v1/matches/salts`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'rageview-bot (tsakhstvo.xyz)' }, body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`deadlock-api answered ${res.status}: ${(await res.text()).slice(0, 160)}`);
-}
-
-/** One friend: their recent matches, and the new ones handed on. */
-async function poll(account) {
-  const ms = await bot.matchHistory(account);
-  state.matches[account] = ms.slice(0, 50);
-  state.polled[account] = Date.now();
-  dirty = true;
-  // only matches from the last week are worth fetching (replays don't last longer)
-  for (const m of ms.filter(x => Date.now() / 1000 - x.start_time < 7 * 86400 && !state.sent[x.match_id])) {
-    const s = await bot.salts(m.match_id);
-    if (s.error) {
-      // still being written up by the game (MatchInFlight): next round
-      if (s.error !== 'MatchInFlight') { state.sent[m.match_id] = { at: Date.now(), error: s.error }; dirty = true; }
-      log(`match ${m.match_id}: ${s.error}`);
-      continue;
-    }
-    const ok = await checkSalts(s);
-    if (!ok) log(`match ${m.match_id}: the match file isn't where the salts say (cluster ${s.cluster_id}); sending anyway`);
-    await submit(s);
-    state.sent[m.match_id] = { at: Date.now(), replay: !!s.replay_salt };
-    dirty = true;
-    log(`match ${m.match_id} (${account}) handed to deadlock-api${s.replay_salt ? ', with its replay' : ', no replay'}`);
-  }
-}
+/** One friend: their recent matches, and the new ones handed on (deadlock/poll.mjs). */
+async function poll(account) { await pollFriend(bot, state, account, log); dirty = true; }
 
 /** Every friend in turn, then again after DL_POLL_MINUTES. */
 async function loop() {
