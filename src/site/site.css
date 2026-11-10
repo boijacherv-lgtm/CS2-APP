@@ -437,6 +437,8 @@ a.hero-games-live:hover b { text-decoration: underline; }
   background: var(--surface-2); border: 1px solid var(--border-strong); font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .match-tab b { color: var(--text-1); font-weight: 700; }
 .match-tab-n { color: var(--text-3); font-size: 12px; }
+.match-tab.away a { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; color: var(--text-2); }
+@media (max-width: 820px) { .match-tab.away b { display: none; } }
 .match-tab-x { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--text-3); }
 .match-tab-x:hover:not(:disabled) { background: color-mix(in srgb, var(--bad) 25%, transparent); color: #fff; border-color: transparent; }
 @media (max-width: 1320px) { .match-tab-n { display: none; } }
