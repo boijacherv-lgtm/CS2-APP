@@ -8,10 +8,11 @@
  * KV: pz:<id> ({ tried, right } for one puzzle; only premade ones, "p:…"), pzboard (the top 100: steamId, rating,
  * solved, tried, best). The board is updated when a player saves their record (POST /profile/puzzles, profile.ts).
  */
-import type { PuzzleRecord } from '../../src/engine/profile';
+import { puzzleField, type PuzzleGame, type PuzzleRecord } from '../../src/engine/profile';
 import { loadProfile, type ProfileKV } from './profile';
 
-const BOARD = 'pzboard', MAX_BOARD = 100;
+// one board per game (CS2's kept its first key)
+const BOARD = (g: PuzzleGame) => (g === 'deadlock' ? 'pzboard:deadlock' : 'pzboard'), MAX_BOARD = 100;
 export interface BoardRow { steamId: string; rating: number; solved: number; tried: number; best: number; at: number }
 
 /** Premade puzzle ids only ("p:" + the match and moment), so the counts can't be used to store anything else. */
@@ -30,24 +31,26 @@ export async function countAnswer(kv: ProfileKV, input: Record<string, unknown>)
   return now;
 }
 
-export async function board(kv: ProfileKV): Promise<BoardRow[]> {
-  return ((await kv.get(BOARD, 'json')) ?? []) as BoardRow[];
+export async function board(kv: ProfileKV, g: PuzzleGame = 'cs2'): Promise<BoardRow[]> {
+  return ((await kv.get(BOARD(g), 'json')) ?? []) as BoardRow[];
 }
 
 /** Puts a player on the board (public profile) or takes them off; keeps the top MAX_BOARD by rating. */
-export async function updateBoard(kv: ProfileKV, steamId: string, rec: PuzzleRecord | undefined, isPublic: boolean) {
-  const rows = (await board(kv)).filter(r => r.steamId !== steamId);
+export async function updateBoard(kv: ProfileKV, steamId: string, rec: PuzzleRecord | undefined, isPublic: boolean, g: PuzzleGame = 'cs2') {
+  const rows = (await board(kv, g)).filter(r => r.steamId !== steamId);
   // at least 10 puzzles tried: a rating from 2 answers isn't one
   if (isPublic && rec && rec.tried >= 10) rows.push({ steamId, rating: rec.rating, solved: rec.solved, tried: rec.tried, best: rec.best, at: rec.at });
   rows.sort((a, b) => b.rating - a.rating);
-  await kv.put(BOARD, JSON.stringify(rows.slice(0, MAX_BOARD)));
+  const next = JSON.stringify(rows.slice(0, MAX_BOARD));
+  // nothing changed (not on the board, and still not): no write
+  if (next !== JSON.stringify(await board(kv, g))) await kv.put(BOARD(g), next);
 }
 
 /**
  * You and your Steam friends on the puzzle board: their Steam friends list (it has to be public on Steam), then each
  * friend's record where their RageView profile is public. At most 150 friends are looked at.
  */
-export async function friendsBoard(kv: ProfileKV, steamId: string, apiKey: string | undefined): Promise<{ rows: BoardRow[]; note: string | null }> {
+export async function friendsBoard(kv: ProfileKV, steamId: string, apiKey: string | undefined, g: PuzzleGame = 'cs2'): Promise<{ rows: BoardRow[]; note: string | null }> {
   if (!apiKey) return { rows: [], note: 'The site has no Steam Web API key configured yet.' };
   const res = await fetch(`https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${encodeURIComponent(apiKey)}&steamid=${steamId}&relationship=friend`);
   if (res.status === 401 || res.status === 403) return { rows: [], note: 'Your Steam friends list is private: set it to public on Steam (Edit profile → Privacy settings) to see your friends here.' };
@@ -57,7 +60,7 @@ export async function friendsBoard(kv: ProfileKV, steamId: string, apiKey: strin
   const rows: BoardRow[] = [];
   await Promise.all(ids.map(async id => {
     const p = await loadProfile(kv, id);
-    const rec = p.puzzles;
+    const rec = p[puzzleField(g)];
     if (rec && rec.tried > 0 && (id === steamId || p.prefs.public)) rows.push({ steamId: id, rating: rec.rating, solved: rec.solved, tried: rec.tried, best: rec.best, at: rec.at });
   }));
   rows.sort((a, b) => b.rating - a.rating);

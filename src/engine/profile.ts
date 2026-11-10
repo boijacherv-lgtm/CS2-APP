@@ -55,9 +55,16 @@ export interface ProfileData {
   notifyGames: string[];
   /** Where they told the coach it was wrong (Review's move cards): checked against, and learned from. */
   verdicts: MoveVerdict[];
-  /** Your puzzle record (Puzzles), saved with your account: the leaderboard reads it when your profile is public. */
+  /** Your CS2 puzzle record (Puzzles), saved with your account: the leaderboard reads it when your profile is public. */
   puzzles?: PuzzleRecord;
+  /** The same for Deadlock's puzzles: a rating of its own. */
+  puzzlesDeadlock?: PuzzleRecord;
 }
+
+/** The puzzle games, each with its own rating and leaderboard. */
+export type PuzzleGame = 'cs2' | 'deadlock';
+export const puzzleGameOf = (v: unknown): PuzzleGame => (v === 'deadlock' ? 'deadlock' : 'cs2');
+export const puzzleField = (g: PuzzleGame) => (g === 'deadlock' ? 'puzzlesDeadlock' : 'puzzles') as 'puzzles' | 'puzzlesDeadlock';
 
 export interface PuzzleRecord { rating: number; solved: number; tried: number; best: number; dailyStreak: number; rushBest: number; at: number }
 const intIn = (v: unknown, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(hi, Math.max(lo, v))) : null);

@@ -23,6 +23,7 @@ import { botRoute, saveBotState } from './dlBot';
 import { kickBots } from './botKick';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { board, countAnswer, friendsBoard, updateBoard } from './puzzles';
+import { puzzleGameOf } from '../../src/engine/profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
 export interface Env {
@@ -121,7 +122,7 @@ export default {
       // puzzles: count an answer to a premade puzzle; the leaderboard (public profiles only; names via /profiles)
       if (req.method === 'POST' && path === '/puzzle/answer') return json(await countAnswer(env.SB, await body(req)));
       if (req.method === 'GET' && path === '/puzzle/board')
-        return new Response(JSON.stringify({ rows: await board(env.SB) }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
+        return new Response(JSON.stringify({ rows: await board(env.SB, puzzleGameOf(new URL(req.url).searchParams.get('game'))) }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
       // a friend's profile, when they made it public (name, avatar and their last matches' numbers)
       const pub = path.match(/^\/public\/(7656\d{13})$/);
       if (req.method === 'GET' && pub) {
@@ -141,7 +142,7 @@ export default {
       // the puzzle board among your Steam friends (their public profiles)
       if (req.method === 'GET' && path === '/puzzle/friends') {
         if (await limited(env.RATE_USER, steamId)) return slow();
-        return json(await friendsBoard(env.SB, steamId, env.STEAM_API_KEY));
+        return json(await friendsBoard(env.SB, steamId, env.STEAM_API_KEY, puzzleGameOf(new URL(req.url).searchParams.get('game'))));
       }
       if (req.method === 'GET' && path === '/admin/stats') {
         if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);
@@ -201,7 +202,7 @@ export default {
       if (req.method !== 'POST') return json({ error: 'Not found.' }, 404);
       const input = await body(req);
       if (path === '/signout') { await env.SB.delete(`session:${token}`); return json({ ok: true }); }
-      if (path === '/forget') { await env.SB.delete(`user:${steamId}`); await forgetProfile(env.SB, steamId); await updateBoard(env.SB, steamId, undefined, false); return json({ ok: true }); }
+      if (path === '/forget') { await env.SB.delete(`user:${steamId}`); await forgetProfile(env.SB, steamId); for (const g of ['cs2', 'deadlock'] as const) await updateBoard(env.SB, steamId, undefined, false, g); return json({ ok: true }); }
       if (path === '/settings') return json(await saveSettings(env, steamId, input));
       if (path === '/sync') return json(await sync(env, steamId));
       return json({ error: 'Not found.' }, 404);
