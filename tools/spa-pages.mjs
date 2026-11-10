@@ -12,6 +12,8 @@ const PAGES = ['cs2', 'cs2/review', 'cs2/tactical', 'cs2/report', 'deadlock', 'd
 const PUBLIC = ['', 'cs2', 'cs2/review', 'cs2/tactical', 'deadlock', 'deadlock/review', 'deadlock/meta', 'puzzles', 'pricing', 'privacy', 'changelog'];
 
 const html = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
+// the front page's FAQ and the coach's numbers, from the same module the page uses (run with vite-node: it reads TS)
+const { FAQ, MATCHES, PRO_MATCHES, DL_MATCHES } = await import('../src/site/faq.ts');
 // each public page's own title, description and link preview, and a few lines of text for crawlers and AI bots that
 // don't run the app (the page itself replaces the <noscript> text). `h1` and `text` say only what the page says.
 const META = {
@@ -69,8 +71,40 @@ for (const p of PAGES) {
   if (p === 'dev') page = page.replace('<head>', '<head><meta name="robots" content="noindex, nofollow" />');
   fs.writeFileSync(path.join(DIST, `${p}.html`), page);
 }
-// the front page itself, and the 404 page from the untouched copy
-fs.writeFileSync(path.join(DIST, 'index.html'), withMeta(html, ''));
+// the front page itself (with what it is and its FAQ as structured data), and the 404 page from the untouched copy
+const ld = [
+  { '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'RageView', url: `${SITE}/`, applicationCategory: 'GameApplication', operatingSystem: 'Web browser',
+    description: META[''].desc,
+    offers: [{ '@type': 'Offer', name: 'Free', price: '0', priceCurrency: 'USD' }, { '@type': 'Offer', name: 'Pro (free during early access)', price: '5', priceCurrency: 'USD' }] },
+  { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: FAQ.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) },
+];
+const ldTags = ld.map(x => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>`).join('\n    ');
+fs.writeFileSync(path.join(DIST, 'index.html'), withMeta(html, '').replace('</head>', `    ${ldTags}\n  </head>`));
+// /llms.txt: what the site is, in plain words, for AI assistants (facts from the site only)
+fs.writeFileSync(path.join(DIST, 'llms.txt'), `# RageView
+
+> Free match review for Counter-Strike 2 and Deadlock. Every play is graded (Brilliant to Blunder per move, S+ to F per round) with the better play the engine would have made.
+
+- CS2: drop a .dem demo; it is read in your browser, nothing is uploaded. The coach learned from ${MATCHES} FACEIT level-10 matches${PRO_MATCHES ? ` and ${PRO_MATCHES} pro matches` : ''}.
+- Deadlock: open any match by its match ID (match data from deadlock-api.com). The coach learned from ${DL_MATCHES.toLocaleString('en-US')} Phantom-and-up matches since the patch.
+- Puzzles: real moments from top players' matches and your own; a daily puzzle, a rush and a rating per game.
+- Free. Pro adds unlimited history; it is free during early access, later $5 a month.
+- Login is optional, through Steam (the site gets your SteamID, public name and avatar only).
+
+## Pages
+
+- [Home](${SITE}/)
+- [CS2 review](${SITE}/cs2)
+- [Deadlock review](${SITE}/deadlock)
+- [Deadlock meta and builds](${SITE}/deadlock/meta)
+- [Puzzles](${SITE}/puzzles)
+- [Pricing](${SITE}/pricing)
+- [Privacy](${SITE}/privacy)
+
+## FAQ
+
+${FAQ.map(f => `- **${f.q}** ${f.a}`).join('\n')}
+`);
 // /cs2/ and /deadlock/ (a folder, from cs2/review.html…): the game page, not a 404
 for (const p of ['cs2', 'deadlock']) fs.copyFileSync(path.join(DIST, `${p}.html`), path.join(DIST, p, 'index.html'));
 fs.writeFileSync(path.join(DIST, '404.html'), html.replace('<head>', '<head><meta name="robots" content="noindex" />'));
