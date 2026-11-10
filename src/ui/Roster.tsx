@@ -64,7 +64,7 @@ export function TeamRoster({ side, players, round, time }: { side: 'CT' | 'T'; p
         const hp = Math.max(0, Math.min(100, Math.round(p.hp)));
         return (
           <div key={p.id} className={`tb-row ${p.alive ? '' : 'dead'} ${p.alive && hp <= 30 ? 'low' : ''}`} style={{ '--hp': `${p.alive ? hp : 0}%` } as React.CSSProperties}>
-            <span className="tb-pic">{p.avatar ? <img src={p.avatar} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <b>{p.name.slice(0, 2)}</b>}</span>
+            <span className="tb-pic">{p.avatar ? <img src={p.avatar} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <b>{initials(p.name)}</b>}</span>
             <div className="tb-main">
               <div className="tb-line">
                 {p.alive ? <span className="tb-hp num" title="Health">{hp}</span> : <Icon name="skull" size={13} title="Dead" className="tb-dead" />}
@@ -99,3 +99,6 @@ export function TeamRoster({ side, players, round, time }: { side: 'CT' | 'T'; p
     </div>
   );
 }
+
+/** Two letters for a player with no avatar: "Player 4" → "P4", "s1mple" → "S1". */
+const initials = (n: string) => { const m = /^(\S)\S*\s+(\d+)$/.exec(n.trim()); return (m ? m[1] + m[2] : n.trim().slice(0, 2)).toUpperCase(); };

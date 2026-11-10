@@ -220,7 +220,7 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
         const g = moveLook(m);
         // the same marks as on the map, for every move that's evaluated: book moves as small dots
         return (
-          <button key={`m${i}`} className={m.note === 'book' ? 'tl-dot' : 'tl-mark'} style={{ left: pct(m.t), background: m.note === 'book' ? g.color : 'none' }}
+          <button key={`m${i}`} tabIndex={-1} className={m.note === 'book' ? 'tl-dot' : 'tl-mark'} style={{ left: pct(m.t), background: m.note === 'book' ? g.color : 'none' }}
             title={`${g.label} · ${m.title}`}
             onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }}>{m.note !== 'book' && <MarkFace note={m.note} size={15} title={`${g.label} · ${m.title}`} />}</button>
         );
