@@ -29,6 +29,14 @@ async function submit(s) {
   if (!res.ok) throw new Error(`deadlock-api answered ${res.status}: ${(await res.text()).slice(0, 160)}`);
 }
 
+/** deadlock-api already has this match's salts (sent by us or anyone): no need to ask Deadlock, whose limit is tight. */
+async function known(matchId) {
+  const r = await fetch(`${API}/v1/matches/${matchId}/salts?disable_steam=true`, { headers: { 'User-Agent': 'rageview-bot (tsakhstvo.xyz)' } }).catch(() => null);
+  if (!r?.ok) return false;
+  const j = await r.json().catch(() => null);
+  return !!j?.metadata_salt;
+}
+
 /** One friend: their recent matches, and the new ones handed on. */
 export async function pollFriend(bot, state, account, log) {
   const ms = await bot.matchHistory(account);
@@ -36,6 +44,7 @@ export async function pollFriend(bot, state, account, log) {
   state.polled[account] = Date.now();
   // only matches from the last week are worth fetching (replays don't last longer)
   for (const m of ms.filter(x => Date.now() / 1000 - x.start_time < 7 * 86400 && !state.sent[x.match_id])) {
+    if (await known(m.match_id)) { state.sent[m.match_id] = { at: Date.now(), known: true }; continue; }
     const s = await bot.salts(m.match_id);
     if (s.error) {
       log(`match ${m.match_id}: ${s.error}`);
