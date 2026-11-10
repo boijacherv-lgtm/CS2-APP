@@ -785,14 +785,17 @@ a.btn:hover { border-color: #45505e; }
 .pos-worst button { display: grid; grid-template-columns: 90px minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left; padding: 6px 8px; font-size: 12px; }
 .pos-worst button b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Review, broadcast layout: score bug top centre, killfeed top right, team panels in the bottom corners, the move card
-   between them (like a tournament stream's lower third) */
-.board-ui.broadcast { grid-template-areas: "tl top tr" "left . right" "team-ct bl team-t" "eval eval eval" "dock dock dock"; }
+/* Review, broadcast layout (like Deadlock's): each team's players in a column down its side, the map between them,
+   score bug top centre, killfeed top right, the move card next to the CT column */
+.board-ui.broadcast { grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "tl top tr" "team-ct left team-t" "team-ct bl team-t" "eval eval eval" "dock dock dock"; }
+.board-ui.broadcast .slot.tl, .board-ui.broadcast .slot.tr { max-width: 330px; }
+.board-ui.broadcast .slot.right { display: none; }
 .slot.card-slot { align-items: flex-start; min-height: 0; overflow: hidden; }
 .board-ui.broadcast .slot.bl { justify-content: center; align-items: flex-end; }
 .board-ui.broadcast .slot.br { display: none; }
-.slot.team-ct { grid-area: team-ct; align-items: flex-end; justify-content: flex-start; }
-.slot.team-t { grid-area: team-t; align-items: flex-end; justify-content: flex-end; }
+.slot.team-ct { grid-area: team-ct; align-items: flex-start; justify-content: flex-start; }
+.slot.team-t { grid-area: team-t; align-items: flex-start; justify-content: flex-end; }
 
 .teambar { width: 330px; max-width: 100%; display: flex; flex-direction: column; gap: 4px; font-family: var(--font-ui); }
 .teambar.ct { --side: var(--ct); --side-dim: var(--ct-dim); } .teambar.t { --side: var(--t); --side-dim: var(--t-dim); }
