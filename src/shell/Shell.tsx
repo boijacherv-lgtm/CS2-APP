@@ -106,7 +106,7 @@ async function recordIfYours(data: DemoData, rounds: (RoundSummary | null)[]) {
 }
 
 const MODE_TITLE = { tactical: 'Tactical Board', review: 'Review a match', report: 'Match recap', home: 'Coach' } as const;
-const PAGE_TITLE: Record<string, string> = { missing: 'Page not found', privacy: 'Privacy', changelog: 'What\'s new', profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Dev', puzzles: 'Puzzles', moment: 'A shared moment' };
+const PAGE_TITLE: Record<string, string> = { missing: 'Page not found', privacy: 'Privacy', changelog: 'What\'s new', profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Page not found', puzzles: 'Puzzles', moment: 'A shared moment' };
 export function pageTitle(r: Route): string {
   if (r.page === 'cs2') return r.mode === 'review' ? 'CS2 Demo Review · RageView' : `CS2 ${MODE_TITLE[r.mode]} · RageView`;
   if (r.page === 'deadlock') return r.mode === 'review' ? 'Deadlock Match Review · RageView' : r.mode === 'tactical' ? 'Deadlock Meta & Builds · RageView' : `Deadlock ${MODE_TITLE[r.mode]} · RageView`;
