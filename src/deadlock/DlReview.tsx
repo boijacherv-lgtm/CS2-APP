@@ -76,7 +76,7 @@ function DlStart() {
     let live = true;
     (async () => {
       // each refresh: the new ones, and recent ones without a demo yet (a replay can be listed a while after)
-      const recent = (r: DlHistoryRow) => Date.now() / 1000 - r.start_time < 3 * 3600;
+      const recent = (r: DlHistoryRow) => Date.now() / 1000 - r.start_time < 8 * 86400;
       const todo = rows.slice(0, 30).filter(r => !demosRef.current[r.match_id] || (demosRef.current[r.match_id] === 'none' && recent(r)));
       const xs = await Promise.all(todo.map(async r => [r.match_id, await demoState(r.match_id)] as const));
       if (!live) return;

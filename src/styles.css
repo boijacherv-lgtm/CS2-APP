@@ -1104,7 +1104,7 @@ input.switch { min-height: 24px; height: 24px; }
   @keyframes pulse-once { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--theme) 60%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
   @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
   .feed-card, .dl-card { animation: card-in .18s ease-out; }
-  .feed-grade, .dl-grade { animation: grade-pop .15s ease-out; }
+  .feed-grade, .dl-grade-pill { animation: grade-pop .15s ease-out; }
   .feed-win .bar i, .dl-card-win .bar i { animation: bar-grow .3s ease-out; }
   .timeline .tl-mark, .timeline .tl-dot { transition: transform .12s ease-out; }
   .timeline .tl-mark:hover, .timeline .tl-dot:hover { transform: translate(-50%, -50%) scale(1.45); z-index: 3; }

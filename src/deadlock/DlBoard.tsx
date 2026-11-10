@@ -518,8 +518,8 @@ function MoveCardDl({ m }: { m: DlMove }) {
   return (
     <article className={`dl-card ${laning ? 'stat' : ''}`} style={{ borderColor: laning ? 'var(--border-strong)' : info.color }}>
       <header>
-        {!laning && <span className="dl-grade" style={{ background: info.color }}>{info.label}</span>}
-        {laning && <span className="dl-grade stat">Laning</span>}
+        {!laning && <span className="dl-grade-pill" style={{ background: info.color }}>{info.label}</span>}
+        {laning && <span className="dl-grade-pill stat">Laning</span>}
         <span className="dl-card-who">{who} · <span className="num">{mins(m.t)}</span></span>
       </header>
       <p className="dl-card-title">{m.title}</p>
