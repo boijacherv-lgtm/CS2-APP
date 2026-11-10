@@ -36,11 +36,12 @@ export function NavBar({ route }: { route: Route }) {
       <a className="brand" href="/" aria-label={`${APP_NAME} home`}><LogoMark /><span>{APP_NAME}</span></a>
       <nav className="game-bar" aria-label="Games">
         {GAMES.map(g => g.status === 'live' ? (
-          <a key={g.id} href={routeHref({ page: 'cs2', mode: cs2 ? route.mode : 'review' })} className={`game-btn live ${cs2 ? 'on' : ''}`} title={`${g.name}: live`}>
+          <a key={g.id} href={g.page ?? '/cs2'} className={`game-btn live ${cs2 ? 'on' : ''}`} title={`${g.name}: live`}>
             <GameMark game={g} size={24} /><span>{g.short}</span>
           </a>
         ) : g.status === 'beta' && g.review ? (
-          <a key={g.id} href={route.page === g.id ? routeHref(route) : g.review} className={`game-btn live ${route.page === g.id ? 'on' : ''}`} title={`${g.name}: beta`}>
+          // a game's button lands on its page (/cs2, /deadlock); Review and the rest are the mode tabs next to it
+          <a key={g.id} href={g.page ?? g.review} className={`game-btn live ${route.page === g.id ? 'on' : ''}`} title={`${g.name}: beta`}>
             <GameMark game={g} size={24} muted={route.page !== g.id} /><span>{g.short}</span>
           </a>
         ) : null)}
