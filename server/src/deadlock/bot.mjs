@@ -16,8 +16,10 @@ export const id64Of = account => String(BigInt(account) + 76561197960265728n);
 
 export class DeadlockBot {
   /** `token`: the bot's Steam refresh token; `saveToken` keeps a renewed one. */
-  constructor({ token, saveToken = () => {}, log = console.log }) {
-    this.token = token; this.saveToken = saveToken; this.log = log;
+  /** `games`: the apps it "plays" (Deadlock; plus CS2 730 when the CS2 bot shares this login); `onUser`: called with the
+   * Steam login before it logs on (the CS2 bot attaches to it). */
+  constructor({ token, saveToken = () => {}, log = console.log, games = [APP_ID], onUser = () => {} }) {
+    this.token = token; this.saveToken = saveToken; this.log = log; this.games = games; this.onUser = onUser;
     this.state = 'off';
     this.user = null;
     /** When the last game coordinator request went out: they're spaced so it doesn't rate-limit us. */
@@ -28,6 +30,7 @@ export class DeadlockBot {
     if (!this.token) throw new Error('The bot is not logged in yet: run `npm run login` once (or set STEAM_REFRESH_TOKEN).');
     const user = new SteamUser({ autoRelogin: true, renewRefreshTokens: true });
     this.user = user;
+    this.onUser(user);
     user.on('refreshToken', t => { this.token = t; this.saveToken(t); });
     user.on('error', e => {
       this.state = 'error';
@@ -41,10 +44,10 @@ export class DeadlockBot {
       // game coordinator and accepts friend requests
       user.setPersona(SteamUser.EPersonaState.Invisible);
       // Deadlock has to be in the bot's library for its game coordinator to answer: ask for it (free) every time
-      user.requestFreeLicense([APP_ID], (err, packages, apps) => {
+      user.requestFreeLicense(this.games, (err, packages, apps) => {
         this.log(err ? `deadlock bot: couldn't get Deadlock's license (${err.message}): add Deadlock to the bot's library in Steam`
           : apps?.length ? `deadlock bot: Deadlock added to the bot's library` : 'deadlock bot: license request done (nothing new granted)');
-        user.gamesPlayed([APP_ID]);
+        user.gamesPlayed(this.games);
         this.hello();
       });
     });

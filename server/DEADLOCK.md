@@ -1,4 +1,9 @@
-# Deadlock bot (Fly.io)
+# The bots on Fly.io (Deadlock and CS2)
+
+One Fly app runs both bots on the bot's one Steam login (Steam allows one login per account): the Deadlock match
+finder below, and the CS2 demo bot (`README.md`: every logged-in player's new CS2 matches downloaded, read, graded
+and put on their profile every 5 minutes). The CS2 side runs when the `SERVER_TOKEN` secret is set (`CS2_BOT=off` turns
+it off). It needs a 4 GB machine (demos take about 3 GB to read): about $20-25 a month.
 
 Makes every visitor's **Deadlock matches load by themselves** on https://tsakhstvo.xyz. A visitor clicks **Add in Steam**
 in Review once; the bot (a separate Steam account) accepts, and from then on it checks their match history every
@@ -32,20 +37,21 @@ it's connected).
 
 ## 3. Put it on Fly.io
 
-Install `flyctl` (https://fly.io/docs/flyctl/install/), then in `server`:
+Install `flyctl` (https://fly.io/docs/flyctl/install/). From the **repo root** (the image holds the app's tools):
 
 ```bash
 fly auth login
-fly launch --no-deploy --copy-config --name rageview-dl-bot
-fly volumes create dl_bot_data --size 1 --region fra
-fly secrets set STEAM_REFRESH_TOKEN="$(cat data/bot-token)"
-fly deploy
+fly volumes create dl_bot_data --size 3 --region fra -c server/fly.toml   # first time only
+fly secrets set -c server/fly.toml STEAM_REFRESH_TOKEN="$(cat server/data/bot-token)"
+fly secrets set -c server/fly.toml SERVER_TOKEN="$(grep ^STRATBOARD_SERVER_TOKEN= .env | cut -d= -f2-)"
+fly deploy . --config server/fly.toml --dockerfile server/Dockerfile.bots
 ```
 
-If the name `rageview-dl-bot` is taken, pick another and change `app` in `fly.toml`. Check
-`https://<app>.fly.dev/health` says `"state":"ready"` and `https://<app>.fly.dev/dl/bot` shows the bot's SteamID.
+`SERVER_TOKEN` is the Worker's shared secret (made once by `npm run link:coach`, kept in the repo's `.env`). Check
+`https://<app>.fly.dev/health` says `"state":"ready","cs2":"ready"`; the Dev page shows the CS2 bot's last round.
 
-Logs: `fly logs`. When Steam renews the login, the new token is kept on the volume.
+Logs: `fly logs -c server/fly.toml`. When Steam renews the login, the new token is kept on the volume. A full volume
+(parsed demos, about 0.6 MB a match): `fly volumes extend <id> --size 6 -c server/fly.toml`.
 
 ## 4. Tell the website
 

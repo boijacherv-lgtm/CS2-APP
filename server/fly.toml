@@ -1,14 +1,17 @@
-# Fly.io app for the Deadlock bot service (server/src/deadlock.mjs). Setup and deploy: server/DEADLOCK.md.
+# Fly.io app for both bots (server/src/deadlock.mjs: Deadlock, and CS2 when SERVER_TOKEN is set). Setup and deploy:
+# server/DEADLOCK.md. Deploy from the repo root: fly deploy --config server/fly.toml
 app = "rageview-dl-bot"
 primary_region = "fra"
 
 [build]
-  dockerfile = "Dockerfile.deadlock"
+  dockerfile = "Dockerfile.bots"
 
 [env]
   DATA_DIR = "/data"
   PORT = "8080"
   DL_POLL_MINUTES = "10"
+  CYCLE_MINUTES = "5"
+  WORKER_URL = "https://stratboard-api.stratboard.workers.dev"
   DL_ALLOW_ORIGINS = "https://tsakhstvo.xyz,http://localhost:5173"
 
 # the bot's renewed login and what it has seen, kept across restarts
@@ -31,6 +34,9 @@ primary_region = "fra"
     method = "GET"
     path = "/health"
 
+# CS2 demos take about 3 GB to read; swap covers the grading that follows
+swap_size_mb = 2048
+
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "256mb"
+  size = "shared-cpu-2x"
+  memory = "4gb"
