@@ -30,8 +30,9 @@ async function submit(s) {
 }
 
 /** deadlock-api already has this match's salts (sent by us or anyone): no need to ask Deadlock, whose limit is tight. */
-async function known(matchId) {
-  const r = await fetch(`${API}/v1/matches/${matchId}/salts?disable_steam=true`, { headers: { 'User-Agent': 'rageview-bot (tsakhstvo.xyz)' } }).catch(() => null);
+/** `fetch`: let deadlock-api ask Steam for it with its own accounts when it doesn't have it. */
+async function known(matchId, fetch_ = false) {
+  const r = await fetch(`${API}/v1/matches/${matchId}/salts${fetch_ ? '' : '?disable_steam=true'}`, { headers: { 'User-Agent': 'rageview-bot (tsakhstvo.xyz)' } }).catch(() => null);
   if (!r?.ok) return false;
   const j = await r.json().catch(() => null);
   return !!j?.metadata_salt;
@@ -48,8 +49,11 @@ export async function pollFriend(bot, state, account, log) {
     const s = await bot.salts(m.match_id);
     if (s.error) {
       log(`match ${m.match_id}: ${s.error}`);
-      // asked too often: stop for this round, the rest are tried next round
-      if (/RateLimited|TooBusy/.test(s.error)) throw new Error(s.error);
+      // asked too often: deadlock-api's own Steam accounts can fetch it instead; else the rest wait for next round
+      if (/RateLimited|TooBusy/.test(s.error)) {
+        if (await known(m.match_id, true)) { state.sent[m.match_id] = { at: Date.now(), viaApi: true }; log(`match ${m.match_id}: fetched by deadlock-api itself`); continue; }
+        throw new Error(s.error);
+      }
       // still being written up by the game (MatchInFlight): next round; anything else is final
       if (s.error !== 'MatchInFlight') state.sent[m.match_id] = { at: Date.now(), error: s.error };
       continue;
