@@ -62,7 +62,7 @@ export function Deadlock() {
       </section>
 
       <section className="site-section">
-        <h2 className="section-title">Where it's at</h2>
+        <h2 className="section-title">What's live</h2>
         <p className="muted dl-why">Match data comes from deadlock-api.com (positions every second, deaths, items, souls, objectives), so any match works without a file; when Valve kept the replay, its demo adds the fine detail. A replay file you saved opens with the Replay file button.</p>
         <ol className="dl-road">
           {ROAD.map(r => (

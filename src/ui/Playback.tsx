@@ -148,7 +148,7 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
         if (!s.playing && s.time >= end - 0.05) s.setTime(s.judging?.from ?? 0);
         s.setPlaying(!s.playing);
       }}><Icon name={s.playing ? 'pause' : 'play'} /><span> {s.playing ? 'Pause' : 'Play'}</span></button>
-      <select value={s.speed} onChange={e => s.setSpeed(+e.target.value)} title="Playback speed">
+      <select value={s.speed} onChange={e => s.setSpeed(+e.target.value)} title="Playback speed" aria-label="Playback speed">
         <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
       </select>
       {review && recap && round

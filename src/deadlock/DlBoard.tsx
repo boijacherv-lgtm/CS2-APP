@@ -333,7 +333,7 @@ function DlPlaybar({ match, time, playing, speed, graded, full, onFull, canMine,
       <button className={`play-main ${playing ? 'on' : ''}`} onClick={() => { if (!playing && time >= dur) s.setTime(0); s.setPlaying(!playing); }} title="Play / pause (Space)">
         <Icon name={playing ? 'pause' : 'play'} /><span> {playing ? 'Pause' : 'Play'}</span>
       </button>
-      <select value={speed} onChange={e => s.setSpeed(Number(e.target.value))} title="Playback speed" aria-label="Speed">
+      <select value={speed} onChange={e => s.setSpeed(Number(e.target.value))} title="Playback speed" aria-label="Playback speed">
         {SPEEDS.map(x => <option key={x} value={x}>{x}×</option>)}
       </select>
       <div className="timeline" ref={track} role="slider" aria-label="Match timeline" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(time)}

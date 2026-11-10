@@ -18,13 +18,15 @@ export interface Game {
   review?: string; plan?: string;
   /** What it does now, in a few words each (its card on the front page). */
   points?: string[];
+  /** the plan page's name (Tactical board, Meta & builds) */
+  planLabel?: string;
 }
 
 export const GAMES: Game[] = [
   { id: 'cs2', short: 'CS2', name: 'Counter-Strike 2', status: 'live', mark: 'crosshair', color: '#F2B13C', source: 'a .dem demo', note: 'Every round graded, the better play, and a coach built on level-10 games.',
     page: '/cs2', review: '/cs2/review', plan: '/cs2/tactical', points: ['Graded replay', 'Engine', 'Coach', 'Tactical board'] },
   { id: 'deadlock', short: 'DL', name: 'Deadlock', status: 'beta', mark: 'lock', color: '#E8E0D2', source: 'a match ID', note: 'Paste a match ID. Get your fights graded and what top players do instead.',
-    page: '/deadlock', review: '/deadlock/review', plan: '/deadlock/tactical', points: ['Replay', 'Coach', 'Where you played', 'Meta and draft'] },
+    page: '/deadlock', review: '/deadlock/review', plan: '/deadlock/meta', planLabel: 'Meta & builds', points: ['Replay', 'Coach', 'Where you played', 'Meta & builds'] },
   { id: 'dota2', short: 'D2', name: 'Dota 2', status: 'planned', mark: 'tower', color: '#BF2E1A', source: 'a replay or match ID', note: 'Coming soon: lanes, rotations, fights.' },
   { id: 'r6', short: 'R6', name: 'Rainbow Six Siege', status: 'planned', mark: 'shield', color: '#E9563D', source: 'a match replay', note: 'Round by round, like CS.' },
   { id: 'pubg', short: 'PUBG', name: 'PUBG', status: 'planned', mark: 'parachute', color: '#F4B942', source: 'a match ID', note: 'Rotations, zones, fights.' },

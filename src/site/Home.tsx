@@ -54,7 +54,7 @@ export function Home() {
           <p className="lead">Drop your CS2 or Deadlock match. Every play gets a grade, and the play you should have made.</p>
           <div className="hero-games" aria-label="Games">
             {PLAYABLE.map(g => (
-              <a key={g.id} className="hero-games-live" href={g.review ?? g.page}><GameMark game={g} size={30} /><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></a>
+              <a key={g.id} className="hero-games-live" href={g.page ?? g.review}><GameMark game={g} size={30} /><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></a>
             ))}
           </div>
           {/* two actions: review a match (the game chips above pick the game), or try a sample */}
@@ -88,7 +88,8 @@ export function Home() {
               {g.points && <ul className="game-card-points">{g.points.map(x => <li key={x}>{x}</li>)}</ul>}
               <div className="game-card-cta">
                 <a className="cta primary" href={g.review}>Review a match</a>
-                {g.plan && <a className="cta" href={g.plan}>Tactical board</a>}
+                {g.plan && <a className="cta" href={g.plan}>{g.planLabel ?? 'Tactical board'}</a>}
+                {g.page && <a className="cta ghost" href={g.page}>About {g.short}</a>}
               </div>
             </article>
           ) : (
@@ -175,7 +176,7 @@ export function Home() {
       <footer className="site-footer">
         <span className="brand-small"><LogoMark size={18} /> {APP_NAME}</span>
         <nav>
-          {PLAYABLE.map(g => <a key={g.id} href={g.review}>{g.name}</a>)}<a href="/profile">Profile</a><a href="/pricing">Pricing</a><a href="/settings">Settings</a><a href="/puzzles">Puzzles</a><a href="/changelog">What's new</a><a href="/privacy">Privacy</a>
+          {PLAYABLE.map(g => <a key={g.id} href={g.page ?? g.review}>{g.name}</a>)}<a href="/profile">Profile</a><a href="/pricing">Pricing</a><a href="/settings">Settings</a><a href="/puzzles">Puzzles</a><a href="/changelog">What's new</a><a href="/privacy">Privacy</a>
         </nav>
         <span className="muted">Made by a player who was tired of losing to bad teammates. No tracking; demos are read on your PC. © {new Date().getFullYear()} {APP_NAME}. Not affiliated with any game publisher. Game names and logos belong to their owners.</span>
       </footer>

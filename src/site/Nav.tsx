@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { navigate, routeHref, type Route } from '../shell/router';
 import { STEAM_AVAILABLE } from '../env';
-import { GAMES, STATUS_LABEL } from './games';
+import { GAMES } from './games';
 import { GameMark } from './gameMarks';
 import { hasPro } from '../engine/profile';
 import { useStore } from '../store';
@@ -42,16 +42,7 @@ export function NavBar({ route }: { route: Route }) {
           <a key={g.id} href={route.page === g.id ? routeHref(route) : g.review} className={`game-btn live ${route.page === g.id ? 'on' : ''}`} title={`${g.name}: beta`}>
             <GameMark game={g} size={24} muted={route.page !== g.id} /><span>{g.short}</span>
           </a>
-        ) : g.page ? (
-          // a coming game with its own page (what it will do, notify me)
-          <a key={g.id} href={g.page} className={`game-btn soon has-page ${route.page === g.id ? 'on' : ''}`} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}. See what's coming`}>
-            <GameMark game={g} size={24} muted={route.page !== g.id} />
-          </a>
-        ) : (
-          <span key={g.id} className="game-btn soon" role="img" aria-label={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`}>
-            <GameMark game={g} size={24} muted />
-          </span>
-        ))}
+        ) : null)}
       </nav>
       {cs2 && (
         <div className="modes" role="tablist" aria-label="Mode">

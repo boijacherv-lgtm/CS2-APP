@@ -180,7 +180,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
       </div>
       {share && saved && <ShareDialog m={saved} player={profileName ?? saved.name ?? 'Me'} onClose={() => setShare(false)} />}
       <p className="muted">
-        {data.rounds.length} rounds · {mine ? 'your team first' : 'team that started CT first'}
+        {data.rounds.length} rounds · {mine ? `you started ${mine.team === 0 ? 'CT' : 'T'}${result ? ` · ${result === 'Victory' ? 'won' : result === 'Defeat' ? 'lost' : 'drew'} ${a}–${b}` : ''}` : 'score: the team that started CT first'}
         {mine && mine.gameRating !== null && <> · you: game rating <b>{fmt(mine.gameRating)}</b>{delta !== null && <span className={delta >= 0 ? 'up' : 'down'}> ({delta >= 0 ? '+' : '−'}{fmt(Math.abs(delta))} vs your Premier)</span>}</>}
         {!ranked && ' · No Premier ratings in this demo. Estimates use a 10,000 player as base.'}
         {!done && <> · <b>grading rounds {view.graded}/{view.total}…</b></>}
@@ -238,7 +238,7 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
             </div>
           )}
         </div>
-        <Gauge rating={p.gameRating} rank={p.rank} />
+        {p.gameRating !== null && <Gauge rating={p.gameRating} rank={p.rank} />}
       </div>
       <div className="kpis">
         {kpi('adr', 'ADR', p.adr.toFixed(0), p.adr)}

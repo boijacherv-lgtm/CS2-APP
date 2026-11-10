@@ -50,7 +50,7 @@ export function Cs2Home() {
       </section>
 
       <section className="site-section">
-        <h2 className="section-title">Where it's at</h2>
+        <h2 className="section-title">What's live</h2>
         <ol className="dl-road">
           {ROAD.map(r => (
             <li key={r.title}>

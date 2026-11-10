@@ -66,7 +66,6 @@ export function Dev() {
   const [tab, setTab] = useState<DevTab>(() => { try { const t = localStorage.getItem('stratboard.devTab') as DevTab | null; return t && DEV_TABS.some(x => x.id === t) ? t : 'site'; } catch { return 'site'; } });
   const pickTab = (t: DevTab) => { setTab(t); try { localStorage.setItem('stratboard.devTab', t); } catch { /* private mode */ } };
 
-  if (!loaded && !LOCAL) return <div className="page"><Loading>Loading…</Loading></div>;
   // the most active players' names (the Worker's /profiles: Steam names, cached there)
   const [topNames, setTopNames] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -76,6 +75,7 @@ export function Dev() {
       if (j?.profiles) setTopNames(Object.fromEntries(Object.entries(j.profiles as Record<string, { name: string | null }>).filter(([, v]) => v.name).map(([k, v]) => [k, v.name!])));
     }).catch(() => {});
   }, [stats]);
+  if (!loaded && !LOCAL) return <div className="page"><Loading>Loading…</Loading></div>;
   if (!allowed) return <div className="page not-found"><h1>Owner only.</h1><p className="muted">This page is for the site's owner. Log in with Steam as the owner to see it.</p><p><a className="cta" href="/">Back to home</a></p></div>;
 
   const storage = (() => {
