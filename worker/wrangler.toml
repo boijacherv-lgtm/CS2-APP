@@ -22,9 +22,10 @@ id = "18d250c7684140f2944fd2a4be8e3e03"
 
 # Secret (never in this file):  npx wrangler secret put STEAM_API_KEY
 
-# Deadlock's meta for everyone (worker/src/dlMeta.ts), read every 3 hours
+# Deadlock's meta for everyone (worker/src/dlMeta.ts), read every 3 hours; and every 15 minutes the bots' backup timer
+# (worker/src/botKick.ts: starts .github/workflows/bots.yml when GitHub's own timer hasn't; needs secret GH_TOKEN)
 [triggers]
-crons = ["7 */3 * * *"]
+crons = ["7 */3 * * *", "*/15 * * * *"]
 
 # Rate limits (Cloudflare's built-in limiter; the numbers are per minute). RATE_PUBLIC: per visitor's IP on the calls
 # that make the Worker ask Steam (login check, names and avatars, public profiles). RATE_USER: per logged-in player

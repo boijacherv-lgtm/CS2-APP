@@ -20,6 +20,7 @@ import { askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES,
 import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } from './dlDisputes';
 import { META_KEY, refreshDlMeta } from './dlMeta';
 import { botRoute, saveBotState } from './dlBot';
+import { kickBots } from './botKick';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { board, countAnswer, friendsBoard, updateBoard } from './puzzles';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
@@ -39,6 +40,8 @@ export interface Env {
   /** "1": every logged-in player has Pro (early access). Otherwise the owner and PRO_IDS (comma-separated SteamIDs). */
   PRO_FOR_ALL?: string;
   PRO_IDS?: string;
+  /** wrangler secret put GH_TOKEN: starts the Bots workflow when GitHub's timer is late (botKick.ts). Optional. */
+  GH_TOKEN?: string;
   /** Cloudflare rate limiters (wrangler.toml [[ratelimits]]): per visitor's IP, and per logged-in player. */
   RATE_PUBLIC?: RateLimit;
   RATE_USER?: RateLimit;
@@ -66,8 +69,10 @@ const MAX_DEMO_BYTES = 24 * 1024 * 1024; // KV values must stay under 25 MB
 
 export default {
   // every 3 hours (wrangler.toml): Deadlock's meta for everyone
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(refreshDlMeta(env.SB).then(() => undefined));
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    // every 15 minutes: the bots' backup timer (botKick.ts); every 3 hours: Deadlock's meta
+    if (event.cron === '*/15 * * * *') ctx.waitUntil(kickBots(env.GH_TOKEN).then(r => console.log(`bots: ${r}`)));
+    else ctx.waitUntil(refreshDlMeta(env.SB).then(() => undefined));
   },
   async fetch(req: Request, env: Env): Promise<Response> {
     const origin = req.headers.get('Origin') ?? '';
