@@ -120,7 +120,6 @@ export function DlReport() {
             </label>
           </div>
         )}
-        {card && <p className="recap-verdict">{cardVerdict(card)}</p>}
       </header>
 
       <nav className="recap-tabs" aria-label="Recap">

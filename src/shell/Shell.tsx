@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Component, useEffect, useState, type ReactNode } from 'react';
 import { App as Cs2App } from '../App';
 import type { RoundSummary } from '../engine/match';
 import { MatchReportPage } from '../ui/Report';
@@ -60,11 +60,14 @@ export function Shell() {
 
   return (
     <div className="shell">
+      <a className="skip-link" href="#main">Skip to content</a>
       <NavBar route={route} />
-      <main className="shell-main">
+      <main className="shell-main" id="main" tabIndex={-1}>
         {loginFailed && <div className="login-failed" role="alert"><span>Steam login didn't finish. Try again.</span><SteamLoginButton compact /><button className="ghost" aria-label="Dismiss" onClick={() => setLoginFailed(false)}><Icon name="close" size={14} /></button></div>}
+        <PageGuard key={routeHref(route)}>
         {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : route.mode === 'home' ? <Cs2Home /> : <Cs2App />)
           : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
+        </PageGuard>
       </main>
       <Tours />
     </div>
@@ -114,4 +117,16 @@ function NotFound() {
       <p><a className="cta primary" href="/">Back to home</a></p>
     </div>
   );
+}
+
+/** One page crashing shows a message there; the nav and the rest of the site keep working. */
+class PageGuard extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(e: unknown) { console.error(e); }
+  render() {
+    return this.state.failed
+      ? <div className="page not-found"><h1>This page broke.</h1><p className="muted">Something went wrong showing it. Reload, or go back home.</p><p><a className="cta" href="/">Back to home</a></p></div>
+      : this.props.children;
+  }
 }

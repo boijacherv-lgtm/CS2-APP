@@ -1109,3 +1109,7 @@ input.switch { min-height: 24px; height: 24px; }
   .rush-bar span:first-of-type { display: inline-block; animation: bump .25s ease-out; }
   .recap-card, .site-card.focus-card { animation: card-in .25s ease-out; }
 }
+
+/* skip link: hidden until focused (keyboard users jump past the nav) */
+.skip-link { position: absolute; left: 8px; top: -48px; z-index: 1000; padding: 8px 14px; border-radius: 8px; background: var(--surface-1, #fff); color: var(--text-1, #111); font-weight: 600; }
+.skip-link:focus { top: 8px; }

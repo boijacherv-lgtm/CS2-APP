@@ -7,9 +7,9 @@ import path from 'node:path';
 const DIST = path.resolve(import.meta.dirname, '../dist');
 const SITE = 'https://tsakhstvo.xyz';
 // the pages (src/shell/router.ts); /m is a shared moment (its code in the query)
-const PAGES = ['cs2', 'cs2/review', 'cs2/tactical', 'cs2/report', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'deadlock/report',
+const PAGES = ['cs2', 'cs2/review', 'cs2/tactical', 'cs2/report', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'deadlock/meta', 'deadlock/report',
   'puzzles', 'profile', 'pricing', 'settings', 'privacy', 'changelog', 'dev', 'm'];
-const PUBLIC = ['', 'cs2', 'cs2/review', 'cs2/tactical', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'puzzles', 'pricing', 'privacy', 'changelog'];
+const PUBLIC = ['', 'cs2', 'cs2/review', 'cs2/tactical', 'deadlock', 'deadlock/review', 'deadlock/meta', 'puzzles', 'pricing', 'privacy', 'changelog'];
 
 const html = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
 for (const p of PAGES) {
@@ -25,6 +25,8 @@ for (const p of PAGES) {
     .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${SITE}/${p}"`);
   fs.writeFileSync(path.join(DIST, `${p}.html`), page);
 }
+// /cs2/ and /deadlock/ (a folder, from cs2/review.html…): the game page, not a 404
+for (const p of ['cs2', 'deadlock']) fs.copyFileSync(path.join(DIST, `${p}.html`), path.join(DIST, p, 'index.html'));
 fs.writeFileSync(path.join(DIST, '404.html'), html);
 fs.writeFileSync(path.join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${PUBLIC.map(p => `  <url><loc>${SITE}/${p}</loc></url>`).join('\n')}\n</urlset>\n`);
 console.log(`spa-pages: ${PAGES.length} pages, 404.html, sitemap (${PUBLIC.length} public)`);
