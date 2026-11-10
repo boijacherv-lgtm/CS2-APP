@@ -1,4 +1,4 @@
-import { NOTE_INFO, type Annotation } from '../engine/recap';
+import { NOTE_INFO, type Annotation } from '../engine/notes';
 import { FACE } from './markFaces';
 
 /** A mark as its face on a disc of the mark's colour (markFaces.ts). The label is there for screen readers. */

@@ -8,7 +8,6 @@ import { GAMES, PLAYABLE, SOON_GAMES, STATUS_LABEL } from './games';
 import { GameMark } from './gameMarks';
 import { MarkFace } from '../ui/MarkFace';
 import { useState } from 'react';
-import { openMatch } from '../deadlock/open';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
 import { navigate } from '../shell/router';
 import { useStore } from '../store';
@@ -43,7 +42,7 @@ export function Home() {
   };
   const trySample = async () => {
     setSample('opening');
-    try { await openMatch(SAMPLE_MATCH); navigate({ page: 'deadlock', mode: 'review' }); } catch { setSample('failed'); }
+    try { const { openMatch } = await import('../deadlock/open'); await openMatch(SAMPLE_MATCH); navigate({ page: 'deadlock', mode: 'review' }); } catch { setSample('failed'); }
   };
   return (
     <div className="page home">

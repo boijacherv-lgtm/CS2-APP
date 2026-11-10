@@ -1,4 +1,4 @@
-import { LETTER_COLOR } from '../engine/recap';
+import { LETTER_COLOR } from '../engine/notes';
 
 /**
  * The design tokens: every colour the app uses, in one place. The page gets them as CSS custom properties

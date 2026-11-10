@@ -23,6 +23,8 @@ for (const p of PAGES) {
     .replace('content="Was it your fault? Find out free."', 'content="Who lost the fight? Find out free."')
     .replace(/(<meta property="og:description" content=")[^"]*"/, '$1Replay any Deadlock match. Every kill, death and move graded, with the better play."')
     .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${SITE}/${p}"`);
+  // the owner's page: never in search results
+  if (p === 'dev') page = page.replace('<head>', '<head><meta name="robots" content="noindex, nofollow" />');
   fs.writeFileSync(path.join(DIST, `${p}.html`), page);
 }
 // /cs2/ and /deadlock/ (a folder, from cs2/review.html…): the game page, not a 404
