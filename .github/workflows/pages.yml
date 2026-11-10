@@ -35,6 +35,8 @@ jobs:
           # the Cloudflare Worker's address (repo Settings → Secrets and variables → Actions → Variables → API_URL);
           # empty = Log in with Steam / Your matches stay hidden on the site
           VITE_API_URL: ${{ vars.API_URL }}
+      # every page, with no match and with the CS2 sample open, in headless Chrome: a broken page stops the deploy
+      - run: node tools/smoke.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
