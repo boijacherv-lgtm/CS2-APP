@@ -28,24 +28,32 @@ export class Bot {
     try { token = fs.readFileSync(TOKEN_FILE, 'utf8').trim(); } catch { /* none */ }
     if (!token) throw new Error('The bot is not logged in yet: run `npm run login` on the server once.');
     const user = new SteamUser({ autoRelogin: true, renewRefreshTokens: true });
-    const csgo = new GlobalOffensive(user);
-    this.user = user; this.csgo = csgo;
+    this.attach(user);
     user.on('refreshToken', t => fs.writeFileSync(TOKEN_FILE, t, { mode: 0o600 }));
     user.on('error', e => {
       this.state = 'error';
       this.log(`bot: Steam error: ${e.message}`);
       if (/InvalidPassword|AccessDenied|Expired|Revoked/i.test(e.message)) this.log('bot: the saved login is no longer valid, run `npm run login` again.');
     });
-    user.on('disconnected', () => { this.state = 'connecting'; });
-    csgo.on('connectedToGC', () => { this.state = 'ready'; this.log('bot: connected to CS2'); });
-    csgo.on('disconnectedFromGC', () => { if (this.state === 'ready') this.state = 'connecting'; });
     user.on('loggedOn', () => {
       this.log('bot: logged in to Steam');
       user.gamesPlayed([730]); // CS2 "running", so the game coordinator answers
     });
-    this.state = 'connecting';
     user.logOn({ refreshToken: token });
     await this.ready(60000);
+  }
+
+  /**
+   * Talks to CS2's game coordinator over a Steam login (its own from start(), or the Deadlock bot's: one account can
+   * only be logged in once, so the Fly app shares it). The login has to "play" 730 for CS2 to answer.
+   */
+  attach(user) {
+    const csgo = new GlobalOffensive(user);
+    this.user = user; this.csgo = csgo;
+    user.on('disconnected', () => { this.state = 'connecting'; });
+    csgo.on('connectedToGC', () => { this.state = 'ready'; this.log('bot: connected to CS2'); });
+    csgo.on('disconnectedFromGC', () => { if (this.state === 'ready') this.state = 'connecting'; });
+    this.state = 'connecting';
   }
 
   ready(timeoutMs = 30000) {

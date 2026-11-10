@@ -7,7 +7,8 @@ matches (through the Cloudflare Worker), gets each demo with a **bot Steam accou
 and sends the result to the Worker. A few minutes after a match is played it's on the user's **Profile** (numbers, trends,
 goals) and ready in **Review**.
 
-**Status: not hosted yet.** Until it runs somewhere, add matches with **Profile → Add matches** (or one at a time in Review).
+**Hosting:** on Fly.io next to the Deadlock bot, on the same login (`DEADLOCK.md`). This page is for running it on your
+own machine instead (`npm start`); never run both at once, they'd log the bot out of each other.
 
 - Needs an **always-on machine** with Node.js 20+ and about 3 GB of RAM (the native demo parser peaks near 2.9 GB).
 - **Only outgoing connections:** no open ports, no domain, no HTTPS setup.

@@ -11,7 +11,9 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { DATA } from './config.mjs';
-import { TOKEN_FILE } from './bot.mjs';
+import { Bot, TOKEN_FILE } from './bot.mjs';
+import { cs2Configured, cs2Loop } from './cs2.mjs';
+import { APP_ID } from './deadlock/proto.mjs';
 import { accountOf, DeadlockBot, readToken } from './deadlock/bot.mjs';
 
 const PORT = Number(process.env.PORT || 8080);
@@ -30,7 +32,11 @@ const state = (() => {
 let dirty = false;
 setInterval(() => { if (dirty) { fs.writeFileSync(STATE_FILE, JSON.stringify(state)); dirty = false; } }, 10_000).unref();
 
-const bot = new DeadlockBot({ token: readToken(TOKEN_FILE), saveToken: t => fs.writeFileSync(TOKEN_FILE, t, { mode: 0o600 }), log });
+// the CS2 bot on the same login (Steam allows one login per account), when the Worker's SERVER_TOKEN is set; CS2_BOT=off
+// turns it off
+const cs2 = cs2Configured() && process.env.CS2_BOT !== 'off' ? new Bot(log) : null;
+const bot = new DeadlockBot({ token: readToken(TOKEN_FILE), saveToken: t => fs.writeFileSync(TOKEN_FILE, t, { mode: 0o600 }), log,
+  games: cs2 ? [730, APP_ID] : [APP_ID], onUser: user => cs2?.attach(user) });
 
 /** The match file on Valve's server answers: the salts and cluster are right. */
 async function checkSalts(s) {
@@ -107,7 +113,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, { ...headers, 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type, Authorization' }); return res.end(); }
   const url = new URL(req.url ?? '/', 'http://x'), parts = url.pathname.split('/').filter(Boolean);
   try {
-    if (url.pathname === '/health') return send(200, { ok: true, state: bot.state });
+    if (url.pathname === '/health') return send(200, { ok: true, state: bot.state, cs2: cs2 ? cs2.state : 'off' });
     // the bot itself: who to add as a friend
     if (url.pathname === '/dl/bot') return send(200, { steamId: bot.steamId, state: bot.state, friends: bot.friends().length, pollMinutes: POLL_MINUTES });
     const account = Number(parts[2]);
@@ -139,6 +145,7 @@ server.listen(PORT, () => log(`deadlock bot service on :${PORT}`));
 try {
   await bot.start();
   loop();
+  if (cs2) cs2Loop(cs2, log).catch(e => log(`cs2: ${e.message}`));
 } catch (e) {
   // the endpoints stay up and say what's wrong (/health)
   bot.state = 'error';

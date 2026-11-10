@@ -261,7 +261,7 @@ Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings an
 | Steam login + match list | Cloudflare Worker `stratboard-api` → https://stratboard-api.stratboard.workers.dev | code in `worker/` (setup and updates: [worker/README.md](worker/README.md)); secret `STEAM_API_KEY`; KV storage `SB`. After changing `worker/src`: `cd worker && npx wrangler deploy` |
 | Link between them | GitHub → Settings → Secrets and variables → Actions → **Variables** | `API_URL` = `https://stratboard-api.stratboard.workers.dev` |
 | Demo parser in the browser | `public/demoparser/` (WebAssembly, ~3 MB) | built by the GitHub Action **Build demo parser (browser)** from LaihoE/demoparser at a pinned commit (`PARSER_REV`) with two build patches (browser-safe clock, panic messages) |
-| Demo bot | not hosted yet | code in `server/` ([server/README.md](server/README.md)): would download and read every new match by itself with its own bot Steam account; shares secret `SERVER_TOKEN` with the Worker |
+| Bots | Fly.io (`rageview-dl-bot`) | `server/` ([server/DEADLOCK.md](server/DEADLOCK.md)): one bot Steam login finds every user's new Deadlock matches (deadlock-api) and downloads, reads and grades their new CS2 matches; shares secret `SERVER_TOKEN` with the Worker |
 
 **Keep secrets out of the repo and out of chats.** The Steam Web API key only ever goes into `npx wrangler secret put STEAM_API_KEY` (type the command exactly like that, then paste the key when asked) and, for desktop, into the app's own paste box. If a key is ever shown anywhere, revoke it on steamcommunity.com/dev/apikey and make a new one.
 
@@ -401,7 +401,7 @@ public/images/       every image the site shows
   logo.svg           site icon
 public/demoparser/   WebAssembly demo parser for the website (built by CI)
 worker/              Cloudflare Worker: Steam OpenID check, sessions, Valve match history with the site's key (worker/README.md)
-server/              demo bot, not hosted (server/README.md)
+server/              the bots (Deadlock + CS2), on Fly.io (server/DEADLOCK.md)
 .github/workflows/   pages.yml (test + ONLINE build + deploy), demoparser-wasm.yml (builds the WebAssembly parser)
 ```
 
@@ -437,7 +437,7 @@ server/              demo bot, not hosted (server/README.md)
 
 ### Status and open work
 - **Coach training:** `trainCoach()` exists and is tested but nothing calls it yet. Next step the user is thinking about: train on their own games (e.g. a "Train on my games" button over the demo folder), later fit weights to round wins.
-- **Demo bot** (`server/`) is written but not hosted; the user decided against Oracle/Azure for now.
+- **Bots** (`server/`): Deadlock and CS2 on one Fly.io app and one bot Steam login (4 GB machine for CS2 demos).
 - Ideas the user showed interest in: positioning/rotation moves, CT reactions in the simulation (rotate on contact, retreat), more line-ups, a hand-made Vertigo layer, lower-level layers for Train/Vertigo, FACEIT matches.
 - Calibration: travel times come from geometry and the fight and grading models are hand-tuned; nothing is fitted to pro data yet.
 
