@@ -997,7 +997,7 @@ function damp(from: number, to: number, vel: number, dt: number): [number, numbe
 /** How close (screen px, across and down) two players' name tags may be before the second one hides: about a tag's size. */
 const NAME_GAP = { x: 64, y: 16 };
 /** Review's team panels in the bottom corners: how wide and tall (px) they are on a wide board. */
-const TEAMBAR = { w: 330 }, ROSTER_MIN_W = 700;
+const TEAMBAR = { w: 330, h: 248 }, ROSTER_MIN_W = 700;
 /**
  * The whole radar, as big as fits between the overlays. With Review's team panels in the bottom corners: either the
  * map stays between them (narrower), or above them (shorter), whichever leaves it bigger.
@@ -1013,9 +1013,8 @@ function fitView(w: number, h: number, rosters = false) {
   };
   const plain = fit(FIT_PAD.side, FIT_PAD.bottom);
   if (!rosters || w < ROSTER_MIN_W) return plain;
-  // the team columns down the sides (as wide as styles.css makes them at this width), the map between them
-  const col = w > 1100 ? TEAMBAR.w : w > 860 ? 280 : 210;
-  return fit(col + 12, FIT_PAD.bottom);
+  const beside = fit(TEAMBAR.w + 12, FIT_PAD.bottom), above = fit(FIT_PAD.side, FIT_PAD.bottom + TEAMBAR.h - 40);
+  return beside.scale >= above.scale ? beside : above;
 }
 const BOMB_FUSE = 40;
 
