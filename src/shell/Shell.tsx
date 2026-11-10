@@ -1,7 +1,5 @@
-import { Component, useEffect, useState, type ReactNode } from 'react';
-import { App as Cs2App } from '../App';
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import type { RoundSummary } from '../engine/match';
-import { MatchReportPage } from '../ui/Report';
 import { finishSteamLogin } from '../ui/steamApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { Icon } from '../ui/Icon';
@@ -9,28 +7,32 @@ import { gradeMatch } from '../ui/gradeMatch';
 import { Home } from '../site/Home';
 import { NavBar } from '../site/Nav';
 import { Pricing } from '../site/Pricing';
-import { Profile } from '../site/Profile';
-import { Settings } from '../site/Settings';
 import { Deadlock } from '../site/Deadlock';
-import { Dev } from '../site/Dev';
 import '../site/site.css';
 import { Tours } from '../ui/Tour';
-import { DlReview } from '../deadlock/DlReview';
-import { DlReport } from '../deadlock/DlReport';
-import { DlTactical } from '../deadlock/DlTactical';
 import { useStore, whoAmI } from '../store';
-import { buildMatchReport } from '../engine/match';
-import { profileMatchOf } from '../engine/habits';
-import { saveMoments } from '../moments/moments';
-import { MomentsPage, SharedMoment } from '../moments/MomentsPage';
 import { Changelog, Privacy } from '../site/InfoPages';
 import { Cs2Home } from '../site/Cs2Home';
 import { MissArt } from '../ui/Art';
-import { cs2Moments } from '../moments/build';
 import type { DemoData } from '../engine/recap';
 import { recordMatch, refreshProfile, useProfile } from '../ui/profileApi';
 import { routeHref, useRoute, type Route } from './router';
 import { applyGame, themeOf } from '../ui/tokens';
+
+// each big page is its own download, fetched when you open it (the front page doesn't carry the replay and the engine)
+const named = <K extends string>(load: () => Promise<Record<K, React.ComponentType<any>>>, k: K) => lazy(() => load().then(m => ({ default: m[k] })));
+const Cs2App = named(() => import('../App'), 'App');
+const MatchReportPage = named(() => import('../ui/Report'), 'MatchReportPage');
+const Dev = named(() => import('../site/Dev'), 'Dev');
+const DlReview = named(() => import('../deadlock/DlReview'), 'DlReview');
+const DlReport = named(() => import('../deadlock/DlReport'), 'DlReport');
+const DlTactical = named(() => import('../deadlock/DlTactical'), 'DlTactical');
+const MomentsPage = named(() => import('../moments/MomentsPage'), 'MomentsPage');
+const SharedMoment = named(() => import('../moments/MomentsPage'), 'SharedMoment');
+const Profile = named(() => import('../site/Profile'), 'Profile');
+const Settings = named(() => import('../site/Settings'), 'Settings');
+
+const LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 export function Shell() {
   const route = useRoute();
@@ -56,6 +58,8 @@ export function Shell() {
   const [loginFailed, setLoginFailed] = useState(false);
   useEffect(() => { finishSteamLogin().then(refreshProfile).catch(() => setLoginFailed(true)); }, []);
   const steamId = useProfile(s => s.me?.steamId ?? null);
+  // /dev: the owner (or a local copy) only; for anyone else it's an address that doesn't exist, and its code never loads
+  const devOk = useProfile(s => (LOCAL || s.me?.owner ? true : s.loaded ? false : null));
   useEffect(() => { useStore.setState({ me: steamId }); }, [steamId]);
 
   return (
@@ -64,10 +68,10 @@ export function Shell() {
       <NavBar route={route} />
       <main className="shell-main" id="main" tabIndex={-1}>
         {loginFailed && <div className="login-failed" role="alert"><span>Steam login didn't finish. Try again.</span><SteamLoginButton compact /><button className="ghost" aria-label="Dismiss" onClick={() => setLoginFailed(false)}><Icon name="close" size={14} /></button></div>}
-        <PageGuard key={routeHref(route)}>
+        <PageGuard key={routeHref(route)}><Suspense fallback={<div className="page" aria-busy="true" />}>
         {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : route.mode === 'home' ? <Cs2Home /> : <Cs2App />)
-          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? <Dev /> : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
-        </PageGuard>
+          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? (devOk ? <Dev /> : devOk === null ? <div className="page" aria-busy="true" /> : <NotFound />) : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
+        </Suspense></PageGuard>
       </main>
       <Tours />
     </div>
@@ -87,10 +91,12 @@ function useMatchGrader() {
 }
 
 /** A match you played in goes on your profile once it's graded (you: Steam login, or "This is me"). */
-function recordIfYours(data: DemoData, rounds: (RoundSummary | null)[]) {
+async function recordIfYours(data: DemoData, rounds: (RoundSummary | null)[]) {
   const me = whoAmI(useStore.getState());
   if (!me || !data.rounds.some(r => r.frames.players[me])) return;
   try {
+    const [{ buildMatchReport }, { profileMatchOf }, { saveMoments }, { cs2Moments }] = await Promise.all([
+      import('../engine/match'), import('../engine/habits'), import('../moments/moments'), import('../moments/build')]);
     const view = buildMatchReport(data, rounds);
     const p = view.players.find(x => x.id === me);
     if (p?.played) recordMatch(profileMatchOf(data, view, p, rounds.map(r => r?.analyst))).catch(() => {});
