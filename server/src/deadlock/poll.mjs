@@ -38,9 +38,11 @@ export async function pollFriend(bot, state, account, log) {
   for (const m of ms.filter(x => Date.now() / 1000 - x.start_time < 7 * 86400 && !state.sent[x.match_id])) {
     const s = await bot.salts(m.match_id);
     if (s.error) {
-      // still being written up by the game (MatchInFlight): next round
-      if (s.error !== 'MatchInFlight') state.sent[m.match_id] = { at: Date.now(), error: s.error };
       log(`match ${m.match_id}: ${s.error}`);
+      // asked too often: stop for this round, the rest are tried next round
+      if (/RateLimited|TooBusy/.test(s.error)) throw new Error(s.error);
+      // still being written up by the game (MatchInFlight): next round; anything else is final
+      if (s.error !== 'MatchInFlight') state.sent[m.match_id] = { at: Date.now(), error: s.error };
       continue;
     }
     const ok = await checkSalts(s);
