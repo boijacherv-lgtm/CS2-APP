@@ -1,0 +1,54 @@
+# Both bots, free: every 15 minutes one run logs in the bot Steam account (never the owner's or a visitor's), finds every
+# friend's new Deadlock matches (handed to deadlock-api) and every user's new CS2 matches (downloaded, read, graded, on
+# their profile), then stops (server/src/once.mjs). The repo is public, so this log is too: IDs and codes are masked.
+# Secrets: STEAM_REFRESH_TOKEN (server/data/bot-token after `npm run login`), SERVER_TOKEN (the Worker's shared secret).
+name: Bots
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+concurrency:
+  group: bots          # one at a time: two runs would log the bot out of each other
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+        working-directory: server
+      # the bot's renewed login, what it has handed on, and demos already read/graded, from the last run
+      - uses: actions/cache/restore@v4
+        with:
+          path: bot-data
+          key: bot-data-${{ github.run_id }}
+          restore-keys: bot-data-
+      - name: Run both bots once
+        working-directory: server
+        env:
+          DATA_DIR: ${{ github.workspace }}/bot-data
+          STEAM_REFRESH_TOKEN: ${{ secrets.STEAM_REFRESH_TOKEN }}
+          SERVER_TOKEN: ${{ secrets.SERVER_TOKEN }}
+          WORKER_URL: https://stratboard-api.stratboard.workers.dev
+          BOT_VERSION: ${{ github.sha }}
+          RUN_MINUTES: '40'
+        run: node src/once.mjs
+      # keep the cache small: read demos older than two weeks go (they're on the Worker anyway)
+      - if: always()
+        run: find bot-data/parsed bot-data/graded -type f -mtime +14 -delete 2>/dev/null || true
+      - if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: bot-data
+          key: bot-data-${{ github.run_id }}

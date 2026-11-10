@@ -1,4 +1,12 @@
-# The bots on Fly.io (Deadlock and CS2)
+# The bots (Deadlock and CS2), free on GitHub Actions
+
+**How it runs now:** `.github/workflows/bots.yml` runs `server/src/once.mjs` every 15 minutes on GitHub Actions (free for
+this public repo): one login of the bot account, Deadlock friends' new matches to deadlock-api, the Worker told what it
+saw (the site reads `/dl/bot`, `/dl/friend/…`, `/dl/matches/…` there), then one CS2 round. Repo secrets:
+`STEAM_REFRESH_TOKEN` (`server/data/bot-token`) and `SERVER_TOKEN` (`STRATBOARD_SERVER_TOKEN` in the repo's `.env`).
+The Actions log is public: IDs and codes are masked. The Fly.io set-up below is the paid alternative (always on).
+
+## Fly.io (paid alternative)
 
 One Fly app runs both bots on the bot's one Steam login (Steam allows one login per account): the Deadlock match
 finder below, and the CS2 demo bot (`README.md`: every logged-in player's new CS2 matches downloaded, read, graded

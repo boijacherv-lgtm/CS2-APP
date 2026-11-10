@@ -15,7 +15,7 @@ import { openMatch } from './open';
 const SAMPLE_MATCH = 131074890;
 import { addLocalReplay, replayId } from './localReplays';
 import { DlSteamFolder } from './DlSteamFolder';
-import { BOT_ON, botFriend, botInfo, botMatches, botRefresh, type BotRelation } from './botApi';
+import { BOT_ON, botFriend, botInfo, botMatches, type BotRelation } from './botApi';
 import { useDl } from './store';
 
 /** How often the match list asks deadlock-api for new matches while it's open (a match shows up minutes to an hour
@@ -113,28 +113,18 @@ function DlStart() {
     void open(fid);
   };
 
-  // the bot: who to add as a friend, and whether you are one (checked again every 10 s until you are)
+  // the bot: who to add as a friend, and whether you are one (checked again every minute until you are)
   const [bot, setBot] = useState<{ steamId: string | null; pollMinutes: number } | null>(null);
   const [rel, setRel] = useState<BotRelation | null>(null);
-  const [botBusy, setBotBusy] = useState(false);
   useEffect(() => {
     if (!BOT_ON || !account) return;
     let live = true;
     botInfo().then(b => live && setBot(b)).catch(() => {});
     const check = () => botFriend(account).then(r => live && setRel(r.relation)).catch(() => {});
     void check();
-    const t = setInterval(() => { if (rel !== 'friend') void check(); }, 10_000);
+    const t = setInterval(() => { if (rel !== 'friend') void check(); }, 60_000);
     return () => { live = false; clearInterval(t); };
   }, [account, rel]);
-  const checkNow = async () => {
-    if (!account) return;
-    setBotBusy(true);
-    try {
-      const r = await botRefresh(account);
-      setRows(prev => { const have = new Set((prev ?? []).map(x => x.match_id)); return [...r.matches.filter(m => !have.has(m.match_id)), ...(prev ?? [])].sort((a, b) => b.start_time - a.start_time); });
-    } catch (e) { setHistErr(e instanceof Error ? e.message : String(e)); }
-    setBotBusy(false);
-  };
 
   return (
     <div className="page dl-start">
@@ -172,12 +162,10 @@ function DlStart() {
           rel === 'friend' ? (
             <div className="dl-bot on">
               <span className="muted small">New matches load by themselves every {bot.pollMinutes} min.</span>
-              {me?.pro ? <button className="ghost small-btn" disabled={botBusy} onClick={() => void checkNow()}>{botBusy ? 'Checking…' : 'Check now'}</button>
-                : <a className="muted small" href="/pricing" title="Pro can ask the bot to look right away">Check now: Pro</a>}
             </div>
           ) : (
             <div className="dl-bot">
-              <span><b>Load every match by itself.</b> <span className="muted small">{rel === 'pending' ? 'Request sent: the bot accepts it in a moment.' : 'Add RageView bot as a Steam friend once.'}</span></span>
+              <span><b>Load every match by itself.</b> <span className="muted small">{rel === 'pending' ? `Request sent: the bot accepts it within ${bot.pollMinutes} min.` : 'Add RageView bot as a Steam friend once.'}</span></span>
               <a className="cta primary small-btn" href={`steam://friends/add/${bot.steamId}`}>Add in Steam</a>
             </div>
           )
