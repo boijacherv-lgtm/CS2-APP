@@ -1,10 +1,9 @@
-import { COACH_MODEL, PRO_MODEL } from '../engine/coachModels';
+import { DL_MATCHES, FAQ, MATCHES, PRO_MATCHES } from './faq';
 import { PRO_EARLY_ACCESS } from '../engine/profile';
-import { matches as DL_MATCHES } from '../deadlock/generated/winmodel.json';
 import { DL_MAP_IMAGE } from '../deadlock/data';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { Icon, type IconName } from '../ui/Icon';
-import { GAMES, PLAYABLE, SOON_GAMES, STATUS_LABEL } from './games';
+import { GAMES, PLAYABLE, STATUS_LABEL } from './games';
 import { GameMark } from './gameMarks';
 import { MarkFace } from '../ui/MarkFace';
 import { useState } from 'react';
@@ -15,9 +14,6 @@ import { useStore } from '../store';
 /** The sample: a public Phantom+ match (46 min, both teams' fights and objectives), opened from deadlock-api. */
 const SAMPLE_MATCH = 131074890;
 
-const MATCHES = COACH_MODEL.source?.demos ?? COACH_MODEL.trainedOn;
-const PRO_MATCHES = PRO_MODEL?.source?.demos ?? 0;
-const names = (gs: { name: string }[]) => gs.map(g => g.name).join(' and ');
 const toGames = () => document.getElementById('games')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
 /** The front page, about every game rather than one: what it is, which games, how it works, what you get, what it
@@ -203,14 +199,6 @@ const FEATURES: { icon: IconName; title: string; text: string }[] = [
   { icon: 'share', title: 'Share card', text: 'Your match as an image. Post it in Discord.' },
 ];
 
-const FAQ = [
-  { q: 'What games work?', a: `${names(PLAYABLE)} now. Next: ${SOON_GAMES.slice(0, 3).map(g => g.name).join(', ')}, then more.` },
-  { q: 'Is it free?', a: 'Yes. Pro adds unlimited history and is free during early access. No card needed.' },
-  { q: 'Do you upload my files?', a: 'No. Demos and replay files are read in your browser. A Deadlock match ID is looked up in deadlock-api\'s public match data. Logged in, only your numbers are saved, never the replay.' },
-  { q: 'Do I need an account?', a: 'No. Log in with Steam only to sync your profile between devices.' },
-  { q: 'What do I bring?', a: PLAYABLE.map(g => `${g.name}: ${g.source}`).join('. ') + '.' },
-  { q: 'How smart is the coach?', a: `In CS2 it learned from ${MATCHES} FACEIT level-10 matches${PRO_MATCHES ? ` and ${PRO_MATCHES} pro ones` : ''}; in Deadlock from ${DL_MATCHES.toLocaleString()} Phantom-and-up matches since the patch. It can't hear your team's calls, and says so.` },
-];
 
 /** A picture of two reviews, one per game: a graded moment on each map (illustrations, not real matches). */
 function HeroPreview() {
