@@ -67,6 +67,8 @@ const SYNC_EVERY_MS = 60_000; // Valve is asked at most once a minute per user
 const STEAM_API = 'https://api.steampowered.com';
 const MAX_TRIES = 3; // the server gives up on a demo after this many failures
 const MAX_DEMO_BYTES = 24 * 1024 * 1024; // KV values must stay under 25 MB
+/** Matches uploaded from a demo folder: a read match is about 0.4 MB gzipped; KV's free plan holds 1 GB in all. */
+const UPLOAD_MAX_BYTES = 4 * 1024 * 1024, UPLOADS_MAX = 300;
 
 export default {
   // every 3 hours (wrangler.toml): Deadlock's meta for everyone
@@ -193,11 +195,32 @@ export default {
       if (req.method === 'GET' && demo) {
         const u = await loadUser(env, steamId);
         if (!u.matches.some(m => m.outcomeId === demo[1] && m.parsed)) return json({ error: 'Not one of your processed matches.' }, 404);
-        const gz = await env.SB.get(`demo:${demo[1]}`, 'arrayBuffer');
+        // the bot's copy (shared by everyone in the match), else the one you uploaded from your demo folder
+        const gz = await env.SB.get(`demo:${demo[1]}`, 'arrayBuffer') ?? await env.SB.get(`demo:u:${steamId}:${demo[1]}`, 'arrayBuffer');
         if (!gz) return json({ error: 'This match is not stored any more.' }, 404);
         // the browser unpacks it (Content-Encoding: gzip)
         // already gzipped: 'manual' stops Cloudflare from compressing it a second time
         return new Response(gz, { encodeBody: 'manual', headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, max-age=86400', ...cors } });
+      }
+      // a match your browser read from your CS2 demo folder, saved to your account so it opens on your other devices
+      // (kept as yours only: demo:u:<you>:<id>; a gzipped match, at most UPLOAD_MAX_BYTES, at most UPLOADS_MAX of them)
+      if (req.method === 'POST' && path === '/demo/upload') {
+        const q = new URL(req.url).searchParams, id = q.get('id') ?? '';
+        if (!/^\d{5,25}$/.test(id)) return json({ error: 'Which match?' }, 400);
+        const bytes = await req.arrayBuffer();
+        const head = new Uint8Array(bytes.slice(0, 2));
+        if (bytes.byteLength > UPLOAD_MAX_BYTES || head[0] !== 0x1f || head[1] !== 0x8b) return json({ error: 'That isn\'t a read match (or it\'s too big).' }, 413);
+        const u = await loadUser(env, steamId);
+        if (u.matches.some(m => m.outcomeId === id && m.parsed)) return json({ ok: true, had: true });
+        if (u.matches.filter(m => m.code.startsWith('upload:')).length >= UPLOADS_MAX) return json({ error: `You have ${UPLOADS_MAX} uploaded matches: that's the most for now.` }, 409);
+        let info: Partial<Match> = {};
+        try { info = pick(JSON.parse(q.get('info') ?? '{}')); } catch { /* no summary: the list shows the date only */ }
+        await env.SB.put(`demo:u:${steamId}:${id}`, bytes);
+        const was = u.matches.find(m => m.outcomeId === id);
+        if (was) Object.assign(was, info, { parsed: true, error: null });
+        else u.matches.push({ code: `upload:${id}`, matchId: id, outcomeId: id, foundAt: Date.now(), ...info, parsed: true });
+        await saveUser(env, steamId, u);
+        return json({ ok: true });
       }
       if (req.method !== 'POST') return json({ error: 'Not found.' }, 404);
       const input = await body(req);
@@ -339,7 +362,7 @@ async function sync(env: Env, steamId: string) {
       // Valve can't walk on from this code (too old for its history, or a mode it doesn't list): start again from the
       // next code you pasted, newer than it, and say which one it skipped
       if (res.status >= 500) {
-        const later = u.matches.map(m => m.code).filter(c => BigInt(decodeShareCode(c).matchId) > BigInt(decodeShareCode(code).matchId))
+        const later = u.matches.map(m => m.code).filter(c => c.startsWith('CSGO-') && BigInt(decodeShareCode(c).matchId) > BigInt(decodeShareCode(code).matchId))
           .sort((x, y) => (BigInt(decodeShareCode(x).matchId) < BigInt(decodeShareCode(y).matchId) ? -1 : 1));
         skipped.push(code);
         if (!later.length) throw new Error(`Steam's match history couldn't go on from ${skipped.join(', ')} (it answered ${res.status}). Paste a newer match code, or try again later.`);
@@ -377,9 +400,9 @@ function status(env: Env, steamId: string, u: User) {
     replays: [],
     importing: { file: null, error: null },
     matches: [...u.matches].sort((a, b) => (b.time ?? b.foundAt) - (a.time ?? a.foundAt)).map(m => ({
-      code: m.code, outcomeId: m.outcomeId, source: 'matchmaking', loadedAt: null, foundAt: m.foundAt,
+      code: m.code, outcomeId: m.outcomeId, source: m.code.startsWith('upload:') ? 'upload' : 'matchmaking', loadedAt: null, foundAt: m.foundAt,
       time: m.time ?? null, map: m.map ?? null, scores: m.scores ?? null, result: m.result ?? null, kd: m.kd ?? null,
-      download: downloadLink(m.code), parsed: !!m.parsed, gone: !!m.gone, processing: !m.parsed && !m.gone && (m.tries ?? 0) < MAX_TRIES,
+      download: m.code.startsWith('upload:') ? null : downloadLink(m.code), parsed: !!m.parsed, gone: !!m.gone, processing: !m.parsed && !m.gone && (m.tries ?? 0) < MAX_TRIES,
     })),
   };
 }

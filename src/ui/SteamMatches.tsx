@@ -169,7 +169,7 @@ export function SteamMatches() {
                     <td>{when ? new Date(when).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
                       : m?.loadedAt ? <span className="muted">loaded {fmtDay(m.loadedAt)}</span>
                       : m?.foundAt ? <span className="muted">found {fmtDay(m.foundAt)}</span> : ''}
-                      {' '}<span className="muted small" title={m && f ? 'Fetched by the bot, and in your demo folder' : m ? 'Fetched by the bot: opens on any device' : 'In your demo folder on this computer'}>{m && f ? '· bot + folder' : m ? '· bot' : '· folder'}</span></td>
+                      {' '}{(() => { const by = m?.source === 'upload' ? 'saved' : 'bot'; return <span className="muted small" title={m ? `${by === 'saved' ? 'Saved to your account from your demo folder' : 'Fetched by the bot'}: opens on any device you're logged in on${f ? '; also in your demo folder' : ''}` : 'In your demo folder on this computer (saved to your account once you log in)'}>{m && f ? `· ${by} + folder` : m ? `· ${by}` : '· folder'}</span>; })()}</td>
                     <td>{map ? MAPS.find(x => x.id === map)?.name ?? map : <span className="muted">{m?.processing ? 'getting the demo…' : f?.state === 'reading' ? 'reading…' : 'demo not loaded yet'}</span>}</td>
                     <td className={result ?? ''}>{score ? `${score[0]}–${score[1]}` : f?.rounds ? `${f.rounds} rounds` : ''} {result ? result.toUpperCase() : ''}</td>
                     <td className="muted">{kd ? `${kd[0]}/${kd[1]}` : ''}</td>
