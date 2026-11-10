@@ -220,28 +220,30 @@ export function MomentsPage() {
     if (top) return;
     import('./generated/puzzles.json').then(j => { const d = j.default as { cs2: unknown[]; deadlock: unknown[] }; setTop([...d.cs2, ...d.deadlock].map(cleanMoment).filter((m): m is Moment => !!m)); }, () => setTop([]));
   }, [top]);
-  const [game, setGame] = useState<MomentGame | 'all'>('all');
+  // the game picks everything below it: puzzles, rating, daily, rush, weak spots and leaderboard are each the game's own
+  const [game, setGameState] = useState<MomentGame>(lastGame);
+  const setGame = (g: MomentGame) => { setGameState(g); setScore(readScore(g)); setTag(null); try { localStorage.setItem('stratboard.game', g); } catch { /* private mode */ } };
   const [tag, setTag] = useState<string | null>(null);
   // kept the same between renders: a new list would deal a new puzzle (answering re-renders)
   const all = useMemo(() => (source === 'top' ? top ?? [] : mine), [source, top, mine]);
-  const ms = useMemo(() => all.filter(m => (game === 'all' || m.game === game) && (!tag || m.tag === tag)), [all, game, tag]);
-  const [score, setScore] = useState<Score>(readScore);
+  const ms = useMemo(() => all.filter(m => m.game === game && (!tag || m.tag === tag)), [all, game, tag]);
+  const [score, setScore] = useState<Score>(() => readScore(lastGame()));
   const [sound, setSound] = useState(soundOn);
   const toggleSound = () => setSound(v => { try { localStorage.setItem('rageview.sound', v ? '0' : '1'); } catch { /* private mode */ } return !v; });
 
   // practice: one you haven't seen, the closest to your rating
   const [cur, setCur] = useState<Moment | null>(null);
   const next = () => {
-    const s = readScore(), seen = new Set(s.seen);
+    const s = readScore(game), seen = new Set(s.seen);
     const fresh = ms.filter(m => !seen.has(m.id) && m.id !== cur?.id);
     const from = fresh.length ? fresh : ms.filter(m => m.id !== cur?.id);
     setCur([...from].sort((a, b) => Math.abs(puzzleRating(a) - s.rating) - Math.abs(puzzleRating(b) - s.rating))[0] ?? null);
   };
   useEffect(next, [ms]); // eslint-disable-line react-hooks/exhaustive-deps
-  const answer = (m: Moment) => (right: boolean) => { const r = record(m, right); setScore(r.score); syncRecord(r.score); return r.delta; };
+  const answer = (m: Moment) => (right: boolean) => { const r = record(m, right); if (m.game === game) setScore(r.score); syncRecord(r.score, m.game); return r.delta; };
 
-  const groups = mistakeGroups(mine.filter(m => game === 'all' || m.game === game));
-  const focus = source === 'top' ? [] : (['cs2', 'deadlock'] as MomentGame[]).filter(g => game === 'all' || g === game).map(g => ({ g, f: focusOf(mine, g) })).filter(x => x.f);
+  const groups = mistakeGroups(mine.filter(m => m.game === game));
+  const focus = source === 'top' ? [] : (['cs2', 'deadlock'] as MomentGame[]).filter(g => g === game).map(g => ({ g, f: focusOf(mine, g) })).filter(x => x.f);
   const header = (
     <header className="moments-head">
       <h1>Puzzles</h1>
@@ -249,19 +251,17 @@ export function MomentsPage() {
         {([['practice', 'Practice'], ['daily', 'Daily'], ['rush', 'Rush'], ['weak', 'Weak spots'], ['board', 'Leaderboard']] as [Mode, string][]).map(([k, l]) =>
           <button key={k} role="tab" aria-selected={mode === k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}
       </div>
-      <span className="puzzle-rating" title="Your puzzle rating: it goes up more for harder puzzles">Rating <b className="num">{score.rating}</b></span>
+      <div className="seg-mini puzzle-game" role="group" aria-label="Game">
+        {(['cs2', 'deadlock'] as const).map(g => <button key={g} className={game === g ? 'on' : ''} aria-pressed={game === g} onClick={() => setGame(g)}>{GAME_NAME[g]}</button>)}
+      </div>
+      <span className="puzzle-rating" title={`Your ${GAME_NAME[game]} puzzle rating (each game has its own): it goes up more for harder puzzles`}>{GAME_NAME[game]} rating <b className="num">{score.rating}</b></span>
       <button className="chip" onClick={toggleSound} aria-pressed={sound} aria-label={sound ? 'Sound off' : 'Sound on'}>{sound ? 'Sound on' : 'Sound off'}</button>
     </header>
   );
 
-  const gamePick = (
-    <div className="moments-filters"><div className="seg-mini" role="group" aria-label="Game">
-      {(['cs2', 'deadlock'] as const).map(g => <button key={g} className={(game === 'all' ? lastGame() : game) === g ? 'on' : ''} onClick={() => setGame(g)}>{GAME_NAME[g]}</button>)}
-    </div></div>
-  );
-  if (mode === 'daily') return <div className="page moments">{header}{gamePick}<DailyPuzzle pool={top?.filter(m => game === 'all' ? m.game === lastGame() : m.game === game) ?? null} game={game === 'all' ? lastGame() : game} onScore={setScore} /></div>;
-  if (mode === 'rush') return <div className="page moments">{header}<Rush pool={top} onScore={setScore} /></div>;
-  if (mode === 'board') return <div className="page moments">{header}<Leaderboard rating={score.rating} tried={score.tried} /></div>;
+  if (mode === 'daily') return <div className="page moments">{header}<DailyPuzzle key={game} pool={top?.filter(m => m.game === game) ?? null} game={game} onScore={setScore} /></div>;
+  if (mode === 'rush') return <div className="page moments">{header}<Rush key={game} pool={top?.filter(m => m.game === game) ?? null} game={game} onScore={setScore} /></div>;
+  if (mode === 'board') return <div className="page moments">{header}<Leaderboard key={game} game={game} rating={score.rating} tried={score.tried} /></div>;
   if (mode === 'weak') {
     const spots = weakSpots(score);
     return (
@@ -290,9 +290,6 @@ export function MomentsPage() {
   const filters = (
     <div className="moments-filters">
       {switcher}
-      <div className="seg-mini" role="group" aria-label="Game">
-        {(['all', 'cs2', 'deadlock'] as const).map(g => <button key={g} className={game === g ? 'on' : ''} onClick={() => setGame(g)}>{g === 'all' ? 'All' : GAME_NAME[g]}</button>)}
-      </div>
       {tag && <button className="chip on" onClick={() => setTag(null)}>{tag} <Icon name="close" size={11} /></button>}
     </div>
   );
@@ -304,7 +301,7 @@ export function MomentsPage() {
         <p className="muted">Review a CS2 match you played (and pick yourself), or open a Deadlock match of yours: the moments the engine flags become puzzles here. Here's one from a top player's match meanwhile:</p>
         <p><a className="cta primary" href="/cs2/review">Review a CS2 match</a> <a className="cta" href="/deadlock/review">Open a Deadlock match</a></p>
       </section>
-      {top?.[0] && <section className="site-card"><Puzzle m={top[0]} onAnswer={answer(top[0])} /></section>}
+      {(() => { const t = top?.find(m => m.game === game); return t && <section className="site-card"><Puzzle m={t} onAnswer={answer(t)} /></section>; })()}
     </div>
   );
   return (
@@ -351,7 +348,7 @@ export function MomentsPage() {
 /** Today's puzzle: the same one for everyone; one try; a day streak; a share line. */
 function DailyPuzzle({ pool, game, onScore }: { pool: Moment[] | null; game: MomentGame; onScore: (s: Score) => void }) {
   const day = dayNumber(), m = useMemo(() => (pool ? dailyOf(pool, day) : null), [pool, day]);
-  const [s, setS] = useState(readScore);
+  const [s, setS] = useState(() => readScore(game));
   const d = dailyFor(s, game), done = d.day === day;
   const [copied, setCopied] = useState(false);
   if (!m) return <p className="muted">Loading today's puzzle…</p>;
@@ -360,7 +357,7 @@ function DailyPuzzle({ pool, game, onScore }: { pool: Moment[] | null; game: Mom
     <section className="site-card">
       <div className="card-head"><h2><Icon name="star" size={16} /> {GAME_NAME[game]} daily #{day}</h2><span className="muted small">the same for everyone today · streak {d.streak}</span></div>
       {done && <p className="muted">You've played today's: come back tomorrow for #{day + 1}.</p>}
-      <Puzzle key={done ? 'done' : 'play'} m={m} onAnswer={done ? undefined : right => { recordDaily(right, day, game); const r = record(m, right); setS(r.score); onScore(r.score); syncRecord(r.score); return r.delta; }} />
+      <Puzzle key={done ? 'done' : 'play'} m={m} onAnswer={done ? undefined : right => { const daily = recordDaily(right, day, game); const r = record(m, right); setS({ ...r.score, daily: daily.daily, dailies: daily.dailies }); onScore(r.score); syncRecord(readScore(game), game); return r.delta; }} />
       {done && (
         <div className="puzzle-next"><button className="chip" onClick={async () => { try { await navigator.clipboard.writeText(line); setCopied(true); } catch { prompt('Copy', line); } }}><Icon name={copied ? 'check' : 'share'} size={13} /> {copied ? 'Copied' : 'Share result'}</button></div>
       )}
@@ -369,7 +366,7 @@ function DailyPuzzle({ pool, game, onScore }: { pool: Moment[] | null; game: Mom
 }
 
 /** Puzzle rush: as many as you can in 3 minutes; 3 wrong and it's over. */
-function Rush({ pool, onScore }: { pool: Moment[] | null; onScore: (s: Score) => void }) {
+function Rush({ pool, game, onScore }: { pool: Moment[] | null; game: MomentGame; onScore: (s: Score) => void }) {
   const [state, setState] = useState<'idle' | 'on' | 'over'>('idle');
   const [left, setLeft] = useState(RUSH_SECONDS);
   const [right, setRight] = useState(0), [lives, setLives] = useState(RUSH_LIVES);
@@ -389,16 +386,16 @@ function Rush({ pool, onScore }: { pool: Moment[] | null; onScore: (s: Score) =>
     const id = setInterval(() => setLeft(l => { if (l <= 1) { setState('over'); return 0; } return l - 1; }), 1000);
     return () => clearInterval(id);
   }, [state]);
-  useEffect(() => { if (state === 'over') { const s = recordRush(right); onScore(s); syncRecord(s); } }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (state === 'over') { const s = recordRush(right, game); onScore(s); syncRecord(s, game); } }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
   const onAnswer = (ok: boolean) => {
     setAnswered(true);
     if (ok) setRight(r => r + 1); else setLives(l => { if (l <= 1) setTimeout(() => setState('over'), 900); return l - 1; });
     setTimeout(() => { n.current++; setAnswered(false); deal(n.current); }, ok ? 700 : 1400);
   };
-  const best = readScore().rushBest;
+  const best = readScore(game).rushBest;
   return (
     <section className="site-card">
-      <div className="card-head"><h2><Icon name="bolt" size={16} /> Puzzle rush</h2><span className="muted small">3 minutes, 3 lives · your best {best}</span></div>
+      <div className="card-head"><h2><Icon name="bolt" size={16} /> {GAME_NAME[game]} puzzle rush</h2><span className="muted small">3 minutes, 3 lives · your best {best}</span></div>
       {state === 'idle' && <div className="rush-start"><p className="muted">Solve as many as you can in 3 minutes. They get harder as you go. Three wrong and it's over.</p><button className="primary" onClick={start} disabled={!pool?.length}>{pool ? 'Start' : 'Loading…'}</button></div>}
       {state === 'on' && cur && (
         <>
@@ -412,7 +409,7 @@ function Rush({ pool, onScore }: { pool: Moment[] | null; onScore: (s: Score) =>
 }
 
 /** The top puzzle ratings (players with a public profile and 10+ puzzles), and where you'd stand. */
-function Leaderboard({ rating, tried }: { rating: number; tried: number }) {
+function Leaderboard({ game, rating, tried }: { game: MomentGame; rating: number; tried: number }) {
   const me = useProfile(s => s.me), isPublic = useProfile(s => s.data.prefs.public);
   const [rows, setRows] = useState<BoardRow[] | null>(null), [err, setErr] = useState<string | null>(null);
   // everyone, or you and your Steam friends (needs a login)
@@ -420,13 +417,13 @@ function Leaderboard({ rating, tried }: { rating: number; tried: number }) {
   useEffect(() => {
     setRows(null); setErr(null); setNote(null);
     const fail = (e: unknown) => setErr(e instanceof Error ? e.message : String(e));
-    if (who === 'friends') loadFriendsBoard().then(r => { setRows(r.rows); setNote(r.note); }, fail);
-    else loadBoard().then(setRows, fail);
-  }, [who]);
+    if (who === 'friends') loadFriendsBoard(game).then(r => { setRows(r.rows); setNote(r.note); }, fail);
+    else loadBoard(game).then(setRows, fail);
+  }, [who, game]);
   const place = rows ? rows.filter(r => r.rating > rating).length + 1 : null;
   return (
     <section className="site-card">
-      <div className="card-head"><h2><Icon name="trophy" size={16} /> Leaderboard</h2>
+      <div className="card-head"><h2><Icon name="trophy" size={16} /> {GAME_NAME[game]} leaderboard</h2>
         {me ? (
           <span className="seg-mini" role="group" aria-label="Whose ratings">
             <button className={who === 'all' ? 'on' : ''} aria-pressed={who === 'all'} onClick={() => setWho('all')}>Everyone</button>
