@@ -8,6 +8,7 @@ import { SteamLoginButton } from './SteamLogin';
 import { steamFetch, steamSignOut } from './steamApi';
 import { Icon } from './Icon';
 import { ONLINE } from '../env';
+import { useFolder, type FolderRow } from './folderStore';
 
 const SYNC_EVERY = 5 * 60 * 1000; // new games show up by themselves
 
@@ -97,6 +98,17 @@ export function SteamMatches() {
     } catch (e) { setMsg(errText(e)); }
   };
 
+  // one list: the bot's matches and your demo folder's (DemoFolder), the same match once (by its outcome id)
+  const folder = useFolder(s => s.rows);
+  useEffect(() => { useFolder.setState({ merged: loggedIn }); return () => useFolder.setState({ merged: false }); }, [loggedIn]);
+  const byOutcome = new Map(folder.filter(f => f.outcomeId).map(f => [f.outcomeId!, f]));
+  const fromBot = new Set((st?.matches ?? []).map(m => m.outcomeId).filter(Boolean));
+  type Row = { m: SteamMatch | null; f: FolderRow | null; at: number };
+  const rows: Row[] = [
+    ...(st?.matches ?? []).map(m => ({ m, f: (m.outcomeId && byOutcome.get(m.outcomeId)) || null, at: m.time ?? m.loadedAt ?? m.foundAt ?? 0 })),
+    ...(loggedIn ? folder.filter(f => !f.outcomeId || !fromBot.has(f.outcomeId)).map(f => ({ m: null, f, at: f.modified })) : []),
+  ].sort((a, b) => b.at - a.at);
+
   if (offline || !st) return null; // static build without the dev server: only manual demos
 
   return (
@@ -135,7 +147,7 @@ export function SteamMatches() {
       {st.importing.error && <p className="warn-text">Couldn't import {st.importing.error}</p>}
 
       {/* step 3: the list (Valve's matches + every demo you've loaded) */}
-      {st.matches.length > 0 && (
+      {rows.length > 0 && (
         <>
           <p className="muted">
             {ready ? (ONLINE ? 'From Valve · updates every few minutes. ' : 'From Valve · updates every few minutes. Map and score show once the demo is in. ')
@@ -149,30 +161,39 @@ export function SteamMatches() {
           </p>
           <table className="steam-list">
             <tbody>
-              {st.matches.map(m => (
-                <tr key={m.code} className={m.result ?? ''} style={{ '--radar': m.map ? `url(/images/maps/${m.map}.png)` : 'none' } as React.CSSProperties}>
-                  <td>{m.time ? new Date(m.time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-                    : m.loadedAt ? <span className="muted">loaded {fmtDay(m.loadedAt)}</span>
-                    : m.foundAt ? <span className="muted">found {fmtDay(m.foundAt)}</span> : ''}</td>
-                  <td>{m.map ? MAPS.find(x => x.id === m.map)?.name ?? m.map : <span className="muted">{m.processing ? 'getting the demo…' : 'demo not loaded yet'}</span>}</td>
-                  <td className={m.result ?? ''}>{m.scores ? `${m.scores[0]}–${m.scores[1]}` : ''} {m.result ? m.result.toUpperCase() : ''}</td>
-                  <td className="muted">{m.kd ? `${m.kd[0]}/${m.kd[1]}` : ''}</td>
-                  <td>
-                    {m.parsed
-                      ? <button onClick={() => open(m)}>Review</button>
-                      : m.processing
-                        ? <span className="muted" title="The server is downloading and reading this demo; it appears here by itself">processing…</span>
-                      : m.gone
-                        ? <span className="muted" title="Valve keeps demos for about a month">demo expired</span>
-                      : m.download
-                        ? <a className="btn" href={m.download} onClick={() => setWaiting(new Set(waiting).add(m.code))}
-                            title="Opens CS2, which downloads the demo; the app imports it by itself">
-                            {waiting.has(m.code) ? 'Downloading in CS2…' : 'Download in CS2'}
-                          </a>
-                        : null}
-                  </td>
-                </tr>
-              ))}
+              {rows.map(({ m, f }) => {
+                const map = m?.map ?? f?.map ?? null, result = m?.result ?? f?.result ?? null, score = m?.scores ?? f?.score ?? null, kd = m?.kd ?? f?.kd ?? null;
+                const when = m?.time ?? (f ? f.modified : null);
+                return (
+                  <tr key={m?.code ?? f!.name} className={result ?? ''} style={{ '--radar': map ? `url(/images/maps/${map}.png)` : 'none' } as React.CSSProperties}>
+                    <td>{when ? new Date(when).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                      : m?.loadedAt ? <span className="muted">loaded {fmtDay(m.loadedAt)}</span>
+                      : m?.foundAt ? <span className="muted">found {fmtDay(m.foundAt)}</span> : ''}
+                      {' '}<span className="muted small" title={m && f ? 'Fetched by the bot, and in your demo folder' : m ? 'Fetched by the bot: opens on any device' : 'In your demo folder on this computer'}>{m && f ? '· bot + folder' : m ? '· bot' : '· folder'}</span></td>
+                    <td>{map ? MAPS.find(x => x.id === map)?.name ?? map : <span className="muted">{m?.processing ? 'getting the demo…' : f?.state === 'reading' ? 'reading…' : 'demo not loaded yet'}</span>}</td>
+                    <td className={result ?? ''}>{score ? `${score[0]}–${score[1]}` : f?.rounds ? `${f.rounds} rounds` : ''} {result ? result.toUpperCase() : ''}</td>
+                    <td className="muted">{kd ? `${kd[0]}/${kd[1]}` : ''}</td>
+                    <td>
+                      {m?.parsed
+                        ? <button onClick={() => open(m)}>Review</button>
+                        : f?.state === 'read' ? <button onClick={f.open}>Review</button>
+                        : f?.state === 'reading' ? <span className="muted">reading…</span>
+                        : m?.processing
+                          ? <span className="muted" title="The server is downloading and reading this demo; it appears here by itself">processing…</span>
+                        : f?.state === 'unread' ? <button onClick={f.read}>Read</button>
+                        : m?.gone
+                          ? <span className="muted" title="Valve keeps demos for about a month">demo expired</span>
+                        : f?.state === 'failed' ? <span className="warn-text" title={f.error}>couldn't read</span>
+                        : m?.download
+                          ? <a className="btn" href={m.download} onClick={() => setWaiting(new Set(waiting).add(m.code))}
+                              title="Opens CS2, which downloads the demo; the app imports it by itself">
+                              {waiting.has(m.code) ? 'Downloading in CS2…' : 'Download in CS2'}
+                            </a>
+                          : null}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </>

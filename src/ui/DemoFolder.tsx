@@ -7,6 +7,8 @@ import { delItem, getItem, gunzipJson, gzipJson, setItem } from './localStore';
 import { DEMO_PASSES, readDemoInBrowser } from './readDemo';
 import { PARSE_V } from '../../tools/demo-core.mjs';
 import { steamFetch } from './steamApi';
+import { useFolder } from './folderStore';
+import { outcomeFromFileName } from '../engine/sharecode';
 
 /**
  * Website: "Your CS2 demo folder". You pick CS2's replays folder once (Chrome / Edge remember it); the page lists your
@@ -207,6 +209,18 @@ export function DemoFolder() {
       if ((e as Error).name !== 'AbortError') setMsg(`Couldn't open that folder: ${(e as Error).message}`);
     }
   };
+  // the rows for the combined "Your matches" list (SteamMatches): the newest SHOW, each with how to open or read it
+  const merged = useFolder(s => s.merged);
+  useEffect(() => {
+    useFolder.setState({ rows: perm === 'granted' ? files.slice(0, SHOW).map(f => {
+      const s = sums[f.name];
+      return { name: f.name, modified: f.modified, outcomeId: outcomeFromFileName(f.name), map: s?.map ?? null, score: s?.score ?? null, result: s?.result ?? null,
+        kd: s?.kd ?? null, rounds: s?.rounds ?? null, state: s ? 'read' : reading?.name === f.name ? 'reading' : failed[f.name] ? 'failed' : 'unread', error: failed[f.name],
+        open: () => { void open(f); }, read: () => { void read(f); } };
+    }) : [] });
+  }, [files, sums, reading, failed, perm]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => useFolder.setState({ rows: [] }), []);
+
   const reconnect = async () => { if (dir) setPerm(await dir.requestPermission({ mode: 'read' })); };
   const disconnect = async () => { await delItem('replaysDir'); setDir(null); setPerm(null); setFiles([]); };
 
@@ -243,7 +257,8 @@ export function DemoFolder() {
       {msg && <p className="warn-text">{msg}</p>}
       {reading && <Loading>Reading {reading.name}… step {reading.pass} of ~{DEMO_PASSES}</Loading>}
 
-      {dir && perm === 'granted' && (files.length === 0
+      {dir && perm === 'granted' && merged && files.length > 0 && <p className="muted">Your folder's demos are in <b>Your matches</b> below, together with the ones the bot fetched.</p>}
+      {dir && perm === 'granted' && !merged && (files.length === 0
         ? <p className="muted">No demos in "{dir.name}" yet. Download one in CS2 and it appears here.</p>
         : (
           <table className="steam-list">
