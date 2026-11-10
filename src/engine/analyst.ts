@@ -80,6 +80,9 @@ export interface ControlFact { at: number; ct: string[]; t: string[] }
 export interface RotationFact {
   player: string; from: 'A' | 'B'; to: 'A' | 'B'; start: number; arrive: number | null;
   trigger: string | null; late: boolean; diedOnWay: boolean; overRotated: boolean;
+  /** Where the move toward the other site really began (a callout), when it was late; and how long after the first
+   * information about that site it began (s). */
+  leftFrom?: string; waited?: number;
 }
 export type RoundType = 'pistol' | 'eco' | 'rush' | 'execute' | 'split' | 'default' | 'no hit';
 export interface PlanFact {
@@ -356,6 +359,33 @@ export function analyzeRound(engine: TacticalEngine, r: DemoRound, prev: DemoRou
         if (s) { lastSite = s; leftAt = 0; } else if (lastSite && !leftAt) leftAt = t;
       }
     }
+  // ---- late: the information was there, and they stayed until the site was lost --------------------------------
+  // A rotation answers information (the site being hit: seen, a teammate dying there, their grenades landing there).
+  // Late = they started toward it more than LATE_AFTER s after that information, while not in a fight themselves,
+  // and got there after the site was lost (the plant, or the Ts on it). Leaving a site isn't the start: walking toward
+  // the other one is. On the way when the bomb went down is not late.
+  const LATE_AFTER = 10;
+  // the information: the hit itself, on the site (not grenades or Ts somewhere near it early in the round)
+  const infoAt = (s: 'A' | 'B'): number | null => {
+    const seen = (t: number) => tIds.some(e => alive(e, t) && siteOf(pos(e, t)) === s && ctIds.some(c => alive(c, t) && sees(pos(c, t), pos(e, t))));
+    const died = enemyKills.filter(k => side(k.victim) === 'CT' && siteOf({ x: k.x, y: k.y }) === s).map(k => k.t);
+    let first: number | null = null;
+    for (let t = 0; t <= r.duration; t += 1) if (seen(t)) { first = t; break; }
+    const all = [first, arriveT(s), ...died].filter((x): x is number => x !== null);
+    return all.length ? Math.min(...all) : null;
+  };
+  for (const ro of rotations) {
+    if (ro.diedOnWay || ro.arrive === null) { ro.late = false; continue; }
+    const info = infoAt(ro.to), lost = plantSite === ro.to ? plantEv?.t ?? null : arriveT(ro.to);
+    const centre = sites.find(([k]) => k === ro.to)![1].center, d = (t: number) => Math.hypot(radar(pos(ro.player, t)).x - centre.x, radar(pos(ro.player, t)).y - centre.y);
+    // the move began where they last stopped getting closer, walking back from the arrival
+    let go = ro.arrive;
+    while (go > 1 && d(go - 1) > d(go) + 2) go -= 1;
+    // in a fight of their own meanwhile (an enemy in sight): busy, not late
+    const busy = info !== null && (() => { for (let t = Math.ceil(info); t < go; t += 1) if (tIds.some(e => alive(e, t) && sees(pos(ro.player, t), pos(e, t)))) return true; return false; })();
+    ro.late = info !== null && lost !== null && go - info > LATE_AFTER && ro.arrive > lost && !busy;
+    if (ro.late) { ro.leftFrom = place(pos(ro.player, go)) || undefined; ro.waited = Math.round(go - info!); ro.start = go; }
+  }
   // a rotation that ended in death on the way is only one if they were heading to the other site
   const rotationsKept = rotations.filter(x => !x.diedOnWay || (() => {
     const k = kills.find(o => o.victim === x.player);

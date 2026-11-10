@@ -1367,13 +1367,15 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       }
     }
     for (const ro of an.rotations) {
-      if (!sideOf.has(ro.player) || !(ro.late || ro.overRotated)) continue;
+      // late rotations: no card (too many false ones: a move already on its way, a player busy where he was); the coach's
+      // report still counts them, with a small weight (analystBench)
+      if (!sideOf.has(ro.player) || !ro.overRotated) continue;
       moves.push({
         // an inaccuracy, not a mistake: the call that moved them (or should have) isn't in the demo
         t: ro.arrive ?? ro.start, player: ro.player, side: sideOf.get(ro.player)!, kind: 'teamplay', gain: 0, note: '?!',
-        tags: [ro.late ? 'LATE ROTATION' : 'OVER-ROTATION'],
-        title: ro.late ? `${name(ro.player)} rotated ${ro.from} → ${ro.to} too late` : `${name(ro.player)} over-rotated ${ro.from} → ${ro.to}`,
-        why: [ro.late ? `Got to ${ro.to} after the bomb was already down there.` : `Left ${ro.from}, which then got hit, for ${ro.to}, which didn't.`,
+        tags: ['OVER-ROTATION'],
+        title: `${name(ro.player)} over-rotated ${ro.from} → ${ro.to}`,
+        why: [`Left ${ro.from}, which then got hit, for ${ro.to}, which didn't.`,
           ro.trigger ? `Moved after "${ro.trigger}".` : 'Moved without anything visible to react to: rotate on information.',
           'Calls aren\'t in the demo: if a teammate called the enemy there, the move itself was reasonable; the timing is what to look at.'],
       });
