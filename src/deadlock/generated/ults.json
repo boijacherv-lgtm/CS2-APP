@@ -382,8 +382,8 @@
  "81": {
   "name": "Shining Wonder",
   "hero": "Celeste",
-  "cd": 160,
-  "radius": 15.5,
+  "cd": 170,
+  "radius": 15,
   "range": 0,
   "stun": 0,
   "duration": 0,
