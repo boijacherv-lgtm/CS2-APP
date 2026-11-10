@@ -361,7 +361,7 @@ function DlPlaybar({ match, time, playing, speed, graded, full, onFull, canMine,
         {graded.filter(m => m.note !== 'book').map((m, i) => {
           const big = m.note === '!!' || m.note === '?' || m.note === '??';
           return (
-            <button key={`m${i}`} className={big ? 'tl-mark' : 'tl-dot'} style={{ left: pct(m.t), background: big ? 'none' : NOTE_INFO[m.note].color }} title={`${NOTE_INFO[m.note].label} · ${m.title}`}
+            <button key={`m${i}`} tabIndex={-1} className={big ? 'tl-mark' : 'tl-dot'} style={{ left: pct(m.t), background: big ? 'none' : NOTE_INFO[m.note].color }} title={`${NOTE_INFO[m.note].label} · ${m.title}`}
               onPointerDown={e => { e.stopPropagation(); s.setPlaying(false); s.setTime(Math.max(0, m.t - LEAD)); }}>{big && <MarkFace note={m.note} size={15} title={`${NOTE_INFO[m.note].label} · ${m.title}`} />}</button>
           );
         })}
