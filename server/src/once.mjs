@@ -11,6 +11,7 @@ import { cs2Configured, cs2Loop } from './cs2.mjs';
 import { APP_ID } from './deadlock/proto.mjs';
 import { DeadlockBot, readToken } from './deadlock/bot.mjs';
 import { pollFriend, loadState, saveState } from './deadlock/poll.mjs';
+import { readFriendsOf } from './deadlock/friendsOf.mjs';
 
 const mask = s => String(s).replace(/CSGO(-\w{5}){5}/g, 'CSGO-…').replace(/\d{7,}/g, '#');
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), mask(a.join(' ')));
@@ -33,11 +34,12 @@ try {
       if (/RateLimited|TooBusy/.test(e.message)) await sleep(30_000);
     }
   }
+  try { await readFriendsOf(bot.user, bot.friends(), state, log); } catch (e) { log(`friends lists: ${e.message}`); }
   saveState(state);
   // what the site shows (Worker /dl/bot, /dl/friend, /dl/matches): one write, only when something changed
   if (WORKER_URL && SERVER_TOKEN) {
     const res = await fetch(`${WORKER_URL}/internal/dlbot`, { method: 'POST', headers: { Authorization: `Bearer ${SERVER_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ steamId: bot.steamId, friends: bot.friends(), pending: bot.pending(), matches: state.matches, polled: state.polled }) });
+      body: JSON.stringify({ steamId: bot.steamId, friends: bot.friends(), pending: bot.pending(), matches: state.matches, polled: state.polled, friendsOf: state.friendsOf ?? {} }) });
     log(res.ok ? `site told: ${bot.friends().length} friends` : `site: ${res.status}`);
   }
 } catch (e) { log(`deadlock: ${e.message}`); }
