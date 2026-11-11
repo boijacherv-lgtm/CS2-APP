@@ -699,10 +699,10 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .dropzone:focus-visible { outline: 2px solid var(--theme); outline-offset: 3px; }
 .profile-title { display: flex; align-items: center; gap: 10px; } .profile-title h1 { margin: 0; }
 .dl-hero-shot { width: min(520px, 100%); height: auto; border-radius: 14px; border: 1px solid color-mix(in srgb, var(--theme) 30%, var(--border)); box-shadow: 0 20px 50px -24px #000; }
-/* phones: a smaller puzzle map (Bigger still opens it full width) so the moves come right after it */
+/* phones: the puzzle map full width (zoomed to the action), the moves right under it */
 @media (max-width: 600px) {
   .puzzle { gap: 10px; }
-  .clip-map:not(.big) { width: min(230px, 100%) !important; margin: 0 auto; }
+  .clip-map:not(.big) { width: 100% !important; margin: 0; }
   .clip-map:not(.big) .moment-map { width: 100%; height: auto; }
   .puzzle-body { gap: 8px; }
   .puzzle-setup { font-size: 14px; }
@@ -719,3 +719,10 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .not-found .art { margin: 0 auto 10px; }
 .empty-card .art, .empty-state .art { margin: 0 auto 8px; }
 .empty-art-row { display: flex; align-items: center; gap: 14px; }
+
+/* puzzles: the map big, the answers as big buttons beside it (under it on narrow screens), the Why right under them */
+.puzzle { gap: 24px; }
+.puzzle-body { min-width: 280px; gap: 12px; }
+.puzzle-option { min-height: 56px; padding: 14px 16px; font-size: 16px; border-radius: 12px; }
+.puzzle-option:not(:disabled):hover { border-color: var(--theme); }
+@media (max-width: 900px) { .puzzle { flex-direction: column; align-items: stretch; } .clip-map { width: 100% !important; } .clip-map .moment-map { width: 100%; height: auto; } .puzzle-body { width: 100%; min-width: 0; } }

@@ -88,7 +88,7 @@ export function cs2Moment(data: DemoData, i: number, m: SearchMoment): Moment | 
   const nades = gear?.inv.filter(w => /flash|smoke|molotov|incgrenade|hegrenade|decoy/i.test(w)).length ?? 0;
   const gun = me?.w?.[k];
   const info = [planted ? 'Bomb planted' : m.side === 'T' && demo.bomb?.some(b => b.kind === 'carry' && b.id === m.player && b.t <= m.t) ? 'You have the bomb' : '',
-    me ? `${me.hp[k]} HP` : '', gun ? GUN[gun] ?? cap(gun) : '', gear ? `${nades} grenade${nades === 1 ? '' : 's'}` : '', planted ? `${left} s on the bomb` : `${clock(left)} left`].filter(Boolean);
+    me ? `${me.hp[k]} HP` : '', gun && !/c4/i.test(gun) ? GUN[gun] ?? cap(gun) : '', gear ? `${nades} grenade${nades === 1 ? '' : 's'}` : '', planted ? `${left} s on the bomb` : `${clock(left)} left`].filter(Boolean);
   // the kind of situation
   const tag = planted ? (m.side === 'CT' ? 'Retake' : 'Post-plant') : us === 1 ? 'Clutch' : us > them ? 'Man advantage' : us < them ? 'Outnumbered' : m.t < 30 ? 'Opening' : 'Mid-round';
   // the clip: everyone once a second, 10 s before to 5 s after (from the round's start at the earliest)

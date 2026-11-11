@@ -78,12 +78,23 @@ export function ClipMap({ m, revealed, hover = null }: { m: Moment; revealed: bo
     : m.dots.map(d => ({ team: d.team, me: d.me, p: { x: d.x, y: d.y } }));
   const meAt = m.dots.find(d => d.me);
   const arrow = (o: Moment['options'][number] | undefined, color: string, dash?: string) => o?.to && meAt
-    ? <line x1={meAt.x * 100} y1={meAt.y * 100} x2={o.to.x * 100} y2={o.to.y * 100} stroke={color} strokeWidth={0.9} strokeDasharray={dash} markerEnd={`url(#ah-${color === 'var(--good)' ? 'g' : color === 'var(--bad)' ? 'r' : 'w'})`} /> : null;
+    ? <line x1={meAt.x * 100} y1={meAt.y * 100} x2={o.to.x * 100} y2={o.to.y * 100} stroke={color} strokeWidth={0.9 * z} strokeDasharray={dash} markerEnd={`url(#ah-${color === 'var(--good)' ? 'g' : color === 'var(--bad)' ? 'r' : 'w'})`} /> : null;
   const sec = Math.round(f - zero);
-  const size = big ? 560 : 300;
+  // the map is the puzzle: big, and close in on the action (the players and where the answers go); "Whole map" zooms out
+  const size = 520;
+  const pts = [...m.dots.map(d => ({ x: d.x, y: d.y })), ...m.options.filter(o => o.to).map(o => o.to!)];
+  const view = (() => {
+    if (big || !pts.length) return { x: 0, y: 0, span: 1 };
+    const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+    const span = Math.min(1, Math.max(0.42, Math.max(...xs) - Math.min(...xs) + 0.2, Math.max(...ys) - Math.min(...ys) + 0.2));
+    const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+    const clamp = (v: number) => Math.max(0, Math.min(1 - span, v - span / 2));
+    return { x: clamp(cx), y: clamp(cy), span };
+  })();
+  const z = view.span; // marks and names keep their size on screen when zoomed in
   return (
     <div className={`clip-map ${big ? 'big' : ''}`} style={{ width: size }}>
-      <svg className="moment-map" viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={`${m.match}, ${m.when}: the map${clip ? `, ${sec >= 0 ? '+' : ''}${sec} s` : ''}`}>
+      <svg className="moment-map" viewBox={`${view.x * 100} ${view.y * 100} ${z * 100} ${z * 100}`} width={size} height={size} role="img" aria-label={`${m.match}, ${m.when}: the map${clip ? `, ${sec >= 0 ? '+' : ''}${sec} s` : ''}`}>
         <defs>
           <marker id="ah-g" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--good)" /></marker>
           <marker id="ah-r" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--bad)" /></marker>
@@ -93,14 +104,14 @@ export function ClipMap({ m, revealed, hover = null }: { m: Moment; revealed: bo
         <rect width="100" height="100" rx="4" fill={m.game === 'deadlock' ? '#6b7686' : 'var(--bg-1)'} />
         {img && <image href={img} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" opacity={m.game === 'deadlock' ? 1 : 0.85} />}
         {/* small labels, and none under the player you are (it would hide both) */}
-        {names && labels.filter(c => !meAt || Math.hypot(c.x - meAt.x * 100, c.y - meAt.y * 100) > 5).map(c => <text key={c.name} x={c.x} y={c.y} className="map-callout" textAnchor="middle" fontSize={big ? 1.7 : 2.1}>{c.name}</text>)}
+        {names && labels.filter(c => !meAt || Math.hypot(c.x - meAt.x * 100, c.y - meAt.y * 100) > 5).map(c => <text key={c.name} x={c.x} y={c.y} className="map-callout" textAnchor="middle" fontSize={2.1 * z}>{c.name}</text>)}
         {!revealed && hover !== null && Math.abs(f - zero) < 0.5 && arrow(m.options[hover], 'var(--text-1)', '1.5 1')}
         {revealed && Math.abs(f - zero) < 0.5 && <>{m.played !== 0 && arrow(m.options[m.played], 'var(--bad)', '2 1.5')}{arrow(m.options[0], 'var(--good)')}</>}
-        {dots.filter(d => !d.me).map((d, i) => <circle key={i} cx={d.p.x * 100} cy={d.p.y * 100} r={big ? 1.4 : 1.9} fill={d.team ? 'var(--good)' : 'var(--bad)'} stroke="#000" strokeWidth={0.4} />)}
+        {dots.filter(d => !d.me).map((d, i) => <circle key={i} cx={d.p.x * 100} cy={d.p.y * 100} r={1.9 * z} fill={d.team ? 'var(--good)' : 'var(--bad)'} stroke="#000" strokeWidth={0.4} />)}
         {dots.filter(d => d.me).map((d, i) => (
           <g key={`me${i}`}>
-            <circle cx={d.p.x * 100} cy={d.p.y * 100} r={big ? 3.4 : 4.4} fill="none" stroke="var(--theme)" strokeWidth={1} />
-            <circle cx={d.p.x * 100} cy={d.p.y * 100} r={big ? 1.8 : 2.3} fill="var(--theme)" stroke="#000" strokeWidth={0.4} />
+            <circle cx={d.p.x * 100} cy={d.p.y * 100} r={4.4 * z} fill="none" stroke="var(--theme)" strokeWidth={1 * z} />
+            <circle cx={d.p.x * 100} cy={d.p.y * 100} r={2.3 * z} fill="var(--theme)" stroke="#000" strokeWidth={0.4 * z} />
           </g>
         ))}
       </svg>
@@ -109,7 +120,7 @@ export function ClipMap({ m, revealed, hover = null }: { m: Moment; revealed: bo
         {clip && <input type="range" min={0} max={last} step={0.05} value={Math.min(f, last)} onChange={e => { setPlaying(false); setF(Number(e.target.value)); }} aria-label="Time in the clip" />}
         {clip && <span className="num muted small clip-time">{sec === 0 ? 'now' : `${sec > 0 ? '+' : ''}${sec} s`}</span>}
         {labels.length > 0 && <button className="chip" onClick={toggleNames} aria-pressed={names} title="Callout names on the map">{names ? 'Hide names' : 'Names'}</button>}
-        <button className="chip" onClick={() => setBig(b => !b)} aria-label={big ? 'Smaller map' : 'Bigger map'} title={big ? 'Smaller map' : 'Bigger map'}><Icon name={big ? 'close' : 'map'} size={12} /> {big ? 'Smaller' : 'Bigger'}</button>
+        <button className="chip" onClick={() => setBig(b => !b)} aria-pressed={big} title={big ? 'Back to the action' : 'Zoom out to the whole map'}><Icon name="map" size={12} /> {big ? 'Closer' : 'Whole map'}</button>
       </div>
     </div>
   );
@@ -161,7 +172,7 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
       <ClipMap m={m} revealed={picked !== null} hover={hover} />
       <div className="puzzle-body">
         <span className="muted small">{GAME_NAME[m.game]} · {m.match} · {m.when}{m.who ? ` · ${m.who}` : ''}</span>
-        {(m.tag || m.info?.length) && <div className="puzzle-info">{m.tag && <span className="puzzle-tag">{m.tag}</span>}{m.info?.map(x => <span key={x}>{x}</span>)}</div>}
+        {(m.tag || m.info?.length) && <div className="puzzle-info">{m.tag && <span className="puzzle-tag">{m.tag}</span>}{m.info?.filter(x => !/^c4/i.test(x)).map(x => <span key={x}>{x}</span>)}</div>}
         <p className="puzzle-setup">{m.setup}</p>
         <b>{theirs ? 'What is the best move here?' : 'What should you do here?'}</b>
         <div className="puzzle-options">
