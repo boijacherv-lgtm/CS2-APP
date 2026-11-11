@@ -66,6 +66,8 @@ for (const p of PAGES) {
     .replace('content="Was it your fault? Find out free."', 'content="Who lost the fight? Find out free."')
     .replace(/(<meta property="og:description" content=")[^"]*"/, '$1Replay any Deadlock match. Every kill, death and move graded, with the better play."')
     .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${SITE}/${p}"`);
+  // CS2's pages get CS2's picture
+  if (p.startsWith('cs2')) page = page.replace('content="https://tsakhstvo.xyz/images/og.png"', 'content="https://tsakhstvo.xyz/images/og-cs2.png"');
   page = withMeta(page, p);
   // the owner's page: never in search results
   if (p === 'dev') page = page.replace('<head>', '<head><meta name="robots" content="noindex, nofollow" />');
