@@ -11,7 +11,9 @@ import type { AdminKV } from './admin';
 
 const KEY = 'dlbot:state';
 export const POLL_MINUTES = 15;
-interface BotState { steamId: string | null; friends: number[]; pending: number[]; matches: Record<string, unknown[]>; polled: Record<string, number>; at: number }
+interface BotState { steamId: string | null; friends: number[]; pending: number[]; matches: Record<string, unknown[]>; polled: Record<string, number>; at: number;
+  /** Each friend's own Steam friends (SteamID64 → SteamID64s), read by the bot: works for a "Friends only" list. */
+  friendsOf?: Record<string, string[]> }
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const ids = (v: unknown) => (Array.isArray(v) ? v.map(num).filter((x): x is number => x !== null).slice(0, 5000) : []);
@@ -24,8 +26,12 @@ export async function saveBotState(kv: AdminKV, raw: Record<string, unknown>) {
     if (Array.isArray(rm[a])) matches[a] = (rm[a] as unknown[]).slice(0, 50);
     const p = num(rp[a]); if (p) polled[a] = p;
   }
+  const fo: Record<string, string[]> = {};
+  const id64 = /^7656\d{13}$/;
+  for (const [k, v] of Object.entries((raw.friendsOf ?? {}) as Record<string, unknown>))
+    if (id64.test(k) && Array.isArray(v)) fo[k] = v.filter((x): x is string => typeof x === 'string' && id64.test(x)).slice(0, 300);
   const next: BotState = { steamId: typeof raw.steamId === 'string' && /^7656\d{13}$/.test(raw.steamId) ? raw.steamId : null,
-    friends, pending: ids(raw.pending), matches, polled, at: Date.now() };
+    friends, pending: ids(raw.pending), matches, polled, at: Date.now(), friendsOf: fo };
   // skip the write when only the times moved (every run polls everyone)
   const prev = await kv.get(KEY, 'json') as BotState | null;
   const same = prev && JSON.stringify({ ...prev, polled: 0, at: 0 }) === JSON.stringify({ ...next, polled: 0, at: 0 }) && Date.now() - prev.at < 6 * 3600e3;
@@ -43,4 +49,10 @@ export async function botRoute(kv: AdminKV, path: string): Promise<unknown | nul
   const relation = st?.friends.includes(a) ? 'friend' : st?.pending.includes(a) ? 'pending' : 'none';
   if (m[1] === 'friend') return { relation, polled: st?.polled[a] ?? null };
   return relation === 'friend' ? { relation, polled: st?.polled[a] ?? null, matches: st?.matches[a] ?? [] } : { relation, matches: [] };
+}
+
+/** A player's Steam friends as the bot read them (they're the bot's friend), or null. */
+export async function botFriendsOf(kv: AdminKV, steamId: string): Promise<string[] | null> {
+  const st = await kv.get(KEY, 'json') as BotState | null;
+  return st?.friendsOf?.[steamId] ?? null;
 }
