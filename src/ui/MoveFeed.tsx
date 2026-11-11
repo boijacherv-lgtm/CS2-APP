@@ -1,10 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { simStateAt, type Simulation } from '../engine/combat';
 import { moveLook, NoteMark } from './NoteMark';
 import { gunFromName } from '../engine/guns';
 import { calloutAt, NOTE_INFO, moveKey, readMs, TAG_INFO, type DemoRound, type Move, type Review, type Tag } from '../engine/recap';
 import { useStore, whoAmI } from '../store';
-import { rageLine } from '../engine/rage';
+import { rageLines } from '../engine/rage';
 import { GameIcon, Icon } from './Icon';
 import { IMPACT_ICON, isImpactWeapon, KillIcon, killMods } from './KillIcons';
 import { VerdictBar } from './Verdict';
@@ -58,6 +58,9 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   // see why you died (a lost duel you were the favourite in has no mark now, but it still pops up)
   const me = useStore(whoAmI);
   const carded = (m: Move) => shown(m) && (m.note !== 'book' || (m.kind === 'death' && !!me && m.player === me));
+  const rageLevel = useStore(st => st.rage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const rage = useMemo(() => rageLines(recap.moves.filter(carded), rageLevel), [recap.moves, rageLevel, me, shown]);
   const { pending, backlog } = calloutAt(recap.moves, time, queueing, read, 0, carded);
   const { move: atMove, group } = calloutAt(recap.moves, time, false, read, page, carded);
   const groupKey = group.map(moveKey).join('|');
@@ -126,7 +129,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   };
 
   // with the arrows on (a debugging view): a line from the card to the player it's about
-  const arrows = useStore(st => st.engineLines), rage = useStore(st => st.rage);
+  const arrows = useStore(st => st.engineLines);
   const anchorEl = useRef<HTMLDivElement | null>(null);
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   useLayoutEffect(() => {
@@ -170,7 +173,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
         <WinMeter m={card} swing={facts.swing} />
         {/* 4. the better play, when the engine had one */}
         {facts.better && <p className="feed-better"><b>Better:</b> {facts.better}</p>}
-        {rage && rageLine(card) && <div className="feed-rage">{rageLine(card)}</div>}
+        {rage.get(card) && <div className="feed-rage">{rage.get(card)}</div>}
         {/* 5. why: the two that matter most, the rest on demand */}
         {facts.reasons.length > 0 && (
           <ul className="feed-why">
