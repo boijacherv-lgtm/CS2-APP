@@ -1,3 +1,4 @@
+import { lastN, plural } from '../site/format';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { useEffect, useMemo, useState } from 'react';
 import { navigate } from '../shell/router';
@@ -148,7 +149,7 @@ export function DlProfile({ account }: { account: string | null }) {
 
   return (
     <>
-      <section className="kpi-strip" aria-label={`Your last ${recent.length} Deadlock matches`}>
+      <section className="kpi-strip" aria-label={`Your last ${plural(recent.length, 'Deadlock match', 'Deadlock matches')}`}>
         <div className="kpi-tile">
           <span>Win rate</span>
           <div className="kpi-body"><b>{pct(wins / recent.length)}</b>
@@ -170,7 +171,7 @@ export function DlProfile({ account }: { account: string | null }) {
             : <p className="muted">Two matches and the line starts.</p>}
         </section>
         <section className="site-card dash-narrow">
-          <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2><span className="muted small">{recent.length} matches</span></div>
+          <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2><span className="muted small">{plural(recent.length, 'match')}</span></div>
           <Donut center={pct(wins / recent.length)} sub="won" parts={[{ label: 'Wins', value: wins, color: T.good }, { label: 'Losses', value: recent.length - wins, color: T.bad }]} />
         </section>
       </div>
@@ -227,7 +228,7 @@ export function DlProfile({ account }: { account: string | null }) {
       <PatchEffect rows={rows} />
 
       <section className="site-card">
-        <div className="card-head"><h2><Icon name="user" size={16} /> Your heroes</h2><span className="muted small">last {recent.length} matches</span></div>
+        <div className="card-head"><h2><Icon name="user" size={16} /> Your heroes</h2><span className="muted small">{lastN(recent.length, 'match').toLowerCase()}</span></div>
         <table className="site-table dl-pf-heroes">
           <thead><tr><th>Hero</th><th>Games</th><th>Win rate</th><th>K/D/A</th><th>Souls a minute</th></tr></thead>
           <tbody>{heroes.map(h => (
@@ -243,7 +244,7 @@ export function DlProfile({ account }: { account: string | null }) {
       </section>
 
       <section className="site-card">
-        <div className="card-head"><h2>Last {Math.min(10, rows.length)} matches</h2></div>
+        <div className="card-head"><h2>{lastN(Math.min(10, rows.length), 'match')}</h2></div>
         <ul className="dl-rows">
           {rows.slice(0, 10).map(r => {
             const h = heroOf(r.hero_id), g = graded.find(x => x.id === r.match_id);

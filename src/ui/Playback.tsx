@@ -111,7 +111,7 @@ export function ScoreBug({ score, round, roundNo, time, switched }: {
     const inTime = fuse === null || need <= fuse;
     strip = { cls: `defusing ${inTime ? 'ok' : 'late'}`, label: `Defusing${act.kit ? ' with kit' : ''}${inTime ? '' : ': no time'}`, share: Math.min(1, made / (act.done ? len : act.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS)), num: Math.max(0, need).toFixed(1), icon: 'scissors' };
   } else if (act?.kind === 'plant') strip = { cls: 'planting', label: 'Planting', share: Math.min(1, (time - act.t) / PLANT_SECONDS), num: Math.max(0, PLANT_SECONDS - (time - act.t)).toFixed(1), icon: 'bomb' };
-  else if (fuse !== null) strip = { cls: 'fuse', label: 'Bomb planted', share: fuse / BOMB_SECONDS, num: fuse.toFixed(1), icon: 'bomb' };
+  // (the fuse itself counts down in the clock above: one timer, not two)
   return (
     <div className="scorebug">
       <div className="sb-main">

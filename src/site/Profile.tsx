@@ -9,7 +9,7 @@ import { Icon } from '../ui/Icon';
 import { findFriend, setGoals, useProfile, type PublicProfile } from '../ui/profileApi';
 import { steamFetch } from '../ui/steamApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
-import { fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
+import { lastN, plural, fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
 import { copyCard, drawShareCard, shareFileName } from './shareCard';
 import { AddMatches } from './AddMatches';
 import { AreaChart, BarList, Donut, MiniLine, Radar, StretchLine } from './charts';
@@ -78,7 +78,7 @@ export function Profile() {
               <PremierTrend matches={matches} />
               <section className="site-card">
                 <div className="card-head">
-                  <h2>{all && pro ? 'All matches' : `Last ${Math.min(FREE_HISTORY, matches.length)} matches`}</h2>
+                  <h2>{all && pro ? 'All matches' : lastN(Math.min(FREE_HISTORY, matches.length), 'match')}</h2>
                   {matches.length > FREE_HISTORY && (pro
                     ? <button className="ghost small-btn" onClick={() => setAll(!all)}>{all ? 'Show the last 5' : `Show all ${matches.length}`}</button>
                     : <a className="muted small" href="/pricing"><Icon name="lock" size={12} /> {matches.length - FREE_HISTORY} older with Pro</a>)}
@@ -113,8 +113,8 @@ function Kpis({ now, was, matches }: { now: Averages; was: Averages | null; matc
   const series = (f: (m: ProfileMatch) => number | null) => recent.map(f).filter((v): v is number => v !== null);
   // a change that rounds to 0 is no change (not a red "0")
   const pill = (d: number | null, text: string) => d === null || Math.abs(d) < 1e-9 || !parseFloat(text.replace(/[^\d.]/g, ''))
-    ? <i className="kpi-pill flat">last {now.matches}</i>
-    : <i className={`kpi-pill ${d > 0 ? 'up' : 'down'}`} title={`Against the ${was?.matches ?? 0} matches before`}><Icon name={d > 0 ? 'trendUp' : 'trendDown'} size={11} /> {text}</i>;
+    ? (now.matches >= 2 ? <i className="kpi-pill flat">{lastN(now.matches, 'match').toLowerCase()}</i> : null)
+    : <i className={`kpi-pill ${d > 0 ? 'up' : 'down'}`} title={`Against the ${plural(was?.matches ?? 0, 'match')} before`}><Icon name={d > 0 ? 'trendUp' : 'trendDown'} size={11} /> {text}</i>;
   const items: { label: string; v: string; d: number | null; dt: string; line: number[] }[] = [
     { label: 'K/D', v: fmtKd(now.kd), d: was && now.kd !== null && was.kd !== null ? now.kd - was.kd : null, dt: '', line: series(m => (m.deaths ? m.kills / m.deaths : m.kills)) },
     { label: 'ADR', v: now.adr.toFixed(0), d: was ? now.adr - was.adr : null, dt: '', line: series(m => m.adr) },
@@ -123,12 +123,12 @@ function Kpis({ now, was, matches }: { now: Averages; was: Averages | null; matc
   ];
   for (const i of items) i.dt = i.d === null ? '' : i.label === 'K/D' ? Math.abs(i.d).toFixed(2) : fmtInt(Math.abs(i.d));
   return (
-    <section className="kpi-strip" aria-label={`Averages over your last ${now.matches} matches`}>
-      <div className="kpi-tile" title="Your in-game Premier rating at the start of your newest reviewed match">
+    <section className="kpi-strip" aria-label={`Averages over your last ${plural(now.matches, 'match')}`}>
+      {now.premier !== null && <div className="kpi-tile" title="Your in-game Premier rating at the start of your newest reviewed match">
         <span>Premier</span>
         <div className="kpi-body"><b>{now.premier !== null ? fmtInt(now.premier) : '–'}</b><MiniLine values={series(premierOf)} good={now.premierMoved === null ? null : now.premierMoved >= 0} /></div>
-        {pill(now.premierMoved, `${now.premierMoved !== null && now.premierMoved > 0 ? '+' : '−'}${fmtInt(Math.abs(now.premierMoved ?? 0))} over ${now.matches}`)}
-      </div>
+        {pill(now.premierMoved, `${now.premierMoved !== null && now.premierMoved > 0 ? '+' : '−'}${fmtInt(Math.abs(now.premierMoved ?? 0))} over ${plural(now.matches, 'match')}`)}
+      </div>}
       <div className="kpi-tile">
         <span>Win rate</span>
         <div className="kpi-body"><b>{pct(now.winRate)}</b>
@@ -176,9 +176,10 @@ function Results({ matches }: { matches: ProfileMatch[] }) {
   const w = n('win'), l = n('loss'), t = n('tie');
   return (
     <section className="site-card dash-narrow">
-      <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2><span className="muted small">{matches.length} matches</span></div>
-      <Donut center={pct(matches.length ? w / matches.length : 0)} sub="won"
-        parts={[{ label: 'Wins', value: w, color: T.good }, { label: 'Losses', value: l, color: T.bad }, { label: 'Draws', value: t, color: T.text3 }]} />
+      <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2><span className="muted small">{plural(matches.length, 'match')}</span></div>
+      {/* a donut of one or two matches says nothing (100% won): from three */}
+      {matches.length < 3 ? <p className="muted">{plural(matches.length, 'match')}: {plural(w, 'win')}, {plural(l, 'loss', 'losses')}{t ? `, ${plural(t, 'draw')}` : ''}. The chart starts at 3 matches.</p> : <Donut center={pct(matches.length ? w / matches.length : 0)} sub="won"
+        parts={[{ label: 'Wins', value: w, color: T.good }, { label: 'Losses', value: l, color: T.bad }, { label: 'Draws', value: t, color: T.text3 }]} />}
     </section>
   );
 }
@@ -280,7 +281,7 @@ function MapStats({ matches }: { matches: ProfileMatch[] }) {
   const rows = useMemo(() => mapStats(matches), [matches]);
   return (
     <section className="site-card">
-      <div className="card-head"><h2><Icon name="map" size={16} /> Maps</h2><span className="muted small">all {matches.length} matches</span></div>
+      <div className="card-head"><h2><Icon name="map" size={16} /> Maps</h2><span className="muted small">{matches.length === 1 ? '1 match' : `all ${plural(matches.length, 'match')}`}</span></div>
       <table className="site-table">
         <thead><tr><th>Map</th><th>Played</th><th>Won</th><th>ADR</th><th>K/D</th><th>Best</th></tr></thead>
         <tbody>

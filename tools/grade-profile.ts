@@ -3,6 +3,7 @@
 // match and sends each site user's entry to the Worker.
 //
 //   node node_modules/vite-node/vite-node.mjs tools/grade-profile.ts <match.json.gz> <out.json> [--played <ms>]
+import { withoutKnifeRound } from '../src/engine/knife';
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { profileMatchOf } from '../src/engine/habits';
@@ -17,7 +18,8 @@ const played = Number(args[args.indexOf('--played') + 1]) || 0;
 if (!input || !out) { console.error('Usage: grade-profile.ts <match.json.gz> <out.json> [--played <ms>]'); process.exit(1); }
 
 const raw = fs.readFileSync(input);
-const data: DemoData = JSON.parse((raw[0] === 0x1f ? zlib.gunzipSync(raw) : raw).toString('utf8'));
+// a knife round before the match isn't part of it (the site drops it too, so the match keeps one identity)
+const data: DemoData = withoutKnifeRound(JSON.parse((raw[0] === 0x1f ? zlib.gunzipSync(raw) : raw).toString('utf8')));
 if (played > 0) data.playedAt = played;
 const t0 = Date.now();
 const rounds = gradeRounds(data);
