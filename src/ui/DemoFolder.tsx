@@ -16,9 +16,9 @@ import { outcomeFromFileName } from '../engine/sharecode';
  * results in this browser, and picks up new demos a few seconds after CS2 downloads them. No bot, no server.
  */
 
-const AUTO_READ = 5; // newest demos read automatically; older ones on click
+const AUTO_READ = 30; // newest demos read automatically, one at a time (the 30 kept on your account); older ones on click
 const RESCAN_MS = 8000;
-const SHOW = 20;
+const SHOW = 30;
 // saved games are read again when the reader changes (PARSE_V) or the site's own summary does (V)
 const V = 5; // 5: micro detail (stance, weapon, ammo; shot speed)
 const KEY = (v: number, p: number) => `${v}${p ? `.${p}` : ''}`; // p 0: saved before PARSE_V was part of the key

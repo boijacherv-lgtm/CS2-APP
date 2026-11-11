@@ -68,7 +68,7 @@ const STEAM_API = 'https://api.steampowered.com';
 const MAX_TRIES = 3; // the server gives up on a demo after this many failures
 const MAX_DEMO_BYTES = 24 * 1024 * 1024; // KV values must stay under 25 MB
 /** Matches uploaded from a demo folder: a read match is about 0.4 MB gzipped; KV's free plan holds 1 GB in all. */
-const UPLOAD_MAX_BYTES = 4 * 1024 * 1024, UPLOADS_MAX = 300;
+const UPLOAD_MAX_BYTES = 4 * 1024 * 1024, UPLOADS_MAX = 300; // (each player keeps 30 matches anyway: KEEP_MATCHES)
 
 export default {
   // every 3 hours (wrangler.toml): Deadlock's meta for everyone
@@ -315,7 +315,16 @@ async function profiles(env: Env, raw: string): Promise<Record<string, { name: s
 async function loadUser(env: Env, steamId: string): Promise<User> {
   return ((await env.SB.get(`user:${steamId}`, 'json')) as User | null) ?? { matches: [] };
 }
-const saveUser = (env: Env, steamId: string, u: User) => env.SB.put(`user:${steamId}`, JSON.stringify(u));
+/** Each player keeps their newest KEEP_MATCHES (by when played, else when found); a match uploaded from a demo folder
+ * that falls off has its stored copy deleted (the bot's copies are shared by everyone in the match, and expire). */
+const KEEP_MATCHES = 30, BOT_DEMO_TTL = 60 * 86400;
+const saveUser = async (env: Env, steamId: string, u: User) => {
+  if (u.matches.length > KEEP_MATCHES) {
+    u.matches.sort((a, b) => (b.time ?? b.foundAt) - (a.time ?? a.foundAt));
+    for (const m of u.matches.splice(KEEP_MATCHES)) if (m.code.startsWith('upload:')) await env.SB.delete(`demo:u:${steamId}:${m.outcomeId}`);
+  }
+  await env.SB.put(`user:${steamId}`, JSON.stringify(u));
+};
 
 async function saveSettings(env: Env, steamId: string, input: Record<string, unknown>) {
   const u = await loadUser(env, steamId);
@@ -464,7 +473,7 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
   if (req.method === 'PUT' && demoPut) {
     const bytes = await req.arrayBuffer();
     if (bytes.byteLength > MAX_DEMO_BYTES) return json({ error: 'Too big.' }, 413);
-    await env.SB.put(`demo:${demoPut[1]}`, bytes);
+    await env.SB.put(`demo:${demoPut[1]}`, bytes, { expirationTtl: BOT_DEMO_TTL });
     return json({ ok: true, bytes: bytes.byteLength });
   }
   // the bot's report after each round (for the dev page)
