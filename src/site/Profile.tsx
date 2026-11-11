@@ -7,6 +7,7 @@ import { averages, fullMatches, FREE_HISTORY, premierOf, goalSeries, hasPro, map
 import { LETTER_COLOR } from '../engine/recap';
 import { Icon } from '../ui/Icon';
 import { findFriend, setGoals, useProfile, type PublicProfile } from '../ui/profileApi';
+import { steamFetch } from '../ui/steamApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
 import { copyCard, drawShareCard, shareFileName } from './shareCard';
@@ -22,7 +23,7 @@ export function Profile() {
   const pro = hasPro();
   const [all, setAll] = useState(false);
   const [share, setShare] = useState<ProfileMatch | null>(null);
-  const matches = fullMatches(data.matches);
+  const matches = fullMatches(data.matches).sort((a, b) => b.at - a.at);
   const shown = all && pro ? matches : matches.slice(0, FREE_HISTORY);
   const last = averages(matches.slice(0, FREE_HISTORY)), before = averages(matches.slice(FREE_HISTORY, FREE_HISTORY * 2));
   const name = me?.name ?? 'Your profile';
@@ -344,6 +345,27 @@ function Friend({ mine }: { mine: Averages | null }) {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const theirs = friend ? averages(friend.matches) : null;
+  // your Steam friends who use the site with a public profile: one click to compare (Worker /friends)
+  const [onSite, setOnSite] = useState<{ steamId: string; matches: number; name: string | null; avatar: string | null }[] | null>(null);
+  const [onSiteNote, setOnSiteNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!me || !remote) return;
+    let live = true;
+    (async () => {
+      const r = await steamFetch('/friends').then(x => (x.ok ? x.json() : null)).catch(() => null) as { friends: { steamId: string; matches: number }[]; note: string | null } | null;
+      if (!r || !live) return;
+      const names = r.friends.length ? await steamFetch(`/profiles?ids=${r.friends.slice(0, 20).map(f => f.steamId).join(',')}`).then(x => (x.ok ? x.json() : null)).catch(() => null) : null;
+      if (!live) return;
+      setOnSite(r.friends.slice(0, 20).map(f => ({ ...f, name: names?.profiles?.[f.steamId]?.name ?? null, avatar: names?.profiles?.[f.steamId]?.avatar ?? null })));
+      setOnSiteNote(r.note);
+    })();
+    return () => { live = false; };
+  }, [me, remote]);
+  const compareWith = async (id: string) => {
+    setQ(id); setBusy(true); setErr(null);
+    try { setFriend(await findFriend(id)); } catch (x) { setFriend(null); setErr(x instanceof Error ? x.message : String(x)); }
+    setBusy(false);
+  };
   const look = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!q.trim()) { setErr('Paste a Steam profile link, a custom URL name or a SteamID.'); return; }
@@ -366,6 +388,17 @@ function Friend({ mine }: { mine: Averages | null }) {
         </div>
       ) : (
         <>
+          {onSite && onSite.length > 0 && (
+            <div className="friend-chips" role="group" aria-label="Your Steam friends on RageView">
+              <span className="muted small">Your friends here:</span>
+              {onSite.map(f => (
+                <button key={f.steamId} className={`chip ${friend && q === f.steamId ? 'on' : ''}`} onClick={() => void compareWith(f.steamId)} disabled={busy}>
+                  {f.avatar && <img src={f.avatar} alt="" width={16} height={16} />} {f.name ?? 'A friend'} <span className="muted small">{f.matches}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {onSite && !onSite.length && onSiteNote && <p className="muted small">{onSiteNote}</p>}
           <form className="friend-form" onSubmit={look}>
             <input type="text" value={q} onChange={e => { setQ(e.target.value); setErr(null); }} placeholder="steamcommunity.com/id/yourfriend" aria-label="Friend's Steam profile" />
             <button className="cta primary" type="submit" disabled={busy}>{busy ? 'Looking…' : 'Compare'}</button>

@@ -50,6 +50,7 @@ async function parse(outcomeId, info, file, log) {
     await pipeline(Readable.fromWeb(res.body), unbzip2(), fs.createWriteStream(dem));
     log(`  downloaded ${(fs.statSync(dem).size / 1e6).toFixed(0)} MB in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
     const data = parseDemo(dem);
+    if (info.time) data.playedAt = info.time; // when it was played (Valve's time): the profile orders matches by it
     const gz = zlib.gzipSync(JSON.stringify(data), { level: 9 });
     fs.writeFileSync(file, gz);
     log(`  parsed ${data.map}, ${data.rounds.length} rounds → ${(gz.length / 1e6).toFixed(1)} MB gzipped`);

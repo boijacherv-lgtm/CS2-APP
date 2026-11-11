@@ -22,7 +22,7 @@ import { META_KEY, refreshDlMeta } from './dlMeta';
 import { botRoute, saveBotState } from './dlBot';
 import { kickBots } from './botKick';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
-import { board, countAnswer, friendsBoard, updateBoard } from './puzzles';
+import { board, countAnswer, friendsBoard, friendsOnSite, updateBoard } from './puzzles';
 import { puzzleGameOf } from '../../src/engine/profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
@@ -141,6 +141,11 @@ export default {
       if ((req.method === 'POST' || path === '/resolve') && await limited(env.RATE_USER, steamId)) return slow();
 
       if (req.method === 'GET' && path === '/status') return json(status(env, steamId, await loadUser(env, steamId)));
+      // your Steam friends on the site (public profiles), for Profile → Compare with a friend
+      if (req.method === 'GET' && path === '/friends') {
+        if (await limited(env.RATE_USER, steamId)) return slow();
+        return json(await friendsOnSite(env.SB, steamId, env.STEAM_API_KEY));
+      }
       // the puzzle board among your Steam friends (their public profiles)
       if (req.method === 'GET' && path === '/puzzle/friends') {
         if (await limited(env.RATE_USER, steamId)) return slow();

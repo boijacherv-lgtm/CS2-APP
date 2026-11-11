@@ -66,3 +66,23 @@ export async function friendsBoard(kv: ProfileKV, steamId: string, apiKey: strin
   rows.sort((a, b) => b.rating - a.rating);
   return { rows, note: rows.length <= 1 ? 'None of your Steam friends has a public RageView profile with puzzles yet.' : null };
 }
+
+/**
+ * Your Steam friends who use RageView with a public profile (for Profile → Compare with a friend): their SteamIDs and
+ * how many matches they have, most first. Their friends list has to be public on Steam; at most 150 friends looked at.
+ */
+export async function friendsOnSite(kv: ProfileKV, steamId: string, apiKey: string | undefined): Promise<{ friends: { steamId: string; matches: number }[]; note: string | null }> {
+  if (!apiKey) return { friends: [], note: 'The site has no Steam Web API key configured yet.' };
+  const res = await fetch(`https://api.steampowered.com/ISteamUser/GetFriendList/v1/?key=${encodeURIComponent(apiKey)}&steamid=${steamId}&relationship=friend`);
+  if (res.status === 401 || res.status === 403) return { friends: [], note: 'Your Steam friends list is private: set it to public on Steam (Edit profile → Privacy settings) to see your friends here.' };
+  if (!res.ok) return { friends: [], note: `Steam answered ${res.status}; try again later.` };
+  const list = ((await res.json()) as { friendslist?: { friends?: { steamid?: string }[] } }).friendslist?.friends ?? [];
+  const ids = list.map(f => f.steamid).filter((x): x is string => !!x && /^7656\d{13}$/.test(x)).slice(0, 150);
+  const out: { steamId: string; matches: number }[] = [];
+  await Promise.all(ids.map(async id => {
+    const p = await loadProfile(kv, id);
+    if (p.prefs.public && p.matches.length) out.push({ steamId: id, matches: p.matches.length });
+  }));
+  out.sort((a, b) => b.matches - a.matches);
+  return { friends: out, note: out.length ? null : 'None of your Steam friends has a public RageView profile yet.' };
+}

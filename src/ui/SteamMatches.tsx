@@ -94,6 +94,7 @@ export function SteamMatches() {
       const data = ONLINE ? await steamFetch(`/demo/${m.outcomeId}`).then(async r => { const out = await r.json(); if (!r.ok) throw new Error(out.error ?? r.statusText); return out as DemoData; })
         : await post<DemoData>('load', { outcomeId: m.outcomeId });
       if (!MAPS.some(x => x.id === data.map)) throw new Error(`${data.map} isn't one of the supported maps.`);
+      if (!data.playedAt && m.time) data.playedAt = m.time; // when it was played (Valve's time), for the profile's order
       startReview(data);
     } catch (e) { setMsg(errText(e)); }
   };
