@@ -1,4 +1,4 @@
-import { cappedDamage, duelOdds, roundFacts, roundGrade, type DemoData, type Letter, type Replay, type Review, type Role, type RoundPlay, type Tag } from './recap';
+import { cappedDamage, duelOdds, moveKey, roundFacts, roundGrade, type DemoData, type Letter, type Replay, type Review, type Role, type RoundPlay, type Tag } from './recap';
 import type { Side } from './types';
 import type { Hold, Move } from './situations';
 import type { AnalystRound } from './analyst';
@@ -34,6 +34,8 @@ export interface RoundLine {
   tags: Tag[];
   /** Duels: opponent id and whether this player won. */
   duels: { opp: string; won: boolean }[];
+  /** Their costliest move this round (the most win chance lost, 5% or more): for "your costliest moment". */
+  worst?: { t: number; gain: number; title: string; key: string };
 }
 
 export interface RoundSummary {
@@ -76,6 +78,10 @@ export function summarizeRound(rep: Replay, rv: Review): RoundSummary {
       damage: gunDmg + utilDamage, utilDamage,
       kast: kills.length > 0 || assist || !died || traded,
       tags: moves.flatMap(m => m.tags),
+      ...(() => {
+        const w = moves.filter(m => m.kind !== 'position' && m.gain <= -0.05).sort((a, b) => a.gain - b.gain)[0];
+        return w ? { worst: { t: w.t, gain: +w.gain.toFixed(3), title: w.title, key: moveKey(w) } } : {};
+      })(),
       duels: [
         ...kills.map(k => ({ opp: k.victim, won: true })),
         ...(died && died.attacker && died.attacker !== id && sideOf(died.attacker) && sideOf(died.attacker) !== side ? [{ opp: died.attacker, won: false }] : []),
