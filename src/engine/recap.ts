@@ -3,7 +3,7 @@ import { FLASH_POP, HE_POP, SIM_DT, type KillEvent, type Simulation } from './co
 import { computeControl } from './control';
 import { radarToWorld, worldToRadar } from './coords';
 import { gunFromName, primaryGun } from './guns';
-import { lifeOf, popAt, segmentHitsCircle, smokeBlasts, smokeOpenAt, SMOKE_CLEAR, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
+import { CELL, lifeOf, popAt, segmentHitsCircle, smokeBlasts, smokeOpenAt, SMOKE_CLEAR, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
 import type { TacticalEngine } from './predict';
 import UTIL_SPOTS from '../map/generated/util-spots.json';
 import { placeOf as calloutOfSpot } from './situations';
@@ -754,6 +754,8 @@ export interface RoundPlay {
 const OPINION_SECS = 20;
 /** Kills and a death this close together (seconds) are one play, judged together. */
 const PLAY_GAP = 10;
+/** How far a molotov's fire reaches from where it broke (world units; inferno_max_range), as the replay draws it. */
+const MOLLY_REACH_U = 150;
 
 export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   const { sim, board, round: r, names } = rep;
@@ -1087,12 +1089,26 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const enemyDmg = dmg.filter(d => sideOf.has(d.victim) && sideOf.get(d.victim) !== s).reduce((a, d) => a + d.dmg, 0);
     const teamDmg = dmg.filter(d => d.victim !== u.thrower && sideOf.get(d.victim) === s).reduce((a, d) => a + d.dmg, 0);
     const hitEnemies = [...new Set(dmg.filter(d => sideOf.has(d.victim) && sideOf.get(d.victim) !== s).map(d => d.victim))];
+    // the real shape (MapGrid.spread, as the replay draws it): the floor a smoke filled or a fire burned, around walls
+    // and through doorways but never through a wall, instead of a circle that also counts the room behind a thin wall
+    const cover = (radiusPx: number) => {
+      const cells = g.spread(at, radiusPx);
+      return { cells, set: new Set(cells.map(q => g.idx({ x: at.x + q.x, y: at.y + q.y }))) };
+    };
+    const crosses = (set: Set<number>, a: Vec2, b: Vec2) => {
+      const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / (CELL / 2)));
+      for (let i = 0; i <= n; i++) if (set.has(g.idx({ x: a.x + ((b.x - a.x) * i) / n, y: a.y + ((b.y - a.y) * i) / n }))) return true;
+      return false;
+    };
+    /** Square metres of floor (a CS unit is an inch). */
+    const sqm = (cells: number) => Math.round(cells * (CELL * scale) ** 2 * 0.000645);
     const why: string[] = [];
     let gain = 0;
     if (r.plant !== null && from > r.plant + 0.5 && s === 'T' && u.type === 'smoke') why.push('Thrown after the plant (post-plant smoke).');
 
     if (u.type === 'smoke') {
       const R = SMOKE_RADIUS_UNITS / scale;
+      const filled = cover(R);
       let pairSec = 0, watchSec = 0;
       const cut = new Set<string>(), blinded = new Set<string>();
       // points on the near rim of the smoke: if an enemy sees them, the smoke is in their view
@@ -1108,7 +1124,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
             if (!alive(f, t)) continue;
             const pf = posAt(f, t);
             if (Math.hypot(pe.x - pf.x, pe.y - pf.y) > 1100) continue;
-            if (segmentHitsCircle(pf, pe, at, R) && g.lineOfSight(pf, pe)) { pairSec++; cut.add(sim.ids[e]); }
+            if ((filled.cells.length ? crosses(filled.set, pf, pe) : segmentHitsCircle(pf, pe, at, R)) && g.lineOfSight(pf, pe)) { pairSec++; cut.add(sim.ids[e]); }
           }
         }
       }
@@ -1118,12 +1134,15 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       // kills shot through this smoke while it was up: the enemy spraying it, or your team using it
       const radar = (x: number, y: number) => worldToRadar({ x, y }, engine.map.radar);
       const through = r.kills.filter(k => k.smoke && k.t >= from && k.t <= to && sideOf.has(k.attacker) && sideOf.has(k.victim)
-        && segmentHitsCircle(radar(k.ax, k.ay), radar(k.x, k.y), at, R * 1.1));
+        && (filled.cells.length ? crosses(filled.set, radar(k.ax, k.ay), radar(k.x, k.y)) : segmentHitsCircle(radar(k.ax, k.ay), radar(k.x, k.y), at, R * 1.1)));
       const sprayedUs = through.filter(k => sideOf.get(k.attacker) !== s && sideOf.get(k.victim) === s).length;
       const usedIt = through.filter(k => sideOf.get(k.attacker) === s && sideOf.get(k.victim) !== s).length;
       gain = Math.min(0.09, 0.0035 * pairSec + 0.0018 * watchSec) - 0.03 * caught - 0.02 * sprayedUs + 0.02 * usedIt;
       if (pairSec) why.push(`Cut ${cut.size === 1 ? 'an enemy' : `${cut.size} enemies`} off from seeing your team (${pairSec} player-second${pairSec > 1 ? 's' : ''} of sightlines).`);
       if (blinded.size) why.push(`Blocked the view of ${blinded.size === 1 ? 'an enemy' : `${blinded.size} enemies`} looking that way (${watchSec} s).`);
+      // walls around it: the smoke filled only part of a full one's space (it spreads into the room it lands in)
+      const full = Math.PI * (R / CELL) ** 2;
+      if (filled.cells.length && filled.cells.length < full * 0.6) why.push(`Walls hemmed it in: it filled ${sqm(filled.cells.length)} m² of floor, ${Math.round((filled.cells.length / full) * 100)}% of an open smoke.`);
       const std = standardSpot(engine.map.id, 'smoke', s, u.x, u.y);
       // meant for a usual spot but landed into the wall: part of the smoke sits inside it, leaving a gap on the open
       // side anyone can peek through (how much of the smoke is inside walls, against the usual smoke there)
@@ -1198,13 +1217,25 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
 
     if (u.type === 'molotov') {
       // area denial: enemies that were close to the fire while it burned (it held them off or pushed them out)
-      const near = new Set<string>();
+      const near = new Set<string>(), walkedIn = new Set<string>();
+      const burned = cover(MOLLY_REACH_U / scale);
+      const edge = (p: Vec2) => {
+        let best: Vec2 = at, bd = Infinity;
+        for (const q of burned.cells) { const d = Math.hypot(at.x + q.x - p.x, at.y + q.y - p.y); if (d < bd) { bd = d; best = { x: at.x + q.x, y: at.y + q.y }; } }
+        return { at: best, d: bd };
+      };
       for (let t = from; t <= Math.min(to, r.duration); t += 0.5)
         for (const e of enemiesOf(s)) {
           if (!alive(e, t)) continue;
           const pe = posAt(e, t);
-          if (Math.hypot(pe.x - at.x, pe.y - at.y) * scale < 900 && g.lineOfSight(pe, at)) near.add(sim.ids[e]);
+          if (!burned.cells.length) { if (Math.hypot(pe.x - at.x, pe.y - at.y) * scale < 900 && g.lineOfSight(pe, at)) near.add(sim.ids[e]); continue; }
+          if (burned.set.has(g.idx(pe)) && t >= from + 0.3) walkedIn.add(sim.ids[e]);
+          // close to the fire's edge and seeing it: it was in their way
+          const ed = edge(pe);
+          if (ed.d * scale < 600 && g.lineOfSight(pe, ed.at)) near.add(sim.ids[e]);
         }
+      if (burned.cells.length) why.push(`It burned ${sqm(burned.cells.length)} m² of floor.`);
+      if (walkedIn.size) why.push(`${walkedIn.size === 1 ? 'An enemy' : `${walkedIn.size} enemies`} walked into the fire.`);
       gain += 0.02 * Math.min(3, near.size);
       if (near.size) why.push(`Kept ${near.size === 1 ? 'an enemy' : `${near.size} enemies`} off that ground for ${(to - from).toFixed(0)} s.`);
       if (near.size) tags.push('DENIED');
