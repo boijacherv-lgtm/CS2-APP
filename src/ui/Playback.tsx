@@ -1,6 +1,6 @@
 import { MarkFace } from './MarkFace';
 import { useMemo, useRef } from 'react';
-import { bombAt, bombTryAt, DEFUSE_KIT_SECONDS, DEFUSE_SECONDS, NOTE_INFO, PLANT_SECONDS, type Annotation, type DemoData, type DemoRound, type Review } from '../engine/recap';
+import { bombAt, bombTryAt, DEFUSE_KIT_SECONDS, DEFUSE_SECONDS, gearAt, NOTE_INFO, PLANT_SECONDS, type Annotation, type DemoData, type DemoRound, type Review } from '../engine/recap';
 import { moveLook, NoteMark } from './NoteMark';
 import { SIDE_COLOR, T } from './tokens';
 import { useShown } from './shown';
@@ -103,22 +103,31 @@ export function ScoreBug({ score, round, roundNo, time, switched }: {
   const fuse = plantedAt !== null ? Math.max(0, BOMB_SECONDS - (time - plantedAt)) : null;
   const ended = bomb?.kind === 'defuse' || bomb?.kind === 'explode';
   const left = fuse ?? ROUND_SECONDS - time;
-  let strip: { cls: string; label: string; share: number; num?: string; icon?: 'bomb' | 'scissors' } | null = null;
+  let strip: { cls: string; label: string; share: number; icon?: 'bomb' | 'scissors' } | null = null;
+  let defuse: { share: number; ok: boolean } | null = null;
   if (bomb?.kind === 'defuse') strip = { cls: 'defused', label: 'Bomb defused', share: 1, icon: 'scissors' };
   else if (bomb?.kind === 'explode') strip = { cls: 'exploded', label: 'Bomb exploded', share: 1, icon: 'bomb' };
   else if (act?.kind === 'defuse') {
-    const len = act.end - act.t, made = time - act.t, need = (act.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS) - made;
-    const inTime = fuse === null || need <= fuse;
-    strip = { cls: `defusing ${inTime ? 'ok' : 'late'}`, label: `Defusing${act.kit ? ' with kit' : ''}${inTime ? '' : ': no time'}`, share: Math.min(1, made / (act.done ? len : act.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS)), num: Math.max(0, need).toFixed(1), icon: 'scissors' };
-  } else if (act?.kind === 'plant') strip = { cls: 'planting', label: 'Planting', share: Math.min(1, (time - act.t) / PLANT_SECONDS), num: Math.max(0, PLANT_SECONDS - (time - act.t)).toFixed(1), icon: 'bomb' };
+    const full = act.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS, made = time - act.t, need = Math.max(0, full - made);
+    const ok = fuse === null || need <= fuse;
+    defuse = { share: Math.min(1, made / full), ok };
+    strip = ok
+      ? { cls: 'defusing ok', label: `Defusing${act.kit ? ' with kit' : ''} · ${need.toFixed(1)} s`, share: defuse.share, icon: 'scissors' }
+      : { cls: 'defusing late', label: `Too late · ${(need - (fuse ?? 0)).toFixed(1)} s short`, share: defuse.share, icon: 'scissors' };
+  } else if (act?.kind === 'plant') strip = { cls: 'planting', label: `Planting · ${Math.max(0, PLANT_SECONDS - (time - act.t)).toFixed(1)} s`, share: Math.min(1, (time - act.t) / PLANT_SECONDS), icon: 'bomb' };
+  else if (fuse !== null && !ended && fuse > 0) {
+    // after the plant: what the CTs need to stop it
+    const { alive, kit } = ctsAt(round, time);
+    if (alive > 0) strip = { cls: 'helper', label: `${alive} CT left · need ${kit ? '5 s with kit' : '10 s without kit'} · ${Math.ceil(fuse)} s left`, share: 0 };
+  }
   // (the fuse itself counts down in the clock above: one timer, not two)
   return (
     <div className="scorebug">
       <div className="sb-main">
         <span className="sb-team ct">CT</span>
         <span className="sb-score ct num">{score[0]}</span>
-        <span className={`sb-clock num ${fuse !== null && !ended ? 'bomb' : left <= 10 && !ended ? 'low' : ''}`}>
-          {fuse !== null && !ended ? <><Icon name="bomb" size={15} className="sb-bomb-icon" />{Math.ceil(fuse)}</> : ended ? clock(ROUND_SECONDS - time) : clock(left)}
+        <span className={`sb-clock num ${fuse !== null && !ended ? `bomb ${fuse > 10 ? 'amber' : fuse > 5 ? 'orange' : 'red'}` : left <= 10 && !ended ? 'low' : ''}`}>
+          {fuse !== null && !ended ? <><BombDial fuse={fuse} defuse={defuse} />{Math.ceil(fuse)}</> : ended ? clock(ROUND_SECONDS - time) : clock(left)}
         </span>
         <span className="sb-score t num">{score[1]}</span>
         <span className="sb-team t">T</span>
@@ -130,10 +139,54 @@ export function ScoreBug({ score, round, roundNo, time, switched }: {
       {strip && (
         <div className={`sb-strip ${strip.cls}`}>
           <i style={{ width: `${Math.round(strip.share * 1000) / 10}%` }} />
-          <span>{strip.icon && <Icon name={strip.icon} size={12} />}{strip.label}{strip.num && <b className="num">{strip.num}</b>}</span>
+          <span>{strip.icon && <Icon name={strip.icon} size={12} />}{strip.label}</span>
         </div>
       )}
     </div>
+  );
+}
+
+/** CTs alive at time t, and whether any of them carries a defuse kit. */
+function ctsAt(r: DemoRound, t: number) {
+  const ft = r.frames.t;
+  let k = 0;
+  while (k + 1 < ft.length && ft[k + 1] <= t) k++;
+  let alive = 0, kit = false;
+  for (const [id, f] of Object.entries(r.frames.players)) {
+    if (f.side !== 'CT' || !f.alive[k]) continue;
+    alive++;
+    if (gearAt(r, id, t)?.kit) kit = true;
+  }
+  return { alive, kit };
+}
+
+/**
+ * The bomb dial in the score bug's centre: a ring that drains 40 → 0 (amber, orange from 10 s, red from 5 s), ticks at
+ * 10 s and 5 s (the last start for a defuse without and with a kit), and a defuse filling inside it in CT blue (red and
+ * striped when it can't finish, a check when it will).
+ */
+function BombDial({ fuse, defuse }: { fuse: number; defuse: { share: number; ok: boolean } | null }) {
+  const tick = (left: number) => {
+    const a = (left / BOMB_SECONDS) * 2 * Math.PI - Math.PI / 2;
+    return <line x1={17 + Math.cos(a) * 13} y1={17 + Math.sin(a) * 13} x2={17 + Math.cos(a) * 17} y2={17 + Math.sin(a) * 17} className="sb-dial-tick" />;
+  };
+  return (
+    <span className="sb-dial" role="img" aria-label={`Bomb: ${Math.ceil(fuse)} s left`}>
+    <svg viewBox="0 0 34 34" width="30" height="30" aria-hidden>
+      <defs>
+        <pattern id="sb-late" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="3" height="3" fill="var(--bad)" /><rect width="1.4" height="3" fill="#0a0c10" />
+        </pattern>
+      </defs>
+      <circle cx="17" cy="17" r="15" className="sb-dial-track" />
+      <circle cx="17" cy="17" r="15" className="sb-dial-fuse" pathLength={1} strokeDasharray={`${fuse / BOMB_SECONDS} 1`} transform="rotate(-90 17 17)" />
+      {tick(10)}{tick(5)}
+      {defuse && <circle cx="17" cy="17" r="10.5" className="sb-dial-defuse" pathLength={1} strokeDasharray={`${defuse.share} 1`} transform="rotate(-90 17 17)"
+        stroke={defuse.ok ? 'var(--ct)' : 'url(#sb-late)'} />}
+      {defuse?.ok && <path d="M12 17.5l3.2 3.2 6.6-7" className="sb-dial-check" />}
+    </svg>
+    {!defuse?.ok && <Icon name="bomb" size={13} />}
+    </span>
   );
 }
 
@@ -197,6 +250,7 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
   const { shown } = useShown();
   const moves = recap.moves.filter(m => shown(m) && m.t <= until);
   const plant = round.plant !== null && round.plant <= until ? round.plant : null;
+  const bombEnd = plant !== null ? (round.bomb ?? []).find(e => (e.kind === 'defuse' || e.kind === 'explode') && e.t <= until) ?? null : null;
   return (
     <div className="timeline" ref={track} role="slider" aria-label="Round timeline" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(time)}
       onPointerDown={e => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); seekAt(e.clientX); }}
@@ -216,6 +270,8 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
         <i key={`k${i}`} className={`tl-kill ${sideOf(k.attacker) === 'CT' ? 'ct' : 't'}`} style={{ left: pct(k.t), background: SIDE_COLOR[sideOf(k.attacker)!] }} />
       ))}
       {plant !== null && <span className="tl-bomb" style={{ left: pct(plant) }} title={`Bomb planted at ${clock(plant)} into the round`}><Icon name="bomb" size={12} /></span>}
+      {bombEnd && <span className={`tl-bomb end ${bombEnd.kind}`} style={{ left: pct(bombEnd.t) }} title={bombEnd.kind === 'defuse' ? `Defused with ${Math.max(0, Math.round(BOMB_SECONDS - (bombEnd.t - plant!)))} s left` : 'Bomb exploded'}>
+        <Icon name={bombEnd.kind === 'defuse' ? 'scissors' : 'burst'} size={12} /></span>}
       {moves.map((m, i) => {
         const g = moveLook(m);
         // the same marks as on the map, for every move that's evaluated: book moves as small dots

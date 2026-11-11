@@ -12,7 +12,7 @@ import { radarToWorld, worldToRadar } from '../engine/coords';
 import { SIM_FUSE, simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
 import type { SpotMap } from '../engine/spots';
-import { bombAt, evalAt, type Review } from '../engine/recap';
+import { bombAt, bombTryAt, evalAt, PLANT_SECONDS, type Review } from '../engine/recap';
 import { moveLook } from './NoteMark';
 import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
@@ -790,12 +790,24 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           {recap && s.review && (() => {
             const b = bombAt(s.review.data.rounds[s.review.round], s.time);
             if (!b) return null;
+            const r = s.review.data.rounds[s.review.round], act = bombTryAt(r, s.time);
             if (b.kind === 'carry') {
               const at = live.get(b.id);
-              return at && at.alive !== false ? <C4 x={at.pos.x + 11 * k} y={at.pos.y + 10 * k} k={k * 0.9} /> : null;
+              if (!at || at.alive === false) return null;
+              return (
+                <>
+                  {/* planting: a T-colour arc filling round the planter over the 3.2 s */}
+                  {act?.kind === 'plant' && <>
+                    <Circle x={at.pos.x} y={at.pos.y} radius={20 * k} stroke="#0a0c10" strokeWidth={5 * k} opacity={0.75} listening={false} />
+                    <Arc x={at.pos.x} y={at.pos.y} innerRadius={18.3 * k} outerRadius={21.7 * k} rotation={-90} listening={false}
+                      angle={Math.min(1, (s.time - act.t) / PLANT_SECONDS) * 360} fill={SIDE_COLOR.T} />
+                  </>}
+                  <C4 x={at.pos.x + 11 * k} y={at.pos.y + 10 * k} k={k * 0.9} />
+                </>
+              );
             }
             const at = worldToRadar(b, engine.map.radar);
-            return <BombOnMap at={at} k={k} state={b.kind} age={s.time - b.since} planted={b.plantedAt === null ? null : s.time - b.plantedAt} />;
+            return <BombOnMap at={at} k={k} state={b.kind} age={s.time - b.since} planted={b.plantedAt === null ? null : s.time - b.plantedAt} unitsPerPx={UNITS_PER_PX} />;
           })()}
           {recap && sim && s.review && (
             <Gunfire round={s.review.data.rounds[s.review.round]} sim={sim} engine={engine} t={s.time} k={k}
@@ -1035,7 +1047,9 @@ function C4({ x, y, k, light }: { x: number; y: number; k: number; light?: strin
 }
 
 /** Dropped (waiting to be picked up), planted (blinking faster as the fuse runs out), defused or exploded. */
-function BombOnMap({ at, k, state, age, planted }: { at: Vec2; k: number; state: 'drop' | 'plant' | 'defuse' | 'explode'; age: number; planted: number | null }) {
+/** The C4's blast (world units): 500 damage falling off to nothing at 1750; about 1050 kills a full-HP player without armour. */
+const BLAST_DAMAGE_U = 1750, BLAST_LETHAL_U = 1050;
+function BombOnMap({ at, k, state, age, planted, unitsPerPx }: { at: Vec2; k: number; state: 'drop' | 'plant' | 'defuse' | 'explode'; age: number; planted: number | null; unitsPerPx?: number }) {
   if (state === 'explode') {
     const a = Math.min(1, age / 0.6);
     return (
@@ -1061,6 +1075,9 @@ function BombOnMap({ at, k, state, age, planted }: { at: Vec2; k: number; state:
     const pulse = ((planted ?? 0) * rate) % 1;
     return (
       <Group listening={false}>
+        {/* how far it reaches: the lethal ring and the damage ring, faint */}
+        {unitsPerPx && <Circle x={at.x} y={at.y} radius={BLAST_DAMAGE_U / unitsPerPx} stroke="#ff3b30" strokeWidth={1 * k} opacity={0.25} dash={[6 * k, 5 * k]} fill="rgba(255,59,48,0.03)" />}
+        {unitsPerPx && <Circle x={at.x} y={at.y} radius={BLAST_LETHAL_U / unitsPerPx} stroke="#ff3b30" strokeWidth={1.2 * k} opacity={0.35} fill="rgba(255,59,48,0.05)" />}
         <Circle x={at.x} y={at.y} radius={(16 + 20 * pulse) * k} stroke="#ff3b30" strokeWidth={2.5 * k} opacity={0.8 * (1 - pulse)} />
         <C4 x={at.x} y={at.y} k={k * 1.35} light={on ? '#ff3b30' : '#5a1a14'} />
       </Group>

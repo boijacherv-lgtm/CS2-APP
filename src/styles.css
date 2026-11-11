@@ -518,6 +518,7 @@ a.btn:hover { border-color: #45505e; }
 .timeline .tl-dot { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 7px; height: 7px; padding: 0; border-radius: 50%; border: 1px solid #000a; }
 .timeline .tl-mark:hover, .timeline .tl-dot:hover { transform: translate(-50%, -50%) scale(1.25); z-index: 2; }
 .tl-bomb { position: absolute; top: 1px; transform: translateX(-50%); font-size: 12px; pointer-events: auto; }
+.tl-bomb.end.defuse { color: var(--ct); } .tl-bomb.end.explode { color: var(--bad); }
 .tl-head { position: absolute; top: -1px; bottom: -1px; width: 2px; transform: translateX(-1px); background: var(--text-1); box-shadow: 0 0 6px #fff8; pointer-events: none; z-index: 3; }
 
 /* drawer tabs */
@@ -863,18 +864,31 @@ a.btn:hover { border-color: #45505e; }
 .sb-clock { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 76px; padding: 0 10px;
   font-family: var(--font-display); font-size: 22px; font-weight: 700; color: #fff; }
 .sb-clock.low { color: var(--bad-soft); }
-.sb-clock.bomb { color: var(--bad); background: color-mix(in srgb, var(--bad) 16%, transparent); }
-.sb-bomb-icon { animation: bomb-pulse 1s ease-in-out infinite; }
+.sb-clock.bomb.amber { --fuse: #F5C451; } .sb-clock.bomb.orange { --fuse: #F3873A; } .sb-clock.bomb.red { --fuse: var(--bad); }
+.sb-clock.bomb { color: var(--fuse); background: color-mix(in srgb, var(--fuse) 14%, transparent); }
+.sb-dial { position: relative; display: grid; place-items: center; width: 30px; height: 30px; }
+.sb-dial svg { position: absolute; inset: 0; }
+.sb-dial-track { fill: none; stroke: #ffffff1f; stroke-width: 3; }
+.sb-dial-fuse { fill: none; stroke: var(--fuse); stroke-width: 3; transition: stroke-dasharray .12s linear; }
+.sb-dial-tick { stroke: #fff; stroke-width: 1.4; opacity: .8; }
+.sb-dial-defuse { fill: none; stroke-width: 4; }
+.sb-dial-check { fill: none; stroke: var(--good); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.sb-clock.bomb.red .sb-dial { animation: dial-pulse 1s ease-out infinite; }
+@keyframes dial-pulse { 0% { transform: scale(1.12); filter: drop-shadow(0 0 5px var(--bad)); } 40%, 100% { transform: scale(1); filter: none; } }
+@media (prefers-reduced-motion: reduce) { .sb-clock.bomb.red .sb-dial { animation: none; } }
 .sb-round { margin-top: 2px; padding: 1px 10px; border-radius: 0 0 6px 6px; background: #0a0c10d9; font-size: 12px; font-weight: 700;
   letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
-.sb-strip { position: relative; margin-top: 4px; width: 236px; height: 22px; border-radius: 5px; overflow: hidden; background: #0a0c10f0;
+.sb-strip { position: relative; margin-top: 4px; min-width: 236px; padding: 0 10px; height: 22px; border-radius: 5px; overflow: hidden; background: #0a0c10f0;
   border: 1px solid var(--strip, var(--bad)); }
 .sb-strip i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--strip, var(--bad)) 45%, transparent); transition: width .12s linear; }
 .sb-strip span { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; height: 100%;
-  font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #fff; }
+  font-size: 12px; font-weight: 800; letter-spacing: .02em; color: #fff; }
 .sb-strip b { font-family: var(--font-display); font-size: 14px; }
 .sb-strip.fuse { --strip: var(--bad); }
 .sb-strip.planting { --strip: var(--t); }
+.sb-strip.helper { --strip: #ffffff33; }
+.sb-strip.helper span { font-weight: 700; color: var(--text-2); }
+.sb-strip.defusing.late i { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--bad) 55%, transparent) 0 6px, transparent 6px 11px); }
 .sb-strip.defusing.ok { --strip: var(--ct); }
 .sb-strip.defusing.late { --strip: var(--bad); }
 .sb-strip.defused { --strip: var(--good); }
