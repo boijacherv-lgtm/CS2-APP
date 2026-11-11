@@ -98,9 +98,23 @@ export function fromShareCode(code: string): Moment | null {
 
 // ---- the reel and the focus --------------------------------------------------------------------------------------
 /** Your mistakes grouped by kind, the most frequent first (ties: the costlier). */
+/**
+ * A mistake's kind in plain words. "X instead of Y" with the same move on both sides ("Moved instead of moving": went
+ * somewhere, the best was somewhere else) reads as nonsense: it's the wrong spot. Also fixes kinds saved before.
+ */
+export function kindLabel(kind: string): string {
+  const m = /^(\w+) instead of (\w+)$/i.exec(kind.trim());
+  if (!m) return kind;
+  const did = m[1].toLowerCase(), best = m[2].toLowerCase();
+  if (/^(moved|went)$/.test(did) && best === 'moving') return 'Moving to the wrong spot';
+  if (/^(held|stayed)$/.test(did) && best === 'holding') return 'Holding the wrong spot';
+  if (did === 'peeked' && best === 'peeking') return 'Peeking the wrong angle';
+  return kind;
+}
+
 export function mistakeGroups(ms: Moment[]): { kind: string; moments: Moment[]; cost: number }[] {
   const by = new Map<string, Moment[]>();
-  for (const m of ms.filter(isMistake)) by.set(m.kind, [...(by.get(m.kind) ?? []), m]);
+  for (const m of ms.filter(isMistake)) by.set(kindLabel(m.kind), [...(by.get(kindLabel(m.kind)) ?? []), m]);
   return [...by].map(([kind, xs]) => ({ kind, moments: xs.sort((a, b) => b.cost - a.cost), cost: xs.reduce((a, m) => a + m.cost, 0) }))
     .sort((a, b) => b.moments.length - a.moments.length || b.cost - a.cost);
 }
@@ -114,7 +128,7 @@ export function focusOf(ms: Moment[], game: MomentGame): { kind: string; moments
   const recent = mine.filter(m => order.includes(matchOf(m)));
   const top = mistakeGroups(recent)[0];
   if (!top) return null;
-  const per = order.map(id => recent.filter(m => matchOf(m) === id && isMistake(m) && m.kind === top.kind).length);
+  const per = order.map(id => recent.filter(m => matchOf(m) === id && isMistake(m) && kindLabel(m.kind) === top.kind).length);
   let streak = 0;
   for (let i = 0; i < per.length - 1; i++) {
     const before = per.slice(i + 1), avg = before.reduce((a, v) => a + v, 0) / before.length;

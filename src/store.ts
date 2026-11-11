@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { UTIL_FLIGHT } from './engine/grid';
 import type { RoundSummary } from './engine/match';
 import type { DemoData, EvalScope } from './engine/recap';
+import { withoutKnifeRound } from './engine/knife';
 import type { Clip } from './ui/disputesApi';
 import { presetsFor, tPlaysFor } from './map/catalog';
 import { loadCustomLineups, saveCustomLineups, type Lineup } from './map/lineups';
@@ -386,8 +387,9 @@ export const useStore = create<Store>((set, get) => {
           : s.boardFromReplay ? { board: { ...freshBoard(s.mapId), context: s.board.context }, level: 0 } : {};
         return { ...common, parked: null, time: 10, boardFromReplay: false, ...restored };
       }),
-    startReview: data =>
-      set(s => ({
+    startReview: raw => {
+      const data = withoutKnifeRound(raw);
+      return set(s => ({
         mode: 'review',
         parked: s.mode === 'review' || s.boardFromReplay ? s.parked : { board: s.board, mapId: s.mapId, level: s.level },
         review: { data, round: 0 },
@@ -395,7 +397,8 @@ export const useStore = create<Store>((set, get) => {
         judging: null,
         mapId: data.map, level: 0, selectedId: null, draftRoute: null, playing: false, time: 0, past: [], future: [],
         tool: 'select',
-      })),
+      }));
+    },
     setReviewRound: n => set(s => (s.review ? { review: { ...s.review, round: n }, time: 0, playing: false, selectedId: null, judging: null } : s)),
     setReviewSpoilers: reviewSpoilers => set({ reviewSpoilers }),
     exitReview: () => set({ review: null, report: null, time: 0, playing: false, selectedId: null, judging: null }),

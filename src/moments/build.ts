@@ -1,5 +1,6 @@
 // Moments from each game's engine: the CS2 search's flagged moments (recap.ts → search.ts) and the Deadlock engine's
 // graded moves (engineReview.ts), frozen as snapshots (moments.ts).
+import { kindLabel } from './moments';
 import { gearAt, type DemoData } from '../engine/recap';
 import type { RoundSummary } from '../engine/match';
 import { COST_SCALE, type OptionKind, type SearchMoment, type SearchOption } from '../engine/search';
@@ -109,7 +110,7 @@ export function cs2Moment(data: DemoData, i: number, m: SearchMoment): Moment | 
     // one scale for every number: the best move keeps the win chance you have now, each other move loses its calibrated
     // cost (the engine's raw values exaggerate: search.ts COST_SCALE), so "gave up" is best minus played
     options: opts.map(o => ({ label: o.label, value: onScale(m.before, (best.win - o.win) * COST_SCALE), ...toMap(o) })), played, cls: m.cls, cost: (best.win - (opts[played]?.win ?? best.win)) * COST_SCALE,
-    kind: `${cap(m.did.label.split(' ')[0])} instead of ${DOING[best.kind as OptionKind] ?? 'the best move'}`,
+    kind: kindLabel(`${cap(m.did.label.split(' ')[0])} instead of ${DOING[best.kind as OptionKind] ?? 'the best move'}`),
     info, tag, why: cs2Why(best, opts[played] ?? m.did, { planted, side: m.side, us, them, left }),
   };
 }
