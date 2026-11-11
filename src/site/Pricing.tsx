@@ -35,8 +35,7 @@ export function Pricing() {
   return (
     <div className="page pricing">
       <header className="page-head">
-        <h1>Plans</h1>
-        <p className="lead">The coach is free. Pro is for people who review every match{PRO_EARLY_ACCESS ? ', and right now it\'s free too.' : '.'}</p>
+        <h1>{PRO_EARLY_ACCESS ? 'Free. Pro is free too, for now.' : 'Plans'}</h1>
       </header>
       {PRO_EARLY_ACCESS && (<>
         <div className="notice"><Icon name="bolt" size={16} /> <span><b>Early access:</b> every Pro feature is unlocked for everyone while RageView is new. Nothing to pay, no card needed.</span></div>
@@ -45,21 +44,21 @@ export function Pricing() {
       <div className="plans">
         <section className="plan">
           <h2>Free</h2>
-          <p className="price"><b>$0</b><span>forever</span></p>
+          <p className="price"><b>$0</b><span>Everything you need</span></p>
           <ul>{FREE.map(f => <li key={f}><Icon name={iconFor(f)} size={14} /> {f}</li>)}</ul>
           <a className="cta" href="/cs2/review">Review a CS2 match</a>
         </section>
         <section className="plan featured">
           <span className="plan-tag">{PRO_EARLY_ACCESS ? 'Free in early access' : 'Most complete'}</span>
           <h2>Pro</h2>
-          <p className="price"><b>$5</b><span>/ month{PRO_EARLY_ACCESS ? ' · free while in early access' : ''}</span></p>
+          <p className="price"><b>$5</b><span>/ month{PRO_EARLY_ACCESS ? ' after early access' : ''}</span></p>
           <ul>{PRO.map(f => <li key={f}><Icon name={iconFor(f)} size={14} /> {f}</li>)}</ul>
           {me && remote ? (
             <button className={notify ? 'cta' : 'cta primary'} onClick={toggle} disabled={busy} aria-pressed={notify}>
               <Icon name="bell" size={14} /> {notify ? 'You\'ll be told when Pro launches' : 'Tell me when Pro launches'}
             </button>
           ) : STEAM_AVAILABLE ? (
-            <div className="plan-login"><span className="muted">Pro is free for everyone right now: log in with Steam and it's on. We only get your SteamID, public name and avatar.</span><SteamLoginButton compact label="Get Pro free (early access)" /></div>
+            <div className="plan-login"><span className="muted">Pro is free for everyone right now: log in with Steam and it's on. We only get your SteamID, public name and avatar.</span><SteamLoginButton compact label="Get Pro free" /></div>
           ) : <p className="muted">Pro launches later; everything is unlocked until then.</p>}
           {me && remote && notify && <p className="muted small">You'll see it on your profile when it launches. We don't email you.</p>}
         </section>

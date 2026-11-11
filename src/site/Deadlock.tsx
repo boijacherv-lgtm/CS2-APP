@@ -23,7 +23,7 @@ export function Deadlock() {
         <div className="dl-hero-text">
           <span className="eyebrow"><GameMark game={GAME} size={14} /> {GAME.name} <span className={`games-status ${GAME.status}`}>{STATUS_LABEL[GAME.status]}</span></span>
           <h1>Every Deadlock fight, graded.</h1>
-          <p className="lead">Replay any match on the real map with the coach grading every death, kill and lane, then plan your next one in Meta &amp; builds. Beta on {APP_NAME}.</p>
+          <p className="lead">Paste a match ID. Watch it on the map while the coach marks every fight, death and lane.</p>
           <div className="hero-cta">
             <a className="cta primary" href="/deadlock/review">Review a Deadlock match <Icon name="arrowRight" size={14} /></a>
             <button className="cta" onClick={toggle} disabled={busy} aria-pressed={on}>
@@ -62,20 +62,6 @@ export function Deadlock() {
       </section>
 
       <section className="site-section">
-        <h2 className="section-title">What's live</h2>
-        <p className="muted dl-why">Match data comes from deadlock-api.com (positions every second, deaths, items, souls, objectives), so any match works without a file; when Valve kept the replay, its demo adds the fine detail. A replay file you saved opens with the Replay file button.</p>
-        <ol className="dl-road">
-          {ROAD.map(r => (
-            <li key={r.title} className={r.state === 'next' ? 'next' : ''}>
-              <span className="dl-road-dot" aria-hidden />
-              <div><b>{r.title}</b><span>{r.text}</span></div>
-              <span className={`games-status ${r.state === 'done' ? 'live' : r.state}`}>{r.state === 'done' ? 'Live' : r.state === 'next' ? 'Next' : 'Planned'}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="site-section">
         <h2 className="section-title">Questions</h2>
         <div className="faq">
           {FAQ.map(q => <details key={q.q}><summary>{q.q}</summary><p>{q.a}</p></details>)}
@@ -90,21 +76,14 @@ export function Deadlock() {
 }
 
 const GRADES: { icon: IconName; title: string; text: string }[] = [
-  { icon: 'swords', title: 'Kills', text: 'What each kill was worth: who died, how rich they were, the objective it opened.' },
-  { icon: 'map', title: 'Map activity', text: 'Camps, the Urn, crates and statues, bosses and objectives you were at.' },
-  { icon: 'bolt', title: 'Abilities', text: 'Damage by ability, your ultimate used out of its chances, and what it led to.' },
-  { icon: 'route', title: 'Rotations', text: 'Ganks in other lanes during laning, and whether they paid off.' },
-  { icon: 'shield', title: 'Survival', text: 'Avoidable deaths, and teammates who died next to you with your ultimate ready.' },
-  { icon: 'trendUp', title: 'Laning and economy', text: 'Souls and last hits against players of your hero in your position.' },
+  { icon: 'swords', title: 'Kills', text: 'What each kill was worth.' },
+  { icon: 'map', title: 'Map activity', text: 'Camps, Urn, bosses, objectives.' },
+  { icon: 'bolt', title: 'Abilities', text: 'Damage by ability, ult usage.' },
+  { icon: 'route', title: 'Rotations', text: 'Ganks that paid off, and ones that didn\'t.' },
+  { icon: 'shield', title: 'Survival', text: 'Deaths you could have avoided.' },
+  { icon: 'trendUp', title: 'Laning', text: 'Souls and last hits vs your role.' },
 ];
 
-const ROAD: { title: string; text: string; state: 'done' | 'next' | 'planned' }[] = [
-  { title: 'Map and replay', text: 'Any match by its ID on the real map: heroes, kills, objectives, souls.', state: 'done' },
-  { title: 'The coach and Match recap', text: 'A report card, why the match was won or lost, economy, items and abilities against the patch.', state: 'done' },
-  { title: 'Demos', text: 'Heroes 4 times a second, every lane creep, camps, the Urn, the Rift and ultimates, read from the match\'s replay.', state: 'done' },
-  { title: 'Meta & builds', text: 'Meta heroes, builds, a draft planner and a macro planner for this patch.', state: 'done' },
-  { title: 'Your replay files', text: 'Open a replay you saved (Review → Replay file), read in your browser.', state: 'done' },
-];
 
 const FAQ = [
   { q: 'Where do matches come from?', a: 'deadlock-api.com, a free community service with Deadlock match data. A match shows up there a few minutes to an hour after it ends.' },

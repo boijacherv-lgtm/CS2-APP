@@ -26,6 +26,7 @@ import { shownNow, useShown } from './shown';
 import { scoreBefore, sideSwitches } from './Playback';
 import { VerdictBar } from './Verdict';
 import { DemoReel } from './DemoReel';
+import { openCs2Sample } from './sample';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
@@ -85,8 +86,7 @@ export function ReviewStart() {
   return (
     <div className="review-start">
       <header className="rs-head">
-        <h1 className="display">Review a match</h1>
-        <p>Drop a demo file, or pick one of your recent matches.</p>
+        <h1 className="display">Review a CS2 match</h1>
       </header>
       <div className="rs-grid">
         <div className="rs-left">
@@ -109,8 +109,8 @@ export function ReviewStart() {
           >
             <DemoReel />
             <div className="dz-icon"><Icon name={busy ? 'hourglass' : 'upload'} size={34} /></div>
-            <h2>{busy ? READING[Math.floor(elapsed / 4) % READING.length] : 'Drop your .dem file here'}</h2>
-            <p>{busy ? status : 'or click to choose · .dem or saved .json'}</p>
+            <h2>{busy ? READING[Math.floor(elapsed / 4) % READING.length] : 'Drop a .dem file'}</h2>
+            <p>{busy ? status : 'or click to choose'}</p>
             {busy && progress !== null && (
               <div className="dz-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
                 {/* the demo as a strip of frames, lighting up as they're read; a scan line sweeps the one being read */}
@@ -132,7 +132,7 @@ export function ReviewStart() {
             <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar. Every kill, grenade and costly death is graded from Brilliant to Blunder, and each round gets a letter from S+ to F.</span></div>
           </div>
           {/* nothing to drop yet: see what it does first */}
-          <p className="rs-nodemo muted">No demo handy? <a href="/">Open the CS2 sample match</a> from the front page, or <a href="/puzzles">try top players' puzzles</a>.</p>
+          <p className="rs-nodemo muted"><button className="link-btn" onClick={() => void openCs2Sample()}>No demo? Watch a sample</button></p>
         </div>
         <div className="rs-right">
           {ONLINE && <DemoFolder />}

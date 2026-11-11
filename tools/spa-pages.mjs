@@ -17,10 +17,10 @@ const { FAQ, MATCHES, PRO_MATCHES, DL_MATCHES } = await import('../src/site/faq.
 // each public page's own title, description and link preview, and a few lines of text for crawlers and AI bots that
 // don't run the app (the page itself replaces the <noscript> text). `h1` and `text` say only what the page says.
 const META = {
-  '': { title: 'RageView — Free CS2 & Deadlock match review, every play graded', h1: 'Prove you were right.',
+  '': { title: 'RageView — Free CS2 & Deadlock match review, every play graded', h1: 'Every move you make, graded.',
     desc: 'Drop your CS2 demo or Deadlock match ID. Every play graded S+ to F, with the better play. Free, in your browser, nothing uploaded.',
     text: ['Free match review for Counter-Strike 2 and Deadlock: every play graded, with the play you should have made.', 'CS2 demos are read in your browser; nothing is uploaded. Deadlock matches open by their match ID.'] },
-  cs2: { title: 'CS2 demo review: every round graded S+ to F · RageView', h1: 'Every round, graded.',
+  cs2: { title: 'CS2 demo review: every round graded S+ to F · RageView', h1: 'Every CS2 round, graded.',
     desc: 'Drop a CS2 demo: every round graded S+ to F, every move from Brilliant to Blunder, with the better play. Free, read in your browser.',
     text: ['Drop a .dem demo: every round graded S+ to F and every move from Brilliant to Blunder, with the better play.', 'A coach built on FACEIT level-10 games; the demo is read in your browser.'] },
   deadlock: { title: 'Deadlock match review by match ID: every fight graded · RageView', h1: 'Every Deadlock fight, graded.', ogTitle: 'Who lost the fight? Find out free.',
@@ -32,7 +32,7 @@ const META = {
   puzzles: { title: 'CS2 & Deadlock puzzles: find the best play · RageView', h1: 'Puzzles',
     desc: 'Find the best play in real moments from top CS2 and Deadlock matches. A daily puzzle, rush, and a rating per game.',
     text: ['Real moments from top players\' matches and your own: find the best play.', 'A daily puzzle, a 3-minute rush, weak spots and a rating per game.'] },
-  pricing: { title: 'RageView pricing: free, Pro free in early access', h1: 'Plans',
+  pricing: { title: 'RageView pricing: free, Pro free in early access', h1: 'Free. Pro is free too, for now.',
     desc: 'RageView is free. Pro adds unlimited history and is free during early access; later $5 a month.',
     text: ['RageView is free.', 'Pro adds unlimited history; it is free during early access, later $5 a month.'] },
   privacy: { title: 'Privacy · RageView', h1: 'Privacy', desc: 'What RageView keeps: demos are read in your browser and never uploaded; logged in, only your numbers are saved.',

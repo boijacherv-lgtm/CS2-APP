@@ -191,10 +191,10 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
         {picked !== null && (
           <>
             <p className={`puzzle-verdict ${right ? 'up' : 'down'}`}>
-              {right ? <b className="puzzle-win">Right.</b> : rage !== 'off' ? <b>{RAGE[m.id.length % RAGE.length].replace('{x}', m.options[picked].label)}</b> : null}{' '}
-              {right ? 'That is the engine\'s best move.' : `The engine's best: ${m.options[0].label}.`}{' '}
+              {right
+                ? <b className="puzzle-win">Right{delta !== null ? ` · ${delta >= 0 ? '+' : '−'}${Math.abs(delta)} rating` : ''}</b>
+                : <><b>{rage !== 'off' ? RAGE[m.id.length % RAGE.length].replace('{x}', m.options[picked].label) : 'Not quite.'}</b> The best move was {m.options[0].label}{delta !== null ? ` (${delta >= 0 ? '+' : '−'}${Math.abs(delta)} rating)` : ''}.</>}{' '}
               {m.played !== 0 && picked === m.played ? <>You picked what was really played: <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best move' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span>, {pct(Math.max(0, m.options[0].value - m.options[m.played].value))} win chance given up ({Math.round(m.options[0].value * 100)}% → {Math.round(m.options[m.played].value * 100)}%).</> : m.played !== 0 ? <>The real move, “{m.options[m.played].label}”, was <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span> and gave up {pct(Math.max(0, m.options[0].value - m.options[m.played].value))} win chance ({Math.round(m.options[0].value * 100)}% → {Math.round(m.options[m.played].value * 100)}%).</> : <>It's what was really played.</>}
-              {delta !== null && <span className={`puzzle-delta ${delta >= 0 ? 'up' : 'down'}`}> Rating {delta >= 0 ? '+' : '−'}{Math.abs(delta)}</span>}
               {crowd && crowd.tried >= 5 && <span className="puzzle-crowd muted"> {Math.round((crowd.right / crowd.tried) * 100)}% of {crowd.tried} players got this.</span>}
             </p>
             {m.why?.length ? <div className="puzzle-why"><b>Why</b><ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul></div> : null}
@@ -260,6 +260,7 @@ export function MomentsPage() {
   const header = (
     <header className="moments-head">
       <h1>Puzzles</h1>
+      <p className="muted moments-sub">Real moments. Pick the best move.</p>
       <div className="seg-mini" role="tablist" aria-label="Mode">
         {([['practice', 'Practice'], ['daily', 'Daily'], ['rush', 'Rush'], ['weak', 'Weak spots'], ['board', 'Leaderboard']] as [Mode, string][]).map(([k, l]) =>
           <button key={k} role="tab" aria-selected={mode === k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}

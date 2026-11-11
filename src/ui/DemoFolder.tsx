@@ -267,12 +267,14 @@ export function DemoFolder() {
 
       {!dir && (
         <div className="steam-profile">
-          <p><b>Auto-find your demos.</b> Pick your Steam folder once. New matches show up here by themselves. Nothing is uploaded.</p>
-          <div className="row"><button className="primary" onClick={connect}>Choose Steam folder</button></div>
-          <p className="muted">
-            Windows: usually <code>C:\Program Files (x86)\Steam</code>. Mac: <code>~/Library/Application Support/Steam</code>.
-            Linux: <code>~/.steam/steam</code>. Anywhere else: Steam → CS2 → Properties → Installed Files → Browse.
-          </p>
+          <p><b>Auto-find your demos.</b> Pick your Steam folder once.</p>
+          <div className="row">
+            <button className="primary" onClick={connect}>Choose Steam folder</button>
+            <details className="help-pop"><summary aria-label="Where is my Steam folder?">?</summary>
+              <p>Windows: usually <code>C:\Program Files (x86)\Steam</code>. Mac: <code>~/Library/Application Support/Steam</code>.
+                Linux: <code>~/.steam/steam</code>. Anywhere else: Steam → CS2 → Properties → Installed Files → Browse.</p>
+            </details>
+          </div>
         </div>
       )}
       {dir && perm !== 'granted' && (

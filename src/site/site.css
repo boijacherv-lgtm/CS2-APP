@@ -731,3 +731,15 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .friend-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
 .friend-chips .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
 .friend-chips img { border-radius: 50%; }
+
+/* §12 page text: the "?" help popovers, the profile's saved-where pill, the proof line, the Rage band */
+.help-pop { display: inline-block; position: relative; }
+.help-pop > summary { list-style: none; cursor: pointer; display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+  border: 1px solid var(--border); color: var(--text-2); font-size: 12px; font-weight: 700; }
+.help-pop > summary::-webkit-details-marker { display: none; }
+.help-pop[open] > p { position: absolute; z-index: 20; left: 0; top: calc(100% + 6px); width: min(340px, 80vw); margin: 0; padding: 10px 12px;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 13px; line-height: 1.45; box-shadow: 0 10px 30px #0008; }
+.pill-small { display: inline-block; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; color: var(--text-2); }
+.home .proof { margin-top: 14px; text-align: center; }
+.moments-sub { margin: -4px 0 0; }
+.rage-band { border-color: color-mix(in srgb, var(--bad) 45%, var(--border)); }

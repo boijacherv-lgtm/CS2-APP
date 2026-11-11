@@ -2,13 +2,11 @@
  * CS2's game page, the same layout as Deadlock's (/deadlock): what it is, what the coach grades, how it works, where
  * it's at, questions. Reached at /cs2 (the game's Review and Tactical board are /cs2/review and /cs2/tactical).
  */
-import { COACH_MODEL, PRO_MODEL } from '../engine/coachModels';
 import { Icon, type IconName } from '../ui/Icon';
 import { GAMES, STATUS_LABEL } from './games';
 import { GameMark } from './gameMarks';
 
 const GAME = GAMES.find(g => g.id === 'cs2')!;
-const MATCHES = COACH_MODEL.source?.demos ?? COACH_MODEL.trainedOn;
 
 export function Cs2Home() {
   return (
@@ -16,8 +14,8 @@ export function Cs2Home() {
       <section className="dl-hero">
         <div className="dl-hero-text">
           <span className="eyebrow"><GameMark game={GAME} size={14} /> {GAME.name} <span className={`games-status ${GAME.status}`}>{STATUS_LABEL[GAME.status]}</span></span>
-          <h1>Every round, graded.</h1>
-          <p className="lead">Drop a demo and replay it on the radar, with every kill, grenade and death graded against FACEIT level-10 players, and the play the engine would have made.</p>
+          <h1>Every CS2 round, graded.</h1>
+          <p className="lead">Drop a demo. Watch it on the radar while the coach marks every move against level-10 players.</p>
           <div className="hero-cta">
             <a className="cta primary" href="/cs2/review">Review a CS2 match <Icon name="arrowRight" size={14} /></a>
             <a className="cta" href="/cs2/tactical">Tactical board</a>
@@ -50,19 +48,6 @@ export function Cs2Home() {
       </section>
 
       <section className="site-section">
-        <h2 className="section-title">What's live</h2>
-        <ol className="dl-road">
-          {ROAD.map(r => (
-            <li key={r.title}>
-              <span className="dl-road-dot" aria-hidden />
-              <div><b>{r.title}</b><span>{r.text}</span></div>
-              <span className="games-status live">Live</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="site-section">
         <h2 className="section-title">Questions</h2>
         <div className="faq">
           {FAQ.map(q => <details key={q.q}><summary>{q.q}</summary><p>{q.a}</p></details>)}
@@ -77,21 +62,14 @@ export function Cs2Home() {
 }
 
 const GRADES: { icon: IconName; title: string; text: string }[] = [
-  { icon: 'crosshair', title: 'Aim duels', text: 'Every duel against what level-10 players win from the same spot, distance and gun.' },
-  { icon: 'friends', title: 'Trades', text: 'Deaths your team traded, and the ones nobody could: who was alone.' },
-  { icon: 'bomb', title: 'Utility', text: 'Flashes that blinded enemies or your own team, grenade damage, utility you died with.' },
-  { icon: 'map', title: 'Positioning', text: 'Where you held and moved each round, next to what level-10 players do there.' },
-  { icon: 'coins', title: 'Economy', text: 'What you bought each round and what it was worth in the fights that followed.' },
-  { icon: 'trophy', title: 'Clutches', text: 'One against more: the kills that won it, and the rounds you could have.' },
+  { icon: 'crosshair', title: 'Aim duels', text: 'Duels you should have won, and the ones you stole.' },
+  { icon: 'friends', title: 'Trades', text: 'Who traded, and who died alone.' },
+  { icon: 'bomb', title: 'Utility', text: 'Flashes that worked, grenades that didn\'t.' },
+  { icon: 'map', title: 'Positioning', text: 'Where you stood vs where level-10 players stand.' },
+  { icon: 'coins', title: 'Economy', text: 'What you bought and what it got you.' },
+  { icon: 'trophy', title: 'Clutches', text: '1vX: what won it, what lost it.' },
 ];
 
-const ROAD = [
-  { title: 'Graded replay', text: 'Every round on the radar with a live win-chance bar and every move graded.' },
-  { title: 'The engine', text: 'Every 2 s, the best option from where you stood, and what yours gave up.' },
-  { title: 'The coach', text: `Trained on ${MATCHES} FACEIT level-10 matches${PRO_MODEL ? ` and ${PRO_MODEL.source?.demos ?? 0} pro ones` : ''}.` },
-  { title: 'Puzzles', text: 'Your own mistakes as puzzles, and top players\' too.' },
-  { title: 'Tactical board', text: 'Plan rounds: players, grenades, routes, and fights simulated.' },
-];
 
 const FAQ = [
   { q: 'Where do demos come from?', a: 'CS2 → Watch → Your Matches → Download, or your Steam folder (the site finds them). FACEIT and HLTV demos work too, unzipped.' },
