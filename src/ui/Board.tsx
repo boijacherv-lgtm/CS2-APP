@@ -36,6 +36,7 @@ import { standSpots } from '../map/stands';
 import { phaseOf } from '../engine/situations';
 import { SEARCH_COLOR } from '../engine/search';
 import { useStore, whoAmI } from '../store';
+import { matchKey } from '../engine/profile';
 
 Konva.dragDistance = 4;
 
@@ -886,6 +887,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               {s.reviewSpoilers ? <><Icon name="prev" /> Live</> : <><Icon name="revealAll" /> Reveal all</>}
             </button>
           )}
+          {recap && <CostliestButton />}
           <button className={`tl-btn drawer-toggle ${s.drawerOpen ? 'on' : ''}`} onClick={() => s.setDrawerOpen(!s.drawerOpen)}
             title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}><Icon name={s.drawerOpen ? 'panelClose' : 'panelOpen'} /> Panel</button>
         </div>
@@ -1357,5 +1359,37 @@ function SimFeed({ sim, time, players }: { sim: Simulation; time: number; player
       {b && <div className="sim-kill"><Icon name="bomb" size={12} /> <span className="t">{who(b.by)}</span> planted on {b.site}<em className="num">{clock(b.plantT)}</em></div>}
       {end && <div className="sim-end">{end}</div>}
     </div>
+  );
+}
+
+/**
+ * Once the match is graded: your costliest moment of the match, one click away (the round, the moment, its card open).
+ * Shown until you use it or close it, once per match.
+ */
+function CostliestButton() {
+  const report = useStore(s => s.report), me = useStore(whoAmI);
+  const data = report?.data;
+  const key = data ? `rv.costliest:${matchKey(data.map, data.rounds)}` : '';
+  const [gone, setGone] = useState(() => { try { return !!key && localStorage.getItem(key) === '1'; } catch { return false; } });
+  useEffect(() => { try { setGone(!!key && localStorage.getItem(key) === '1'); } catch { /* private mode */ } }, [key]);
+  if (!report?.done || !me || gone) return null;
+  let best: { round: number; t: number; gain: number; title: string; key: string } | null = null;
+  report.rounds.forEach((rs, i) => { const w = rs?.lines[me]?.worst; if (w && (!best || w.gain < best.gain)) best = { round: i, ...w }; });
+  if (!best) return null;
+  const b = best as { round: number; t: number; gain: number; title: string; key: string };
+  const done = () => { try { localStorage.setItem(key, '1'); } catch { /* private mode */ } setGone(true); };
+  const go = () => {
+    const st = useStore.getState();
+    st.setReviewRound(b.round);
+    st.setTime(b.t);
+    useStore.setState({ feedPick: { key: b.key, t: b.t } });
+    done();
+  };
+  const clock = `${Math.floor(b.t / 60)}:${String(Math.floor(b.t % 60)).padStart(2, '0')}`;
+  return (
+    <span className="tl-btn costliest">
+      <button onClick={go} title={b.title}>Your costliest: R{b.round + 1} {clock} (−{Math.abs(Math.round(b.gain * 100))}%) · Watch</button>
+      <button className="costliest-x" onClick={done} aria-label="Hide your costliest moment"><Icon name="close" size={12} /></button>
+    </span>
   );
 }
