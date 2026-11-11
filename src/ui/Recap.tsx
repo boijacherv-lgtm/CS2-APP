@@ -217,7 +217,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
         {finished && (
           <div className="rp-result">
             {r.winner ? <span className={`rp-pill ${r.winner.toLowerCase()}`}>{r.winner} won</span> : <span className="rp-pill">Result unknown</span>}
-            {r.reason && <span className="muted">{reasonText(r.reason)}</span>}
+            {r.reason && <span className="muted">{bombResult(r) ?? reasonText(r.reason)}</span>}
           </div>
         )}
       </header>
@@ -316,6 +316,12 @@ export function roundHalves(data: DemoData): { rounds: number[]; label: string; 
 }
 
 /** The demo's round-end reason ("t_killed", "bomb_defused", "target_saved"…) in plain words. */
+/** "Defused with 0:03 left" / "Exploded", from the round's bomb events. */
+function bombResult(r: DemoRound) {
+  const plant = (r.bomb ?? []).find(e => e.kind === 'plant'), end = (r.bomb ?? []).find(e => e.kind === 'defuse' || e.kind === 'explode');
+  if (!plant || !end) return null;
+  return end.kind === 'explode' ? 'Exploded' : `Defused with 0:${String(Math.max(0, Math.floor(40 - (end.t - plant.t)))).padStart(2, '0')} left`;
+}
 function reasonText(reason: string) {
   const r = reason.toLowerCase().replace(/[^a-z]/g, '');
   if (r.includes('defus')) return 'bomb defused';
