@@ -130,11 +130,10 @@ function DlStart() {
     <div className="page dl-start">
       <header className="rs-head">
         <h1 className="display">Review a Deadlock match</h1>
-        <p className="muted">Replay any match on the map, second by second.</p>
-      </header>
+              </header>
       <form className="dl-id" onSubmit={e => { e.preventDefault(); if (typed) void open(typed); }}>
         <label htmlFor="dl-match-id" className="sr-only">Match ID</label>
-        <input id="dl-match-id" inputMode="numeric" placeholder="Match ID, e.g. 124566656" value={id} onChange={e => setId(e.target.value)} />
+        <input id="dl-match-id" inputMode="numeric" placeholder="e.g. 52190833" value={id} onChange={e => setId(e.target.value)} />
         <button className="cta primary" disabled={!typed || busy !== null}>{busy === typed ? 'Loading…' : 'Open'}</button>
         <label className="ghost dl-file" title="A replay from Deadlock's replays folder (<match ID>.dem): read here, nothing is uploaded">
           <Icon name="upload" size={14} />Replay file
@@ -142,10 +141,10 @@ function DlStart() {
         </label>
       </form>
       {/* where the number is, and a match to try without one */}
-      <p className="dl-id-help muted small">
-        Your match ID: open the match in Deadlock's match history, the ID is shown with it (or log in: your matches list below). Or{' '}
-        <button className="link-btn" onClick={() => void open(SAMPLE_MATCH)} disabled={busy !== null}>open the Deadlock sample</button> (a Phantom+ match).
-      </p>
+      <div className="dl-id-help muted small">
+        <details className="help-pop"><summary>Where's my match ID?</summary><p>In Deadlock, open the match in your match history: the ID is shown with it. Logged in, your matches are listed below.</p></details>
+        {' · '}<button className="link-btn" onClick={() => void open(SAMPLE_MATCH)} disabled={busy !== null}>No match? Watch a sample</button>
+      </div>
       {err && <p className="warn-text">{err}</p>}
       {/* the same 3 steps as CS2's review page */}
       <div className="review-how dl-review-how">

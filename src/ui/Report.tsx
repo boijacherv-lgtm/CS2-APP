@@ -114,11 +114,6 @@ export function MatchReportPage() {
                 <ul className="ov-list keep">{overview.keep.map(n => <li key={n.title}><b>{n.title}</b></li>)}</ul>
               </>
             )}
-            <details className="rp-how">
-              <summary><Icon name="info" size={13} /> How the rating and grades work</summary>
-              <p><b>Game rating</b>: the Premier rating at which this player's duels (each kill a win, each death a loss, against each opponent's real rating) come out as expected, plus {IMPACT_PER_POINT} points per point of round impact. A {Math.round(RATING_SCALE * 0.3)}-point gap makes the higher-rated player a 2:1 favourite in a duel.</p>
-              <p><b>Round grades</b> (S+ … F): how much they changed their team's win chance, with bonuses for clutches and multi-kills and penalties for team damage, team flashes and unused grenades. <b>Lobby</b> compares with the other nine; <b>Level</b> places the game between a typical level-10 game (B) and a pro game (S).</p>
-            </details>
           </section>
         </>
       )}
@@ -221,7 +216,7 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
       </div>
       <div className="perf-main">
         <div className="perf-grades">
-          <div className="perf-grade" title={`Against the other players in this lobby (round grades, impact, ADR, KAST, duels): ${lobbyText(p.lobbyZ)}`}>
+          <div className="perf-grade" title={`Against the other players in this lobby (round grades, impact, ADR, KAST, duels): ${lobbyText(p.lobbyZ)}.\n\nRound grades (S+ to F): how much each round changed the team's win chance, with bonuses for clutches and multi-kills and penalties for team damage, team flashes and unused grenades. Game rating: the Premier rating at which these duels come out as expected, plus ${IMPACT_PER_POINT} points per point of round impact.`}>
             <span className="perf-letter display" style={letterStyle(p.letter)}>{p.letter}</span>
             <span className="muted">{p.letter} in this lobby{NICK[p.letter] ? <> · <b className="perf-nick">{NICK[p.letter]}</b></> : null}</span>
             <span className="perf-sub muted">vs the other 9</span>

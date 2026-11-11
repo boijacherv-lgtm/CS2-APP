@@ -9,7 +9,7 @@ import { MarkFace } from '../ui/MarkFace';
 import { useState } from 'react';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
 import { navigate } from '../shell/router';
-import { useStore } from '../store';
+import { openCs2Sample } from '../ui/sample';
 
 /** The sample: a public Phantom+ match (46 min, both teams' fights and objectives), opened from deadlock-api. */
 const SAMPLE_MATCH = 131074890;
@@ -22,19 +22,9 @@ export function Home() {
   const top = GAMES.slice(0, 3), more = GAMES.slice(3);
   // a public high-rank Deadlock match, opened on the board: the product without a demo of your own
   const [sample, setSample] = useState<'idle' | 'opening' | 'failed'>('idle');
-  // a FACEIT level-10 Mirage match, players' names and IDs replaced (public/samples), graded here like your own demo
-  const startReview = useStore(s => s.startReview);
   const tryCs2Sample = async () => {
     setSample('opening');
-    try {
-      const res = await fetch('/samples/cs2-mirage.json.gz');
-      if (!res.ok) throw new Error(String(res.status));
-      // still gzipped (GitHub Pages) or already unpacked by the server (the dev server sends it gzip-encoded)
-      const bytes = new Uint8Array(await res.arrayBuffer());
-      const json = bytes[0] === 0x1f && bytes[1] === 0x8b ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text() : new TextDecoder().decode(bytes);
-      startReview({ ...JSON.parse(json), sample: true });
-      navigate({ page: 'cs2', mode: 'review' });
-    } catch { setSample('failed'); }
+    try { await openCs2Sample(); } catch { setSample('failed'); }
   };
   const trySample = async () => {
     setSample('opening');
@@ -44,9 +34,9 @@ export function Home() {
     <div className="page home">
       <section className="hero">
         <div className="hero-text">
-          <span className="eyebrow"><Icon name="bolt" size={12} /> Free · No upload · No sign-up</span>
-          <h1>Prove you were right.</h1>
-          <p className="lead">Drop your CS2 or Deadlock match. Every play gets a grade, and the play you should have made.</p>
+          <span className="eyebrow"><Icon name="bolt" size={12} /> Free · Nothing uploaded</span>
+          <h1>Every move you make, graded.</h1>
+          <p className="lead">Load a match. The coach marks every kill, death and grenade, right or wrong, and shows the better play.</p>
           <div className="hero-games" aria-label="Games">
             {PLAYABLE.map(g => (
               <a key={g.id} className="hero-games-live" href={g.page ?? g.review}><GameMark game={g} size={30} /><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></a>
@@ -54,10 +44,10 @@ export function Home() {
           </div>
           {/* two actions: review a match (the game chips above pick the game), or try a sample */}
           <div className="hero-cta">
-            <a className="cta primary" href="/cs2/review">Review a CS2 match <Icon name="arrowRight" size={14} /></a>
+            <a className="cta primary" href="/cs2/review">Review my match <Icon name="arrowRight" size={14} /></a>
             {/* a sample in either game: a small menu, CS2 or Deadlock */}
             <details className="sample-menu">
-              <summary className="cta"><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening…' : 'Try a sample'}</summary>
+              <summary className="cta"><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening…' : 'Watch a sample'}</summary>
               <div className="sample-pop">
                 <button onClick={tryCs2Sample} disabled={sample === 'opening'}><Icon name="crosshair" size={14} /> CS2 sample <span className="muted small">a FACEIT Mirage match</span></button>
                 <button onClick={trySample} disabled={sample === 'opening'}><Icon name="target" size={14} /> Deadlock sample <span className="muted small">a Phantom+ match</span></button>
@@ -74,7 +64,7 @@ export function Home() {
       </section>
 
       <section className="site-section" id="games">
-        <h2 className="section-title">Games</h2>
+        <h2 className="section-title">Pick your game</h2>
         <div className="game-cards">
           {top.map(g => g.review ? (
             <article key={g.id} className={`game-card live ${g.status}`} style={{ '--game': g.color } as React.CSSProperties}>
@@ -111,10 +101,9 @@ export function Home() {
       <section className="site-section">
         <h2 className="section-title">How it works</h2>
         <ol className="steps">
-          <li><b>Bring a match</b><span>A demo file, replay or match ID.</span></li>
-          <li><b>See your grades</b><span>Every play, from S+ to F.</span></li>
-          <li><b>See the better play</b><span>What you could have done instead.</span></li>
-          <li><b>Fix one thing</b><span>The coach picks your top habit. You track it.</span></li>
+          <li><b>Load a match</b><span>A demo file or a match ID.</span></li>
+          <li><b>Watch it back</b><span>Every move gets a mark.</span></li>
+          <li><b>Fix one thing</b><span>The coach picks it, you track it.</span></li>
         </ol>
       </section>
 
@@ -144,29 +133,33 @@ export function Home() {
       </section>
 
       <section className="site-section">
-        <h2 className="section-title">Trained on real games</h2>
-        <div className="stat-strip" aria-label="RageView in numbers">
-          <div><b>{MATCHES}</b><span>level-10 CS2 matches</span></div>
-          {PRO_MATCHES > 0 && <div><b>{PRO_MATCHES}</b><span>pro CS2 matches</span></div>}
-          <div><b>{DL_MATCHES.toLocaleString()}</b><span>Phantom+ Deadlock matches</span></div>
-          <div><b>0 MB</b><span>uploaded. Your files stay on your PC.</span></div>
+        <h2 className="section-title">Why RageView</h2>
+        <div className="feature-grid">
+          {WHY.map(f => (
+            <div key={f.title} className="feature">
+              <span className="feature-ico"><Icon name={f.icon} size={18} /></span>
+              <b>{f.title}</b>
+              <p>{f.text}</p>
+            </div>
+          ))}
         </div>
+        {/* the numbers come from the models the site uses, never typed in */}
+        <p className="muted proof">Trained on {MATCHES} level-10 CS2 matches{PRO_MATCHES > 0 ? `, ${PRO_MATCHES} pro matches` : ''} and {DL_MATCHES.toLocaleString('en-US')} Phantom+ Deadlock matches.</p>
       </section>
 
-      <section className="site-section pricing-teaser">
+      <section className="site-section pricing-teaser rage-band">
         <div>
-          <h2 className="section-title">Free. Really.</h2>
-          <p className="muted">Everything you need is free in every game. Pro adds unlimited history{PRO_EARLY_ACCESS ? ', and it\'s free during early access' : ''}.</p>
+          <h2 className="section-title">Rage mode.</h2>
+          <p className="muted">The coach roasts your worst plays. 18+.</p>
         </div>
-        <a className="cta" href="/pricing">See plans</a>
+        <a className="cta" href="/settings">Turn it on</a>
       </section>
 
       {/* the last word: back to the main job */}
       <section className="site-section final-cta">
-        <h2 className="section-title">Review your last match. Free, 30 seconds.</h2>
+        <h2 className="section-title">Your last match is waiting.</h2>
         <div className="hero-cta">
-          <a className="cta primary" href="/cs2/review">Review a CS2 match <Icon name="arrowRight" size={14} /></a>
-          <a className="cta" href="/deadlock/review">Review a Deadlock match</a>
+          <a className="cta primary" href="/cs2/review">Review my match <Icon name="arrowRight" size={14} /></a>
         </div>
       </section>
 
@@ -182,7 +175,7 @@ export function Home() {
         <nav>
           {PLAYABLE.map(g => <a key={g.id} href={g.page ?? g.review}>{g.name}</a>)}<a href="/profile">Profile</a><a href="/pricing">Pricing</a><a href="/settings">Settings</a><a href="/puzzles">Puzzles</a><a href="/changelog">What's new</a><a href="/privacy">Privacy</a>
         </nav>
-        <span className="muted">Made by a player who was tired of losing to bad teammates. No tracking; demos are read on your PC. © {new Date().getFullYear()} {APP_NAME}. Not affiliated with any game publisher. Game names and logos belong to their owners.</span>
+        <span className="muted">Made by a player. Not affiliated with Valve. © {new Date().getFullYear()} {APP_NAME}</span>
       </footer>
     </div>
   );
@@ -196,6 +189,12 @@ const SHOTS = [
   { src: '/images/shots/puzzle.jpg', title: 'Puzzles.', text: 'Find the best move, then see the answer.', alt: 'A CS2 puzzle on Nuke with four moves and the engine answer' },
   { src: '/images/shots/coach.jpg', title: 'Deadlock · The engine.', text: 'Your costliest moves and best calls.', alt: 'Deadlock recap engine card: accuracy 92, costliest moves and best calls with reasons' },
   { src: '/images/shots/dl-meta.jpg', title: 'Deadlock · Meta & builds.', text: 'Every hero on this patch, by position.', alt: 'Deadlock meta table: heroes by position with tier, win rate and pick rate' },
+];
+
+const WHY: { icon: IconName; title: string; text: string }[] = [
+  { icon: 'shield', title: 'Nothing uploaded', text: 'Your demo stays on your PC.' },
+  { icon: 'target', title: 'One coach, every game', text: 'The same marks and grades in every game.' },
+  { icon: 'star', title: 'Free', text: PRO_EARLY_ACCESS ? 'Pro is free in early access.' : 'Everything you need is free.' },
 ];
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [

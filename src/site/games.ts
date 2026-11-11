@@ -23,11 +23,11 @@ export interface Game {
 }
 
 export const GAMES: Game[] = [
-  { id: 'cs2', short: 'CS2', name: 'Counter-Strike 2', status: 'live', mark: 'crosshair', color: '#F2B13C', source: 'a .dem demo', note: 'Every round graded, the better play, and a coach built on level-10 games.',
+  { id: 'cs2', short: 'CS2', name: 'Counter-Strike 2', status: 'live', mark: 'crosshair', color: '#F2B13C', source: 'a .dem demo', note: 'Demos from Premier, FACEIT or HLTV. Every round graded.',
     page: '/cs2', review: '/cs2/review', plan: '/cs2/tactical', points: ['Graded replay', 'Engine', 'Coach', 'Tactical board'] },
-  { id: 'deadlock', short: 'DL', name: 'Deadlock', status: 'beta', mark: 'lock', color: '#E8E0D2', source: 'a match ID', note: 'Paste a match ID. Get your fights graded and what top players do instead.',
+  { id: 'deadlock', short: 'DL', name: 'Deadlock', status: 'beta', mark: 'lock', color: '#E8E0D2', source: 'a match ID', note: 'Any match by ID. Every fight graded.',
     page: '/deadlock', review: '/deadlock/review', plan: '/deadlock/meta', planLabel: 'Meta & builds', points: ['Replay', 'Coach', 'Where you played', 'Meta & builds'] },
-  { id: 'dota2', short: 'D2', name: 'Dota 2', status: 'planned', mark: 'tower', color: '#BF2E1A', source: 'a replay or match ID', note: 'Coming soon: lanes, rotations, fights.' },
+  { id: 'dota2', short: 'D2', name: 'Dota 2', status: 'planned', mark: 'tower', color: '#BF2E1A', source: 'a replay or match ID', note: 'Coming next. Want a ping?' },
   { id: 'r6', short: 'R6', name: 'Rainbow Six Siege', status: 'planned', mark: 'shield', color: '#E9563D', source: 'a match replay', note: 'Round by round, like CS.' },
   { id: 'pubg', short: 'PUBG', name: 'PUBG', status: 'planned', mark: 'parachute', color: '#F4B942', source: 'a match ID', note: 'Rotations, zones, fights.' },
   { id: 'rl', short: 'RL', name: 'Rocket League', status: 'planned', mark: 'ball', color: '#3D8BFF', source: 'a .replay file', note: 'Rotations and positioning.' },

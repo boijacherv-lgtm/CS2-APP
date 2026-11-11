@@ -41,7 +41,7 @@ export function Profile() {
           <div className="profile-title"><h1>{name}</h1>{pro && me && <span className="pro-badge" title="Pro is free during early access">PRO</span>}</div>
           <p className="muted">
             {remote ? <><Icon name="shield" size={13} /> Saved to your Steam account{game === 'cs2' && ` · ${matches.length} CS2 match${matches.length === 1 ? '' : 'es'}`}</>
-              : <>Kept in this browser{game === 'cs2' && matches.length ? ` · ${matches.length} CS2 match${matches.length === 1 ? '' : 'es'}` : ''}{STEAM_AVAILABLE && !me ? '. Log in with Steam to keep it on every device.' : ''}</>}
+              : <span className="pill-small">{STEAM_AVAILABLE && !me ? 'Saved in this browser · Log in to sync' : 'Saved in this browser'}</span>}
           </p>
           {error && me && <p className="warn-text small">Your account's profile couldn't be loaded ({error}); showing this browser's copy.</p>}
         </div>
@@ -159,14 +159,14 @@ function PremierTrend({ matches }: { matches: ProfileMatch[] }) {
     value: usePremier ? premierOf(m)! : m.adr,
     note: `${mapName(m.map)} ${m.score[0]}:${m.score[1]}`,
   }));
+  if (pts.length < 2) return null; // the line starts at two matches
   return (
     <section className="site-card dash-wide">
       <div className="card-head">
         <h2><Icon name="trendUp" size={16} /> {usePremier ? 'Premier rating' : 'Damage per round'}</h2>
         <span className="muted small">{usePremier ? 'going into each match' : 'no Premier ratings in these demos'} · last {pts.length}</span>
       </div>
-      {pts.length >= 2 ? <AreaChart points={pts} fmt={v => (usePremier ? fmtInt(v) : v.toFixed(0))} />
-        : <p className="muted">Two matches and the line starts.</p>}
+      <AreaChart points={pts} fmt={v => (usePremier ? fmtInt(v) : v.toFixed(0))} />
     </section>
   );
 }

@@ -124,10 +124,7 @@ export function SteamMatches() {
       {!loggedIn && (
         <form className="steam-profile" onSubmit={saveProfile}>
           <div className="row"><SteamLoginButton /></div>
-          <p className="muted">
-            Opens Steam's own login page (steamcommunity.com), where you can scan Steam's QR code with Steam Guard. Steam only tells
-            the app your SteamID: no password, no access to your account.
-          </p>
+          <p className="muted">Log in with Steam and your recent matches show up here.</p>
           {/* desktop only: the website's match list is tied to a real Steam login */}
           {!ONLINE && <>
             <p className="muted">Or paste your profile link:</p>
