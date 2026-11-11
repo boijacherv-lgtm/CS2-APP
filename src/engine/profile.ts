@@ -193,7 +193,11 @@ export function cleanPrefs(raw: unknown, was: ProfilePrefs = EMPTY_PROFILE.prefs
 }
 /** Adds or replaces a match, newest first, keeping at most MAX_HISTORY. */
 export function withMatch(list: ProfileMatch[], m: ProfileMatch): ProfileMatch[] {
-  return [m, ...list.filter(x => x.id !== m.id)].sort((a, b) => b.at - a.at).slice(0, MAX_HISTORY);
+  // the same match again (reviewed again, or graded by the bot first): it keeps the earliest time, which is when it was
+  // played (a review without the demo's date would otherwise move it to the top as "newest")
+  const was = list.find(x => x.id === m.id);
+  const merged = was && was.at > 0 && was.at < m.at ? { ...m, at: was.at } : m;
+  return [merged, ...list.filter(x => x.id !== m.id)].sort((a, b) => b.at - a.at).slice(0, MAX_HISTORY);
 }
 
 // ---- what the profile page shows ------------------------------------------------------------------------------
