@@ -9,6 +9,7 @@ import { VERDICT_LABEL, type MoveVerdict } from '../engine/profile';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { steamSignOut } from '../ui/steamApi';
 import { resetTours } from '../ui/Tour';
+import { lookPref, setLook, type Look } from '../ui/tokens';
 
 /** Your account, privacy, the coach's and Review's defaults, and your data. */
 export function Settings() {
@@ -29,6 +30,11 @@ export function Settings() {
   return (
     <div className="page settings">
       <header className="page-head"><h1>Settings</h1></header>
+
+      <section className="site-card">
+        <h2>Look</h2>
+        <LookSetting />
+      </section>
 
       <section className="site-card">
         <h2>Account</h2>
@@ -148,4 +154,18 @@ function downloadVerdicts(list: MoveVerdict[]) {
   const a = document.createElement('a');
   a.href = url; a.download = `verdicts-app-${new Date().toISOString().slice(0, 10)}.json`; a.click();
   URL.revokeObjectURL(url);
+}
+
+/** System (follows the computer's dark / light switch), Dark or Light. */
+function LookSetting() {
+  const [look, set] = useState<Look>(lookPref);
+  const pick = (l: Look) => { set(l); setLook(l); };
+  return (
+    <div className="setting">
+      <div className="setting-text"><b>Theme</b><span className="muted">System follows your computer.</span></div>
+      <div className="seg-mini" role="radiogroup" aria-label="Theme">
+        {(['system', 'dark', 'light'] as Look[]).map(l => <button key={l} role="radio" aria-checked={look === l} className={look === l ? 'on' : ''} onClick={() => pick(l)}>{l === 'system' ? 'System' : l === 'dark' ? 'Dark' : 'Light'}</button>)}
+      </div>
+    </div>
+  );
 }

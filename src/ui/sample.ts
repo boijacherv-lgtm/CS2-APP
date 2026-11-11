@@ -10,4 +10,5 @@ export async function openCs2Sample() {
   const json = bytes[0] === 0x1f && bytes[1] === 0x8b ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text() : new TextDecoder().decode(bytes);
   useStore.getState().startReview({ ...JSON.parse(json), sample: true });
   navigate({ page: 'cs2', mode: 'review' });
+  document.querySelector('.shell-main')?.scrollTo({ top: 0 }); // from a scrolled page: the replay starts at the top
 }

@@ -11,7 +11,7 @@ export function MarkFace({ note, size = 18, title, className = '' }: { note: Ann
       <title>{title ?? n.label}</title>
       <circle cx={12} cy={12} r={11.5} fill={n.color} />
       <text x={12} y={12.5} textAnchor="middle" dominantBaseline="central" fill="#0A0C10" fontWeight={800}
-        fontSize={sym.length > 1 ? 11 : 14} fontFamily="Inter, system-ui, sans-serif" letterSpacing={sym.length > 1 ? -0.6 : 0}>{sym}</text>
+        fontSize={sym.length > 1 ? 11 : 14} fontFamily="Onest, system-ui, sans-serif" letterSpacing={sym.length > 1 ? -0.6 : 0}>{sym}</text>
     </svg>
   );
 }
