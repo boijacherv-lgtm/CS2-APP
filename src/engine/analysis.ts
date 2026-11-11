@@ -41,7 +41,8 @@ export function judgeMatch(map: string, player: string, rounds: ({ holds: Hold[]
   const out: Judged[] = [];
   rounds.forEach((d, round) => {
     if (!d) return;
-    for (const h of d.holds) if (h.player === player && isDecision(h)) out.push({ round, kind: 'hold', h, v: judgeHold(map, h) });
+    // only real holds (watching a way in): waiting for a timing or just standing isn't judged as holding a spot
+    for (const h of d.holds) if (h.player === player && isDecision(h) && (h.stay ?? 'hold') === 'hold') out.push({ round, kind: 'hold', h, v: judgeHold(map, h) });
     for (const m of d.moves) if (m.player === player && isDecision({ place: m.from, from: m.t })) out.push({ round, kind: 'move', m, v: judgeMove(map, m) });
   });
   return out;
