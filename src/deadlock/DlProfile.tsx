@@ -2,12 +2,11 @@ import { lastN, plural } from '../site/format';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { useEffect, useMemo, useState } from 'react';
 import { navigate } from '../shell/router';
-import { AreaChart, Donut, MiniLine } from '../site/charts';
+import { MiniLine, ResultStrip, TrendTile } from '../site/charts';
 import { Icon } from '../ui/Icon';
 import { Loading } from '../ui/Loading';
 import { getItem, setItem } from '../ui/localStore';
 import { ScoreRing } from '../ui/ScoreRing';
-import { T } from '../ui/tokens';
 import { loadMatch, matchHistory, type DlHistoryRow } from './api';
 import { BOT_ON, botMatches } from './botApi';
 import { coachMatch, type DlTag } from './coach';
@@ -165,13 +164,11 @@ export function DlProfile({ account }: { account: string | null }) {
       </section>
 
       <div className="dash-row">
-        {chrono.filter(hasSouls).length >= 2 && <section className="site-card dash-wide">
-          <div className="card-head"><h2><Icon name="trendUp" size={16} /> Souls a minute</h2><span className="muted small" title="Matches deadlock-api has no soul stats for are left out">{chrono.filter(hasSouls).length} of the last {chrono.length}</span></div>
-          <AreaChart points={chrono.filter(hasSouls).map(r => ({ label: day(r.start_time), value: spm(r), note: `${heroOf(r.hero_id).name} · ${won(r) ? 'won' : 'lost'}` }))} fmt={v => Math.round(v).toLocaleString()} />
-        </section>}
+        <TrendTile label="Souls a minute" values={chrono.filter(hasSouls).map(spm)} fmt={v => Math.round(v).toLocaleString('en-US')}
+          sub={chrono.filter(hasSouls).length < chrono.length ? `${chrono.filter(hasSouls).length} of the last ${chrono.length} (no soul stats for the rest)` : undefined} />
         <section className="site-card dash-narrow">
           <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2><span className="muted small">{plural(recent.length, 'match')}</span></div>
-          <Donut center={pct(wins / recent.length)} sub="won" parts={[{ label: 'Wins', value: wins, color: T.good }, { label: 'Losses', value: recent.length - wins, color: T.bad }]} />
+          <ResultStrip results={chrono.slice(-20).map(r => ({ win: won(r), title: `${heroOf(r.hero_id).name} · ${day(r.start_time)} · ${won(r) ? 'won' : 'lost'}` }))} />
         </section>
       </div>
 

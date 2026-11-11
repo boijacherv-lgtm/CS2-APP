@@ -321,7 +321,7 @@
 
 /* Match recap: charts */
 .dl-lines svg { display: block; max-width: 100%; touch-action: pan-y; }
-.dl-lines-grid { stroke: color-mix(in srgb, var(--text-3) 18%, transparent); stroke-width: 1; }
+.dl-lines-grid { stroke: color-mix(in srgb, var(--border) 50%, transparent); stroke-width: 1; }
 .dl-lines-ax { fill: var(--text-3); font-size: 12px; font-family: var(--font-ui); }
 .dl-lines-band { fill: color-mix(in srgb, var(--text-3) 14%, transparent); }
 .dl-lines-hover { stroke: var(--text-2); stroke-width: 1; stroke-dasharray: 3 3; }

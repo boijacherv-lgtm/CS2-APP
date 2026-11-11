@@ -7,7 +7,8 @@ import { MarkFace } from '../ui/MarkFace';
 import { ScoreRing } from '../ui/ScoreRing';
 import { NOTE_INFO } from '../engine/recap';
 import { navigate } from '../shell/router';
-import { Radar } from '../site/charts';
+import { TrackRows } from '../site/charts';
+import { percentile } from '../engine/profileView';
 import { Icon, type IconName } from '../ui/Icon';
 import { useProfile } from '../ui/profileApi';
 import { steamId3 } from './api';
@@ -368,7 +369,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
             )}
           </div>
         </div>
-        <Radar axes={card.parts.map(p => ({ label: p.label, you: p.z, tip: `${p.label}: ${p.score ?? 'not graded'}` }))} refLabel="Average for the position" />
+        <TrackRows refLabel="the average for the position" rows={card.parts.map(p => ({ label: p.label, pct: p.z === null ? null : percentile(p.z), tip: `${p.label}: ${p.score ?? 'not graded'}`, onClick: () => jump(p.key) }))} />
       </section>
 
       <div className="dl-rc-tiles">

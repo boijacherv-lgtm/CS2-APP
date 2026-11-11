@@ -217,7 +217,11 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
       <div className="perf-main">
         <div className="perf-grades">
           <div className="perf-grade" title={`Against the other players in this lobby (round grades, impact, ADR, KAST, duels): ${lobbyText(p.lobbyZ)}.\n\nRound grades (S+ to F): how much each round changed the team's win chance, with bonuses for clutches and multi-kills and penalties for team damage, team flashes and unused grenades. Game rating: the Premier rating at which these duels come out as expected, plus ${IMPACT_PER_POINT} points per point of round impact.`}>
-            <span className="perf-letter display" style={letterStyle(p.letter)}>{p.letter}</span>
+            {/* the reveal: the badge flips in once; S+ gets a short confetti burst (no motion with reduced motion) */}
+            <span className="perf-reveal">
+              <span className="perf-letter display reveal" style={letterStyle(p.letter)}>{p.letter}</span>
+              {p.letter === 'S+' && <span className="confetti" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} style={{ '--a': `${(i * 360) / 14}deg`, '--d': `${38 + (i % 3) * 10}px` } as React.CSSProperties} />)}</span>}
+            </span>
             <span className="muted">{p.letter} in this lobby{NICK[p.letter] ? <> · <b className="perf-nick">{NICK[p.letter]}</b></> : null}</span>
             <span className="perf-sub muted">vs the other 9</span>
           </div>

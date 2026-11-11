@@ -49,7 +49,7 @@ export function LinesChart({ series, band, gap, height = 220, marks = [], max, f
         {yTicks.map(v => <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="dl-lines-grid" /><text x={L - 6} y={y(v)} className="dl-lines-ax" textAnchor="end" dominantBaseline="middle">{show(v)}</text></g>)}
         {xTicks.map(t => <text key={t} x={x(t)} y={H - 6} className="dl-lines-ax" textAnchor="middle">{Math.round(t / 60)}m</text>)}
         {band && <path d={`${band.map((b, i) => `${i ? 'L' : 'M'}${x(b.t)},${y(b.hi)}`).join('')}${[...band].reverse().map(b => `L${x(b.t)},${y(b.lo)}`).join('')}Z`} className="dl-lines-band" />}
-        {series.map(s => <path key={s.label} d={path(s.points)} fill="none" stroke={s.color} strokeWidth={2.2} strokeDasharray={s.dashed ? '5 4' : undefined} strokeLinejoin="round" />)}
+        {series.map(s => <path key={s.label} d={path(s.points)} fill="none" stroke={s.color} strokeWidth={2} strokeDasharray={s.dashed ? "5 4" : undefined} strokeLinejoin="round" strokeLinecap="round" />)}
         {marks.map((m, i) => <circle key={i} cx={x(m.t)} cy={H - B + 2} r={3.2} fill={m.color}><title>{m.label} · {mins(m.t)}</title></circle>)}
         {gap && gaps.length > 1 && (
           <g>

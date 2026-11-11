@@ -8,6 +8,7 @@ import { matchPosition } from './bench';
 import { DL_MAP_IMAGE, heroOf, LANES, TEAM_COLOR, TEAM_NAME, type DlTeam } from './data';
 import { useRank } from './DlMeta';
 import { LinesChart } from './DlCharts';
+import { SplitChart } from '../site/charts';
 import { economy, laneOpponent, teamSouls, unspentAtDeaths, worthAt } from './grade';
 import { WIN_MODEL, winCurve } from './winChance';
 import { statAt, type DlMatch, type DlObjective } from './match';
@@ -92,10 +93,14 @@ export function TeamSouls({ match, team }: { match: DlMatch; team: DlTeam }) {
         <span><b className="num">{best > 0 ? sign(best) : '–'}</b><i>biggest lead</i></span>
         <span><b className="num">{worst < 0 ? sign(worst) : '–'}</b><i>furthest behind</i></span>
       </div>
-      <LinesChart gap height={150}
-        series={[{ label: TEAM_NAME[team], color: TEAM_COLOR[team], points: pts.map(p => ({ t: p.t, v: p.v[team] })) },
-          { label: TEAM_NAME[other], color: TEAM_COLOR[other], points: pts.map(p => ({ t: p.t, v: p.v[other] })) }]}
-        marks={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], label: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />
+      {/* the lead around 0: above in your team's colour, below in theirs; the biggest lead labelled once */}
+      {(() => {
+        const far = lead.reduce((b, v, i) => (Math.abs(v) > Math.abs(lead[b]) ? i : b), 0);
+        return <SplitChart caption={`${TEAM_NAME[team]}'s soul lead over the match`} base={0} colors={[TEAM_COLOR[team], TEAM_COLOR[other]]}
+          points={pts.map((p, i) => ({ t: p.t, v: lead[i] }))} fmt={sign} axis={v => (Math.abs(v) < 1 ? '0' : `${v > 0 ? '+' : '−'}${(Math.abs(v) / 1000).toFixed(Math.abs(v) >= 10000 ? 0 : 1)}k`)} xfmt={mins}
+          label={lead[far] ? { t: pts[far].t, text: `${lead[far] > 0 ? 'Biggest lead' : 'Furthest behind'} ${sign(lead[far])}` } : null}
+          dots={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], title: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />;
+      })()}
       {!demo && <p className="muted small">Between the match's snapshots (every 3 min); a match with a demo shows it every 2 s.</p>}
     </section>
   );
@@ -383,8 +388,10 @@ export function WinChance({ match, team, watch }: { match: DlMatch; team: DlTeam
         <span><b className="num">{Math.round(low)}%</b><i>lowest</i></span>
         <span><b className="num" style={{ color: match.winner === team ? 'var(--good)' : 'var(--bad)' }}>{match.winner === team ? 'Won' : 'Lost'}</b><i>{match.winner === team ? (low < 35 ? 'a comeback' : 'as expected') : (peak > 65 ? 'thrown from ahead' : 'never really ahead')}</i></span>
       </div>
-      <LinesChart height={150} max={100} fmt={v => `${Math.round(v)}%`} series={[{ label: TEAM_NAME[team], color: TEAM_COLOR[team], points: curve }]}
-        marks={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], label: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />
+      <SplitChart caption={`${TEAM_NAME[team]}'s chance to win over the match`} base={50} top={100} bottom={0} colors={[TEAM_COLOR[team], TEAM_COLOR[(1 - team) as DlTeam]]}
+        points={curve} fmt={v => `${Math.round(v)}%`} xfmt={mins} onPick={watch}
+        label={(() => { const big = [...moves].sort((a, b) => Math.abs(b.d) - Math.abs(a.d))[0]; return big ? { t: big.t, text: `${mins(big.t)} ${big.d >= 0 ? '+' : '−'}${Math.abs(big.d).toFixed(0)}%` } : null; })()}
+        dots={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], title: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />
       {moves.length > 0 && (
         <div className="dl-win-moves">
           {moves.map(m => <button key={m.t} className={`chip ${m.d >= 0 ? 'up' : 'down'}`} onClick={() => watch(m.t)}>{mins(m.t)} · {m.d >= 0 ? '+' : '−'}{Math.abs(m.d).toFixed(0)} pts</button>)}
