@@ -1,13 +1,8 @@
-import { Group, Path } from 'react-konva';
-import type { Annotation } from '../engine/recap';
-import { FACE } from './markFaces';
+import { Text } from 'react-konva';
+import { NOTE_SYMBOL, type Annotation } from '../engine/notes';
 
-/** A mark's face on the Konva map, filling a disc of `radius` (the disc itself is drawn by the caller). */
+/** A move mark's symbol on the Konva map, centred in a disc of `radius` (the disc itself is drawn by the caller). */
 export function KonvaFace({ note, radius }: { note: Annotation; radius: number }) {
-  const s = (radius * 2) / 24;
-  return (
-    <Group x={-12 * s} y={-12 * s} scaleX={s} scaleY={s} listening={false}>
-      {FACE[note].map((p, i) => <Path key={i} data={p.d} fill={p.fill} stroke={p.stroke} strokeWidth={p.width} lineCap="round" lineJoin="round" />)}
-    </Group>
-  );
+  const sym = NOTE_SYMBOL[note], fs = radius * (sym.length > 1 ? 0.95 : 1.2);
+  return <Text text={sym} x={-radius} y={-fs / 2 + radius * 0.04} width={radius * 2} align="center" fontSize={fs} fontStyle="bold" fill="#0A0C10" listening={false} />;
 }

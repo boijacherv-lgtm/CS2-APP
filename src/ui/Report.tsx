@@ -1,3 +1,4 @@
+import { letterStyle } from '../engine/notes';
 import { CountUp } from './CountUp';
 import { useEffect, useMemo, useState } from 'react';
 import { coach, modelFor, type CoachNote, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
@@ -221,19 +222,19 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
       <div className="perf-main">
         <div className="perf-grades">
           <div className="perf-grade" title={`Against the other players in this lobby (round grades, impact, ADR, KAST, duels): ${lobbyText(p.lobbyZ)}`}>
-            <span className="perf-letter display" style={{ background: LETTER_COLOR[p.letter] }}>{p.letter}</span>
+            <span className="perf-letter display" style={letterStyle(p.letter)}>{p.letter}</span>
             <span className="muted">{p.letter} in this lobby{NICK[p.letter] ? <> · <b className="perf-nick">{NICK[p.letter]}</b></> : null}</span>
             <span className="perf-sub muted">vs the other 9</span>
           </div>
           {p.level ? (
             <div className="perf-grade" title={levelText(p.level)}>
-              <span className="perf-letter display small" style={{ background: LETTER_COLOR[p.level.letter] }}>{p.level.letter}</span>
+              <span className="perf-letter display small" style={letterStyle(p.level.letter)}>{p.level.letter}</span>
               <span className="muted">{p.level.letter} vs level 10</span>
               <span className="perf-sub muted">level 10 = B, pros = S</span>
             </div>
           ) : p.lvl10 && (
             <div className="perf-grade" title={`Against FACEIT level-10 players (the coach's numbers): ${lvl10Text(p.lvl10.z)}`}>
-              <span className="perf-letter display small" style={{ background: LETTER_COLOR[p.lvl10.letter] }}>{p.lvl10.letter}</span>
+              <span className="perf-letter display small" style={letterStyle(p.lvl10.letter)}>{p.lvl10.letter}</span>
               <span className="muted">vs Lvl 10</span>
             </div>
           )}
@@ -715,7 +716,7 @@ function RoundGrid({ data, players, focus, hot, onPick, onRound }: {
 }
 
 function LetterChip({ letter }: { letter: Letter }) {
-  return <span className="letter" style={{ background: LETTER_COLOR[letter] }}>{letter}</span>;
+  return <span className="letter" style={letterStyle(letter)}>{letter}</span>;
 }
 
 const fmt = (v: number) => Math.round(v).toLocaleString('en-US');

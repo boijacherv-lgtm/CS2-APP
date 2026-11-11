@@ -1,3 +1,4 @@
+import { letterStyle } from '../engine/notes';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { GOAL_CHOICES, goalInfo, habits } from '../engine/habits';
@@ -197,7 +198,7 @@ function MatchRow({ m, onShare }: { m: ProfileMatch; onShare: () => void }) {
       <span className="match-stat"><small>K/D</small>{m.kills}/{m.deaths}</span>
       <span className="match-stat"><small>ADR</small>{m.adr.toFixed(0)}</span>
       <span className="match-stat" title="Your Premier rating going into this match"><small>Premier</small>{premierOf(m) !== null ? fmtInt(premierOf(m)!) : '–'}</span>
-      <span className="letter-chip" style={{ background: LETTER_COLOR[grade] }} title={m.level ? 'Level: B = a typical level-10 game, S = a typical pro game' : 'Grade among the lobby'}>{grade}</span>
+      <span className="letter-chip" style={letterStyle(grade)} title={m.level ? 'Level: B = a typical level-10 game, S = a typical pro game' : 'Grade among the lobby'}>{grade}</span>
       <button className="ghost icon-btn" onClick={onShare} title="Share card" aria-label="Share card"><Icon name="share" size={16} /></button>
     </div>
   );
@@ -292,7 +293,7 @@ function MapStats({ matches }: { matches: ProfileMatch[] }) {
               <td className={`num ${r.matches >= 2 ? (r.winRate >= 0.55 ? 'up' : r.winRate <= 0.45 ? 'down' : '') : ''}`}>{pct(r.winRate)}</td>
               <td className="num">{r.adr.toFixed(0)}</td>
               <td className="num">{fmtKd(r.kd)}</td>
-              <td>{r.best && <span className="letter-chip small" style={{ background: LETTER_COLOR[r.best] }}>{r.best}</span>}</td>
+              <td>{r.best && <span className="letter-chip small" style={letterStyle(r.best)}>{r.best}</span>}</td>
             </tr>
           ))}
         </tbody>
