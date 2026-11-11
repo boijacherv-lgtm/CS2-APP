@@ -13,7 +13,7 @@ import type { Utility, Vec2 } from '../engine/types';
  * an HE shockwave. Everything is a function of round time, so scrubbing plays it back.
  */
 
-const MOLLY_RADIUS_U = 120;
+const MOLLY_RADIUS_U = 150; // how far the fire reaches from where it broke (inferno_max_range)
 const FLASH_SHOW = 0.55; // s the burst stays on screen
 const HE_SHOW = 0.7;
 const BLOOM = 1.6; // s for a smoke to fill its space (CS2's smokes roll out over about a second and a half)
@@ -136,35 +136,37 @@ function SpreadSmoke({ u, t, k, R, opened, cells }: { u: Utility; t: number; k: 
 }
 
 /**
- * A molotov as in the game: the fire runs out over the floor from where it broke (about a second), stops at walls,
- * flickers, and dies down in patches at the end; the ground it burned stays dark under it.
+ * A molotov as in the game: it breaks at one point and catches there at once, jumps to a small pool almost instantly,
+ * then keeps spreading over the floor (stopped by walls and edges) to its full reach; it burns as one sheet of fire with
+ * flickering flames on it, and dies down from the edges in its last second.
  */
 function SpreadFire({ u, t, k, R, cells }: { u: Utility; t: number; k: number; R: number; cells: { x: number; y: number; d: number }[] }) {
   const since = t - popAt(u), life = lifeOf(u), left = life - since;
-  const front = R * Math.min(1, 0.2 + since / 1.1);
-  const flames = useMemo(() => sample(cells, 7, u.id), [cells, u.id]);
+  // 0–0.12 s: the burst to ~40% of its reach; then the slower spread to all of it by ~1.5 s; the last 0.9 s it shrinks
+  const grow = since < 0.12 ? 0.4 * (since / 0.12) : 0.4 + 0.6 * (1 - Math.pow(1 - Math.min(1, (since - 0.12) / 1.4), 2));
+  const front = R * Math.max(0.05, grow) * (left < 0.9 ? Math.max(0, left / 0.9) : 1);
+  const sheet = useMemo(() => sample(cells, 5, u.id), [cells, u.id]);
+  const tongues = useMemo(() => sample(cells, 9, `${u.id}:f`), [cells, u.id]);
   return (
     <Group listening={false}>
-      {flames.map((c, i) => {
-        if (c.d > front) return null;
-        // each patch dies in its own last 1.6 s
-        const out = Math.max(0, Math.min(1, (left - c.r * 1.6) / 0.5));
-        if (out <= 0) return null;
-        const flick = 1 + 0.2 * Math.sin(t * 13 + c.r * 40) + 0.1 * Math.sin(t * 29 + c.r * 17);
-        // burnt ground under all of it; flames on some patches, flickering, a few hot cores
-        const flame = c.r < 0.65, r = (5 + c.r * 4) * flick;
-        return (
-          <Group key={i} x={c.x} y={c.y}>
-            <Circle radius={9} opacity={0.8}
-              fillRadialGradientStartPoint={{ x: 0, y: 0 }} fillRadialGradientEndPoint={{ x: 0, y: 0 }} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={9}
-              fillRadialGradientColorStops={[0, 'rgba(90,26,8,0.55)', 1, 'rgba(60,15,5,0)']} />
-            {flame && <Circle radius={r} opacity={out * 0.85}
-              fillRadialGradientStartPoint={{ x: 0, y: 0 }} fillRadialGradientEndPoint={{ x: 0, y: 0 }}
-              fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={r}
-              fillRadialGradientColorStops={c.r < 0.2 ? [0, 'rgba(255,240,170,0.9)', 0.4, 'rgba(255,150,45,0.6)', 1, 'rgba(220,60,15,0)'] : [0, 'rgba(255,135,40,0.7)', 0.5, 'rgba(225,70,20,0.4)', 1, 'rgba(180,35,10,0)']} />}
-          </Group>
-        );
+      {/* the burning floor: dense, overlapping, one colour, so it reads as one sheet */}
+      {sheet.map((c, i) => c.d <= front && <Circle key={i} x={c.x} y={c.y} radius={5.2} fill="rgba(190,62,14,0.42)" />)}
+      {sheet.map((c, i) => c.d <= front * 0.75 && <Circle key={`h${i}`} x={c.x} y={c.y} radius={4.2} fill="rgba(240,120,30,0.22)" />)}
+      {/* flames flickering on it */}
+      {tongues.map((c, i) => {
+        if (c.d > front || c.r > 0.6) return null;
+        // off the grid a little, each its own size and rhythm, so they read as flames, not dots
+        const jx = (((c.r * 997) % 1) - 0.5) * 8, jy = (((c.r * 619) % 1) - 0.5) * 8;
+        const flick = 1 + 0.3 * Math.sin(t * (9 + c.r * 8) + c.r * 40) + 0.12 * Math.sin(t * 27 + c.r * 13);
+        const r = (5 + c.r * 7) * flick;
+        return <Circle key={`f${i}`} x={c.x + jx} y={c.y + jy} radius={r} opacity={0.8}
+          fillRadialGradientStartPoint={{ x: 0, y: 0 }} fillRadialGradientEndPoint={{ x: 0, y: 0 }} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={r}
+          fillRadialGradientColorStops={[0, 'rgba(255,236,160,0.85)', 0.35, 'rgba(255,150,45,0.55)', 1, 'rgba(220,60,15,0)']} />;
       })}
+      {/* the break: a bright flash where it hit, the first moment */}
+      {since < 0.35 && <Circle radius={(6 + since * 30) * 1} opacity={1 - since / 0.35}
+        fillRadialGradientStartPoint={{ x: 0, y: 0 }} fillRadialGradientEndPoint={{ x: 0, y: 0 }} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={6 + since * 30}
+        fillRadialGradientColorStops={[0, 'rgba(255,250,210,1)', 0.5, 'rgba(255,190,80,0.7)', 1, 'rgba(255,120,30,0)']} />}
       {left > 0.8 && <Countdown r={R} left={left} total={life} k={k} color="#ff7a2f" />}
     </Group>
   );
