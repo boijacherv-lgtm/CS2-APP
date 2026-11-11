@@ -752,6 +752,8 @@ export interface RoundPlay {
 /** Full review of a replayed round. */
 /** How long before a death an opinion about a decision can explain it (seconds). */
 const OPINION_SECS = 20;
+/** Kills and a death this close together (seconds) are one play, judged together. */
+const PLAY_GAP = 10;
 
 export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   const { sim, board, round: r, names } = rep;
@@ -1415,9 +1417,12 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         }
         // a fight they were the clear favourite in, lost without a missed spray or the wrong thing in hand: more bad
         // luck (or a great shot) than a bad decision, so at most an inaccuracy
-        if (lost.p >= 0.7 && (death.note === '?' || death.note === '??') && !death.tags.some(t => (['WHIFF', 'KNIFE OUT', 'NO AMMO', 'ECO DEATH'] as Tag[]).includes(t))) {
-          death.note = '?!';
-          death.why.push(`You were the favourite in this fight (${pctOdds(lost.p)}): a duel you usually win, so more bad luck than a bad call.`);
+        // luck, so no mark, and it counts against them only for the share that was on them (1 − odds)
+        if (lost.p >= 0.7 && !death.tags.some(t => (['WHIFF', 'KNIFE OUT', 'NO AMMO', 'ECO DEATH', 'TEAM KILL'] as Tag[]).includes(t))) {
+          const full = death.gain;
+          death.note = 'book';
+          death.gain = full * (1 - lost.p);
+          death.why.push(`You were the favourite in this fight (${pctOdds(lost.p)}): a duel you usually win, so more bad luck than a bad call. Counted as ${signedPct(death.gain)} of the ${signedPct(full)}.`);
         }
       }
       if (kill && won) {
@@ -1513,6 +1518,24 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   }
 
   moves.sort((a, b) => a.t - b.t || (a.kind === 'kill' ? -1 : 1));
+  // the whole play: a player's kills (and their death) in one fight, a few seconds apart, judged together on the
+  // last card, from the side's win chance before the first to after the last
+  for (const id of sim.ids) {
+    const evs = moves.filter(m => m.player === id && (m.kind === 'kill' || m.kind === 'death'));
+    let run: Move[] = [];
+    const close = () => {
+      if (run.length >= 2 && run.some(m => m.kind === 'kill')) {
+        const first = run[0], last = run[run.length - 1], ct = first.side === 'CT';
+        const a = evalAt(curve, first.t - 0.3), b = evalAt(curve, last.t + 0.3);
+        const from = ct ? a : 1 - a, to = ct ? b : 1 - b, kills = run.filter(m => m.kind === 'kill').length;
+        const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+        last.why.push(`The whole play, ${clock(first.t)}–${clock(last.t)}: ${kills} kill${kills > 1 ? 's' : ''}${last.kind === 'death' ? ', then died' : ''}. ${first.side} win chance ${pct(from)} → ${pct(to)} (${signedPct(Math.round(to * 100) / 100 - Math.round(from * 100) / 100)})`);
+      }
+      run = [];
+    };
+    for (const m of evs) { if (run.length && m.t - run[run.length - 1].t > PLAY_GAP) close(); run.push(m); }
+    close();
+  }
   const players: Review['players'] = {};
   for (const id of sim.ids) players[id] = { impact: 0, counts: { '!!': 0, '!': 0, book: 0, '?!': 0, '?': 0, '??': 0 } };
   for (const m of moves) {
