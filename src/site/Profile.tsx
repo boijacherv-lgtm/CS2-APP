@@ -6,6 +6,9 @@ import { focusOf, loadMoments } from '../moments/moments';
 import { EmptyArt } from '../ui/Art';
 import { averages, fullMatches, FREE_HISTORY, premierOf, goalSeries, hasPro, mapStats, MAX_GOALS, type Averages, type GoalId, LETTERS, type Letter, type ProfileMatch } from '../engine/profile';
 import { biggestLeak, SKILL_MAP_FROM, skillMap, superpower } from '../engine/profileView';
+import { matchKey } from '../engine/profile';
+import { useStore } from '../store';
+import { navigate } from '../shell/router';
 import { openCs2Sample } from '../ui/sample';
 import { Icon } from '../ui/Icon';
 import { findFriend, setGoals, useProfile, type PublicProfile } from '../ui/profileApi';
@@ -61,7 +64,7 @@ function LeakCard({ matches }: { matches: ProfileMatch[] }) {
         : <>You: <b>{leak.row.fmt(leak.row.you)}</b> · level 10: {leak.row.fmt(leak.row.lvl10)}</>}</p>
       {leak.clip && (
         <p className="leak-clips">
-          {leak.clip.rounds.map(n => <a key={n} className="chip" href="/cs2/review" title="Open this match in Review to watch the round">R{n}</a>)}
+          {leak.clip.rounds.map(n => <RoundLink key={n} match={leak.clip!.match} n={n} />)}
           <span className="muted small">{mapName(leak.clip.match.map)}, {fmtDate(leak.clip.match.at)}</span>
         </p>
       )}
@@ -74,6 +77,16 @@ function LeakCard({ matches }: { matches: ProfileMatch[] }) {
       </div>
     </section>
   );
+}
+
+/** A round of one of your matches: straight to it when that match is open in Review, else to Review to open it. */
+function RoundLink({ match, n }: { match: ProfileMatch; n: number }) {
+  const open = useStore(st => st.review);
+  const here = !!open && matchKey(open.data.map, open.data.rounds) === match.id;
+  const i = here ? open!.data.rounds.findIndex(r => r.n === n) : -1;
+  return here && i >= 0
+    ? <button className="chip" title={`Watch round ${n}`} onClick={() => { useStore.getState().setReviewRound(i); navigate({ page: 'cs2', mode: 'review' }); }}>R{n}</button>
+    : <a className="chip" href="/cs2/review" title={`Round ${n}: open this match (${mapName(match.map)}, ${fmtDate(match.at)}) in Review to watch it`}>R{n}</a>;
 }
 
 /** Your best habit, and how many level-10 players you beat at it. */
@@ -121,7 +134,14 @@ function SkillMapCard({ matches }: { matches: ProfileMatch[] }) {
             </button>
             {open === sk.name && (
               <ul className="sk-detail">
-                {sk.rows.map(r => <li key={r.id}><span>{r.label}</span><span className={`num ${r.z >= 0 ? 'up' : 'down'}`}>{r.fmt(r.you)}</span><span className="muted small">level 10: {r.fmt(r.lvl10)}</span></li>)}
+                {sk.rows.map(r => {
+                  // the habit's costliest rounds in your newest match that has them
+                  const m = matches.find(x => (x.leaks?.[r.id as GoalId]?.[1].length ?? 0) > 0);
+                  return (
+                    <li key={r.id}><span>{r.label}</span><span className={`num ${r.z >= 0 ? 'up' : 'down'}`}>{r.fmt(r.you)}</span><span className="muted small">level 10: {r.fmt(r.lvl10)}</span>
+                      {m && r.z < 0 && <span className="sk-rounds">{m.leaks![r.id as GoalId]![1].map(n => <RoundLink key={n} match={m} n={n} />)}<span className="muted small">{mapName(m.map)}</span></span>}</li>
+                  );
+                })}
               </ul>
             )}
           </li>

@@ -45,12 +45,29 @@ function leaksOf(data: DemoData, p: PlayerReport): Pick<ProfileMatch, 'leaks' | 
     leaks[id] = [+cost.toFixed(3), per.sort((a, b) => b.lost - a.lost).slice(0, 3).map(x => x.n).sort((a, b) => a - b)];
   }
   let played = 0, won = 0;
-  p.rounds.forEach((l, i) => {
-    if (!l?.tags.includes('CLUTCH')) return;
+  data.rounds.forEach((r, i) => {
+    if (!p.rounds[i]) return;
+    const side = clutchSide(r, p.id);
+    if (!side) return;
     played++;
-    if (data.rounds[i]?.winner === l.side) won++;
+    if (r.winner === side) won++;
   });
   return { ...(Object.keys(leaks).length ? { leaks } : {}), clutch: [played, won] };
+}
+
+/** The player's side when they ended up last alive on it against 2 or more (a clutch, kill or no kill), else null. */
+export function clutchSide(r: DemoData['rounds'][number], id: string): 'CT' | 'T' | null {
+  const sideOf = (x: string) => r.frames.players[x]?.side;
+  const mine = sideOf(id);
+  if (!mine) return null;
+  const alive = new Set(Object.keys(r.frames.players));
+  const count = (sd: string) => [...alive].filter(x => sideOf(x) === sd).length;
+  for (const k of [...r.kills].sort((a, b) => a.t - b.t)) {
+    alive.delete(k.victim);
+    if (!alive.has(id)) return null;
+    if (count(mine) === 1 && count(mine === 'CT' ? 'T' : 'CT') >= 2) return mine;
+  }
+  return null;
 }
 
 export interface HabitRow {

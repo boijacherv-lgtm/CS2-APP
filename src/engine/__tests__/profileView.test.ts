@@ -41,3 +41,14 @@ describe('profile reading', () => {
     expect(map.find(s => s.name === 'Clutches')!.clutch).toEqual([3, 3]);
   });
 });
+
+describe('clutches', () => {
+  it('counts a 1v2+ the player ended up in, kill or no kill', async () => {
+    const { clutchSide } = await import('../habits');
+    const players = Object.fromEntries(['a', 'b', 'c', 'x', 'y', 'z'].map(id => [id, { side: ['a', 'b', 'c'].includes(id) ? 'CT' : 'T' }]));
+    const round = (kills: { t: number; victim: string }[]) => ({ frames: { players }, kills }) as unknown as Parameters<typeof clutchSide>[0];
+    expect(clutchSide(round([{ t: 1, victim: 'b' }, { t: 2, victim: 'c' }]), 'a')).toBe('CT'); // 1v3, no kill needed
+    expect(clutchSide(round([{ t: 1, victim: 'b' }, { t: 2, victim: 'x' }, { t: 3, victim: 'y' }, { t: 4, victim: 'c' }]), 'a')).toBeNull(); // 1v1
+    expect(clutchSide(round([{ t: 1, victim: 'a' }, { t: 2, victim: 'b' }]), 'a')).toBeNull(); // died first
+  });
+});

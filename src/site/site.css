@@ -775,7 +775,8 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .sk-pct { text-align: right; font-weight: 700; }
 .sk-trend.up { color: var(--good); } .sk-trend.down { color: var(--bad); } .sk-trend.flat { color: var(--text-3, #888); }
 .sk-detail { padding: 0 2px 10px 132px !important; display: grid; gap: 4px; }
-.sk-detail li { display: grid; grid-template-columns: 1fr 70px 120px; gap: 10px; font-size: 13px; }
+.sk-detail li { display: grid; grid-template-columns: 1fr 70px 120px; gap: 4px 10px; font-size: 13px; }
+.sk-rounds { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .sk-detail .up { color: var(--good); } .sk-detail .down { color: var(--bad); }
 @media (max-width: 560px) { .sk-row { grid-template-columns: 90px 1fr 30px 18px; } .sk-detail { padding-left: 0 !important; } }
 .profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 14px 0; align-items: start; }
