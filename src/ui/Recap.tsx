@@ -1,3 +1,4 @@
+import { letterStyle } from '../engine/notes';
 import { MarkFace } from './MarkFace';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ControlMap } from '../engine/control';
@@ -510,7 +511,7 @@ export function Tags({ tags }: { tags: Tag[] }) {
 
 function Letter({ moves, round, id, upTo }: { moves: Move[]; round: DemoRound; id: string; upTo: number }) {
   const { letter, why } = roundGrade(moves, roundFacts(round, id, upTo));
-  return <span className="letter" style={{ background: LETTER_COLOR[letter] }} title={`${letter}: ${why} (${LETTER_INFO[letter]})`}>{letter}</span>;
+  return <span className="letter" style={letterStyle(letter)} title={`${letter}: ${why} (${LETTER_INFO[letter]})`}>{letter}</span>;
 }
 
 const USUAL_COLOR: Record<Usual, string> = { common: TOK.good, rare: '#f0c33c', unusual: '#e5483a', unknown: '#6e7886' };

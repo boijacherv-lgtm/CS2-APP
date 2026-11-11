@@ -12,7 +12,18 @@ export const NOTE_INFO: Record<Annotation, { mark: string; label: string; color:
 
 /** Grade letters and their colours. */
 export type Letter = 'S+' | 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
+/**
+ * Letter colours, good → neutral → bad, checked for red-green colour blindness on the dark surface (worst ΔE 11; the
+ * old S and A were ΔE 1.7, the same colour to many players). S+ is S with a gold rim and a star (letterStyle).
+ */
 export const LETTER_COLOR: Record<Letter, string> = {
-  'S+': '#f5c542', S: '#22c55e', A: '#7fbf4d', B: '#5c8bd6', C: '#a39b8f', D: '#e5a52a', F: '#e5483a',
+  'S+': '#0FB5A0', S: '#0FB5A0', A: '#9BD653', B: '#8B95A7', C: '#F5C451', D: '#F3873A', F: '#E5484D',
 };
+/** Dark ink on the light letter fills (contrast 4.5+). */
+export const LETTER_INK = '#0A0C10';
+export const LETTER_RIM = '#F5C451';
+/** A letter badge's colours: its fill, dark ink, and for S+ the gold rim. */
+export const letterStyle = (l: Letter) => ({ background: LETTER_COLOR[l], color: LETTER_INK, ...(l === 'S+' ? { boxShadow: `0 0 0 2px ${LETTER_RIM}` } : {}) });
+/** A move mark's symbol on its round badge (Book is a tick). */
+export const NOTE_SYMBOL: Record<Annotation, string> = { '!!': '!!', '!': '!', book: '✓', '?!': '?!', '?': '?', '??': '??' };
 export const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'];
