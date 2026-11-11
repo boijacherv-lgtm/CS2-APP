@@ -77,11 +77,20 @@ export function Settings() {
 
       <section className="site-card">
         <h2>Coach (CS2)</h2>
-        <Toggle label="Rage mode" on={s.rage || askRage} text="The coach loses it at your plays: a blunt, sweary line on every graded move and in the recap (18+, strong language). It swears at the play, never at you as a person. The grades don't change." onChange={v => (v ? setAskRage(true) : s.setRage(false))} />
-        {askRage && !s.rage && (
+        <Toggle label="Rage mode" on={s.rage !== 'off' || askRage} text="The coach loses it at your plays: a blunt line on some graded moves and in the recap (18+, strong language). It swears at the play, never at you as a person. The grades don't change." onChange={v => (v ? setAskRage(true) : s.setRage('off'))} />
+        {s.rage !== 'off' && (
+          <div className="setting">
+            <div className="setting-text"><b>How angry</b><span className="muted">Mild: fewer lines, no swearing. Full: everything.</span></div>
+            <div className="seg-mini">
+              <button className={s.rage === 'mild' ? 'on' : ''} onClick={() => s.setRage('mild')}>Mild</button>
+              <button className={s.rage === 'full' ? 'on' : ''} onClick={() => s.setRage('full')}>Full</button>
+            </div>
+          </div>
+        )}
+        {askRage && s.rage === 'off' && (
           <div className="rage-ask" role="alertdialog" aria-label="Turn on Rage mode">
             <span>Turn on Rage mode? The coach will not be nice. 18+.</span>
-            <span className="confirm-row"><button className="cta danger" onClick={() => { s.setRage(true); setAskRage(false); }}>Roast me</button><button className="ghost" onClick={() => setAskRage(false)}>Keep it calm</button></span>
+            <span className="confirm-row"><button className="cta danger" onClick={() => { s.setRage('full'); setAskRage(false); }}>Roast me</button><button className="ghost" onClick={() => setAskRage(false)}>Keep it calm</button></span>
           </div>
         )}
         <div className="setting">

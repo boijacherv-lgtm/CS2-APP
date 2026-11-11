@@ -293,7 +293,7 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
         </p>
       )}
       <p className="coach-summary">{c.summary}</p>
-      {rage && <p className="coach-rage">{rageSummary(c.improve[0]?.feature ?? null, !!c.improve[0]?.title.startsWith('Your '))}</p>}
+      {rageSummary(c.improve[0]?.feature ?? null, !!c.improve[0]?.title.startsWith('Your '), rage) && <p className="coach-rage">{rageSummary(c.improve[0]?.feature ?? null, !!c.improve[0]?.title.startsWith('Your '), rage)}</p>}
       <div className="dev-axis muted"><span><Icon name="prev" size={10} /> worse than normal</span><span>better than normal <Icon name="next" size={10} /></span></div>
       <div className="dev-list">
         {rows.map(d => <DevRow key={d.feature} d={d} open={open === d.feature} onToggle={() => setOpen(open === d.feature ? null : d.feature)}

@@ -191,7 +191,7 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
         {picked !== null && (
           <>
             <p className={`puzzle-verdict ${right ? 'up' : 'down'}`}>
-              {right ? <b className="puzzle-win">Right.</b> : rage ? <b>{RAGE[m.id.length % RAGE.length].replace('{x}', m.options[picked].label)}</b> : null}{' '}
+              {right ? <b className="puzzle-win">Right.</b> : rage !== 'off' ? <b>{RAGE[m.id.length % RAGE.length].replace('{x}', m.options[picked].label)}</b> : null}{' '}
               {right ? 'That is the engine\'s best move.' : `The engine's best: ${m.options[0].label}.`}{' '}
               {m.played !== 0 && picked === m.played ? <>You picked what was really played: <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best move' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span>, {pct(Math.max(0, m.options[0].value - m.options[m.played].value))} win chance given up ({Math.round(m.options[0].value * 100)}% → {Math.round(m.options[m.played].value * 100)}%).</> : m.played !== 0 ? <>The real move, “{m.options[m.played].label}”, was <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span> and gave up {pct(Math.max(0, m.options[0].value - m.options[m.played].value))} win chance ({Math.round(m.options[0].value * 100)}% → {Math.round(m.options[m.played].value * 100)}%).</> : <>It's what was really played.</>}
               {delta !== null && <span className={`puzzle-delta ${delta >= 0 ? 'up' : 'down'}`}> Rating {delta >= 0 ? '+' : '−'}{Math.abs(delta)}</span>}
