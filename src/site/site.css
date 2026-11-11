@@ -781,3 +781,52 @@ a.hero-games-live:hover b { text-decoration: underline; }
 @media (max-width: 560px) { .sk-row { grid-template-columns: 90px 1fr 30px 18px; } .sk-detail { padding-left: 0 !important; } }
 .profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 14px 0; align-items: start; }
 .profile .card-head .wl-row { margin-left: auto; margin-right: 8px; }
+
+/* §7 charts: one look */
+.split-chart { position: relative; }
+.split-chart svg { width: 100%; height: auto; display: block; }
+.sc-grid { stroke: color-mix(in srgb, var(--border) 50%, transparent); stroke-width: 1; }
+.sc-base { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 4; opacity: .7; }
+.sc-axis, .sc-label text { fill: var(--text-2); font-size: 12px; font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
+.sc-label text { fill: var(--text); font-weight: 700; }
+.sc-label circle { fill: var(--text); }
+.sc-tick { stroke: color-mix(in srgb, var(--text-3) 60%, transparent); stroke-width: 1; }
+.sc-dot { stroke: var(--surface, #13171D); stroke-width: 2; }
+.sc-cursor { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-table { margin-top: 4px; text-align: right; }
+.chart-table table { width: 100%; margin-top: 6px; font-size: 12px; border-collapse: collapse; text-align: left; }
+.chart-table th, .chart-table td { padding: 3px 6px; border-bottom: 1px solid var(--border); }
+.chart-table td.num { font-variant-numeric: tabular-nums; }
+.trend-tile { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.tt-label { font-size: 12px; color: var(--text-2); }
+.tt-body { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.tt-body b { font: 700 28px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.tt-delta { font-size: 13px; color: var(--text-2); } .tt-delta.up { color: var(--good); } .tt-delta.down { color: var(--bad); }
+.track-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.track-rows li { display: grid; grid-template-columns: 130px 1fr 32px; align-items: center; gap: 12px; }
+.track-rows b { text-align: right; }
+.result-strip { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.rs-tile { display: flex; flex-direction: column; } .rs-tile b { font: 700 26px/1 var(--font-display); } .rs-tile span { font-size: 12px; color: var(--text-2); }
+.result-strip ol { display: flex; flex-wrap: wrap; gap: 3px; list-style: none; margin: 0; padding: 0; }
+.result-strip li { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 4px; font: 700 10px/1 var(--font-display); color: #0A0C10; background: var(--text-3); }
+.result-strip li.win { background: var(--good); } .result-strip li.loss { background: var(--bad); }
+/* the older charts follow the same rules */
+.area-chart .grid { stroke: color-mix(in srgb, var(--border) 50%, transparent); }
+.area-chart .axis, .area-tip b { font-variant-numeric: tabular-nums; }
+.trend-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 14px 0; }
+
+/* §6 S+: a small star in the corner and one shine; the recap's grade flips in once (confetti for S+) */
+.letter, .letter-chip, .perf-letter { position: relative; }
+.letter::after, .letter-chip::after, .perf-letter::after { content: var(--star, none); position: absolute; top: -7px; right: -7px; font-size: 11px; line-height: 1;
+  color: #F5C451; text-shadow: 0 0 2px #0A0C10, 0 0 1px #0A0C10; }
+.perf-letter::after { font-size: 16px; top: -9px; right: -9px; }
+.perf-reveal { position: relative; display: inline-grid; place-items: center; }
+.perf-letter.reveal { animation: grade-flip .2s ease-out both; }
+@keyframes grade-flip { from { transform: perspective(300px) rotateY(90deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.confetti { position: absolute; inset: 50% auto auto 50%; pointer-events: none; }
+.confetti i { position: absolute; width: 6px; height: 6px; border-radius: 1px; background: #F5C451; opacity: 0;
+  animation: confetti .9s ease-out .15s both; }
+.confetti i:nth-child(3n) { background: #0FB5A0; } .confetti i:nth-child(3n+1) { background: #9BD653; }
+@keyframes confetti { 0% { opacity: 1; transform: rotate(var(--a)) translateX(0); } 100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--d)) rotate(180deg); } }
+@media (prefers-reduced-motion: reduce) { .perf-letter.reveal, .confetti i { animation: none; } .confetti { display: none; } }
+.dl-rc-head .track-rows { width: min(380px, 100%); }

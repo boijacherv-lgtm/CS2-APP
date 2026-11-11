@@ -17,7 +17,7 @@ import { SteamLoginButton } from '../ui/SteamLogin';
 import { plural, fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
 import { copyCard, drawShareCard, shareFileName } from './shareCard';
 import { AddMatches } from './AddMatches';
-import { AreaChart, MiniLine, StretchLine } from './charts';
+import { MiniLine, StretchLine, TrendTile } from './charts';
 import { applyGame, gameOf, type GameId } from '../ui/tokens';
 import { DlProfile } from '../deadlock/DlProfile';
 import { steamId3 } from '../deadlock/api';
@@ -227,7 +227,7 @@ export function Profile() {
             <MapStats matches={matches} />
             <Friend mine={last} />
           </div>
-          <PremierTrend matches={matches} />
+          <Trends matches={matches} />
         </>
       )}
       {!matches.length && <Friend mine={last} />}
@@ -238,26 +238,17 @@ export function Profile() {
 }
 
 
-/** Your Premier rating match by match (or your ADR when the demos have no ratings). */
-function PremierTrend({ matches }: { matches: ProfileMatch[] }) {
-  const chrono = [...matches].sort((a, b) => a.at - b.at);
-  const rated = chrono.filter(m => premierOf(m) !== null);
-  // Premier when the demos have it (all of them, or at least two to draw); otherwise damage per round
-  const usePremier = rated.length >= 2 || (rated.length > 0 && rated.length === chrono.length);
-  const pts = (usePremier ? rated : chrono).slice(-20).map(m => ({
-    label: new Date(m.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    value: usePremier ? premierOf(m)! : m.adr,
-    note: `${mapName(m.map)} ${m.score[0]}:${m.score[1]}`,
-  }));
-  if (pts.length < 2) return null; // the line starts at two matches
+/** Rating and damage match by match: the last value big, ↑/↓ against the average, a sparkline (each from 2 matches). */
+function Trends({ matches }: { matches: ProfileMatch[] }) {
+  const chrono = [...matches].sort((a, b) => a.at - b.at).slice(-20);
+  const rated = chrono.flatMap(m => (premierOf(m) !== null ? [premierOf(m)!] : []));
+  if (chrono.length < 2) return null;
   return (
-    <section className="site-card dash-wide">
-      <div className="card-head">
-        <h2><Icon name="trendUp" size={16} /> {usePremier ? 'Premier rating' : 'Damage per round'}</h2>
-        <span className="muted small">{usePremier ? 'going into each match' : 'no Premier ratings in these demos'} · last {pts.length}</span>
-      </div>
-      <AreaChart points={pts} fmt={v => (usePremier ? fmtInt(v) : v.toFixed(0))} />
-    </section>
+    <div className="trend-row">
+      {rated.length >= 2 && <TrendTile label="Premier rating" values={rated} fmt={v => fmtInt(v)} sub="going into each match" />}
+      <TrendTile label="Damage per round" values={chrono.map(m => m.adr)} fmt={v => v.toFixed(0)} />
+      <TrendTile label="K/D" values={chrono.map(m => (m.deaths ? m.kills / m.deaths : m.kills))} fmt={v => v.toFixed(2)} />
+    </div>
   );
 }
 
