@@ -54,8 +54,10 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   }, [time]);
   useEffect(() => setRead(new Set()), [recap, shown]);
   const [page, setPage] = useState(0);
-  // cards for graded moves only: a Book move (the expected play) stays in the killfeed, not as a card
-  const carded = (m: Move) => shown(m) && m.note !== 'book';
+  // cards for graded moves; a Book move (the expected play) stays in the killfeed, except a death of yours: you always
+  // see why you died (a lost duel you were the favourite in has no mark now, but it still pops up)
+  const me = useStore(whoAmI);
+  const carded = (m: Move) => shown(m) && (m.note !== 'book' || (m.kind === 'death' && !!me && m.player === me));
   const { pending, backlog } = calloutAt(recap.moves, time, queueing, read, 0, carded);
   const { move: atMove, group } = calloutAt(recap.moves, time, false, read, page, carded);
   const groupKey = group.map(moveKey).join('|');
