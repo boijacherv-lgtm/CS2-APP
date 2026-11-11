@@ -4,8 +4,8 @@ import { LEVEL_MODEL, mechanicsOf, type Mechanics } from './level';
 import type { AnalystRound } from './analyst';
 import type { MatchReport, PlayerReport } from './match';
 import REMARKS from './coach-remarks.json';
-import { matchKey, type GoalId, type ProfileMatch } from './profile';
-import type { DemoData } from './recap';
+import { LEAK_TAGS, matchKey, type GoalId, type ProfileMatch } from './profile';
+import type { DemoData, Tag } from './recap';
 
 /**
  * Your habits across matches: each match you open (as yourself) is summed up and kept on your profile; together they
@@ -31,7 +31,43 @@ export function profileMatchOf(data: DemoData, view: MatchReport, p: PlayerRepor
     ...s, at: data.playedAt ?? s.at, level: p.level?.letter ?? null, result: us > them ? 'win' : us < them ? 'loss' : 'tie', score: [us, them],
     kills: p.kills, deaths: p.deaths, adr: +p.adr.toFixed(1), kast: +p.kast.toFixed(1), hs: +p.hs.toFixed(1), impact: +p.impactPerRound.toFixed(2),
     lobby: p.letter, gameRating: p.gameRating, rank: p.rank, name: p.name,
+    ...leaksOf(data, p),
   };
+}
+
+/** What each habit cost this match (from the graded moves' lost win chance) and its costliest rounds; clutches played and won. */
+function leaksOf(data: DemoData, p: PlayerReport): Pick<ProfileMatch, 'leaks' | 'clutch'> {
+  const leaks: NonNullable<ProfileMatch['leaks']> = {};
+  for (const [id, tags] of Object.entries(LEAK_TAGS) as [GoalId, string[]][]) {
+    const per = p.rounds.map((l, i) => ({ n: data.rounds[i]?.n ?? i + 1, lost: Math.max(0, ...tags.map(t => l?.lost?.[t as Tag] ?? 0)) })).filter(x => x.lost > 0);
+    if (!per.length) continue;
+    const cost = per.reduce((a, x) => a + x.lost, 0);
+    leaks[id] = [+cost.toFixed(3), per.sort((a, b) => b.lost - a.lost).slice(0, 3).map(x => x.n).sort((a, b) => a - b)];
+  }
+  let played = 0, won = 0;
+  data.rounds.forEach((r, i) => {
+    if (!p.rounds[i]) return;
+    const side = clutchSide(r, p.id);
+    if (!side) return;
+    played++;
+    if (r.winner === side) won++;
+  });
+  return { ...(Object.keys(leaks).length ? { leaks } : {}), clutch: [played, won] };
+}
+
+/** The player's side when they ended up last alive on it against 2 or more (a clutch, kill or no kill), else null. */
+export function clutchSide(r: DemoData['rounds'][number], id: string): 'CT' | 'T' | null {
+  const sideOf = (x: string) => r.frames.players[x]?.side;
+  const mine = sideOf(id);
+  if (!mine) return null;
+  const alive = new Set(Object.keys(r.frames.players));
+  const count = (sd: string) => [...alive].filter(x => sideOf(x) === sd).length;
+  for (const k of [...r.kills].sort((a, b) => a.t - b.t)) {
+    alive.delete(k.victim);
+    if (!alive.has(id)) return null;
+    if (count(mine) === 1 && count(mine === 'CT' ? 'T' : 'CT') >= 2) return mine;
+  }
+  return null;
 }
 
 export interface HabitRow {
