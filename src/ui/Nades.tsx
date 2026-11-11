@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Arc, Arrow, Circle, Group, Line, Path, Star, Text } from 'react-konva';
 import { KonvaFace } from './KonvaFace';
 import { HE_RADIUS_U } from '../engine/combat';
@@ -12,10 +13,10 @@ import type { Utility, Vec2 } from '../engine/types';
  * an HE shockwave. Everything is a function of round time, so scrubbing plays it back.
  */
 
-const MOLLY_RADIUS_U = 120;
+const MOLLY_RADIUS_U = 150; // how far the fire reaches from where it broke (inferno_max_range)
 const FLASH_SHOW = 0.55; // s the burst stays on screen
 const HE_SHOW = 0.7;
-const BLOOM = 0.7; // s for a smoke to reach full size
+const BLOOM = 1.6; // s for a smoke to fill its space (CS2's smokes roll out over about a second and a half)
 const FADE = 1.5; // s of fade at the end of a smoke
 
 export const NADE_COLOR: Record<Utility['type'], string> = UTIL_COLOR;
@@ -56,7 +57,17 @@ function Countdown({ r, left, total, k, color }: { r: number; left: number; tota
   );
 }
 
-function SmokeCloud({ u, t, k, R, opened }: { u: Utility; t: number; k: number; R: number; opened?: { open: number; at: Vec2 | null } }) {
+/** The floor a grenade covers from a spot (MapGrid.spread): cells relative to the spot, with the distance spread. */
+export type FloorOf = (at: Vec2, radius: number) => { x: number; y: number; d: number }[];
+/** Every other cell of the covered floor (enough for soft puffs or flames to overlap), with a stable random per cell. */
+function sample(cells: { x: number; y: number; d: number }[], step: number, seed: string) {
+  const rnd = rand(seed);
+  return cells.filter(c => (Math.round(c.x / step) + Math.round(c.y / step)) % 2 === 0).map(c => ({ ...c, r: rnd() }));
+}
+
+function SmokeCloud({ u, t, k, R, opened, floor }: { u: Utility; t: number; k: number; R: number; opened?: { open: number; at: Vec2 | null }; floor?: FloorOf }) {
+  const cells = floor?.(u.pos, R);
+  if (cells && cells.length >= 12) return <SpreadSmoke u={u} t={t} k={k} R={R} opened={opened} cells={cells} />;
   const since = t - popAt(u);
   const life = lifeOf(u);
   const left = life - since;
@@ -92,7 +103,78 @@ function SmokeCloud({ u, t, k, R, opened }: { u: Utility; t: number; k: number; 
   );
 }
 
-function Fire({ u, t, k, R }: { u: Utility; t: number; k: number; R: number }) {
+/**
+ * A smoke as in the game: it rolls out from where it popped over BLOOM seconds, along the floor around walls and through
+ * doorways (never through a wall), filling the space it lands in, thinning where an HE blew it open.
+ */
+function SpreadSmoke({ u, t, k, R, opened, cells }: { u: Utility; t: number; k: number; R: number; opened?: { open: number; at: Vec2 | null }; cells: { x: number; y: number; d: number }[] }) {
+  const since = t - popAt(u), life = lifeOf(u), left = life - since;
+  const p = Math.min(1, since / BLOOM), front = R * (0.12 + 0.88 * (1 - (1 - p) * (1 - p)));
+  const alpha = left < FADE ? Math.max(0, left / FADE) : 1;
+  const puffs = useMemo(() => sample(cells, 8, u.id), [cells, u.id]);
+  const open = opened?.open ?? 0;
+  const hole = opened?.at ? { x: opened.at.x - u.pos.x, y: opened.at.y - u.pos.y } : { x: 0, y: 0 };
+  const edge = 10; // px of soft edge at the rolling front
+  return (
+    <Group listening={false} opacity={alpha}>
+      {puffs.map((c, i) => {
+        if (c.d > front) return null;
+        const rim = Math.min(1, (front - c.d) / edge);
+        const thin = open ? Math.max(0.04, 1 - open * (0.55 + 0.45 * Math.max(0, 1 - Math.hypot(c.x - hole.x, c.y - hole.y) / (R * 1.1)))) : 1;
+        const r = 11 + c.r * 3 + Math.sin(t * 0.8 + c.r * 9) * 0.6;
+        return (
+          <Circle key={i} x={c.x} y={c.y} radius={r} opacity={rim * thin * 0.75}
+            fillRadialGradientStartPoint={{ x: 0, y: 0 }} fillRadialGradientEndPoint={{ x: 0, y: 0 }}
+            fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={r}
+            fillRadialGradientColorStops={[0, 'rgba(232,236,240,0.8)', 0.6, 'rgba(206,212,219,0.5)', 1, 'rgba(180,188,198,0)']} />
+        );
+      })}
+      {open > 0.98 && <Circle x={hole.x} y={hole.y} radius={R * 0.95} stroke="#dfe4ea" strokeWidth={1.2 * k} dash={[3 * k, 3 * k]} opacity={0.6} />}
+      {alpha > 0.3 && <Countdown r={R} left={left} total={life} k={k} color="#dfe4ea" />}
+    </Group>
+  );
+}
+
+/**
+ * A molotov as in the game: it breaks at one point and catches there at once, jumps to a small pool almost instantly,
+ * then keeps spreading over the floor (stopped by walls and edges) to its full reach; it burns as one sheet of fire with
+ * flickering flames on it, and dies down from the edges in its last second.
+ */
+function SpreadFire({ u, t, k, R, cells }: { u: Utility; t: number; k: number; R: number; cells: { x: number; y: number; d: number }[] }) {
+  const since = t - popAt(u), life = lifeOf(u), left = life - since;
+  // 0–0.12 s: the burst to ~40% of its reach; then the slower spread to all of it by ~1.5 s; the last 0.9 s it shrinks
+  const grow = since < 0.12 ? 0.4 * (since / 0.12) : 0.4 + 0.6 * (1 - Math.pow(1 - Math.min(1, (since - 0.12) / 1.4), 2));
+  const front = R * Math.max(0.05, grow) * (left < 0.9 ? Math.max(0, left / 0.9) : 1);
+  const sheet = useMemo(() => sample(cells, 5, u.id), [cells, u.id]);
+  const tongues = useMemo(() => sample(cells, 9, `${u.id}:f`), [cells, u.id]);
+  return (
+    <Group listening={false}>
+      {/* the burning floor: dense, overlapping, one colour, so it reads as one sheet */}
+      {sheet.map((c, i) => c.d <= front && <Circle key={i} x={c.x} y={c.y} radius={5.2} fill="rgba(190,62,14,0.42)" />)}
+      {sheet.map((c, i) => c.d <= front * 0.75 && <Circle key={`h${i}`} x={c.x} y={c.y} radius={4.2} fill="rgba(240,120,30,0.22)" />)}
+      {/* flames flickering on it */}
+      {tongues.map((c, i) => {
+        if (c.d > front || c.r > 0.6) return null;
+        // off the grid a little, each its own size and rhythm, so they read as flames, not dots
+        const jx = (((c.r * 997) % 1) - 0.5) * 8, jy = (((c.r * 619) % 1) - 0.5) * 8;
+        const flick = 1 + 0.3 * Math.sin(t * (9 + c.r * 8) + c.r * 40) + 0.12 * Math.sin(t * 27 + c.r * 13);
+        const r = (5 + c.r * 7) * flick;
+        return <Circle key={`f${i}`} x={c.x + jx} y={c.y + jy} radius={r} opacity={0.8}
+          fillRadialGradientStartPoint={{ x: 0, y: 0 }} fillRadialGradientEndPoint={{ x: 0, y: 0 }} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={r}
+          fillRadialGradientColorStops={[0, 'rgba(255,236,160,0.85)', 0.35, 'rgba(255,150,45,0.55)', 1, 'rgba(220,60,15,0)']} />;
+      })}
+      {/* the break: a bright flash where it hit, the first moment */}
+      {since < 0.35 && <Circle radius={(6 + since * 30) * 1} opacity={1 - since / 0.35}
+        fillRadialGradientStartPoint={{ x: 0, y: 0 }} fillRadialGradientEndPoint={{ x: 0, y: 0 }} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={6 + since * 30}
+        fillRadialGradientColorStops={[0, 'rgba(255,250,210,1)', 0.5, 'rgba(255,190,80,0.7)', 1, 'rgba(255,120,30,0)']} />}
+      {left > 0.8 && <Countdown r={R} left={left} total={life} k={k} color="#ff7a2f" />}
+    </Group>
+  );
+}
+
+function Fire({ u, t, k, R, floor }: { u: Utility; t: number; k: number; R: number; floor?: FloorOf }) {
+  const cells = floor?.(u.pos, R);
+  if (cells && cells.length >= 8) return <SpreadFire u={u} t={t} k={k} R={R} cells={cells} />;
   const since = t - popAt(u);
   const life = lifeOf(u);
   const left = life - since;
@@ -161,8 +243,10 @@ export function nadePhase(u: Utility, t: number): NadePhase {
  * The grenade at its landing spot (draw inside a Group positioned at u.pos).
  * `editable` keeps a faint icon visible before/after so it can be selected and dragged.
  */
-export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable, grade, opened }: {
+export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable, grade, opened, floor }: {
   u: Utility; t: number; k: number; unitsPerPx: number; selected: boolean; doomed: boolean; editable: boolean;
+  /** The map's floor (MapGrid.spread): smokes and fires spread over it like in the game, else round clouds. */
+  floor?: FloorOf;
   /** A smoke blown open by an HE right now: how far (0–1) and where the blast was (radar px). */
   opened?: { open: number; at: Vec2 | null };
   /** Review grade, shown as a chess-style mark on the grenade once it has popped. */
@@ -175,8 +259,8 @@ export function NadeAtLanding({ u, t, k, unitsPerPx, selected, doomed, editable,
   if (!editable && (phase === 'planned' || phase === 'flying') && !selected && !doomed) return null;
   return (
     <>
-      {phase === 'active' && u.type === 'smoke' && <SmokeCloud u={u} t={t} k={k} R={R} opened={opened} />}
-      {phase === 'active' && u.type === 'molotov' && <Fire u={u} t={t} k={k} R={R} />}
+      {phase === 'active' && u.type === 'smoke' && <SmokeCloud u={u} t={t} k={k} R={R} opened={opened} floor={floor} />}
+      {phase === 'active' && u.type === 'molotov' && <Fire u={u} t={t} k={k} R={R} floor={floor} />}
       {phase === 'active' && u.type === 'flash' && <FlashBurst u={u} t={t} k={k} />}
       {phase === 'active' && u.type === 'he' && <HeBlast u={u} t={t} k={k} R={R} />}
       {(phase === 'planned' || phase === 'flying') && (u.type === 'smoke' || u.type === 'molotov') && !(u.path && phase === 'planned') && (

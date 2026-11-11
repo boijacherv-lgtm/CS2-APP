@@ -1,7 +1,7 @@
 import Konva from 'konva';
 import { MAPS } from '../map/catalog';
 import { useCanvasLabel } from './canvasLabel';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import { KonvaFace } from './KonvaFace';
 import { JudgePanel } from './JudgePanel';
@@ -418,6 +418,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const selectedRaw = s.board.players.find(p => p.id === s.selectedId);
   const selected = selectedRaw && !isDead(selectedRaw) ? livePlayer(selectedRaw) : undefined;
   const smokesNow = activeSmokes(s.board.utility, s.time, UNITS_PER_PX);
+  // smokes and fires spread over this map's floor (around walls), like in the game
+  const floorOf = useCallback((at: Vec2, r: number) => engine.grid.spread(at, r), [engine]);
   // review: each grenade's letter (when it's evaluated: every move, or only yours), shown on the grenade itself
   const { shown, mine: mineScope } = useShown();
   // the search engine's lines for the player in focus (selected, or you with "Mine"): its best option at this moment and what they did
@@ -686,7 +688,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 onDragEnd={e => s.move(u.id, { x: e.target.x(), y: e.target.y() })}
                 onClick={e => { e.cancelBubble = true; if (aiming) commitAim(); else if (carry) { const q = pointer(); if (q) drop(q); } else if (s.tool === 'select') s.select(u.id); }}>
                 <NadeAtLanding u={u} t={s.time} k={k} unitsPerPx={UNITS_PER_PX} selected={s.selectedId === u.id} doomed={doomed} editable={s.mode !== 'review'} grade={nadeGrades.get(u.id)}
-                  opened={u.type === 'smoke' ? smokeOpenAt(u, s.board.utility, s.time, UNITS_PER_PX) : undefined} />
+                  opened={u.type === 'smoke' ? smokeOpenAt(u, s.board.utility, s.time, UNITS_PER_PX) : undefined} floor={floorOf} />
               </Group>
             );
           })}
