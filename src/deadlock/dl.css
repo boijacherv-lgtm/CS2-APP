@@ -270,7 +270,7 @@
 .dl-subject-stats { display: flex; align-items: center; gap: 16px; }
 .dl-subject-stats > span:not(.dl-subject-result) { display: grid; line-height: 1.15; }
 .dl-subject-stats b { font-size: 16px; }
-.dl-subject-stats i { font-style: normal; font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+.dl-subject-stats i { font-style: normal; font-size: 12px; color: var(--text-3); letter-spacing: .04em; }
 .dl-subject-result { padding: 3px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
 .dl-subject-result.won { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
 .dl-subject-result.lost { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
@@ -343,7 +343,7 @@
 .dl-sb-won { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, currentColor 16%, transparent); }
 .dl-sb-scroll { overflow-x: auto; }
 .dl-sb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.dl-sb-table th { text-align: left; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); padding: 4px 8px; white-space: nowrap; }
+.dl-sb-table th { text-align: left; font-weight: 600; font-size: 12px; letter-spacing: .04em; color: var(--text-3); padding: 4px 8px; white-space: nowrap; }
 .dl-sb-table td { padding: 6px 8px; border-top: 1px solid var(--border); white-space: nowrap; }
 .dl-sb-table tbody tr { cursor: pointer; transition: background .12s; }
 .dl-sb-table tbody tr:hover { background: rgba(255,255,255,0.03); }
@@ -488,7 +488,7 @@
 @media (max-width: 900px) { .dl-pf-parts { grid-template-columns: repeat(3, minmax(0, 1fr)); } .dl-pf-overall { grid-column: 1 / -1; } }
 
 /* Tactical: patch notes, buffed / nerfed, rising / falling */
-.dl-patch { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px 7px; border-radius: 999px;
+.dl-patch { font-size: 12px; font-weight: 700; letter-spacing: .04em; padding: 1px 7px; border-radius: 999px;
   background: color-mix(in srgb, var(--text-3) 18%, transparent); color: var(--text-2); cursor: help; }
 .dl-patch.buffed { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
 .dl-patch.nerfed { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
@@ -546,7 +546,7 @@
 
 /* objectives: each lane a tug of war, your base left, theirs right */
 .dl-tug { display: grid; gap: 10px; margin-top: 14px; }
-.dl-tug-head { display: flex; justify-content: space-between; padding-left: 92px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.dl-tug-head { display: flex; justify-content: space-between; padding-left: 92px; font-size: 12px; font-weight: 700; letter-spacing: .06em; }
 .dl-tug-lane { display: grid; grid-template-columns: 82px minmax(0, 1fr); align-items: center; gap: 10px; }
 .dl-tug-name { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13px; }
 .dl-tug-name i { width: 10px; height: 10px; border-radius: 3px; }
@@ -583,7 +583,7 @@
 .dl-play-hint { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--text-2); padding-top: 2px; }
 .dl-play-hint .same { color: var(--good); } .dl-play-hint .other { color: var(--highlight); }
 /* the engine on the graded player (Match recap → Coach) */
-.dl-engine h4 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
+.dl-engine h4 { margin: 14px 0 6px; font-size: 12px; letter-spacing: .06em; color: var(--text-3); }
 .dl-engine-head { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
 .dl-engine-acc { display: grid; justify-items: center; padding: 8px 16px; border-radius: 12px; border: 1px solid var(--border); min-width: 92px; }
 .dl-engine-acc b { font-size: 34px; line-height: 1; }

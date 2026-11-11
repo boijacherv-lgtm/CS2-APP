@@ -68,7 +68,7 @@
   background: color-mix(in srgb, var(--highlight) 9%, transparent); border: 1px solid color-mix(in srgb, var(--highlight) 30%, transparent); color: var(--text-1); }
 .notice .icon { color: var(--highlight); margin-top: 2px; }
 .site-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.site-table th { text-align: left; color: var(--text-3); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.site-table th { text-align: left; color: var(--text-3); font-weight: 600; font-size: 12px; letter-spacing: .06em; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .site-table td { padding: 8px; border-bottom: 1px solid var(--border); }
 .site-table tr:last-child td { border-bottom: 0; }
 .site-table th img { border-radius: 4px; vertical-align: -4px; }
@@ -85,7 +85,7 @@
 /* the glow runs past the page's edges to the window's; the window doesn't scroll sideways for it */
 .shell-main:has(.home) { overflow-x: hidden; }
 .hero h1 { font-size: 64px; }
-.eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--highlight);
+.eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--highlight);
   padding: 5px 10px; border-radius: 99px; background: color-mix(in srgb, var(--highlight) 10%, transparent); margin-bottom: 18px; }
 .hero-cta { display: flex; gap: 10px; margin-top: 26px; flex-wrap: wrap; }
 .hero-cta .cta { padding: 13px 20px; font-size: 15px; }
@@ -116,7 +116,7 @@
 .pv-track::after { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--border-strong); }
 .pv-track i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: var(--good); }
 .pv-track i.down { background: var(--bad); }
-.pv-label { position: absolute; left: 14px; top: 12px; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3);
+.pv-label { position: absolute; left: 14px; top: 12px; font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--text-3);
   background: var(--overlay); padding: 3px 7px; border-radius: 5px; }
 
 .stat-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border);
@@ -161,7 +161,7 @@
 }
 
 /* ---- home: games ---- */
-.games-status { flex: none; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 7px; border-radius: 99px;
+.games-status { flex: none; font-size: 12px; font-weight: 700; letter-spacing: .04em; padding: 3px 7px; border-radius: 99px;
   color: var(--text-3); background: var(--surface-2); }
 .games-status.live { color: #0b2414; background: var(--good); }
 .games-status.next { color: #111; background: var(--highlight); }
@@ -236,7 +236,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .empty-card p { max-width: 520px; margin: 0 0 6px; line-height: 1.55; }
 .kpi-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
 .kpi-tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: grid; gap: 2px; }
-.kpi-tile > span { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+.kpi-tile > span { font-size: 12px; color: var(--text-3); letter-spacing: .06em; font-weight: 600; }
 .kpi-tile b { font: 700 28px/1.1 var(--font-display); }
 .kpi-tile i { font-style: normal; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
 .match-list { display: grid; gap: 6px; }
@@ -250,7 +250,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .match-score { font: 700 22px var(--font-display); }
 .match-score.win { color: var(--good); } .match-score.loss { color: var(--bad); }
 .match-stat { display: grid; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
-.match-stat small { font-size: 12px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.match-stat small { font-size: 12px; color: var(--text-3); font-weight: 600; letter-spacing: .05em; }
 @media (max-width: 760px) {
   .match-row { grid-template-columns: 40px minmax(0, 1fr) auto 34px 34px; }
   .match-stat { display: none; }
@@ -343,7 +343,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .mini-line .sl-line { stroke: var(--text-2); }
 .goal-chart { display: grid; grid-template-columns: minmax(0, 1fr); position: relative; padding: 8px 0 6px 44px; }
 .goal-chart .stretch-line .sl-line { stroke: var(--text-1); }
-.goal-axis { position: absolute; left: 0; top: 2px; font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; }
+.goal-axis { position: absolute; left: 0; top: 2px; font-size: 12px; color: var(--text-3); letter-spacing: .05em; }
 .goal-axis.low { top: auto; bottom: 0; }
 .goal-top .num.up { color: var(--good-soft); } .goal-top .num.down { color: var(--bad-soft); }
 .goal-foot { flex-wrap: wrap; gap: 4px 12px; }
@@ -375,7 +375,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 
 /* ---- dev page ---- */
 .dev-kv td:first-child { width: 190px; color: var(--text-2); white-space: nowrap; }
-.dev-h { font-size: 13px; margin: 16px 0 6px; color: var(--text-2); text-transform: uppercase; letter-spacing: .06em; }
+.dev-h { font-size: 13px; margin: 16px 0 6px; color: var(--text-2); letter-spacing: .06em; }
 .dev-chip { display: inline-block; margin: 0 6px 4px 0; padding: 2px 8px; border-radius: 99px; background: var(--surface-2); color: var(--text-1); text-decoration: none; font-size: 12px; }
 .dev .kpi-strip { margin-bottom: 12px; }
 
@@ -663,7 +663,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .puzzle-info span { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: var(--surface-3); color: var(--text-1); }
 .puzzle-info .puzzle-tag { background: color-mix(in srgb, var(--theme) 22%, var(--surface-2)); color: var(--text-1); }
 .puzzle-why { padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border-left: 3px solid var(--theme); }
-.puzzle-why b { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
+.puzzle-why b { font-size: 12px; letter-spacing: .06em; color: var(--text-2); }
 .puzzle-why ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 3px; font-size: 14px; line-height: 1.5; color: var(--text-1); }
 .puzzle-delta { font-weight: 700; margin-left: 6px; }
 .map-callout { fill: #fff; paint-order: stroke; stroke: #000c; stroke-width: .6px; font-weight: 700; font-family: var(--font-ui); pointer-events: none; }

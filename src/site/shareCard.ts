@@ -20,7 +20,7 @@ export async function drawShareCard(canvas: HTMLCanvasElement, m: ProfileMatch, 
   canvas.width = SHARE_W; canvas.height = SHARE_H;
   const g = canvas.getContext('2d')!;
   await document.fonts?.ready;
-  const display = (px: number) => `700 ${px}px Rajdhani, 'Barlow Condensed', system-ui, sans-serif`;
+  const display = (px: number) => `700 ${px}px Unbounded, 'Exo 2', system-ui, sans-serif`;
   const ui = (px: number, w = 500) => `${w} ${px}px Inter, system-ui, sans-serif`;
 
   g.fillStyle = T.bg0; g.fillRect(0, 0, SHARE_W, SHARE_H);
