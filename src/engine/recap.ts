@@ -1,3 +1,4 @@
+import { AIM_SHARE, aimedShare } from './aim';
 import { FLASH_POP, HE_POP, SIM_DT, type KillEvent, type Simulation } from './combat';
 import { computeControl } from './control';
 import { radarToWorld, worldToRadar } from './coords';
@@ -1492,7 +1493,18 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         const a = posAt(i, v.t), b = posAt(i, Math.min(r.duration, v.t + 4));
         return Math.hypot(b.x - k.at.x, b.y - k.at.y) < Math.hypot(a.x - k.at.x, a.y - k.at.y) - 250 / scale;
       }));
-      const key = keyMoments(vs).filter(v => !retaking(v) && !moves.some(m => m.kind === 'position' && m.player === v.player && Math.abs(m.t - v.t) < 6));
+      // "held" only when it was a hold (aim.ts): standing still, then moving off within a few seconds is waiting for the
+      // moment to go, and standing without watching the way the enemy comes is just standing; neither is judged as holding
+      const notAHold = (v: MomentVerdict) => {
+        if (v.did !== 'hold') return false;
+        const i = idx(v.player);
+        if (i < 0) return false;
+        const a = posAt(i, v.t + 3), b = posAt(i, Math.min(r.duration, v.t + 8));
+        if (alive(i, Math.min(r.duration, v.t + 8)) && Math.hypot(b.x - a.x, b.y - a.y) * scale > 250) return true;
+        const aim = aimedShare(engine, r, v.player, v.t, v.t + 3);
+        return aim !== null && aim < AIM_SHARE;
+      };
+      const key = keyMoments(vs).filter(v => !retaking(v) && !notAHold(v) && !moves.some(m => m.kind === 'position' && m.player === v.player && Math.abs(m.t - v.t) < 6));
       for (const v of key)
         moves.push({ t: v.t, player: v.player, side: v.side, kind: 'position', gain: 0, note: v.pro[0].share >= 0.75 && v.share < 0.03 ? '?' : '?!', tags: [],
           title: `${name(v.player)} chose to ${ACTION_TEXT[v.did]}; a level-10 player would ${ACTION_TEXT[v.pro[0].a]}`,
