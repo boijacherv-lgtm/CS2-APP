@@ -9,7 +9,7 @@ import UTIL_SPOTS from '../map/generated/util-spots.json';
 import { placeOf as calloutOfSpot } from './situations';
 import { analyzeRound } from './analyst';
 import { duelOdds as duelModelOdds, pctOdds } from './duelModel';
-import { COST_SCALE, keySearchMoments, searchRound, walkDistance, type RoundSearch } from './search';
+import { keySearchMoments, searchRound, walkDistance, type RoundSearch } from './search';
 import { ACTION_TEXT, judgeMoment, keyMoments, momentLine, pctPlay, PLAY_MODEL, roundMoments, type Action, type MomentVerdict } from './playModel';
 import { controlCounts, learnedLogit, tradePending, WIN_MODEL } from './winprob';
 import { analystBench, proAnalystAvailable, proTradeConversion } from './analystModel';
@@ -750,6 +750,9 @@ export interface RoundPlay {
 
 
 /** Full review of a replayed round. */
+/** How long before a death an opinion about a decision can explain it (seconds). */
+const OPINION_SECS = 20;
+
 export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   const { sim, board, round: r, names } = rep;
   const g = engine.grid;
@@ -1441,9 +1444,14 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   // the search engine (search.ts): every 2 s of every player, what they could have done, calculated ahead; its
   // clearest mistakes become moves (shown with "Mine")
   let search: RoundSearch | undefined;
+  /**
+   * Opinions about a decision (the engine's better option, what level-10 players usually do here) are not evidence: the
+   * demo doesn't hear calls, and nothing may have come of it. They never make a mark of their own; when the player dies
+   * soon after (OPINION_SECS), the opinion goes on that death card as the likely reason.
+   */
+  const opinions: { t: number; player: string; line: string }[] = [];
   try {
     search = searchRound(engine, r);
-    const signed = (c: number) => (Math.abs(c) < 0.0005 ? '±0%' : `${c > 0 ? '−' : '+'}${Math.abs(Math.round(c * 1000) / 10)}%`);
     for (const m of keySearchMoments(search, 1, true)) {
       if (!sideOf.has(m.player)) continue;
       const best = m.options[0];
@@ -1453,21 +1461,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const onMap = bomb && (bomb.kind === 'plant' || bomb.kind === 'defuse') ? { x: bomb.x, y: bomb.y } : null;
       const world = (p: Vec2) => radarToWorld(p, engine.map.radar);
       const retaking = !!onMap && !!from && walkDistance(engine, world(m.did.to), onMap) < walkDistance(engine, world(from), onMap) * 0.9;
-      moves.push({
-        t: m.t, player: m.player, side: m.side, kind: 'position', gain: -m.cost, note: retaking ? '?!' : m.cls === 'Blunder' ? '??' : '?', tags: [],
-        title: `${name(m.player)}: ${m.did.label}; best was ${best.label.charAt(0).toLowerCase()}${best.label.slice(1)}`,
-        why: [
-          `Engine: ${m.cls}, accuracy ${Math.round(m.accuracy)}. It cost about ${(m.cost * 100).toFixed(1)}% of the round.`,
-          `Options: ${m.options.slice(0, 4).map((o, i) => (i === 0 ? `${o.label} (best)` : `${o.label} ${signed((best.win - o.win) * COST_SCALE)}`)).join(', ')}.`,
-          ...(m.did.death >= 0.25 ? [`What you did: about ${Math.round(m.did.death * 100)}% to die in the next seconds${m.did.kills ? `, ${m.did.kills.toFixed(1)} kills expected` : ''}.`] : []),
-          ...(best.death < m.did.death - 0.1 ? [`${best.label}: ${Math.round(best.death * 100)}% to die${best.kills ? `, ${best.kills.toFixed(1)} kills expected` : ''}.`] : []),
-          // thinking two moves ahead: the best line, the best from where they went, and what they really did next
-          ...(m.deep && best.next ? [`Best line: ${best.label} → then ${best.next.label.charAt(0).toLowerCase()}${best.next.label.slice(1)}.`] : []),
-          ...(m.deep && m.did.next ? [`From where you went, the best next move was ${m.did.next.label.charAt(0).toLowerCase()}${m.did.next.label.slice(1)}.`] : []),
-          ...(m.then ? [`What you did next: ${m.then.label.charAt(0).toLowerCase()}${m.then.label.slice(1)} (${m.then.cls}).`] : []),
-          ...(retaking ? ['A retake: you were moving in on the bomb, so this is only about which way in.'] : []),
-        ],
-      });
+      // an opinion, not something that happened: it explains the player's death when one follows (attachOpinions)
+      opinions.push({ t: m.t, player: m.player, line: `${retaking ? 'A retake, only the way in' : `the engine preferred ${best.label.charAt(0).toLowerCase()}${best.label.slice(1)} to ${m.did.label.charAt(0).toLowerCase()}${m.did.label.slice(1)}`} (about ${(m.cost * 100).toFixed(1)}% of the round)` });
     }
   } catch { /* the engine is extra */ }
 
@@ -1504,14 +1499,18 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         const aim = aimedShare(engine, r, v.player, v.t, v.t + 3);
         return aim !== null && aim < AIM_SHARE;
       };
-      const key = keyMoments(vs).filter(v => !retaking(v) && !notAHold(v) && !moves.some(m => m.kind === 'position' && m.player === v.player && Math.abs(m.t - v.t) < 6));
+      const key = keyMoments(vs).filter(v => !retaking(v) && !notAHold(v) && !opinions.some(o => o.player === v.player && Math.abs(o.t - v.t) < 6));
       for (const v of key)
-        moves.push({ t: v.t, player: v.player, side: v.side, kind: 'position', gain: 0, note: v.pro[0].share >= 0.75 && v.share < 0.03 ? '?' : '?!', tags: [],
-          title: `${name(v.player)} chose to ${ACTION_TEXT[v.did]}; a level-10 player would ${ACTION_TEXT[v.pro[0].a]}`,
-          why: [momentLine(v), `They ${ACTION_TEXT[v.did]} here only ${pctPlay(v.share)} of the time.`] });
+        opinions.push({ t: v.t, player: v.player, line: `you chose to ${ACTION_TEXT[v.did]}; level-10 players ${ACTION_TEXT[v.pro[0].a]} here ${pctPlay(v.pro[0].share)} of the time (${momentLine(v).replace(/^Level-10 players in this situation \(([^)]*)\).*/, '$1')})` });
       play = { stats, key: key.map(v => ({ t: v.t, player: v.player, did: v.did, best: v.pro[0].a, share: +v.share.toFixed(3), agree: +v.pro[0].share.toFixed(3) })) };
     }
   } catch { /* the play model is extra */ }
+  // the opinions explain deaths that followed them (the latest one before each death, within OPINION_SECS)
+  const clockOf = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  for (const d of moves.filter(m => m.kind === 'death')) {
+    const before = opinions.filter(o => o.player === d.player && o.t < d.t && d.t - o.t <= OPINION_SECS).sort((a, b) => b.t - a.t)[0];
+    if (before) d.why.push(`Before it, at ${clockOf(before.t)}: ${before.line}.`);
+  }
 
   moves.sort((a, b) => a.t - b.t || (a.kind === 'kill' ? -1 : 1));
   const players: Review['players'] = {};
