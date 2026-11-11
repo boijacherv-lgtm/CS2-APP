@@ -743,3 +743,40 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .home .proof { margin-top: 14px; text-align: center; }
 .moments-sub { margin: -4px 0 0; }
 .rage-band { border-color: color-mix(in srgb, var(--bad) 45%, var(--border)); }
+
+/* §4 profile redo: header strip, Biggest leak + Your superpower, the skill map (dot on a track), the lower grid */
+.profile-strip { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; padding: 12px 16px; margin-bottom: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.profile-strip > div { display: flex; flex-direction: column; gap: 3px; }
+.profile-strip span { font-size: 12px; color: var(--text-2); }
+.profile-strip b.num { font-size: 22px; }
+.profile-strip .ps-trend { flex: 1; min-width: 160px; }
+.profile-strip .letter-chip { align-self: flex-start; }
+.leak-row { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; }
+.leak-row > :only-child { grid-column: 1 / -1; }
+@media (max-width: 760px) { .leak-row { grid-template-columns: 1fr; } }
+.leak-card { border-color: color-mix(in srgb, var(--bad) 40%, var(--border)); }
+.leak-card h2, .super-card h2 { margin: 4px 0 6px; font-size: 22px; }
+.leak-num { margin: 0 0 8px; } .leak-num b { color: var(--bad-soft, var(--bad)); }
+.leak-clips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
+.leak-progress.up { color: var(--good); } .leak-progress.down { color: var(--bad); }
+.super-card { border-color: color-mix(in srgb, var(--good) 40%, var(--border)); }
+.super-card b { color: var(--good); }
+.unlock-bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.unlock-bar i { display: block; height: 100%; background: var(--accent, var(--good)); }
+.skill-map ul { list-style: none; margin: 0; padding: 0; }
+.skill-map > ul > li { border-top: 1px solid var(--border); }
+.skill-map > ul > li:first-child { border-top: 0; }
+.sk-row { display: grid; grid-template-columns: 120px 1fr 34px 22px; align-items: center; gap: 12px; width: 100%; padding: 10px 2px; background: none; border: 0; color: inherit; text-align: left; cursor: pointer; }
+.sk-row:disabled { cursor: default; }
+.sk-track { position: relative; height: 8px; border-radius: 4px; background: linear-gradient(90deg, color-mix(in srgb, var(--bad) 35%, var(--surface-2)), var(--surface-2) 50%, color-mix(in srgb, var(--good) 35%, var(--surface-2))); }
+.sk-track.none { height: auto; background: none; }
+.sk-mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--text-3, #888); }
+.sk-dot { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%); background: var(--text); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); }
+.sk-pct { text-align: right; font-weight: 700; }
+.sk-trend.up { color: var(--good); } .sk-trend.down { color: var(--bad); } .sk-trend.flat { color: var(--text-3, #888); }
+.sk-detail { padding: 0 2px 10px 132px !important; display: grid; gap: 4px; }
+.sk-detail li { display: grid; grid-template-columns: 1fr 70px 120px; gap: 10px; font-size: 13px; }
+.sk-detail .up { color: var(--good); } .sk-detail .down { color: var(--bad); }
+@media (max-width: 560px) { .sk-row { grid-template-columns: 90px 1fr 30px 18px; } .sk-detail { padding-left: 0 !important; } }
+.profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 14px 0; align-items: start; }
+.profile .card-head .wl-row { margin-left: auto; margin-right: 8px; }

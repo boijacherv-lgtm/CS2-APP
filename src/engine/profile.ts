@@ -35,7 +35,18 @@ export interface ProfileMatch {
   name?: string;
   features: Features;
   mech: Mechanics;
+  /** Newer matches: per habit, the win chance it cost this match (0–1) and its costliest rounds (round numbers, max 3). */
+  leaks?: Partial<Record<GoalId, [number, number[]]>>;
+  /** Newer matches: clutches (last alive against 2+) played and won. */
+  clutch?: [number, number];
 }
+
+/** Which move tags each habit is (a move with the tag counts its lost win chance to the habit). */
+export const LEAK_TAGS: Partial<Record<GoalId, string[]>> = {
+  untradedDeaths: ['NO TRADE'], isolatedDeaths: ['ISOLATED'], openingDeaths: ['OPENING'], whiffs: ['WHIFF'], unusedUtil: ['UNUSED UTIL'],
+  wastedFlashes: ['WASTED'], teamHarm: ['TEAM FLASH', 'TEAM KILL', 'TEAM DAMAGE'], awpLost: ['AWP LOST'], lowHpFights: ['LOW HP'],
+  loud: ['LOUD'], stopped: ['MOVING SHOT'],
+};
 
 export type GoalId = FeatureId | keyof Mechanics;
 export interface Goal { id: GoalId; since: number }
@@ -135,7 +146,7 @@ export function cleanNotifyGames(raw: unknown): string[] {
   return [...new Set(raw.filter((g): g is string => typeof g === 'string' && /^[a-z0-9]{2,12}$/.test(g)))].slice(0, 10);
 }
 
-const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'];
+export const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'];
 
 /** A match's identity: the map, the rounds and when the first rounds' kills happened (the same for every player in it). */
 export function matchKey(map: string, rounds: { kills: { t: number }[] }[]) {
@@ -170,6 +181,20 @@ export function cleanMatch(raw: unknown): ProfileMatch | null {
     gameRating: int(r.gameRating, 0, 60000), rank: int(r.rank, 0, 60000), engine: num(r.engine, 0, 100), features, mech,
     ...(typeof r.name === 'string' && r.name.trim() ? { name: r.name.trim().slice(0, 40) } : {}),
   };
+  if (r.leaks && typeof r.leaks === 'object') {
+    const leaks: NonNullable<ProfileMatch['leaks']> = {};
+    for (const k of Object.keys(LEAK_TAGS) as GoalId[]) {
+      const v = (r.leaks as Record<string, unknown>)[k];
+      if (!Array.isArray(v) || v.length !== 2 || !Array.isArray(v[1])) continue;
+      const cost = num(v[0], 0, 10);
+      if (cost !== null) leaks[k] = [cost, (v[1] as unknown[]).map(x => int(x, 1, 99)).filter((x): x is number => x !== null).slice(0, 3)];
+    }
+    if (Object.keys(leaks).length) out.leaks = leaks;
+  }
+  if (Array.isArray(r.clutch) && r.clutch.length === 2) {
+    const played = int(r.clutch[0], 0, 99), won = int(r.clutch[1], 0, 99);
+    if (played !== null && won !== null && won <= played) out.clutch = [played, won];
+  }
   return out;
 }
 export function cleanGoals(raw: unknown): Goal[] {
