@@ -1,3 +1,4 @@
+import { AIM_SHARE, aimedShare } from './aim';
 import { worldToRadar } from './coords';
 import type { TacticalEngine } from './predict';
 import { bombAt, equipValue, FL, gearAt, type DemoRound } from './recap';
@@ -73,6 +74,7 @@ export interface SearchMoment {
 }
 
 const H = 5; // seconds each option is looked at
+const WAITED = 2.5; // seconds standing at the start of a move for it to read as waiting, then going
 const NO_SPOT_STATS = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.STRATBOARD_NO_SPOT_STATS === '1';
 const REACH = 8; // seconds of travel for the "move" options
 const PEEK_REACH = 4; // seconds: how far a peek can be
@@ -368,11 +370,17 @@ export function searchMoment(engine: TacticalEngine, r: DemoRound, S: RoundSearc
       : threw.type === 'flash' ? { kind: 'flash', label: `Flashed ${placeOf(engine, nadeAt) || ''}`.trim(), to: end, travel: endT - t, nade: nadeAt, flash: nearest && S.dist(nearest.at, nadeAt) < 900 ? nearest.id : undefined }
         : threw.type === 'he' ? { kind: 'he', label: `HE at ${placeOf(engine, nadeAt) || ''}`.trim(), to: end, travel: endT - t, nade: nadeAt, he: nearest && S.dist(nearest.at, nadeAt) < 350 ? nearest.id : undefined }
           : { kind: 'molotov', label: `Molotov at ${placeOf(engine, nadeAt) || ''}`.trim(), to: end, travel: endT - t, nade: nadeAt, deny: nearest && S.dist(nearest.at, nadeAt) < 300 ? nearest.id : undefined };
-  } else if (S.dist(me, end) < 150) did = { kind: 'hold', label: `Held ${here}`, to: me, travel: 0 };
-  else {
+  } else if (S.dist(me, end) < 150) {
+    // standing still: holding only when watching a way in the enemy comes from (aim.ts), else just staying there
+    const aim = aimedShare(engine, r, id, t, endT);
+    did = { kind: 'hold', label: `${aim === null || aim >= AIM_SHARE ? 'Held' : 'Stayed at'} ${here}`, to: me, travel: 0 };
+  } else {
     const way: Vec2[] = [];
     for (let u = t + 0.5; u <= endT; u += 0.5) way.push(S.pos(id, u));
-    did = { kind: 'actual', label: `Moved to ${placeOf(engine, end) || 'a new spot'}`, to: end, travel: endT - t, path: way };
+    // stood a while first, then went: a timing (the wait, then the move)
+    const waited = endT - t > WAITED + 1 && S.dist(me, S.pos(id, t + WAITED)) < 60;
+    const to = placeOf(engine, end) || 'a new spot';
+    did = { kind: 'actual', label: waited ? `Waited at ${here}, then went to ${to}` : `Moved to ${to}`, to: end, travel: endT - t, path: way };
   }
 
   // ---- step 1 and 2: value every option the same way --------------------------------------------------------------

@@ -42,9 +42,9 @@ const CLIP_BEFORE = 10, CLIP_AFTER = 5;
 /** How many moments a match keeps (its costliest). */
 const PER_MATCH = 8;
 
-const PRESENT: [RegExp, string][] = [[/^Went and planted\b/, 'Plant the bomb'], [/^Went\b/, 'Go'], [/^Held\b/, 'Hold'], [/^Moved\b/, 'Move'], [/^Peeked\b/, 'Peek'], [/^Flashed\b/, 'Flash'], [/^Smoked\b/, 'Smoke'], [/^Planted\b/, 'Plant'], [/^Defused\b/, 'Defuse'], [/^Threw\b/, 'Throw'], [/^Fell back\b/, 'Fall back'], [/^Pushed\b/, 'Push']];
+const PRESENT: [RegExp, string][] = [[/^Went and planted\b/, 'Plant the bomb'], [/^Went\b/, 'Go'], [/^Held\b/, 'Hold'], [/^Moved\b/, 'Move'], [/^Peeked\b/, 'Peek'], [/^Flashed\b/, 'Flash'], [/^Smoked\b/, 'Smoke'], [/^Planted\b/, 'Plant'], [/^Defused\b/, 'Defuse'], [/^Threw\b/, 'Throw'], [/^Fell back\b/, 'Fall back'], [/^Pushed\b/, 'Push'], [/^Stayed at\b/, 'Stay at'], [/^Waited at\b/, 'Wait at'], [/, then went to\b/, ', then go to']];
 /** Where a move goes, without how ("Peek B Site" and "Move to B Site" are both "b site"). */
-export const placeOf = (l: string) => l.replace(/^(Move to|Peek|Hold|Go to)\s+/i, '').toLowerCase();
+export const placeOf = (l: string) => l.replace(/^(Move to|Peek|Hold|Go to|Stay at)\s+/i, '').replace(/^wait at .*, then go to\s+/i, '').toLowerCase();
 /** A move in the present ("Moved to Default" → "Move to Default"). */
 export const asMove = (label: string) => PRESENT.reduce((s, [re, to]) => s.replace(re, to), label);
 const DOING: Record<OptionKind, string> = { hold: 'holding', move: 'moving', peek: 'peeking', flash: 'flashing', smoke: 'smoking', molotov: 'a molotov', he: 'an HE', plant: 'planting', defuse: 'defusing', actual: 'that' };
