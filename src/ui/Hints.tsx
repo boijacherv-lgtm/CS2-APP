@@ -21,7 +21,7 @@ export const HINTS: Hint[] = [
 ];
 /** The keys that work, by where they work. */
 const SHORTCUTS: [string, string][] = [
-  ['Space', 'Play / pause'], ['← →', 'Previous / next coach card'], ['Shift + ← →', '10 s back / forward (Deadlock)'],
+  ['Space', 'Play / pause'], ['← →', 'Previous / next coach card'], ['Shift + ← →', '10 s back / forward (Deadlock)'], ['J L', '5 s back / forward'], ['↑ ↓', 'Round before / after (CS2)'],
   ['R', 'Reveal the whole round (CS2)'], ['1 2 3', 'Map: clean, standard, full (CS2)'], ['Ctrl / ⌘ + Z', 'Undo (Tactical board)'],
   ['[ ]', 'Turn the selected player (Tactical board)'], ['Delete', 'Remove the selected item (Tactical board)'], ['?', 'This sheet'],
 ];

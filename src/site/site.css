@@ -905,3 +905,4 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .nav-help { width: 32px; height: 32px; padding: 0; border-radius: 50%; border: 1px solid var(--border-strong); background: transparent; color: var(--text-2); font-weight: 700; }
 .nav-help:hover { color: var(--text-1); background: var(--surface-2); }
 @media (max-width: 560px) { .nav-help { display: none; } }
+.hint-card .small-btn { white-space: nowrap; flex: none; }

@@ -98,6 +98,7 @@ export function NavBar({ route }: { route: Route }) {
             <a role="menuitem" href="/profile"><Icon name="user" size={16} /> Profile</a>
             <a role="menuitem" href="/pricing"><Icon name="coins" size={16} /> Pricing</a>
             <a role="menuitem" href="/settings"><Icon name="gear" size={16} /> Settings</a>
+            <button role="menuitem" className="ghost" onClick={() => dispatchEvent(new Event('rv:hints'))}><Icon name="info" size={16} /> Shortcuts and hints</button>
           </div>
         </details>
         <AccountMenu route={route} />
