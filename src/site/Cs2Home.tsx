@@ -55,6 +55,7 @@ export function Cs2Home() {
       </section>
 
       <footer className="site-footer">
+        <nav><a href="/pricing">Pricing</a><a href="/privacy">Privacy</a><a href="/changelog">What's new</a></nav>
         <span className="muted">Not affiliated with Valve. Counter-Strike 2 and its logo belong to Valve.</span>
       </footer>
     </div>
