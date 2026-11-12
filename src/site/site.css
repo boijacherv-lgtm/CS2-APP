@@ -855,3 +855,4 @@ a.hero-games-live:hover b { text-decoration: underline; }
 }
 /* phones with a match open: the Review tab's dot says so; the tab keeps only its × (the other game's tab waits) */
 @media (max-width: 560px) { .navbar .match-tab.away { display: none; } .navbar .match-tab > a { display: none; } .navbar .match-tab { padding: 0 2px; } }
+.nav-menu.always { display: block; }

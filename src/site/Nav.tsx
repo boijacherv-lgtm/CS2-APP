@@ -37,6 +37,7 @@ export function NavBar({ route }: { route: Route }) {
   const loaded = useStore(s => s.review);
   const exitReview = useStore(s => s.exitReview);
   const dlMatch = useDl(s => s.match), dlClose = useDl(s => s.close);
+  const me = useProfile(s => s.me);
   const cs2 = route.page === 'cs2';
   // the CS2 Tactical board and an open match share the board: with a match open, its address goes to Review
   useEffect(() => {
@@ -89,7 +90,8 @@ export function NavBar({ route }: { route: Route }) {
       )}
       <div className="nav-right">
         {/* phones: the page links in a labelled menu */}
-        <details className="nav-menu" key={routeHref(route)}>
+        {/* logged out there is no account menu: this one (Profile, Pricing, Settings) shows at every width */}
+        <details className={`nav-menu ${me ? '' : 'always'}`} key={routeHref(route)}>
           <summary aria-label="Menu"><Icon name="menu" size={18} /></summary>
           <div className="account-pop" role="menu">
             <a role="menuitem" href="/profile"><Icon name="user" size={16} /> Profile</a>
