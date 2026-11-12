@@ -22,7 +22,7 @@ import { T } from '../ui/tokens';
 import { DevDisputes } from './DevDisputes';
 import { daysSince, DevDeadlock, dlChecks } from './DevDeadlock';
 import { DevDlDisputes } from './DevDlDisputes';
-import { BotSwitch, CoachChecks, DevContent, DevLog, DevSettings, DevUsers, PuzzleQuality } from './DevPanels';
+import { BotSwitch, CoachChecks, DevContent, DevLog, DevSettings, DevUsers, PuzzleQuality, TelemetryPills } from './DevPanels';
 import { MAPS } from '../map/catalog';
 import { GAMES } from './games';
 import { GameMark } from './gameMarks';
@@ -149,6 +149,7 @@ export function Dev() {
           <ul>{checks.filter(c => c.tone === 'warn' || c.tone === 'bad').map(c => <li key={c.label} className={c.tone}><b>{c.label}</b>: {c.value} <span className="muted small">{c.tip}</span></li>)}</ul>
         </section>
       )}
+      {tab === 'overview' && owner && <TelemetryPills />}
       {tab === 'overview' && owner && <PuzzleQuality />}
       {tab === 'users' && (owner ? <DevUsers /> : <p className="muted">Log in with Steam as the owner.</p>)}
       {tab === 'content' && (owner ? <DevContent /> : <p className="muted">Log in with Steam as the owner.</p>)}

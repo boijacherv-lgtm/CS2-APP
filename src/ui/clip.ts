@@ -8,7 +8,7 @@ import { useStore } from '../store';
  */
 export const CLIP_BEFORE = 6, CLIP_AFTER = 4;
 
-export async function recordClip(board: HTMLElement, at: number, lines: { title: string; rage?: string | null; mark: string; color: string }): Promise<Blob> {
+export async function recordClip(board: HTMLElement, at: number, lines: { title: string; rage?: string | null; mark: string; color: string }, bitrate = 4_000_000): Promise<Blob> {
   const layers = [...board.querySelectorAll('canvas')].filter(c => c.width > 50 && c.height > 50);
   if (!layers.length || typeof MediaRecorder === 'undefined') throw new Error('This browser can\'t record the map.');
   const W = layers[0].width, H = layers[0].height;
@@ -38,7 +38,7 @@ export async function recordClip(board: HTMLElement, at: number, lines: { title:
   await new Promise(r => setTimeout(r, 300));
   const stream = out.captureStream(30);
   const type = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t)) ?? 'video/webm';
-  const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 4_000_000 });
+  const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: bitrate });
   const chunks: Blob[] = [];
   rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
   const done = new Promise<Blob>(ok => { rec.onstop = () => ok(new Blob(chunks, { type: 'video/webm' })); });

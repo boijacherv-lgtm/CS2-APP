@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ScenarioList } from './scenarios';
 import { shapeSet } from './quality';
 import { siteConfig, useSiteConfig } from '../ui/siteConfig';
 import { calloutsOf, MAPS, radarOf } from '../map/catalog';
@@ -237,7 +238,7 @@ export function ShareMoment({ m }: { m: Moment }) {
 /** The game you were last in (the site's colour), for the daily when no game is picked. */
 const lastGame = (): MomentGame => (document.documentElement.dataset.game === 'deadlock' ? 'deadlock' : (() => { try { return localStorage.getItem('stratboard.game') === 'deadlock' ? 'deadlock' : 'cs2'; } catch { return 'cs2'; } })());
 
-type Mode = 'practice' | 'daily' | 'rush' | 'weak' | 'board';
+type Mode = 'practice' | 'daily' | 'rush' | 'weak' | 'scenarios' | 'board';
 const RUSH_SECONDS = 180, RUSH_LIVES = 3;
 
 /** Puzzles: practice (yours or top players', at your rating), the daily puzzle, a 3-minute rush, your weak spots; and
@@ -288,7 +289,7 @@ export function MomentsPage() {
       <h1>Puzzles</h1>
       <p className="muted moments-sub">Real moments. Pick the best move.</p>
       <div className="seg-mini" role="tablist" aria-label="Mode">
-        {([['practice', 'Practice'], ['daily', 'Daily'], ['rush', 'Rush'], ['weak', 'Weak spots'], ...(boardOn ? [['board', 'Leaderboard']] : [])] as [Mode, string][]).map(([k, l]) =>
+        {([['practice', 'Practice'], ['daily', 'Daily'], ['rush', 'Rush'], ['weak', 'Weak spots'], ...(game === 'cs2' ? [['scenarios', 'Scenarios']] : []), ...(boardOn ? [['board', 'Leaderboard']] : [])] as [Mode, string][]).map(([k, l]) =>
           <button key={k} role="tab" aria-selected={mode === k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}
       </div>
       <div className="seg-mini puzzle-game" role="group" aria-label="Game">
@@ -301,6 +302,7 @@ export function MomentsPage() {
 
   if (mode === 'daily') return <div className="page moments">{header}<DailyPuzzle key={game} pool={top?.filter(m => m.game === game) ?? null} game={game} onScore={setScore} /></div>;
   if (mode === 'rush') return <div className="page moments">{header}<Rush key={game} pool={top?.filter(m => m.game === game) ?? null} game={game} onScore={setScore} /></div>;
+  if (mode === 'scenarios') return <div className="page moments">{header}<ScenarioList /></div>;
   if (mode === 'board' && boardOn) return <div className="page moments">{header}<Leaderboard key={game} game={game} rating={score.rating} tried={score.tried} /></div>;
   if (mode === 'weak') {
     const spots = weakSpots(score);

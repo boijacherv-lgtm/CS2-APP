@@ -1,12 +1,10 @@
 import { DL_MATCHES, FAQ, MATCHES, PRO_MATCHES } from './faq';
 import { proEarlyAccess, useSiteConfig } from '../ui/siteConfig';
 
-import { DL_MAP_IMAGE } from '../deadlock/data';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { Icon, type IconName } from '../ui/Icon';
 import { GAMES, PLAYABLE, STATUS_LABEL } from './games';
 import { GameMark } from './gameMarks';
-import { MarkFace } from '../ui/MarkFace';
 import { useState } from 'react';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
 import { openCs2Sample, openDlSample } from '../ui/sample';
@@ -59,7 +57,10 @@ export function Home() {
             <li><Icon name="check" size={14} /> No account needed</li>
           </ul>
         </div>
-        <HeroPreview />
+        {/* the hero: a real graded round from the CS2 sample, playing (still frame with reduced motion) */}
+        <figure className="hero-loop">
+          <video src="/videos/hero-cs2.webm" poster="/videos/hero-cs2.jpg" autoPlay muted loop playsInline preload="metadata" aria-label="A graded round from the CS2 sample playing on the radar" />
+        </figure>
       </section>
 
       <section className="site-section" id="games">
@@ -209,35 +210,6 @@ const FEATURES: { icon: IconName; title: string; text: string }[] = [
 ];
 
 
-/** A picture of two reviews, one per game: a graded moment on each map (illustrations, not real matches). */
-function HeroPreview() {
-  return (
-    <div className="hero-preview duo" aria-hidden="true">
-      <div className="pv-frame cs2">
-        <img className="pv-map" src="/images/maps/de_mirage.png" alt="Mirage radar with a graded CS2 moment" />
-        <i className="pv-dot ct" style={{ left: '62%', top: '30%' }} /><i className="pv-dot ct" style={{ left: '44%', top: '55%' }} />
-        <i className="pv-dot t" style={{ left: '70%', top: '64%' }} /><i className="pv-dot t dead" style={{ left: '55%', top: '72%' }} />
-        <div className="pv-card">
-          <div className="pv-card-head"><MarkFace note="?" size={22} /><b>Mistake</b><span className="pv-gain">−11 pts</span></div>
-          <p>Died alone at Palace: nobody could trade.</p>
-        </div>
-        <div className="pv-eval"><i style={{ width: '58%', '--from': '58%', '--to': '47%' } as React.CSSProperties} /></div>
-        <span className="pv-label">CS2</span>
-      </div>
-      <div className="pv-frame dl">
-        <img className="pv-map" src={DL_MAP_IMAGE} alt="Deadlock map with a graded fight" />
-        <i className="pv-dot t" style={{ left: '40%', top: '60%' }} /><i className="pv-dot t" style={{ left: '46%', top: '64%' }} />
-        <i className="pv-dot ct" style={{ left: '50%', top: '47%' }} /><i className="pv-dot ct" style={{ left: '56%', top: '52%' }} /><i className="pv-dot ct" style={{ left: '44%', top: '45%' }} />
-        <div className="pv-card">
-          <div className="pv-card-head"><MarkFace note="??" size={22} /><b>Blunder</b><span className="pv-gain">−14 pts</span></div>
-          <p>Fought 2 against 3 with your ultimate down.</p>
-        </div>
-        <div className="pv-eval"><i style={{ width: '41%', '--from': '55%', '--to': '41%' } as React.CSSProperties} /></div>
-        <span className="pv-label">Deadlock</span>
-      </div>
-    </div>
-  );
-}
 
 /** "Ping me when it's live" for a coming game: saved on your profile (your account logged in, else this browser). */
 function NotifyGame({ id, name }: { id: string; name: string }) {

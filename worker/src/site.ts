@@ -200,3 +200,25 @@ export async function puzzleStats(kv: SiteKV) {
   const reports = ((await kv.get('pz:reports', 'json')) ?? []) as { id: string; why: string; pick: string; at: number }[];
   return { rows: rows.sort((a, b) => b.tried - a.tried), reports };
 }
+
+/** Client numbers for the dev page's status pills: recap grading time and client errors, a day's worth, sampled by the
+ * site (so the free plan's KV writes hold). One key a day, kept 3 days. */
+const TEL = (day: string) => `tel:${day}`;
+interface Tel { grade: number[]; errors: { msg: string; page: string; at: number }[] }
+export async function addTelemetry(kv: SiteKV, raw: unknown) {
+  const r = (raw ?? {}) as Record<string, unknown>, day = new Date().toISOString().slice(0, 10);
+  const t = ((await kv.get(TEL(day), 'json')) as Tel | null) ?? { grade: [], errors: [] };
+  if (r.kind === 'grade' && typeof r.ms === 'number' && r.ms > 0 && r.ms < 3_600_000) t.grade = [...t.grade, Math.round(r.ms)].slice(-500);
+  else if (r.kind === 'error') t.errors = [{ msg: str(r.msg, 160), page: str(r.page, 40), at: Date.now() }, ...t.errors].slice(0, 100);
+  else return { ok: false };
+  await kv.put(TEL(day), JSON.stringify(t), { expirationTtl: 3 * 86400 });
+  return { ok: true };
+}
+export async function telemetry(kv: SiteKV) {
+  const days = [0, 1].map(d => new Date(Date.now() - d * 86400e3).toISOString().slice(0, 10));
+  const all = (await Promise.all(days.map(d => kv.get(TEL(d), 'json')))) as (Tel | null)[];
+  const grade = all.flatMap(t => t?.grade ?? []).sort((a, b) => a - b);
+  const q = (p: number) => (grade.length ? grade[Math.min(grade.length - 1, Math.floor(p * grade.length))] : null);
+  const errors = all.flatMap(t => t?.errors ?? []).filter(e => Date.now() - e.at < 86400e3);
+  return { grading: { n: grade.length, p50: q(0.5), p95: q(0.95) }, errors: { n: errors.length, recent: errors.slice(0, 10) } };
+}
