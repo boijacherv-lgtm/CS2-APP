@@ -28,6 +28,21 @@ export async function matchHistory(account: string): Promise<DlHistoryRow[]> {
   return [...rows].sort((a, b) => b.start_time - a.start_time);
 }
 
+/** The matches you played with a Steam friend on your team (deadlock-api's "same party": same team and Steam friends at
+ * the start). Normal matches only. */
+export async function partyMatches(account: string): Promise<Set<number>> {
+  const mates = await get<{ mate_id: number; matches: number[] }[]>(`/v1/players/${account}/mate-stats?same_party=true`);
+  return new Set(mates.flatMap(m => m.matches));
+}
+/** Your matches split into solo and with a friend: how many, how many won, the KDA. */
+export function soloVsParty(rows: DlHistoryRow[], party: Set<number>) {
+  const side = (xs: DlHistoryRow[]) => ({
+    n: xs.length, wins: xs.filter(r => r.match_result === r.player_team).length,
+    kda: xs.reduce((a, r) => a + r.player_kills + r.player_assists, 0) / Math.max(1, xs.reduce((a, r) => a + r.player_deaths, 0)),
+  });
+  return { solo: side(rows.filter(r => !party.has(r.match_id))), party: side(rows.filter(r => party.has(r.match_id))) };
+}
+
 const KEY = (id: number) => `dlmatch4:${id}`;
 /** A match: from this browser when read before, else from deadlock-api (about 1 MB), then kept here. */
 export async function loadMatch(id: number): Promise<DlMatch> {
