@@ -12,3 +12,12 @@ export async function openCs2Sample() {
   navigate({ page: 'cs2', mode: 'review' });
   document.querySelector('.shell-main')?.scrollTo({ top: 0 }); // from a scrolled page: the replay starts at the top
 }
+
+/** The Deadlock sample: a public Phantom+ match (46 min), opened from deadlock-api like any match ID. */
+export const DL_SAMPLE_MATCH = 131074890;
+export async function openDlSample() {
+  const { openMatch } = await import('../deadlock/open');
+  await openMatch(DL_SAMPLE_MATCH);
+  navigate({ page: 'deadlock', mode: 'review' });
+  document.querySelector('.shell-main')?.scrollTo({ top: 0 });
+}
