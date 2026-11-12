@@ -867,3 +867,20 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .gp-meta li > span:last-child { display: grid; gap: 2px; }
 .gp-meta img { border-radius: 8px; object-fit: cover; }
 .gp-meta-n { font: 700 18px/1 var(--font-display); color: var(--theme); min-width: 18px; }
+/* Deadlock's review start: CS2's layout, the match-ID box as the big source box */
+.dl-source { display: grid; justify-items: center; gap: 12px; padding: 34px 22px; border: 2px dashed var(--border-strong); border-radius: 18px; background: var(--surface-1); text-align: center; }
+.dl-source > .icon { color: var(--theme); }
+.dl-source-title { font: 700 22px/1.2 var(--font-display); }
+.dl-source .dl-id { width: 100%; max-width: 440px; }
+.dl-start .rs-right .site-card { margin: 0; }
+/* §2 recap: your grade in the header, then Biggest leak · Best play · Fix next */
+.recap-grade { display: inline-flex; align-items: center; gap: 8px; }
+.recap-grade .perf-letter { width: 52px; height: 52px; font-size: 26px; }
+.top3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 860px) { .top3 { grid-template-columns: 1fr; } }
+.top3-card { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-1); }
+.top3-card b { font-size: 15px; line-height: 1.35; }
+.top3-card .cta { margin-top: auto; }
+.top3-card.leak { border-color: color-mix(in srgb, var(--bad) 45%, var(--border)); }
+.top3-card.best { border-color: color-mix(in srgb, var(--good) 45%, var(--border)); }
+.top3-card.fix { border-color: color-mix(in srgb, var(--theme) 45%, var(--border)); }
