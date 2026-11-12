@@ -36,6 +36,8 @@ export interface RoundLine {
   duels: { opp: string; won: boolean }[];
   /** Their costliest move this round (the most win chance lost, 5% or more): for "your costliest moment". */
   worst?: { t: number; gain: number; title: string; key: string };
+  /** Their best move this round (the most win chance added, 5% or more): for the recap's "Best play". */
+  best?: { t: number; gain: number; title: string; key: string };
   /** Win chance lost (0–1, positive) on this round's moves, by tag: what each habit cost (profile → Biggest leak). */
   lost?: Partial<Record<Tag, number>>;
 }
@@ -88,6 +90,10 @@ export function summarizeRound(rep: Replay, rv: Review): RoundSummary {
       ...(() => {
         const w = moves.filter(m => m.kind !== 'position' && m.gain <= -0.05).sort((a, b) => a.gain - b.gain)[0];
         return w ? { worst: { t: w.t, gain: +w.gain.toFixed(3), title: w.title, key: moveKey(w) } } : {};
+      })(),
+      ...(() => {
+        const b = moves.filter(m => m.kind !== 'position' && m.gain >= 0.05).sort((x, y) => y.gain - x.gain)[0];
+        return b ? { best: { t: b.t, gain: +b.gain.toFixed(3), title: b.title, key: moveKey(b) } } : {};
       })(),
       duels: [
         ...kills.map(k => ({ opp: k.victim, won: true })),

@@ -127,10 +127,16 @@ function DlStart() {
   }, [account, rel]);
 
   return (
-    <div className="page dl-start">
+    <div className="page dl-start review-start">
       <header className="rs-head">
         <h1 className="display">Review a Deadlock match</h1>
-              </header>
+      </header>
+      {/* the same layout as CS2's: the source box on the left, your matches on the right, 3 steps under the box */}
+      <div className="rs-grid">
+      <div className="rs-left">
+      <div className="dl-source">
+      <Icon name="target" size={30} />
+      <b className="dl-source-title">Paste a match ID</b>
       <form className="dl-id" onSubmit={e => { e.preventDefault(); if (typed) void open(typed); }}>
         <label htmlFor="dl-match-id" className="sr-only">Match ID</label>
         <input id="dl-match-id" inputMode="numeric" placeholder="e.g. 52190833" value={id} onChange={e => setId(e.target.value)} />
@@ -145,14 +151,15 @@ function DlStart() {
         <details className="help-pop"><summary>Where's my match ID?</summary><p>In Deadlock, open the match in your match history: the ID is shown with it. Logged in, your matches are listed below.</p></details>
         {' · '}<button className="link-btn" onClick={() => void open(SAMPLE_MATCH)} disabled={busy !== null}>No match? Watch a sample</button>
       </div>
+      </div>
       {err && <p className="warn-text">{err}</p>}
-      {/* the same 3 steps as CS2's review page */}
       <div className="review-how dl-review-how">
         <div><b>1. Pick a match</b><span>Its match ID, a replay file you saved, or one of your matches below (log in with Steam).</span></div>
         <div><b>2. Open it</b><span>The match comes from deadlock-api; a replay file is read in your browser. Nothing is uploaded.</span></div>
         <div><b>3. Watch it back</b><span>Every hero on the map with a live win-chance bar. Every kill and death is graded from Brilliant to Blunder.</span></div>
       </div>
-
+      </div>
+      <div className="rs-right">
       <DlSteamFolder account={account} open={id => void open(id)} busy={busy} />
 
       <section className="site-card dl-history">
@@ -201,6 +208,8 @@ function DlStart() {
           </>
         )}
       </section>
+      </div>
+      </div>
     </div>
   );
 }

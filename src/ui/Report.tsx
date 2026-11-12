@@ -88,6 +88,7 @@ export function MatchReportPage() {
 
       {tab === 'overview' && focus && (
         <>
+          {report.done && <TopThree p={focus} fix={overview.fix[0] ?? null} onWatch={(i, t) => { openRound(i); if (t !== null) useStore.getState().setTime(Math.max(0, t - 2)); }} />}
           <Performance p={focus} players={view.players} me={me} onPlayer={setPicked} />
           {report.done && <RoundCallouts p={focus} onRound={openRound} />}
           {report.done && <DuoCard a={focus} players={view.players} />}
@@ -172,6 +173,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
           <b className={mine ? (mine.team === 0 ? 'ct' : 't') : 'ct'}>{a}</b><i>:</i><b className={mine ? (mine.team === 0 ? 't' : 'ct') : 't'}>{b}</b>
         </span>
         {result && <span className={`recap-result ${result.toLowerCase()}`}>{result}</span>}
+        {mine && done && <span className="recap-grade" title={`Your grade in this lobby${mine.level ? ` · ${mine.level.letter} on the level-10 → pro scale` : ''}`}><span className="perf-letter display reveal" style={letterStyle(mine.letter)}>{mine.letter}</span><span className="muted small">your grade</span></span>}
         {saved && <button className="recap-share" onClick={() => setShare(true)}><Icon name="share" size={14} /> Share</button>}
       </div>
       {share && saved && <ShareDialog m={saved} player={profileName ?? saved.name ?? 'Me'} onClose={() => setShare(false)} />}
@@ -185,6 +187,30 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
       {!done && <div className="report-progress"><i style={{ width: `${(view.graded / view.total) * 100}%` }} /></div>}
       {verdict && <p className="recap-verdict">{verdict}</p>}
     </header>
+  );
+}
+
+/** The overview's first row: the costliest move, the best one, and the habit to fix next, each with Watch. */
+function TopThree({ p, fix, onWatch }: { p: PlayerReport; fix: CoachNote | null; onWatch: (round: number, t: number | null) => void }) {
+  const pick = (k: 'worst' | 'best') => p.rounds.reduce<{ i: number; m: NonNullable<RoundLine['worst']> } | null>((acc, l, i) => {
+    const m = l?.[k];
+    return m && (!acc || Math.abs(m.gain) > Math.abs(acc.m.gain)) ? { i, m } : acc;
+  }, null);
+  const worst = pick('worst'), best = pick('best');
+  const pct = (g: number) => `${g >= 0 ? '+' : '−'}${Math.round(Math.abs(g) * 100)}%`;
+  const card = (cls: string, label: string, body: React.ReactNode, watch: (() => void) | null) => (
+    <div className={`top3-card ${cls}`}>
+      <span className="eyebrow">{label}</span>
+      {body}
+      {watch && <button className="cta small-btn" onClick={watch}><Icon name="play" size={12} /> Watch</button>}
+    </div>
+  );
+  return (
+    <section className="top3">
+      {card('leak', 'Biggest leak', worst ? <><b>{worst.m.title}</b><span className="muted small">Round {worst.i + 1} · {pct(worst.m.gain)} win chance</span></> : <span className="muted">No costly move. Clean game.</span>, worst ? () => onWatch(worst.i, worst.m.t) : null)}
+      {card('best', 'Best play', best ? <><b>{best.m.title}</b><span className="muted small">Round {best.i + 1} · {pct(best.m.gain)} win chance</span></> : <span className="muted">No big swing in your favour this time.</span>, best ? () => onWatch(best.i, best.m.t) : null)}
+      {card('fix', 'Fix next', fix ? <><b>{fix.title}</b><span className="muted small">{fix.rounds.length ? `Rounds ${fix.rounds.slice(0, 4).map(r => r + 1).join(', ')}` : fix.detail}</span></> : <span className="muted">Nothing stands out against level 10.</span>, fix?.rounds.length ? () => onWatch(fix.rounds[0], null) : null)}
+    </section>
   );
 }
 
