@@ -174,7 +174,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
           <b className={mine ? (mine.team === 0 ? 'ct' : 't') : 'ct'}>{a}</b><i>:</i><b className={mine ? (mine.team === 0 ? 't' : 'ct') : 't'}>{b}</b>
         </span>
         {result && <span className={`recap-result ${result.toLowerCase()}`}>{result}</span>}
-        {mine && done && <span className="recap-grade" title={`Your grade in this lobby${mine.level ? ` · ${mine.level.letter} on the level-10 → pro scale` : ''}`}><span className="perf-letter display reveal" style={letterStyle(mine.letter)}>{mine.letter}</span><span className="muted small">your grade</span></span>}
+        {mine && done && <span className="recap-grade" title="Your grade against FACEIT level 10 (level 10 = B, pros = S)"><span className="perf-letter display reveal" style={letterStyle(matchGrade(mine))}>{matchGrade(mine)}</span><span className="muted small">your grade</span></span>}
         {saved && <button className="recap-share" onClick={() => setShare(true)}><Icon name="share" size={14} /> Share</button>}
       </div>
       {share && saved && <ShareDialog m={saved} player={profileName ?? saved.name ?? 'Me'} onClose={() => setShare(false)} />}
@@ -190,6 +190,10 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
     </header>
   );
 }
+
+/** A player's one grade for the match: against level 10 when the coach can say, else in the lobby. */
+export const matchGrade = (p: PlayerReport): Letter => (p.level?.letter ?? p.lvl10?.letter ?? p.letter) as Letter;
+const gradeKey = (l: string) => (l === 'S+' ? 'splus' : l.toLowerCase());
 
 /** The overview's first row: the costliest move, the best one, and the habit to fix next, each with Watch. */
 function TopThree({ p, fix, onWatch }: { p: PlayerReport; fix: CoachNote | null; onWatch: (round: number, t: number | null) => void }) {
@@ -243,27 +247,16 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
       </div>
       <div className="perf-main">
         <div className="perf-grades">
-          <div className="perf-grade" title={`Against the other players in this lobby (round grades, impact, ADR, KAST, duels): ${lobbyText(p.lobbyZ)}.\n\nRound grades (S+ to F): how much each round changed the team's win chance, with bonuses for clutches and multi-kills and penalties for team damage, team flashes and unused grenades. Game rating: the Premier rating at which these duels come out as expected, plus ${IMPACT_PER_POINT} points per point of round impact.`}>
+          {/* one grade a match everywhere: against level 10 (the lobby grade lives in the scoreboard only) */}
+          <div className="perf-grade" title={p.level ? levelText(p.level) : p.lvl10 ? `Against FACEIT level-10 players (the coach's numbers): ${lvl10Text(p.lvl10.z)}` : `Against the other players in this lobby: ${lobbyText(p.lobbyZ)}`}>
             {/* the reveal: the badge flips in once; S+ gets a short confetti burst (no motion with reduced motion) */}
             <span className="perf-reveal">
-              <span className="perf-letter display reveal" style={letterStyle(p.letter)}>{p.letter}</span>
-              {p.letter === 'S+' && <span className="confetti" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} style={{ '--a': `${(i * 360) / 14}deg`, '--d': `${38 + (i % 3) * 10}px` } as React.CSSProperties} />)}</span>}
+              <span className={`perf-letter display reveal g-${gradeKey(matchGrade(p))}`} style={letterStyle(matchGrade(p))}>{matchGrade(p)}</span>
+              {matchGrade(p) === 'S+' && <span className="confetti" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} style={{ '--a': `${(i * 360) / 14}deg`, '--d': `${38 + (i % 3) * 10}px` } as React.CSSProperties} />)}</span>}
             </span>
-            <span className="muted">{p.letter} in this lobby{NICK[p.letter] ? <> · <b className="perf-nick">{NICK[p.letter]}</b></> : null}</span>
-            <span className="perf-sub muted">vs the other 9</span>
+            <span className="muted">{p.level || p.lvl10 ? 'vs FACEIT level 10' : 'in this lobby'}{NICK[matchGrade(p)] ? <> · <b className="perf-nick">{NICK[matchGrade(p)]}</b></> : null}</span>
+            <span className="perf-sub muted">level 10 = B, pros = S</span>
           </div>
-          {p.level ? (
-            <div className="perf-grade" title={levelText(p.level)}>
-              <span className="perf-letter display small" style={letterStyle(p.level.letter)}>{p.level.letter}</span>
-              <span className="muted">{p.level.letter} vs level 10</span>
-              <span className="perf-sub muted">level 10 = B, pros = S</span>
-            </div>
-          ) : p.lvl10 && (
-            <div className="perf-grade" title={`Against FACEIT level-10 players (the coach's numbers): ${lvl10Text(p.lvl10.z)}`}>
-              <span className="perf-letter display small" style={letterStyle(p.lvl10.letter)}>{p.lvl10.letter}</span>
-              <span className="muted">vs Lvl 10</span>
-            </div>
-          )}
         </div>
         {p.gameRating !== null && <Gauge rating={p.gameRating} rank={p.rank} />}
       </div>

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useStore } from '../store';
+import { useDl } from '../deadlock/store';
 import { createPortal } from 'react-dom';
 import { navigate, useRoute, type Route } from '../shell/router';
 import { gameOf } from './tokens';
@@ -40,6 +42,8 @@ export function Hints() {
   const [welcome, setWelcome] = useState(() => !read(() => localStorage.getItem(WELCOMED), '1'));
   const [sheet, setSheet] = useState(false);
   const quiet = route.page === 'moment' || route.page === 'dev';
+  // never inside a match (it covered the roster while you watched the sample)
+  const cs2Open = useStore(s => !!s.review), dlOpen = useDl(s => !!s.match), inMatch = cs2Open || dlOpen;
   // the page as a string: the route object is new on every render, the hint must survive those
   const where = `${route.page}/${'mode' in route ? route.mode : ''}`;
 
@@ -79,7 +83,7 @@ export function Hints() {
   if (quiet) return null;
   return createPortal(
     <>
-      {welcome && route.page !== 'home' && (
+      {welcome && route.page !== 'home' && !inMatch && (
         <div className="hint-card welcome" role="dialog" aria-label="Welcome">
           <button className="ghost hint-x" onClick={done} aria-label="Close"><Icon name="close" size={14} /></button>
           <b>New here?</b>

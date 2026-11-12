@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { proEarlyAccess } from '../ui/siteConfig';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { navigate, routeHref, type Route } from '../shell/router';
@@ -16,26 +16,23 @@ import { useDl } from '../deadlock/store';
 import { gameOf } from '../ui/tokens';
 
 type KitGame = 'cs2' | 'deadlock';
-/** The 5 places every game has, in the same order with the same names (spec: the game kit). */
-const PLACES = [
-  { id: 'overview', label: 'Overview', icon: 'info' },
-  { id: 'review', label: 'Review', icon: 'play' },
-  { id: 'recap', label: 'Recap', icon: 'star' },
-  { id: 'meta', label: 'Meta', icon: 'stats' },
-  { id: 'puzzles', label: 'Puzzles', icon: 'target' },
-] as const;
-type Place = (typeof PLACES)[number]['id'];
-/** Where each place is for a game. */
-const HREF: Record<KitGame, Record<Place, string>> = {
-  cs2: { overview: '/cs2', review: '/cs2/review', recap: '/cs2/report', meta: '/cs2/tactical', puzzles: '/puzzles' },
-  deadlock: { overview: '/deadlock', review: '/deadlock/review', recap: '/deadlock/report', meta: '/deadlock/meta', puzzles: '/puzzles' },
+/**
+ * The game kit's places. Browsing: Overview · Review · <the game's own tab> · Puzzles. Inside an open match: Review ·
+ * Recap · the match tab. The 4th tab is the game's: CS2's Tactical board, Deadlock's Meta & builds.
+ */
+type Place = 'overview' | 'review' | 'recap' | 'tab' | 'puzzles';
+const GAME_TAB: Record<KitGame, { label: string; icon: 'grid' | 'stats'; href: string; tip: string }> = {
+  cs2: { label: 'Tactical', icon: 'grid', href: '/cs2/tactical', tip: 'Tactical board: place players, utility and routes, then play the round out' },
+  deadlock: { label: 'Meta', icon: 'stats', href: '/deadlock/meta', tip: 'Meta & builds: heroes this patch by position, builds, draft and macro planners' },
 };
-/** What Meta is in each game. */
-const META_TIP: Record<KitGame, string> = { cs2: 'Tactical board: plan rounds with players, grenades and fights', deadlock: 'Meta & builds: heroes, builds, a draft and a macro planner for this patch' };
+const HREF: Record<KitGame, Record<Place, string>> = {
+  cs2: { overview: '/cs2', review: '/cs2/review', recap: '/cs2/report', tab: GAME_TAB.cs2.href, puzzles: '/puzzles' },
+  deadlock: { overview: '/deadlock', review: '/deadlock/review', recap: '/deadlock/report', tab: GAME_TAB.deadlock.href, puzzles: '/puzzles' },
+};
 
-/** The bar on every page: the brand, the game switcher, the game's 5 places, the open match, Profile and your account. */
+/** The bar on every page: the brand, every game, the game's places (or the open match's), Profile and your account. */
 export function NavBar({ route }: { route: Route }) {
-  const loaded = useStore(s => s.review);
+  const loaded = useStore(s => s.review), report = useStore(s => s.report);
   const exitReview = useStore(s => s.exitReview);
   const dlMatch = useDl(s => s.match), dlClose = useDl(s => s.close);
   const me = useProfile(s => s.me);
@@ -54,27 +51,34 @@ export function NavBar({ route }: { route: Route }) {
   const game: KitGame = route.page === 'cs2' || route.page === 'deadlock' ? route.page : gameOf('profile');
   const here: Place | null = route.page === 'puzzles' ? 'puzzles'
     : route.page === 'cs2' || route.page === 'deadlock'
-      ? (route.mode === 'home' ? 'overview' : route.mode === 'review' ? 'review' : route.mode === 'report' ? 'recap' : 'meta')
+      ? (route.mode === 'home' ? 'overview' : route.mode === 'review' ? 'review' : route.mode === 'report' ? 'recap' : 'tab')
       : null;
+  // inside a match: this game has one open, and you're on the game's pages
   const open = game === 'cs2' ? !!loaded : !!dlMatch;
-  const tip = (p: Place) => p === 'meta' ? (game === 'cs2' && loaded ? 'Close the open match to plan on the Tactical board' : META_TIP[game])
-    : p === 'recap' ? (open ? 'The match report: grades, the coach, the scoreboard' : 'Opens after you review a match')
-    : p === 'review' ? (open ? 'Replay this match with the coach' : 'Load a match to replay it with the coach')
-    : p === 'overview' ? `What RageView does for ${GAMES.find(g => g.id === game)?.name}` : `${GAMES.find(g => g.id === game)?.name} puzzles`;
+  const inMatch = open && (route.page === 'cs2' || route.page === 'deadlock');
+  const places: Place[] = inMatch ? ['review', 'recap'] : ['overview', 'review', 'tab', 'puzzles'];
+  const label: Record<Place, string> = { overview: 'Overview', review: 'Review', recap: 'Recap', tab: GAME_TAB[game].label, puzzles: 'Puzzles' };
+  const icon = { overview: 'info', review: 'play', recap: 'star', tab: GAME_TAB[game].icon, puzzles: 'target' } as const;
+  const tip: Record<Place, string> = {
+    overview: `What RageView does for ${GAMES.find(g => g.id === game)?.name}`, review: open ? 'Replay this match with the coach' : 'Load a match to replay it with the coach',
+    recap: 'The match report: grades, the coach, the scoreboard', tab: GAME_TAB[game].tip, puzzles: `${GAMES.find(g => g.id === game)?.name} puzzles`,
+  };
+  // CS2's recap fills in while the rounds are graded: a ring with how far, then "ready" once
+  const grading = game === 'cs2' && loaded && report && !report.done ? { done: report.rounds.filter(Boolean).length, of: report.rounds.length } : null;
+  const ready = useRecapReady(game === 'cs2' && !!loaded && !!report?.done, route.page === 'cs2' && route.mode === 'report');
   return (
     <header className="navbar">
       <a className="brand" href="/" aria-label={`${APP_NAME} home`}><LogoMark /><span>{APP_NAME}</span></a>
-      <GameSwitch game={game} active={here !== null} />
+      <GameRow game={game} active={here !== null} />
       <nav className="modes" aria-label={`${GAMES.find(g => g.id === game)?.name}`}>
-        {PLACES.map(p => {
-          const off = p.id === 'meta' && game === 'cs2' && !!loaded;
-          return off
-            ? <span key={p.id} className="mode-off" title={tip(p.id)} aria-disabled="true"><Icon name={p.icon} className="mode-ico" /> <span className="mode-label">{p.label}</span></span>
-            : <a key={p.id} href={HREF[game][p.id]} aria-current={here === p.id ? 'page' : undefined} className={here === p.id ? 'on' : ''} title={tip(p.id)}
-                onClick={() => { if (p.id === 'puzzles') { try { localStorage.setItem('stratboard.game', game); } catch { /* private mode */ } } }}>
-                <Icon name={p.icon} className="mode-ico" /> <span className="mode-label">{p.label}</span>{p.id === 'review' && open ? <i className="dot-live" title="A match is open" /> : null}
-              </a>;
-        })}
+        {places.map(p => (
+          <a key={p} href={HREF[game][p]} aria-current={here === p ? 'page' : undefined} className={`${here === p ? 'on' : ''} ${p === 'recap' && ready.pulse ? 'pulse' : ''}`} title={tip[p]}
+            onClick={() => { if (p === 'puzzles') { try { localStorage.setItem('stratboard.game', game); } catch { /* private mode */ } } }}>
+            <Icon name={icon[p]} className="mode-ico" /> <span className="mode-label">{label[p]}</span>
+            {p === 'review' && open && !inMatch ? <i className="dot-live" title="A match is open" /> : null}
+            {p === 'recap' && grading && <ProgressRing done={grading.done} of={grading.of} />}
+          </a>
+        ))}
       </nav>
       {/* the open matches, like browser tabs: back to one, or × to close it */}
       {loaded && (
@@ -90,43 +94,68 @@ export function NavBar({ route }: { route: Route }) {
         </span>
       )}
       <div className="nav-right">
-        {/* phones: the page links in a labelled menu */}
-        <button className="nav-help" onClick={() => dispatchEvent(new Event('rv:hints'))} aria-label="Shortcuts and hints" title="Shortcuts and hints (?)">?</button>
-        {/* logged out there is no account menu: this one (Profile, Pricing, Settings) shows at every width */}
+        {/* logged out there is no account menu: this one (Profile, Pricing, Settings, tips) shows at every width */}
         <details className={`nav-menu ${me ? '' : 'always'}`} key={routeHref(route)}>
           <summary aria-label="Menu"><Icon name="menu" size={18} /></summary>
           <div className="account-pop" role="menu">
             <a role="menuitem" href="/profile"><Icon name="user" size={16} /> Profile</a>
             <a role="menuitem" href="/pricing"><Icon name="coins" size={16} /> Pricing</a>
             <a role="menuitem" href="/settings"><Icon name="gear" size={16} /> Settings</a>
-            <button role="menuitem" className="ghost" onClick={() => dispatchEvent(new Event('rv:hints'))}><Icon name="info" size={16} /> Shortcuts and hints</button>
+            <button role="menuitem" className="ghost" onClick={() => dispatchEvent(new Event('rv:hints'))}><Icon name="info" size={16} /> Tips &amp; shortcuts</button>
           </div>
         </details>
         <AccountMenu route={route} />
       </div>
+      {ready.toast && (
+        <div className="hint-card recap-toast" role="status">
+          <span><b>Your recap is ready.</b></span>
+          <a className="cta primary small-btn" href="/cs2/report" onClick={ready.close}>Open</a>
+          <button className="ghost small-btn" onClick={ready.close}>Later</button>
+        </div>
+      )}
     </header>
   );
 }
 
-/** The game you're in (its mark and name) and a menu of the others: switching keeps your place (Review → Review). */
-function GameSwitch({ game, active }: { game: KitGame; active: boolean }) {
-  const ref = useRef<HTMLDetailsElement>(null);
-  const g = GAMES.find(x => x.id === game)!;
+/** "21/30": how much of the recap is graded, as a small ring. */
+function ProgressRing({ done, of }: { done: number; of: number }) {
+  const share = of ? done / of : 0;
+  return (
+    <span className="nav-ring" title={`Grading the rounds: ${done} of ${of}`} aria-label={`${done} of ${of} rounds graded`}>
+      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden><circle cx="10" cy="10" r="8" className="nav-ring-track" /><circle cx="10" cy="10" r="8" className="nav-ring-fill" pathLength={1} strokeDasharray={`${share} 1`} transform="rotate(-90 10 10)" /></svg>
+      <span className="num">{done}/{of}</span>
+    </span>
+  );
+}
+
+/** The moment the recap is ready (grading just finished): the Recap tab pulses once and a toast offers to open it. */
+function useRecapReady(done: boolean, onRecap: boolean) {
+  const [was, setWas] = useState(done);
+  const [toast, setToast] = useState(false), [pulse, setPulse] = useState(false);
+  useEffect(() => {
+    if (done && !was && !onRecap) { setToast(true); setPulse(true); setTimeout(() => setPulse(false), 1200); }
+    if (!done) setToast(false);
+    setWas(done);
+  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (onRecap) setToast(false); }, [onRecap]);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(false), 12000); return () => clearTimeout(t); }, [toast]);
+  return { toast, pulse, close: () => setToast(false) };
+}
+
+/** Every game, by its icon and full name: the live ones as links (switching keeps your place), the coming ones greyed. */
+function GameRow({ game, active }: { game: KitGame; active: boolean }) {
   const path = typeof location !== 'undefined' ? location.pathname : '';
   const same = (to: KitGame) => {
-    const place = (Object.keys(HREF[game]) as Place[]).find(p => HREF[game][p] === path && p !== 'puzzles');
+    const place = (Object.keys(HREF[game]) as Place[]).find(p => HREF[game][p] === path && p !== 'puzzles' && p !== 'tab');
     return place ? HREF[to][place] : HREF[to].overview;
   };
   return (
-    <details className={`game-switch ${active ? 'on' : ''}`} ref={ref}>
-      <summary title="Switch game"><GameMark game={g} size={24} /><span className="gs-name">{g.short}</span><Icon name="chevronDown" size={12} /></summary>
-      <div className="account-pop" role="menu">
-        {GAMES.filter(x => x.review || x.status === 'next' || x.id === 'dota2').map(x => x.review
-          ? <a key={x.id} role="menuitem" href={same(x.id as KitGame)} className={x.id === game ? 'on' : ''} onClick={() => { if (ref.current) ref.current.open = false; }}>
-              <GameMark game={x} size={20} /> {x.name} <span className={`games-status ${x.status}`}>{x.status === 'live' ? 'Live' : 'Beta'}</span></a>
-          : <span key={x.id} className="game-soon" role="menuitem" aria-disabled="true"><GameMark game={x} size={20} muted /> {x.name} <span className="games-status planned">Soon</span></span>)}
-      </div>
-    </details>
+    <nav className="game-row" aria-label="Games">
+      {GAMES.filter(x => x.review || x.id === 'dota2').map(x => x.review
+        ? <a key={x.id} href={same(x.id as KitGame)} className={`game-pill ${x.id === game && active ? 'on' : ''}`} aria-current={x.id === game && active ? 'page' : undefined}>
+            <GameMark game={x} size={20} muted={x.id !== game} /><span>{x.name}</span></a>
+        : <span key={x.id} className="game-pill soon" aria-disabled="true" title={`${x.name}: coming`}><GameMark game={x} size={20} muted /><span>{x.name}</span><em>soon</em></span>)}
+    </nav>
   );
 }
 
@@ -156,6 +185,7 @@ function AccountMenu({ route }: { route: Route }) {
         <a role="menuitem" href="/profile"><Icon name="user" size={16} /> Profile</a>
         <a role="menuitem" href="/settings"><Icon name="gear" size={16} /> Settings</a>
         <a role="menuitem" href="/pricing"><Icon name="coins" size={16} /> Pricing</a>
+        <button role="menuitem" className="ghost" onClick={() => dispatchEvent(new Event('rv:hints'))}><Icon name="info" size={16} /> Tips &amp; shortcuts</button>
         {me.owner && <a role="menuitem" href="/dev"><Icon name="stats" size={16} /> Dev</a>}
         <a role="menuitem" href={`https://steamcommunity.com/profiles/${me.steamId}`} target="_blank" rel="noreferrer"><Icon name="arrowRight" size={16} /> Steam profile</a>
         <button role="menuitem" className="ghost" onClick={signOut}><Icon name="signOut" size={16} /> Sign out</button>
