@@ -20,7 +20,7 @@ for (const f of FILES) {
     if (p !== 'none' && !/var\(--(elev|glow)-/.test(p) && !(n && parseFloat(n[3]) === 0)) out.shadows.add(p);
   }
   for (const m of css.matchAll(/font-size:\s*(\d+)px/g)) if (!SIZES.has(+m[1])) out.fontSize++;
-  for (const m of css.matchAll(/transition:[^;}]*/g)) for (const d of m[0].match(/\b\d*\.?\d+m?s\b/g) ?? []) if (!['.12s', '.2s', '.32s', '120ms', '200ms', '320ms', '0s'].includes(d)) out.durations++;
+  for (const m of css.matchAll(/transition:[^;}]*/g)) for (const d of m[0].match(/(?<![\w.-])\d*\.?\d+m?s\b/g) ?? []) if (!['.12s', '.2s', '.32s', '120ms', '200ms', '320ms', '0s'].includes(d)) out.durations++;
 }
 const report = { ...out, shadows: out.shadows.size };
 console.log(report);

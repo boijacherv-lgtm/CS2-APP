@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && vite-node tools/spa-pages.mjs",
+    "build": "node tools/design-lint.mjs --strict && tsc -b && vite build && vite-node tools/spa-pages.mjs",
     "test": "vitest run",
     "smoke": "node tools/smoke.mjs",
     "build:maps": "node tools/build-maps.mjs",
