@@ -17,7 +17,7 @@ export function Privacy() {
       <ul>
         <li>CS2 demos and Deadlock replay files are read in your browser. They aren't uploaded.</li>
         <li>Your profile, puzzles and settings are kept in this browser only (local storage). Clearing site data removes them.</li>
-        <li>No analytics, no ad trackers, no cookies for tracking. The site sends two numbers of its own, with no ID: how long a match took to grade (a quarter of the time) and the first line of an error, if one happens (at most 3 a visit).</li>
+        <li>No analytics, no ad trackers, no cookies for tracking. The site sends a few numbers of its own, with no ID: how long a match took to grade and how many of its cards the checked disputes changed, by kind of move (a quarter of the time), and the first line of an error, if one happens (at most 3 a visit).</li>
         <li>A Deadlock match ID is looked up on deadlock-api.com (public match data), which sees the request like any website does.</li>
       </ul>
 

@@ -2,7 +2,7 @@ import { getEngine } from '../map/catalog';
 import { analyzeRound } from './analyst';
 import { summarizeRound, type RoundSummary } from './match';
 import { buildReplay, matchFingerprint, reviewRound, type DemoData } from './recap';
-import { applyCorrections, removeMarks, type CorrectionTable } from './corrections';
+import { applyCorrections, countCorrections, removeMarks, type CorrectionTable } from './corrections';
 import { roundDecisions } from './situations';
 import type { BoardState } from './types';
 
@@ -25,6 +25,7 @@ export function gradeRounds(data: DemoData, context: BoardState['context'] = DEF
       const review = reviewRound(engine, rep);
       summary = summarizeRound(rep, corrections
         ? { ...review, moves: removeMarks(applyCorrections(review.moves, corrections.table), corrections.removed, { match, round: i + 1 }) } : review);
+      if (corrections) { const n = countCorrections(review.moves, corrections.table); if (Object.keys(n).length) summary.corrected = n; }
       try { summary.decisions = roundDecisions(engine, data.rounds[i]); } catch { /* positions are extra */ }
       try { summary.analyst = analyzeRound(engine, data.rounds[i], data.rounds.slice(0, i), data.rounds.length); } catch { /* the analyst is extra */ }
     } catch (err) { console.warn(`round ${i + 1} could not be graded`, err); }

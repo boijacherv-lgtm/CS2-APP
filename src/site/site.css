@@ -491,6 +491,8 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .dispute-why ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; color: var(--text-2); display: grid; gap: 3px; }
 .dispute-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .dispute-ruling { display: inline-flex; gap: 4px; }
+.dispute-effect { display: flex; align-items: center; gap: 8px; color: var(--text-2); margin-top: 4px; }
+.chip.learned { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--border)); }
 .dispute-quote { margin: 0; padding: 6px 10px; border-left: 3px solid var(--border-strong); background: var(--surface-2); border-radius: 0 6px 6px 0; font-size: 14px; color: var(--text-1); }
 .dispute-mynote { display: flex; gap: 6px; }
 .dispute-mynote input { flex: 1; min-width: 0; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-1); font: inherit; font-size: 14px; }

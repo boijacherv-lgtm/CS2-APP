@@ -132,10 +132,21 @@ export async function updateClip(kv: ClipKV, id: string, input: Record<string, u
   return { ok: true, clip: c };
 }
 
-/** What the rulings change: { pattern: { wrong, right } } (engine/corrections.ts decides when that's enough), and the
- * marks removed by hand. */
+/** What the rulings change: { pattern: { wrong, right } } (engine/corrections.ts decides when that's enough), the
+ * marks removed by hand, and how many live cards each pattern has changed (sampled: a quarter of graded matches). */
 export async function corrections(kv: ClipKV) {
-  return { table: tableOf(((await kv.get('rulings', 'json')) as RulingRow[] | null) ?? []), removed: (await removedList(kv)).map(r => r.key) };
+  const table = tableOf(((await kv.get('rulings', 'json')) as RulingRow[] | null) ?? []);
+  return { table, removed: (await removedList(kv)).map(r => r.key), live: ((await kv.get('corr:live', 'json')) as Record<string, number> | null) ?? {} };
+}
+/** Adds a graded match's changed cards (from /t). Only patterns that have rulings count; a match adds at most 200. */
+export async function addLiveCorrections(kv: ClipKV, raw: unknown) {
+  if (!raw || typeof raw !== 'object') return;
+  const table = tableOf(((await kv.get('rulings', 'json')) as RulingRow[] | null) ?? []);
+  const add = Object.entries(raw as Record<string, unknown>).filter(([p, n]) => p in table && Number.isInteger(n) && (n as number) > 0 && (n as number) <= 200).slice(0, 30);
+  if (!add.length) return;
+  const live = ((await kv.get('corr:live', 'json')) as Record<string, number> | null) ?? {};
+  for (const [p, n] of add) live[p] = (live[p] ?? 0) + (n as number);
+  await kv.put('corr:live', JSON.stringify(live));
 }
 
 /** The owner takes a moment's mark off: saved like a dispute (with its round, to judge or test later), ruled "player's
