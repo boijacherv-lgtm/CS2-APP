@@ -34,6 +34,13 @@ only. One accent a screen: the current game's (CS2 amber #F2A23A, Deadlock jade 
 T #F2B13C; Deadlock Amber Hand #E8A33D, Sapphire Flame #5B8DEF. Grades: S #0FB5A0 · A #9BD653 · B #8B95A7 · C #F5C451 ·
 D #F3873A · F #E5484D, dark ink #0A0C10, S+ = S with a gold rim #F5C451 and a star. Status colours always come with an
 icon and a word.
+Primitives that don't change with the theme (white, ink, black shades, the map's background, gold, amber, violet, and
+Deadlock's own `--dl-*` colours) live in `src/ui/theme.css`. No hex colour anywhere else in the stylesheets.
+
+## Shadows
+Blurred shadows use the tokens only: `--elev-1/2/3` for things that float (hairline, card or popover, dialog), and
+`--glow-sm/md/lift/hero` with a colour after them for glows. Shadows with no blur (rings, inset lines) are borders and
+take any token colour. `node tools/design-lint.mjs` counts what's off the set.
 
 ## Type
 - **Unbounded** (700): page headlines 28px and up, and the grade letters. Nothing else.

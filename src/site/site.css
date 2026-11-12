@@ -37,8 +37,8 @@
 .game-mark { display: inline-grid; place-items: center; flex: none; color: var(--ink); background: var(--game); transition: opacity var(--motion-fast) var(--ease-out), filter var(--motion-fast) var(--ease-out); }
 .game-mark.muted { background: color-mix(in srgb, var(--game) 22%, var(--surface-2)); color: var(--game); opacity: .75; }
 /* logos made light-on-black (Deadlock, Siege): the logo in the game's colour on a near-black tile, like the original */
-.game-mark.on-dark { background: #121316; color: var(--game); box-shadow: inset 0 0 0 1px var(--white-8); }
-.game-mark.on-dark.muted { background: #121316; color: color-mix(in srgb, var(--game) 80%, transparent); }
+.game-mark.on-dark { background: var(--ink); color: var(--game); box-shadow: inset 0 0 0 1px var(--white-8); }
+.game-mark.on-dark.muted { background: var(--ink); color: color-mix(in srgb, var(--game) 80%, transparent); }
 @media (max-width: 1180px) { .game-btn.soon:nth-child(n+5) { display: none; } }
 @media (max-width: 900px) { .game-btn.soon { display: none; } }
 
@@ -94,7 +94,7 @@
 .hero-trust .icon { color: var(--good); }
 .hero-preview { position: relative; }
 .pv-frame { position: relative; aspect-ratio: 1; border-radius: 16px; overflow: hidden; background: var(--bg-1); border: 1px solid var(--border-strong);
-  box-shadow: 0 30px 80px #000c, 0 0 0 1px #ffffff08; }
+  box-shadow: var(--elev-3), 0 0 0 1px var(--white-3); }
 .pv-map { width: 100%; height: 100%; object-fit: cover; opacity: .9; display: block; }
 .pv-dot { position: absolute; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--shade-67); transform: translate(-50%, -50%); }
 .pv-dot.ct { background: var(--ct); } .pv-dot.t { background: var(--t); }
@@ -163,7 +163,7 @@
 /* ---- home: games ---- */
 .games-status { flex: none; font-size: 12px; font-weight: 700; letter-spacing: .04em; padding: 3px 7px; border-radius: 999px;
   color: var(--text-3); background: var(--surface-2); }
-.games-status.live { color: #0b2414; background: var(--good); }
+.games-status.live { color: var(--ink); background: var(--good); }
 .games-status.next { color: var(--ink); background: var(--highlight); }
 .games-status.beta { color: var(--ink); background: var(--highlight); }
 .games-status.waiting { color: var(--text-3); background: transparent; border: 1px solid var(--border-strong); }
@@ -210,7 +210,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 /* ---- pricing ---- */
 .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; max-width: 900px; }
 .plan { position: relative; background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
-.plan.featured { border-color: var(--text-3); box-shadow: 0 0 0 1px var(--text-3), 0 20px 50px var(--shade-60); }
+.plan.featured { border-color: var(--text-3); box-shadow: 0 0 0 1px var(--text-3), var(--elev-3); }
 .plan h2 { font: 700 24px var(--font-display); }
 .plan-tag { position: absolute; top: -11px; left: 20px; font-size: 12px; font-weight: 800; letter-spacing: .04em; padding: 4px 9px; border-radius: 999px; color: var(--ink); background: var(--highlight); }
 .price { margin: 0; display: flex; align-items: baseline; gap: 8px; }
@@ -486,7 +486,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .dispute-where { font-weight: 700; color: var(--text-1); }
 .dispute-card { display: flex; gap: 8px; align-items: baseline; color: var(--text-1); }
 .dispute-note { min-width: 22px; text-align: center; padding: 1px 6px; border-radius: 6px; font-size: 12px; background: var(--surface-2); color: var(--text-2); }
-.dispute-note.bad { color: var(--white); background: var(--bad); } .dispute-note.warn { color: #241a02; background: var(--warn); } .dispute-note.good { color: #0b2414; background: var(--good); }
+.dispute-note.bad { color: var(--white); background: var(--bad); } .dispute-note.warn { color: var(--ink); background: var(--warn); } .dispute-note.good { color: var(--ink); background: var(--good); }
 .dispute-says { font-size: 14px; font-weight: 600; } .dispute-says.ok { color: var(--good); } .dispute-says.fault { color: var(--bad-soft, var(--bad)); } .dispute-says.ask { color: var(--accent, var(--text)); }
 .dispute-why ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; color: var(--text-2); display: grid; gap: 3px; }
 .dispute-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -666,7 +666,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .puzzle-why b { font-size: 12px; letter-spacing: .06em; color: var(--text-2); }
 .puzzle-why ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 3px; font-size: 14px; line-height: 1.5; color: var(--text-1); }
 .puzzle-delta { font-weight: 700; margin-left: 6px; }
-.map-callout { fill: var(--white); paint-order: stroke; stroke: #000c; stroke-width: .6px; font-weight: 700; font-family: var(--font-ui); pointer-events: none; }
+.map-callout { fill: var(--white); paint-order: stroke; stroke: color-mix(in srgb, var(--black) 80%, transparent); stroke-width: .6px; font-weight: 700; font-family: var(--font-ui); pointer-events: none; }
 .dl-bright { filter: brightness(1.9) contrast(1.15); }
 /* a right answer: a pulse of green on the card and the word */
 @keyframes win-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 55%, transparent); } 100% { box-shadow: 0 0 0 18px transparent; } }
@@ -770,10 +770,10 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .sk-row:disabled { cursor: default; }
 .sk-track { position: relative; height: 8px; border-radius: 6px; background: linear-gradient(90deg, color-mix(in srgb, var(--bad) 35%, var(--surface-2)), var(--surface-2) 50%, color-mix(in srgb, var(--good) 35%, var(--surface-2))); }
 .sk-track.none { height: auto; background: none; }
-.sk-mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--text-3, #888); }
+.sk-mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--text-3); }
 .sk-dot { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%); background: var(--text); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); }
 .sk-pct { text-align: right; font-weight: 700; }
-.sk-trend.up { color: var(--good); } .sk-trend.down { color: var(--bad); } .sk-trend.flat { color: var(--text-3, #888); }
+.sk-trend.up { color: var(--good); } .sk-trend.down { color: var(--bad); } .sk-trend.flat { color: var(--text-3); }
 .sk-detail { padding: 0 2px 10px 132px !important; display: grid; gap: 4px; }
 .sk-detail li { display: grid; grid-template-columns: 1fr 70px 120px; gap: 4px 10px; font-size: 14px; }
 .sk-rounds { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
@@ -791,7 +791,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .sc-label text { fill: var(--text); font-weight: 700; }
 .sc-label circle { fill: var(--text); }
 .sc-tick { stroke: color-mix(in srgb, var(--text-3) 60%, transparent); stroke-width: 1; }
-.sc-dot { stroke: var(--surface, #13171D); stroke-width: 2; }
+.sc-dot { stroke: var(--surface-1); stroke-width: 2; }
 .sc-cursor { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 3 3; }
 .chart-table { margin-top: 4px; text-align: right; }
 .chart-table table { width: 100%; margin-top: 6px; font-size: 12px; border-collapse: collapse; text-align: left; }
@@ -826,7 +826,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .confetti { position: absolute; inset: 50% auto auto 50%; pointer-events: none; }
 .confetti i { position: absolute; width: 6px; height: 6px; border-radius: 6px; background: var(--gold); opacity: 0;
   animation: confetti .9s ease-out .15s both; }
-.confetti i:nth-child(3n) { background: #0FB5A0; } .confetti i:nth-child(3n+1) { background: #9BD653; }
+.confetti i:nth-child(3n) { background: var(--letter-s); } .confetti i:nth-child(3n+1) { background: var(--letter-a); }
 @keyframes confetti { 0% { opacity: 1; transform: rotate(var(--a)) translateX(0); } 100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--d)) rotate(180deg); } }
 @media (prefers-reduced-motion: reduce) { .perf-letter.reveal, .confetti i { animation: none; } .confetti { display: none; } }
 .dl-rc-head .track-rows { width: min(380px, 100%); }
@@ -997,8 +997,8 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .perf-letter.reveal.g-d { animation: grade-flip .2s ease-out both; }
 .perf-letter.reveal.g-d::before { content: ''; position: absolute; left: 18%; right: 22%; top: 48%; height: 2px; background: var(--ink); transform: rotate(-24deg); clip-path: inset(0 100% 0 0); animation: fx-crack .3s ease-out .2s forwards; }
 .perf-letter.reveal.g-f { animation: grade-flip .2s ease-out both, fx-shake .2s ease-in-out .2s 2; filter: brightness(.82); }
-@keyframes fx-glow-teal { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, #0FB5A0 45%, transparent); } }
-@keyframes fx-glow-green { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, #9BD653 35%, transparent); } }
+@keyframes fx-glow-teal { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--letter-s) 45%, transparent); } }
+@keyframes fx-glow-green { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--letter-a) 35%, transparent); } }
 @keyframes fx-flicker { 50% { outline: 2px solid var(--gold); outline-offset: 2px; } }
 @keyframes fx-crack { to { clip-path: inset(0 0 0 0); } }
 @keyframes fx-shake { 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
@@ -1007,10 +1007,10 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .feed-card.fx-inacc .feed-grade { animation: fx-wobble .35s ease-in-out 1; }
 .feed-card.fx-mistake .feed-grade { animation: fx-shake .18s ease-in-out 2; }
 .feed-card.fx-blunder { animation: fx-edge .4s ease-out 1; }
-@keyframes fx-sparkle { 0% { transform: scale(.8); box-shadow: 0 0 0 0 #0FB5A0aa; } 60% { transform: scale(1.08); box-shadow: 0 0 0 8px transparent; } 100% { transform: none; } }
+@keyframes fx-sparkle { 0% { transform: scale(.8); box-shadow: 0 0 0 0 color-mix(in srgb, var(--letter-s) 67%, transparent); } 60% { transform: scale(1.08); box-shadow: 0 0 0 8px transparent; } 100% { transform: none; } }
 @keyframes fx-pop { 0% { transform: scale(.85); } 70% { transform: scale(1.06); } 100% { transform: none; } }
 @keyframes fx-wobble { 25% { transform: rotate(-6deg); } 75% { transform: rotate(6deg); } }
-@keyframes fx-edge { 0% { box-shadow: inset 0 0 0 2px #E5484D, 0 0 18px #E5484D66; } 100% { box-shadow: inset 0 0 0 0 transparent; } }
+@keyframes fx-edge { 0% { box-shadow: inset 0 0 0 2px var(--bad), var(--glow-md) color-mix(in srgb, var(--bad) 40%, transparent); } 100% { box-shadow: inset 0 0 0 0 transparent; } }
 .timeline .tl-hit { animation: fx-dot .6s ease-out 1; }
 @keyframes fx-dot { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 40% { transform: translate(-50%, -50%) scale(1.5); } }
 @media (prefers-reduced-motion: reduce) {
@@ -1035,9 +1035,9 @@ a.hero-games-live:hover b { text-decoration: underline; }
 }
 .puzzle-option { min-height: 48px; font-size: 16px; }
 /* C1: the rounds along the top of the player */
-.round-strip { display: flex; gap: 2px; list-style: none; margin: 0 0 6px; padding: 3px 5px; border-radius: 10px; background: #0a0c10d9; pointer-events: auto; flex-wrap: nowrap; max-width: 92vw; overflow-x: auto; scrollbar-width: none; }
+.round-strip { display: flex; gap: 2px; list-style: none; margin: 0 0 6px; padding: 3px 5px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 85%, transparent); pointer-events: auto; flex-wrap: nowrap; max-width: 92vw; overflow-x: auto; scrollbar-width: none; }
 .round-strip li.half { margin-left: 8px; }
-.rs-chip { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 6px; display: grid; place-items: center; background: var(--white-8); color: #ffffff99; font-size: 12px; }
+.rs-chip { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 6px; display: grid; place-items: center; background: var(--white-8); color: color-mix(in srgb, var(--white) 60%, transparent); font-size: 12px; }
 .rs-chip.ct { background: color-mix(in srgb, var(--ct) 70%, var(--ink)); color: var(--ink); }
 .rs-chip.t { background: color-mix(in srgb, var(--t) 75%, var(--ink)); color: var(--ink); }
 .rs-chip.on { outline: 2px solid var(--white); outline-offset: 1px; }
