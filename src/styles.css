@@ -112,7 +112,7 @@ h3 { font-size: 12px; letter-spacing: .06em; color: var(--muted); margin: 0 0 8p
 .hint.carry { color: var(--white); background: color-mix(in srgb, var(--ct-dim) 80%, transparent); }
 .hint.notice { color: var(--white); background: color-mix(in srgb, var(--bad) 80%, transparent); }
 .hint.faded { opacity: 0; }
-.hint { transition: opacity .6s var(--ease-out); background: var(--overlay); padding: 4px 10px; border-radius: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.hint { transition: opacity .32s var(--ease-out); background: var(--overlay); padding: 4px 10px; border-radius: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
 
 .summary { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 .summary p { margin: 3px 0; }
@@ -797,7 +797,7 @@ a.btn:hover { border-color: var(--border-strong); }
 
 .teambar { width: 330px; max-width: 100%; display: flex; flex-direction: column; gap: 4px; font-family: var(--font-ui); }
 .teambar.ct { --side: var(--ct); --side-dim: var(--ct-dim); } .teambar.t { --side: var(--t); --side-dim: var(--t-dim); }
-.tb-head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 7px 7px 2px 2px;
+.tb-head { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px 6px 0 0;
   background: linear-gradient(90deg, color-mix(in srgb, var(--side) 32%, var(--ink)), color-mix(in srgb, var(--ink) 93%, transparent)); border-top: 2px solid var(--side); }
 .teambar.t .tb-head { flex-direction: row-reverse; background: linear-gradient(270deg, color-mix(in srgb, var(--side) 32%, var(--ink)), color-mix(in srgb, var(--ink) 93%, transparent)); }
 .tb-head b { font-family: var(--font-display); font-size: 16px; font-weight: 700; letter-spacing: .06em; color: var(--side); }
@@ -810,7 +810,7 @@ a.btn:hover { border-color: var(--border-strong); }
 .tb-row { display: flex; align-items: stretch; gap: 0; height: 40px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--ink) 90%, transparent);
   transition: opacity var(--motion-smooth) var(--ease-out); }
 .teambar.t .tb-row { flex-direction: row-reverse; }
-.teambar .tb-row:last-child { border-radius: 2px 2px 7px 7px; }
+.teambar .tb-row:last-child { border-radius: 0 0 6px 6px; }
 .tb-pic { flex: none; width: 40px; height: 40px; display: grid; place-items: center; background: var(--side-dim); font-size: 12px; font-weight: 800; color: var(--text-1); }
 .tb-pic img { width: 100%; height: 100%; object-fit: cover; }
 /* the row fills with the team colour as far as the health goes (from the avatar outwards) */
@@ -931,7 +931,7 @@ a.btn:hover { border-color: var(--border-strong); }
 .rp-chips { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 2px; }
 .rp-half.ot { margin-top: 4px; padding-top: 6px; border-top: 1px dashed var(--border); }
 .rp-ot-swap { display: grid; place-items: center; color: var(--highlight); }
-.rp-chips .rnd { width: auto; min-width: 0; padding: 4px 0; font-size: 12px; border-radius: 4px 4px 2px 2px; }
+.rp-chips .rnd { width: auto; min-width: 0; padding: 4px 0; font-size: 12px; border-radius: 6px 6px 0 0; }
 .rp-switch { display: flex; align-items: center; gap: 6px; margin: 2px 0 2px 36px; font-size: 12px; font-weight: 700; letter-spacing: .03em; color: var(--highlight); }
 .rp-switch::after { content: ''; flex: 1; height: 1px; background: color-mix(in srgb, var(--highlight) 35%, transparent); }
 .rp-result { display: flex; align-items: center; gap: 8px; font-size: 12px; }
