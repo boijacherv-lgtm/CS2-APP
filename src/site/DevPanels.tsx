@@ -265,7 +265,14 @@ export function CoachChecks() {
 
 /** Puzzle quality: answers served and how often right, overall and the hardest / easiest; the set's rule checks. */
 export function PuzzleQuality() {
-  const { data, err } = useLoad<{ rows: { id: string; tried: number; right: number }[] }>('/admin/puzzles');
+  const { data, err, reload } = useLoad<{ rows: { id: string; tried: number; right: number; skipped?: number }[]; reports?: { id: string; why: string; pick: string; at: number }[] }>('/admin/puzzles');
+  const [hidden, setHidden] = useState<string[]>([]);
+  const hide = async (id: string) => {
+    const { config } = await api<{ config: SiteConfig }>('/admin/config');
+    if (config.puzzles.hide.includes(id)) return;
+    const out = await api<{ config: SiteConfig }>(`/admin/config?what=${encodeURIComponent(`Hid puzzle ${id}`)}`, { puzzles: { ...config.puzzles, hide: [...config.puzzles.hide, id] } });
+    setSiteConfig(out.config); setHidden(h => [...h, id]); void reload();
+  };
   const [set, setSet] = useState<{ n: number; ties: number; plants: number; sameRound: number } | null>(null);
   useEffect(() => {
     Promise.all([import('../moments/generated/puzzles.json'), import('../moments/quality'), import('../moments/moments')]).then(([j, q, mm]) => {
@@ -295,7 +302,19 @@ export function PuzzleQuality() {
           {rated.slice(0, 5).map(r => <tr key={r.id}><td className="num">{r.id.slice(0, 48)}</td><td className="num">{Math.round(r.share * 100)}% of {r.tried}</td></tr>)}
         </tbody></table>
       )}
-      <p className="muted small">Skips aren't counted yet: "most skipped" needs the site to report skips.</p>
+      {rows.some(r => r.skipped) && (
+        <table className="site-table"><thead><tr><th>Most skipped</th><th>Skips</th><th /></tr></thead><tbody>
+          {[...rows].filter(r => r.skipped).sort((a, b) => (b.skipped ?? 0) - (a.skipped ?? 0)).slice(0, 5).map(r => <tr key={r.id}><td className="num">{r.id.slice(0, 48)}</td><td className="num">{r.skipped}</td>
+            <td>{hidden.includes(r.id) ? 'hidden' : <button className="ghost small-btn" onClick={() => void hide(r.id)}>Hide</button>}</td></tr>)}
+        </tbody></table>
+      )}
+      <h3 className="dev-h">Reported answers</h3>
+      {!data?.reports?.length ? <p className="muted small">No reports yet.</p> : (
+        <table className="site-table"><thead><tr><th>When</th><th>Puzzle</th><th>Why</th><th>They picked</th><th /></tr></thead><tbody>
+          {data.reports.slice(0, 30).map(r => <tr key={r.at}><td className="num">{when(r.at)}</td><td className="num">{r.id.slice(0, 40)}</td><td>{r.why}</td><td>{r.pick}</td>
+            <td>{hidden.includes(r.id) ? 'hidden' : <button className="ghost small-btn" onClick={() => void hide(r.id)}>Hide</button>}</td></tr>)}
+        </tbody></table>
+      )}
     </section>
   );
 }

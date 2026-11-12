@@ -22,7 +22,7 @@ import { useShown } from './shown';
 import { SIDE_COLOR, T as TOK, UTIL_COLOR } from './tokens';
 import { MomentNav } from './Recap';
 import { LayersBar } from './Layers';
-import { PlaybackBar, RoundHud, ScoreBug, scoreBefore, sideSwitches } from './Playback';
+import { PlaybackBar, RoundHud, RoundStrip, ScoreBug, scoreBefore, sideSwitches } from './Playback';
 import { FOV as VISION_FOV } from '../engine/predict';
 import { ENTRY_COLOR, entryClock, entryReports } from '../engine/entries';
 import { BUILTIN_LINEUPS } from '../map/lineups';
@@ -904,6 +904,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}><Icon name={s.drawerOpen ? 'panelClose' : 'panelOpen'} /> Panel</button>
         </div>
         <div className="slot top">
+          {s.review && s.mode === 'review' && <RoundStrip data={s.review.data} at={s.review.round} spoilers={s.reviewSpoilers} onPick={i => s.setReviewRound(i)} />}
           {rosterRound && s.review && <ScoreBug score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time}
             switched={switches.includes(s.review.round) ? s.review.data.names[Object.keys(rosterRound.frames.players).find(id => rosterRound.frames.players[id].side === 'CT') ?? ''] ?? 'the other' : null} />}
           {!rosterRound && <RoundHud

@@ -1,3 +1,16 @@
+/* Primitive colours that don't change with the theme (round 8, B10): ink on light fills, white, black shades for
+   shadows and map overlays, the map's own background, and the accent primitives. Semantic colours (text, surfaces,
+   good/bad …) come from src/ui/tokens.ts as CSS variables. */
+:root {
+  --white: #fff; --ink: #0A0C10; --black: #000;
+  --shade-40: #0006; --shade-53: #0008; --shade-60: #0009; --shade-67: #000a; --shade-73: #000b;
+  --white-3: #ffffff07; --white-8: #ffffff14; --white-12: #ffffff1f; --white-53: #fff8;
+  /* elevations: a hairline lift, a card or popover, a dialog */
+  --elev-1: 0 1px 2px #0006; --elev-2: 0 8px 22px #0008; --elev-3: 0 18px 50px #000a;
+  /* layers: base 0 · sticky 10 · overlay 100 · modal 200 · toast 300 */
+  --z-base: 0; --z-sticky: 10; --z-overlay: 100; --z-modal: 200; --z-toast: 300;
+  --map-bg: #0b0e12; --gold: #F5C451; --amber: #f2c230; --violet: #b07ce8;
+}
 /*
  * The game theme: the site takes on the colour of the game you're in (tokens.ts GAME_THEME → --theme, --theme-ink and
  * html[data-game]). Accents (buttons, links, tabs, focus, glows) and a faint tint in backgrounds and cards; team,
@@ -91,7 +104,7 @@ a.site-card:hover, button.site-card:hover, a.feature:hover, .dl-row:hover:not(:d
    game's mark before section titles. Kept faint so content stays first. ------------------------------------------ */
 .shell-main { position: relative; isolation: isolate; }
 .shell-main::before {
-  content: ''; position: absolute; inset: 0 0 auto; height: 900px; z-index: -1; pointer-events: none;
+  content: ''; position: absolute; inset: 0 0 auto; height: 900px; z-index: calc(var(--z-base) - 1); pointer-events: none;
   background: var(--theme); opacity: .05;
   /* anchored at the page's corner, so the grid starts in one place; it fades out over the first 900px */
   -webkit-mask: var(--theme-pattern) 0 0 repeat, linear-gradient(to bottom, #000 40%, transparent);

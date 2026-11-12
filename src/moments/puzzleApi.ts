@@ -14,6 +14,17 @@ export async function sendAnswer(id: string, right: boolean): Promise<{ tried: n
   } catch { return null; }
 }
 
+/** "Next puzzle" without answering a premade puzzle (counted for the dev page's most skipped). */
+export function sendSkip(id: string) {
+  if (!STEAM_AVAILABLE || !id.startsWith('p:')) return;
+  void steamFetch('/puzzle/skip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).catch(() => {});
+}
+/** "This answer is wrong" on a premade puzzle: goes to the dev page's report queue. */
+export async function sendReport(id: string, why: string, pick: string): Promise<boolean> {
+  if (!STEAM_AVAILABLE || !id.startsWith('p:')) return false;
+  try { return (await steamFetch('/puzzle/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, why, pick }) })).ok; } catch { return false; }
+}
+
 const timers: Partial<Record<PuzzleGame, ReturnType<typeof setTimeout>>> = {};
 /** Your record to your account, a few seconds after the last answer (one write for a run of answers). */
 export function syncRecord(s: Score, game: PuzzleGame) {
@@ -49,4 +60,14 @@ export async function loadFriendsBoard(game: PuzzleGame): Promise<{ rows: BoardR
   const out = await res.json().catch(() => ({})) as { rows?: Omit<BoardRow, 'name' | 'avatar'>[]; note?: string | null; error?: string };
   if (!res.ok) throw new Error(out.error ?? `The server answered ${res.status}.`);
   return { rows: await named(out.rows ?? []), note: out.note ?? null };
+}
+
+/** "Settle it" votes on a shared moment: who was right. Null offline. */
+export async function getVotes(key: string): Promise<{ player: number; coach: number } | null> {
+  if (!STEAM_AVAILABLE) return null;
+  try { const r = await steamFetch(`/puzzle/vote/${key}`); return r.ok ? await r.json() : null; } catch { return null; }
+}
+export async function sendVote(key: string, side: 'player' | 'coach'): Promise<{ player: number; coach: number } | null> {
+  if (!STEAM_AVAILABLE) return null;
+  try { const r = await steamFetch('/puzzle/vote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, side }) }); return r.ok ? await r.json() : null; } catch { return null; }
 }

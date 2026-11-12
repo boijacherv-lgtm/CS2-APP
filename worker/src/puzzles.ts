@@ -32,6 +32,26 @@ export async function countAnswer(kv: ProfileKV, input: Record<string, unknown>)
   return now;
 }
 
+/** "Next puzzle" without answering: counted on the puzzle (sampled like the answers), for the dev page's most skipped. */
+export async function countSkip(kv: ProfileKV, input: Record<string, unknown>) {
+  if (!okId(input.id)) throw new Error('Which puzzle?');
+  const key = `pz:${input.id}`;
+  const was = ((await kv.get(key, 'json')) ?? { tried: 0, right: 0 }) as { tried: number; right: number; skipped?: number };
+  const n = was.skipped ?? 0, w = Math.max(1, Math.floor(n / 50));
+  if (w > 1 && Math.random() * w >= 1) return { ok: true };
+  await kv.put(key, JSON.stringify({ ...was, skipped: n + w }));
+  return { ok: true };
+}
+
+/** A player's "this answer is wrong": kept for the dev page (the newest 300). */
+export async function reportPuzzle(kv: ProfileKV, input: Record<string, unknown>) {
+  if (!okId(input.id)) throw new Error('Which puzzle?');
+  const why = typeof input.why === 'string' ? input.why.slice(0, 200) : '', pick = typeof input.pick === 'string' ? input.pick.slice(0, 80) : '';
+  const rows = ((await kv.get('pz:reports', 'json')) ?? []) as { id: string; why: string; pick: string; at: number }[];
+  await kv.put('pz:reports', JSON.stringify([{ id: input.id, why, pick, at: Date.now() }, ...rows].slice(0, 300)));
+  return { ok: true };
+}
+
 export async function board(kv: ProfileKV, g: PuzzleGame = 'cs2'): Promise<BoardRow[]> {
   return ((await kv.get(BOARD(g), 'json')) ?? []) as BoardRow[];
 }
@@ -94,4 +114,19 @@ export async function friendsOnSite(kv: ProfileKV, steamId: string, apiKey: stri
   }));
   out.sort((a, b) => b.matches - a.matches);
   return { friends: out, note: out.length ? null : 'None of your Steam friends has a public RageView profile yet.' };
+}
+
+/** "Settle it": a shared moment's vote, who was right (the player or the coach). The key is the moment's own short id. */
+const VOTE_KEY = (k: string) => `vote:${k}`;
+const okVote = (k: unknown): k is string => typeof k === 'string' && /^[a-z0-9]{6,24}$/.test(k);
+export async function votes(kv: ProfileKV, k: string) {
+  if (!okVote(k)) throw new Error('Which moment?');
+  return ((await kv.get(VOTE_KEY(k), 'json')) ?? { player: 0, coach: 0 }) as { player: number; coach: number };
+}
+export async function vote(kv: ProfileKV, input: Record<string, unknown>) {
+  if (!okVote(input.key) || (input.side !== 'player' && input.side !== 'coach')) throw new Error('That isn\'t a vote.');
+  const now = await votes(kv, input.key);
+  now[input.side]++;
+  await kv.put(VOTE_KEY(input.key), JSON.stringify(now));
+  return now;
 }

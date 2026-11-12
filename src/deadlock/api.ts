@@ -20,6 +20,7 @@ export const steamId3 = (id64: string) => String(BigInt(id64) - 7656119796026572
 export interface DlHistoryRow {
   match_id: number; hero_id: number; start_time: number; match_duration_s: number; player_team: number; match_result: number;
   player_kills: number; player_deaths: number; player_assists: number; net_worth: number; last_hits: number; game_mode: number;
+  /** ranked matches: the badge shown after it (tier × 10 + subrank) and its change */ ranked_display_badge?: number | null; ranked_delta?: number | null;
 }
 /** A player's matches, newest first. */
 export async function matchHistory(account: string): Promise<DlHistoryRow[]> {

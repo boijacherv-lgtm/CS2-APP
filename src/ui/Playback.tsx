@@ -191,6 +191,31 @@ function BombDial({ fuse, defuse }: { fuse: number; defuse: { share: number; ok:
   );
 }
 
+/** The rounds along the top: each a chip in the winner's colour with how it ended (an elimination, the bomb, a
+ * defuse, the clock), a gap at half-time; rounds ahead stay blank until Reveal all. Click one to go there. */
+export function RoundStrip({ data, at, spoilers, onPick }: { data: DemoData; at: number; spoilers: boolean; onPick: (i: number) => void }) {
+  const swaps = new Set(sideSwitches(data));
+  const how = (reason: string): 'skull' | 'bomb' | 'scissors' | 'timer' => {
+    const r = reason.toLowerCase().replace(/[^a-z]/g, '');
+    return r.includes('defus') ? 'scissors' : r.includes('exploded') || r.includes('targetbombed') ? 'bomb' : r.includes('saved') || r.includes('time') ? 'timer' : 'skull';
+  };
+  return (
+    <ol className="round-strip" aria-label="Rounds">
+      {data.rounds.map((r, i) => {
+        const shown = spoilers || i < at;
+        return (
+          <li key={i} className={swaps.has(i) && i > 0 ? 'half' : ''}>
+            <button className={`rs-chip ${i === at ? 'on' : ''} ${shown && r.winner ? r.winner.toLowerCase() : ''}`} onClick={() => onPick(i)}
+              title={`Round ${r.n}${shown && r.winner ? `: ${r.winner} won${r.reason ? ` (${r.reason.replace(/_/g, ' ')})` : ''}` : ''}`}>
+              {shown && r.winner && r.reason ? <Icon name={how(r.reason)} size={10} /> : <span className="num">{r.n}</span>}
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /** The playback dock: play/pause, restart, speed, the scrub bar (the round's timeline in Review), and the fight settings. */
 export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review | null; round?: DemoRound | null }) {
   const s = useStore();
