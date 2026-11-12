@@ -52,6 +52,8 @@ export interface RoundSummary {
   play?: RoundPlay;
   /** The search engine (search.ts), kept small: each player's accuracy, and the round's clearest mistakes. */
   search?: { players: RoundSearch['players']; key: SearchMoment[] };
+  /** Moves the checked disputes changed, by pattern (corrections.ts). */
+  corrected?: Record<string, number>;
 }
 
 export { cappedDamage };

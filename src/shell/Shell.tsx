@@ -106,7 +106,7 @@ function useMatchGrader() {
     useStore.setState({ report: { data, rounds: Array(data.rounds.length).fill(null), done: false } });
     const g = gradeMatch(data, useStore.getState().board.context, rounds => useStore.setState({ report: { data, rounds, done: false } }));
     const started = performance.now();
-    g.done.then(({ rounds, error }) => { useStore.setState({ report: { data, rounds, done: true, ...(error ? { error } : {}) } }); if (!error) reportGradingTime(performance.now() - started); });
+    g.done.then(({ rounds, error }) => { useStore.setState({ report: { data, rounds, done: true, ...(error ? { error } : {}) } }); if (!error) reportGradingTime(performance.now() - started, rounds); });
     return () => g.stop();
   }, [data]);
 }

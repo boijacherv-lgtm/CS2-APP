@@ -71,6 +71,26 @@ export function applyCorrections<M extends Move>(moves: M[], table: CorrectionTa
   });
 }
 
+/** How many moves the rulings changed, by pattern (sent with the sampled grading time, for Dev → Disputes). */
+export function countCorrections(moves: Pick<Move, 'kind' | 'note' | 'tags'>[], table: CorrectionTable | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!table) return out;
+  for (const m of moves) if (correctionFor(table, m)) { const p = patternOf(m.kind, m.note, m.tags); out[p] = (out[p] ?? 0) + 1; }
+  return out;
+}
+
+/** What a pattern's rulings do now: live (and what it changes), or how many more "player's right" calls it needs. */
+export function correctionStatus(c: Correction | undefined, note: Annotation): { live: boolean; text: string } {
+  const wrong = c?.wrong ?? 0, of = wrong + (c?.right ?? 0);
+  if (wrong >= MIN_CASES && wrong / of >= MIN_SHARE) {
+    const to = FLAGGED.includes(note) ? SOFTER[note] : note === 'book' || note === '!' ? '?!' : null;
+    return to ? { live: true, text: `Live: moves like this go ${note === 'book' ? '·' : note} → ${to === 'book' ? '·' : to} (${wrong} of ${of} say the coach was wrong)` }
+      : { live: false, text: `Enough calls (${wrong} of ${of}), but a ${note} mark isn't changed by rulings` };
+  }
+  if (wrong < MIN_CASES) return { live: false, text: `Not live yet: ${wrong} of ${MIN_CASES} "player's right" calls on moves like this` };
+  return { live: false, text: `Not live: only ${wrong} of ${of} calls say the coach was wrong (needs ${Math.round(MIN_SHARE * 100)}%)` };
+}
+
 /** The table from rulings (worker/src/clips.ts keeps them). */
 export function tableOf(rulings: { pattern: string; side: 'player' | 'coach'; reason?: JudgeReason }[]): CorrectionTable {
   const out: CorrectionTable = {};

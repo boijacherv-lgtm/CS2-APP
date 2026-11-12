@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Loading } from '../ui/Loading';
-import type { DemoData } from '../engine/recap';
+import type { Annotation, DemoData } from '../engine/recap';
 import { VERDICT_LABEL } from '../engine/profile';
 import { Icon } from '../ui/Icon';
 import { adminCall as call, changeClip, CLIP_AFTER, CLIP_BEFORE, listClips, openClip, toJudge, type Clip, type ClipChange } from '../ui/disputesApi';
 import { fmtDate, mapName } from './format';
-import { JUDGE_REASONS, MIN_CASES, MIN_SHARE, type CorrectionTable } from '../engine/corrections';
+import { correctionStatus, JUDGE_REASONS, MIN_CASES, MIN_SHARE, patternOf, type CorrectionTable } from '../engine/corrections';
 
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
@@ -26,7 +26,8 @@ export function DevDisputes({ myId }: { myId: string | null }) {
   };
   // what the rulings have taught the coach so far
   const [learned, setLearned] = useState<CorrectionTable | null>(null);
-  const loadLearned = async () => { try { setLearned((await call<{ table?: CorrectionTable }>('/corrections')).table ?? {}); } catch { /* an older Worker */ } };
+  const [live, setLive] = useState<Record<string, number>>({});
+  const loadLearned = async () => { try { const r = await call<{ table?: CorrectionTable; live?: Record<string, number> }>('/corrections'); setLearned(r.table ?? {}); setLive(r.live ?? {}); } catch { /* an older Worker */ } };
   useEffect(() => { load(); loadLearned(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const watch = async (c: Clip) => {
@@ -120,7 +121,11 @@ export function DevDisputes({ myId }: { myId: string | null }) {
                   </div>
                 )}
                 {v.note && !c.ask && <blockquote className="dispute-quote">{v.note}</blockquote>}
-                {c.ruling && <div className="muted small">Your call: {c.ruling.side === 'player' ? (c.ask ? 'mark is wrong' : 'player\'s right') : (c.ask ? 'mark is right' : 'coach was right')}{c.ruling.reason ? ` · ${JUDGE_REASONS[c.ruling.reason].toLowerCase()}` : ''}{c.ruling.note ? ` · “${c.ruling.note}”` : ''} <span className="chip small learned" title="Your call is in the coach's corrections table: grading uses it right away">Auto-learned</span></div>}
+                {c.ruling && <div className="muted small">Your call: {c.ruling.side === 'player' ? (c.ask ? 'mark is wrong' : 'player\'s right') : (c.ask ? 'mark is right' : 'coach was right')}{c.ruling.reason ? ` · ${JUDGE_REASONS[c.ruling.reason].toLowerCase()}` : ''}{c.ruling.note ? ` · “${c.ruling.note}”` : ''}</div>}
+                {c.ruling && learned && (() => {
+                  const p = patternOf(v.kind, c.card.note, c.card.tags), st = correctionStatus(learned[p], c.card.note as Annotation), n = live[p] ?? 0;
+                  return <div className="small dispute-effect"><span className={`chip small${st.live ? ' learned' : ''}`}>{st.live ? 'Live' : 'Waiting'}</span> {st.text}{st.live ? ` · about ${n * 4} cards changed so far` : ''}</div>;
+                })()}
                 {c.card.why.length > 0 && (
                   <details className="dispute-why"><summary className="muted small">Coach's reasons</summary>
                     <ul>{c.card.why.map((w, i) => <li key={i}>{w}</li>)}</ul>

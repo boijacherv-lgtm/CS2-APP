@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyCorrections, correctionFor, patternOf, tableOf } from '../corrections';
+import { applyCorrections, correctionFor, correctionStatus, countCorrections, patternOf, tableOf } from '../corrections';
 import type { Move } from '../recap';
 
 type Row = { pattern: string; side: 'player' | 'coach'; reason?: 'role' | 'luck' };
@@ -36,5 +36,13 @@ describe('corrections from checked disputes', () => {
     const t = tableOf([...rows(p, 'player', 1), { pattern: p, side: 'player', reason: 'role' }, { pattern: p, side: 'player', reason: 'role' }, { pattern: p, side: 'player', reason: 'luck' }]);
     expect(t[p].why).toEqual({ role: 2, luck: 1 });
     expect(correctionFor(t, move('?', ['ISOLATED']))?.why).toMatch(/mostly: their role there/);
+  });
+
+  it('counts the moves it changed and says what a pattern does', () => {
+    const p = patternOf('death', '?', ['ISOLATED']);
+    const t = tableOf(rows(p, 'player', 3));
+    expect(countCorrections([move('?', ['ISOLATED']), move('?', ['ISOLATED']), move('?', ['WHIFF'])], t)).toEqual({ [p]: 2 });
+    expect(correctionStatus(t[p], '?')).toEqual({ live: true, text: expect.stringMatching(/\? → \?!/) });
+    expect(correctionStatus(tableOf(rows(p, 'player', 1))[p], '?').text).toMatch(/1 of 3/);
   });
 });

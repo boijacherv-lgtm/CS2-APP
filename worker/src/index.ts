@@ -16,7 +16,7 @@
  * as malicious on the owner's account. Public and official APIs only.
  */
 import { adminStats, isOwner, isPro, saveHeartbeat } from './admin';
-import { askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
+import { addLiveCorrections, askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
 import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } from './dlDisputes';
 import { META_KEY, refreshDlMeta } from './dlMeta';
 import { botRoute, saveBotState } from './dlBot';
@@ -102,7 +102,12 @@ export default {
       if (path.startsWith('/internal/')) return await internal(req, env, path, json);
 
       // the site's sampled numbers (grading time, client errors) for the dev page; rate-limited like /puzzle/
-      if (req.method === 'POST' && path === '/t') { if (await limited(env.RATE_PUBLIC, ip)) return slow(); return json(await addTelemetry(env.SB, await body(req))); }
+      if (req.method === 'POST' && path === '/t') {
+        if (await limited(env.RATE_PUBLIC, ip)) return slow();
+        const b = await body(req);
+        if (b.kind === 'grade' && b.corr) await addLiveCorrections(env.SB, b.corr);
+        return json(await addTelemetry(env.SB, b));
+      }
       // the site's content and switches, set on the dev page (site.ts): public, cached a minute
       if (req.method === 'GET' && path === '/config')
         return new Response(JSON.stringify(await loadConfig(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
