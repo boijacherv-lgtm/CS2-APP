@@ -7,7 +7,7 @@ import { Icon } from '../ui/Icon';
 import { Loading } from '../ui/Loading';
 import { getItem, setItem } from '../ui/localStore';
 import { ScoreRing } from '../ui/ScoreRing';
-import { loadMatch, matchHistory, partyMatches, soloVsParty, type DlHistoryRow } from './api';
+import { loadMatch, matchHistory, partyMatches, rankName, soloVsParty, type DlHistoryRow } from './api';
 import { BOT_ON, botMatches } from './botApi';
 import { coachMatch, type DlTag } from './coach';
 import { heroOf } from './data';
@@ -31,7 +31,6 @@ import { percentile } from '../engine/profileView';
  */
 const RECENT = 20, GRADED = 10;
 /** Deadlock's rank tiers by number (badge = tier × 10 + subrank). */
-const RANK_TIERS = ['', 'Initiate', 'Seeker', 'Alchemist', 'Arcanist', 'Ritualist', 'Emissary', 'Archon', 'Oracle', 'Phantom', 'Ascendant', 'Eternus'];
 const PARTS: { key: GradeKey; label: string }[] = [
   { key: 'kills', label: 'Kills' }, { key: 'map', label: 'Map activity' }, { key: 'abilities', label: 'Abilities' },
   { key: 'rotations', label: 'Rotations' }, { key: 'survival', label: 'Survival' },
@@ -161,7 +160,6 @@ export function DlProfile({ account }: { account: string | null }) {
   // the lane at 10:00, and the rank from the ranked matches in the history
   const lanes = graded.filter(g => g.lane).reduce((a, g) => ({ ...a, [g.lane!]: (a[g.lane!] ?? 0) + 1 }), {} as Record<string, number>);
   const ranked = chrono.filter(r => r.ranked_display_badge);
-  const rankName = (b: number) => `${RANK_TIERS[Math.floor(b / 10)] ?? 'Rank'} ${b % 10 || ''}`.trim();
   const heroGrade = (hero: number) => { const xs = graded.filter(g => g.hero === hero && g.overall !== null).map(g => g.overall!); return xs.length ? Math.round(xs.reduce((a, v) => a + v, 0) / xs.length) : null; };
   const open = async (id: number) => {
     setOpening(id);
@@ -252,7 +250,7 @@ export function DlProfile({ account }: { account: string | null }) {
 
       <section className="site-card">
         <div className="card-head"><h2><Icon name="user" size={16} /> Your heroes</h2><span className="muted small">{lastN(recent.length, 'match').toLowerCase()}</span></div>
-        <table className="site-table dl-pf-heroes">
+        <div className="dl-sb-scroll"><table className="site-table dl-pf-heroes">
           <thead><tr><th>Hero</th><th>Games</th><th>Win rate</th><th>Grade</th><th>K/D/A</th><th>Souls a minute</th><th>Most-won build</th></tr></thead>
           <tbody>{heroes.map(h => (
             <tr key={h.hero}>
@@ -265,7 +263,7 @@ export function DlProfile({ account }: { account: string | null }) {
               <td>{(() => { const b = builds.find(x => x.hero === h.hero); return b ? <span className="dl-pf-build"><span title={b.name}>{b.name}</span><span className="muted small">{b.wins} won of {b.matches}</span><CopyBuild id={b.id} short /></span> : <span className="muted">–</span>; })()}</td>
             </tr>
           ))}</tbody>
-        </table>
+        </table></div>
       </section>
 
       {(matchups.length >= 2 || phases.length > 0 || Object.keys(lanes).length > 0) && (
