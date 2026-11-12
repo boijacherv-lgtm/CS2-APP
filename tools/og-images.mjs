@@ -9,24 +9,24 @@ import path from 'node:path';
 const ROOT = path.resolve(import.meta.dirname, '..'), IMG = path.join(ROOT, 'public/images');
 const data = f => `data:image/${f.endsWith('.png') ? 'png' : 'jpeg'};base64,${fs.readFileSync(path.join(IMG, f)).toString('base64')}`;
 const CARDS = [
-  { file: 'og.png', accent: '#f2b13c', glow: '#3a2a10', line1: 'Was it your fault?', line2: 'Find out free.', sub: 'Every play in your CS2 or Deadlock match graded S+ to F, with the better play.', shot: 'shots/cs2-recap.jpg', tag: 'CS2 · DEADLOCK' },
-  { file: 'og-cs2.png', accent: '#f2b13c', glow: '#3a2a10', line1: 'Every round,', line2: 'graded.', sub: 'Drop a CS2 demo: every round S+ to F, every move Brilliant to Blunder, with the better play. Read in your browser.', shot: 'shots/cs2-moment.jpg', tag: 'COUNTER-STRIKE 2' },
-  { file: 'og-deadlock.png', accent: '#4fd1a5', glow: '#0f2f26', line1: 'Who lost the fight?', line2: 'Find out free.', sub: 'Paste a Deadlock match ID: every fight graded, and what top players do instead.', shot: 'shots/replay.jpg', tag: 'DEADLOCK' },
+  { file: 'og.png', accent: '#f2b13c', glow: '#3a2a10', line1: 'Every move you make,', line2: 'graded.', sub: 'Every play in your CS2 or Deadlock match graded S+ to F, with the better play.', shot: 'shots/cs2-recap.jpg', tag: 'CS2 · DEADLOCK' },
+  { file: 'og-cs2.png', accent: '#f2b13c', glow: '#3a2a10', line1: 'Every CS2 round,', line2: 'graded.', sub: 'Drop a CS2 demo: every round S+ to F, every move Brilliant to Blunder, with the better play. Read in your browser.', shot: 'shots/cs2-moment.jpg', tag: 'COUNTER-STRIKE 2' },
+  { file: 'og-deadlock.png', accent: '#4fd1a5', glow: '#0f2f26', line1: 'Every Deadlock fight,', line2: 'graded.', sub: 'Paste a Deadlock match ID: every fight graded, and what top players do instead.', shot: 'shots/replay.jpg', tag: 'DEADLOCK' },
 ];
 const html = c => `<!doctype html><html><head><meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rajdhani:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@700&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0}
-  body{width:1200px;height:630px;overflow:hidden;font-family:Inter,sans-serif;color:#e8ecf2;
+  body{width:1200px;height:630px;overflow:hidden;font-family:Onest,sans-serif;color:#e8ecf2;
     background:radial-gradient(900px 600px at 0% 0%, ${c.glow}, transparent 60%), radial-gradient(700px 500px at 100% 100%, #10161f, transparent 70%), #0b0e12}
   .left{position:absolute;left:64px;top:56px;width:560px}
-  .brand{display:flex;align-items:center;gap:14px;font:700 34px Rajdhani,sans-serif;letter-spacing:.02em}
+  .brand{display:flex;align-items:center;gap:14px;font:700 30px Unbounded,sans-serif;letter-spacing:.02em}
   .brand img{width:56px;height:56px;border-radius:12px}
-  .tag{margin-top:34px;font:600 16px Inter;letter-spacing:.14em;color:${c.accent}}
-  h1{margin-top:12px;font:700 80px/0.98 Rajdhani,sans-serif;letter-spacing:.01em}
+  .tag{margin-top:34px;font:600 16px Onest;letter-spacing:.14em;color:${c.accent}}
+  h1{margin-top:12px;font:700 62px/1.02 Unbounded,sans-serif;letter-spacing:-.02em;letter-spacing:.01em}
   h1 span{display:block;color:${c.accent}}
-  p{margin-top:24px;font:400 25px/1.4 Inter;color:#aeb7c4}
-  .url{position:absolute;left:64px;bottom:44px;font:500 22px Inter;color:#8792a2}
+  p{margin-top:24px;font:400 25px/1.4 Onest;color:#aeb7c4}
+  .url{position:absolute;left:64px;bottom:44px;font:500 22px Onest;color:#8792a2}
   .shot{position:absolute;right:-40px;top:96px;width:600px;border-radius:16px;overflow:hidden;
     border:1px solid color-mix(in srgb, ${c.accent} 35%, #2a313b);box-shadow:0 30px 80px -20px #000, 0 0 0 1px #0006}
   .shot img{display:block;width:100%}

@@ -174,7 +174,7 @@ export function Home() {
       <footer className="site-footer">
         <span className="brand-small"><LogoMark size={18} /> {APP_NAME}</span>
         <nav>
-          {PLAYABLE.map(g => <a key={g.id} href={g.page ?? g.review}>{g.name}</a>)}<a href="/profile">Profile</a><a href="/pricing">Pricing</a><a href="/settings">Settings</a><a href="/puzzles">Puzzles</a><a href="/changelog">What's new</a><a href="/privacy">Privacy</a>
+          {PLAYABLE.map(g => <a key={g.id} href={g.page ?? g.review}>{g.name}</a>)}<a href="/profile">Profile</a><a href="/pricing">Pricing</a><a href="/settings">Settings</a><a href="/puzzles">Puzzles</a><a href="/guides">Guides</a><a href="/changelog">What's new</a><a href="/privacy">Privacy</a>
         </nav>
         <span className="muted">Made by a player. Not affiliated with Valve. © {new Date().getFullYear()} {APP_NAME}</span>
       </footer>
@@ -188,7 +188,7 @@ const SHOTS = [
   { src: '/images/shots/cs2-replay.jpg', title: 'CS2 · The replay.', text: 'Every kill graded on the radar.', alt: 'CS2 replay on Mirage: both teams, the killfeed and a graded kill card' },
   { src: '/images/shots/replay.jpg', title: 'Deadlock · The replay.', text: 'Every death graded on the map.', alt: 'Deadlock replay: the map, both teams, and a graded death explained' },
   { src: '/images/shots/puzzle.jpg', title: 'Puzzles.', text: 'Find the best move, then see the answer.', alt: 'A CS2 puzzle on Nuke with four moves and the engine answer' },
-  { src: '/images/shots/coach.jpg', title: 'Deadlock · The engine.', text: 'Your costliest moves and best calls.', alt: 'Deadlock recap engine card: accuracy 92, costliest moves and best calls with reasons' },
+  { src: '/images/shots/coach.jpg', title: 'Deadlock · The coach.', text: 'Your costliest moves and best calls.', alt: 'Deadlock recap engine card: accuracy 92, costliest moves and best calls with reasons' },
   { src: '/images/shots/dl-meta.jpg', title: 'Deadlock · Meta & builds.', text: 'Every hero on this patch, by position.', alt: 'Deadlock meta table: heroes by position with tier, win rate and pick rate' },
 ];
 
@@ -200,7 +200,7 @@ const WHY: { icon: IconName; title: string; text: string }[] = [
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
   { icon: 'play', title: 'Graded replay', text: 'Every play scored, with a live win-chance bar.' },
-  { icon: 'route', title: 'The engine', text: 'The better play, and how much it would have helped.' },
+  { icon: 'route', title: 'The better play', text: 'The better play, and how much it would have helped.' },
   { icon: 'star', title: 'Pro comparison', text: 'You next to the best players in your game.' },
   { icon: 'bolt', title: 'Rage mode', text: 'The coach roasts your plays. Loud. 18+.' },
   { icon: 'goal', title: 'Goals', text: 'Pick 3 habits. Watch them get better.' },

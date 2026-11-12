@@ -19,6 +19,7 @@ import { engineReview } from './engineReview';
 import { saveMoments } from '../moments/moments';
 import { dlMoments } from '../moments/build';
 import './dl.css';
+import { percentile } from '../engine/profileView';
 
 /**
  * Profile → Deadlock: your recent matches (deadlock-api's history plus the bot's), headline numbers with their trend,
@@ -35,8 +36,9 @@ const MISTAKE: Partial<Record<DlTag, string>> = {
   'COST OBJECTIVE': 'Deaths that cost an objective', 'ULT UNUSED': 'Dying with your ultimate ready', 'LANE LOST': 'Behind after laning',
 };
 /** One graded match, as kept: enough for the profile without reading the match again. */
-interface Graded { id: number; at: number; hero: number; won: boolean; overall: number | null; parts: Partial<Record<GradeKey, number | null>>; mistakes: Partial<Record<DlTag, number>> }
-const KEY = (account: string, id: number) => `dlgrade1:${account}:${id}`;
+interface Graded { id: number; at: number; hero: number; won: boolean; overall: number | null; parts: Partial<Record<GradeKey, number | null>>; mistakes: Partial<Record<DlTag, number>>;
+  /** the enemy heroes, and when you died (s): for matchups and deaths by phase */ enemies?: number[]; deaths?: number[] }
+const KEY = (account: string, id: number) => `dlgrade2:${account}:${id}`;
 /** Your report card's averages over your last graded matches (Profile → Deadlock keeps them for the suggested build). */
 export const MY_GRADES = 'stratboard.dl.myGrades';
 
@@ -61,7 +63,8 @@ async function grade(account: string, r: DlHistoryRow): Promise<Graded | null> {
   for (const mv of moves.filter(x => x.slot === me.slot && (x.note === '?' || x.note === '??' || x.note === '?!')))
     for (const t of mv.tags) if (MISTAKE[t]) mistakes[t] = (mistakes[t] ?? 0) + 1;
   const g: Graded = { id: m.id, at: m.start, hero: me.hero, won: m.winner === me.team, overall: card.overall,
-    parts: Object.fromEntries(card.parts.map(p => [p.key, p.score])), mistakes };
+    parts: Object.fromEntries(card.parts.map(p => [p.key, p.score])), mistakes,
+    enemies: m.players.filter(p => p.team !== me.team).map(p => p.hero), deaths: m.deaths.filter(d => d.slot === me.slot).map(d => Math.round(d.t)) };
   await setItem(KEY(account, r.match_id), g);
   // its moments become puzzles too (the engine is a few hundred ms a match; once per match, as the grade is kept)
   try { saveMoments(dlMoments(m, engineReview(m, null, me.slot), me.slot)); } catch { /* a puzzle less, the grade stands */ }
@@ -120,19 +123,6 @@ export function DlProfile({ account }: { account: string | null }) {
 
   const chrono = [...recent].reverse();
   const half = (xs: DlHistoryRow[], f: (r: DlHistoryRow) => number) => xs.length ? xs.reduce((a, r) => a + f(r), 0) / xs.length : 0;
-  const newer = recent.slice(0, Math.ceil(recent.length / 2)), older = recent.slice(Math.ceil(recent.length / 2));
-  // `whole`: a ratio over the rows (a mean of per-match ratios lets one deathless game dominate)
-  const kpi = (label: string, f: (r: DlHistoryRow) => number, fmt: (v: number) => string, title?: string, lowerIsBetter = false, whole: (xs: DlHistoryRow[]) => number = xs => half(xs, f)) => {
-    const v = whole(recent), raw = older.length ? whole(newer) - whole(older) : 0, d = lowerIsBetter ? -raw : raw;
-    return (
-      <div key={label} className="kpi-tile" title={title}>
-        <span>{label}</span>
-        <div className="kpi-body"><b>{fmt(v)}</b><MiniLine values={chrono.map(f).filter(Number.isFinite)} good={Math.abs(d) < 1e-9 ? null : d > 0} /></div>
-        <i className={`kpi-pill ${Math.abs(d) < 1e-9 ? 'flat' : d > 0 ? 'up' : 'down'}`} title="Your newer half against the older half">{Math.abs(d) < 1e-9 ? `last ${recent.length}` : <><Icon name={raw > 0 ? 'trendUp' : 'trendDown'} size={11} /> {fmt(Math.abs(raw))}</>}</i>
-      </div>
-    );
-  };
-  const wins = recent.filter(won).length;
   const heroes = [...recent.reduce((m, r) => m.set(r.hero_id, [...(m.get(r.hero_id) ?? []), r]), new Map<number, DlHistoryRow[]>())]
     .map(([hero, xs]) => ({ hero, n: xs.length, wr: xs.filter(won).length / xs.length, k: half(xs, r => r.player_kills), d: half(xs, r => r.player_deaths), a: half(xs, r => r.player_assists), spm: half(xs, spm) }))
     .sort((a, b) => b.n - a.n);
@@ -140,6 +130,19 @@ export function DlProfile({ account }: { account: string | null }) {
   const mistakes = Object.entries(graded.reduce<Record<string, number>>((m, g) => { for (const [t, n] of Object.entries(g.mistakes)) m[t] = (m[t] ?? 0) + (n ?? 0); return m; }, {}))
     .sort((a, b) => b[1] - a[1]).slice(0, 4);
   const byScore = graded.filter(g => g.overall !== null).sort((a, b) => b.overall! - a.overall!);
+  // the leak: the mistake that comes back most; the superpower: your best part, 55+ (50 is average), as a percentile
+  const leak = mistakes[0] ?? null;
+  const superPart = PARTS.map(p => ({ ...p, v: avg(p.key) })).filter((p): p is typeof p & { v: number } => p.v !== null && p.v >= 55).sort((a, b) => b.v - a.v)
+    .map(p => ({ ...p, better: percentile((p.v - 50) / 20) }))[0] ?? null;
+  // matchups (2+ games against a hero), deaths by phase, deaths with the ultimate ready
+  const vs = new Map<number, { n: number; w: number }>();
+  for (const g of graded) for (const e of g.enemies ?? []) { const x = vs.get(e) ?? { n: 0, w: 0 }; x.n++; if (g.won) x.w++; vs.set(e, x); }
+  const matchups = [...vs].filter(([, x]) => x.n >= 2).map(([hero, x]) => ({ hero, n: x.n, wr: x.w / x.n })).sort((a, b) => b.wr - a.wr);
+  const withDeaths = graded.filter(g => g.deaths);
+  const phases = withDeaths.length ? [['Laning (0–10 min)', 0, 600], ['Mid game (10–25)', 600, 1500], ['Late game (25+)', 1500, Infinity]].map(([label, a, b]) => ({
+    label: label as string, n: withDeaths.reduce((acc, g) => acc + g.deaths!.filter(t => t >= (a as number) && t < (b as number)).length, 0) / withDeaths.length })) : [];
+  const ultDeaths = graded.length ? graded.reduce((a, g) => a + (g.mistakes['ULT UNUSED'] ?? 0), 0) / graded.length : null;
+  const heroGrade = (hero: number) => { const xs = graded.filter(g => g.hero === hero && g.overall !== null).map(g => g.overall!); return xs.length ? Math.round(xs.reduce((a, v) => a + v, 0) / xs.length) : null; };
   const open = async (id: number) => {
     setOpening(id);
     try { await openMatch(id); navigate({ page: 'deadlock', mode: 'report' }); } catch { setOpening(null); }
@@ -148,20 +151,22 @@ export function DlProfile({ account }: { account: string | null }) {
 
   return (
     <>
-      <section className="kpi-strip" aria-label={`Your last ${plural(recent.length, 'Deadlock match', 'Deadlock matches')}`}>
-        <div className="kpi-tile">
-          <span>Win rate</span>
-          <div className="kpi-body"><b>{pct(wins / recent.length)}</b>
-            <span className="wl-row" aria-label="Your last matches, oldest first">{chrono.slice(-10).map(r => <i key={r.match_id} className={won(r) ? 'win' : 'loss'} title={`${heroOf(r.hero_id).name} · ${day(r.start_time)}`} />)}</span>
-          </div>
-          <i className="kpi-pill flat">{wins}–{recent.length - wins} in {recent.length}</i>
+      {/* the same top as CS2's profile: the stat strip, then the biggest leak and your superpower */}
+      <div className="trend-row stat-strip">
+        <TrendTile label="KDA" values={chrono.map(r => (r.player_kills + r.player_assists) / Math.max(1, r.player_deaths))} fmt={v => v.toFixed(2)} />
+        <TrendTile label="Souls a minute" values={chrono.filter(hasSouls).map(spm)} fmt={v => Math.round(v).toLocaleString('en-US')} />
+        <TrendTile label="Last hits a minute" values={chrono.filter(hasSouls).map(r => r.last_hits / Math.max(1, r.match_duration_s / 60))} fmt={v => v.toFixed(1)} />
+        <TrendTile label="Deaths" values={chrono.map(r => r.player_deaths)} fmt={v => v.toFixed(1)} higherBetter={false} />
+      </div>
+      {(leak || superPart) && (
+        <div className="leak-row">
+          {leak && <section className="site-card leak-card"><span className="eyebrow">Biggest leak</span><h2>{MISTAKE[leak[0] as DlTag]}</h2>
+            <p className="leak-num"><b>{(leak[1] / graded.length).toFixed(1)} a match</b> over your last {graded.length} graded</p>
+            <div className="hero-cta"><a className="cta" href="/puzzles">Practise in Puzzles</a></div></section>}
+          {superPart && <section className="site-card super-card"><span className="eyebrow">Your superpower</span><h2>{superPart.label}</h2>
+            <p className="muted">Better than <b>{superPart.better}%</b> of players on your hero and position</p><p className="muted small">Your average {superPart.v} · 50 is average</p></section>}
         </div>
-        {kpi('KDA ratio', r => (r.player_kills + r.player_assists) / Math.max(1, r.player_deaths), v => v.toFixed(2), '(kills + assists) per death, over all these matches', false,
-          xs => xs.reduce((a, r) => a + r.player_kills + r.player_assists, 0) / Math.max(1, xs.reduce((a, r) => a + r.player_deaths, 0)))}
-        {kpi('Souls a minute', r => (hasSouls(r) ? spm(r) : NaN), v => Math.round(v).toLocaleString(), undefined, false, xs => half(xs.filter(hasSouls), spm))}
-        {kpi('Last hits a minute', r => (hasSouls(r) ? r.last_hits / Math.max(1, r.match_duration_s / 60) : NaN), v => v.toFixed(1), undefined, false, xs => half(xs.filter(hasSouls), r => r.last_hits / Math.max(1, r.match_duration_s / 60)))}
-        {kpi('Deaths', r => r.player_deaths, v => v.toFixed(1), 'deaths a match (fewer is better)', true)}
-      </section>
+      )}
 
       <div className="dash-row">
         <TrendTile label="Souls a minute" values={chrono.filter(hasSouls).map(spm)} fmt={v => Math.round(v).toLocaleString('en-US')}
@@ -226,18 +231,35 @@ export function DlProfile({ account }: { account: string | null }) {
       <section className="site-card">
         <div className="card-head"><h2><Icon name="user" size={16} /> Your heroes</h2><span className="muted small">{lastN(recent.length, 'match').toLowerCase()}</span></div>
         <table className="site-table dl-pf-heroes">
-          <thead><tr><th>Hero</th><th>Games</th><th>Win rate</th><th>K/D/A</th><th>Souls a minute</th></tr></thead>
+          <thead><tr><th>Hero</th><th>Games</th><th>Win rate</th><th>Grade</th><th>K/D/A</th><th>Souls a minute</th></tr></thead>
           <tbody>{heroes.map(h => (
             <tr key={h.hero}>
               <td><span className="dl-sb-who">{heroOf(h.hero).card && <img className="dl-hero-img" src={heroOf(h.hero).card!} alt="" width={26} height={26} />}<b>{heroOf(h.hero).name}</b></span></td>
               <td className="num">{h.n}</td>
               <td className="num" style={{ color: h.wr >= 0.5 ? 'var(--good)' : 'var(--bad)' }}>{pct(h.wr)}</td>
+              <td className="num">{heroGrade(h.hero) ?? '–'}</td>
               <td className="num">{h.k.toFixed(1)} / {h.d.toFixed(1)} / {h.a.toFixed(1)}</td>
               <td className="num">{Math.round(h.spm).toLocaleString()}</td>
             </tr>
           ))}</tbody>
         </table>
       </section>
+
+      {(matchups.length >= 2 || phases.length > 0) && (
+        <div className="profile-grid">
+          {matchups.length >= 2 && <section className="site-card"><div className="card-head"><h2>Matchups</h2><span className="muted small">2+ games against them</span></div>
+            <table className="site-table"><tbody>
+              {[...matchups.slice(0, 3).map(m => ({ ...m, tone: 'up' })), ...matchups.slice(-3).reverse().filter(m => !matchups.slice(0, 3).includes(m)).map(m => ({ ...m, tone: 'down' }))].map(m => (
+                <tr key={`${m.tone}${m.hero}`}><td>{m.tone === 'up' ? 'You beat' : 'You lose to'} <b>{heroOf(m.hero).name}</b></td><td className={`num ${m.wr >= 0.5 ? 'up' : 'down'}`}>{pct(m.wr)} of {m.n}</td></tr>
+              ))}
+            </tbody></table></section>}
+          {phases.length > 0 && <section className="site-card"><div className="card-head"><h2>Deaths by phase</h2><span className="muted small">a match, last {withDeaths.length} graded</span></div>
+            <table className="site-table"><tbody>
+              {phases.map(p => <tr key={p.label}><td>{p.label}</td><td className="num">{p.n.toFixed(1)}</td></tr>)}
+              {ultDeaths !== null && <tr><td>With your ultimate ready</td><td className={`num ${ultDeaths > 0.5 ? 'down' : ''}`}>{ultDeaths.toFixed(1)}</td></tr>}
+            </tbody></table></section>}
+        </div>
+      )}
 
       <section className="site-card">
         <div className="card-head"><h2>{lastN(Math.min(10, rows.length), 'match')}</h2></div>

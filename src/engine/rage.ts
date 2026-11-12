@@ -22,7 +22,6 @@ const WHEN: [Situation, (m: Move) => boolean][] = [
   ['knifeOut', m => m.tags.includes('KNIFE OUT') && !m.tags.includes('OUTGUNNED')],
   ['whiff', m => m.tags.includes('WHIFF')],
   ['awpLost', m => m.tags.includes('AWP LOST')],
-  ['unusedUtil', m => m.tags.includes('UNUSED UTIL')],
   ['dryPeek', m => m.tags.includes('DRY PEEK') || m.tags.includes('BAD PEEK')],
   ['lowHp', m => m.kind === 'death' && m.tags.includes('LOW HP')],
   ['loud', m => m.kind === 'death' && m.tags.includes('LOUD')],

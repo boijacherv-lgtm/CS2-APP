@@ -68,7 +68,8 @@ export function cs2Moment(data: DemoData, i: number, m: SearchMoment): Moment | 
   }
   // the top options, and what was done (it's among them, or added), all worded as moves ("Held A Site" is "Hold A
   // Site": a past tense would give the answer away, and the same move twice reads as two)
-  const opts: SearchOption[] = m.options.slice(0, 3).map(o => ({ ...o, label: asMove(o.label) }));
+  // up to 6 for the puzzle rules to choose from (quality.ts keeps 3–4 different ideas)
+  const opts: SearchOption[] = m.options.slice(0, 6).map(o => ({ ...o, label: asMove(o.label) }));
   const did = asMove(m.did.label);
   // two ways to the same place ("Peek B Site", "Move to B Site") are one option: keep what was done, else the better
   for (let a = opts.length - 1; a > 0; a--) {
@@ -109,7 +110,7 @@ export function cs2Moment(data: DemoData, i: number, m: SearchMoment): Moment | 
     setup: `Round ${i + 1}. ${planted ? `Bomb planted · ${left} s on the bomb. ` : `${clock(left)} left in the round. `}You're ${m.side}, ${us} alive against ${them}. Your side's win chance: ${pct(m.before)}.`,
     // one scale for every number: the best move keeps the win chance you have now, each other move loses its calibrated
     // cost (the engine's raw values exaggerate: search.ts COST_SCALE), so "gave up" is best minus played
-    options: opts.map(o => ({ label: o.label, value: onScale(m.before, (best.win - o.win) * COST_SCALE), ...toMap(o) })), played, cls: m.cls, cost: (best.win - (opts[played]?.win ?? best.win)) * COST_SCALE,
+    options: opts.map(o => { const v = onScale(m.before, (best.win - o.win) * COST_SCALE); return { label: o.label, value: v, ...toMap(o), what: `You die ${pc(o.death)} of the time, about ${o.kills.toFixed(1)} kills; the round is won ${pc(v)}.` }; }), played, cls: m.cls, cost: (best.win - (opts[played]?.win ?? best.win)) * COST_SCALE,
     kind: kindLabel(`${cap(m.did.label.split(' ')[0])} instead of ${DOING[best.kind as OptionKind] ?? 'the best move'}`),
     info, tag, why: cs2Why(best, opts[played] ?? m.did, { planted, side: m.side, us, them, left }),
   };
@@ -134,7 +135,7 @@ export function dlMoment(match: DlMatch, x: EngineMove, slot: number): Moment | 
     const at = playerAt(match, p.slot, x.t);
     if (at) dots.push({ x: at.x, y: at.y, team: p.team === me.team ? 1 : 0, ...(p.slot === slot ? { me: true } : {}) });
   }
-  const opts = x.options.slice(0, 3);
+  const opts = x.options.slice(0, 6);
   let played = opts.findIndex(o => o.action === x.played.action);
   if (played < 0) { opts.push(x.played); played = opts.length - 1; }
   if (opts.length < 2) return null;
@@ -150,7 +151,7 @@ export function dlMoment(match: DlMatch, x: EngineMove, slot: number): Moment | 
     id: `${match.id}#${slot}#${clock(x.t)}`, game: 'deadlock', map: 'deadlock', at: match.start * 1000, match: hero, when: clock(x.t), dots,
     setup: `${clock(x.t)} in, as ${hero}. Your team's win chance: ${pct(x.before)}.${fight?.sides ? ` A fight is close: ${fight.sides[0]} of your team against ${fight.sides[1]} of theirs.` : ''}`,
     // the same one scale: the best move keeps the team's win chance now, the others lose what the search says they cost
-    options: opts.map(o => ({ label: DO[o.action], value: onScale(x.before, opts[0].value - o.value) })), played, cls: x.cls, cost: Math.max(0, opts[0].value - opts[played].value),
+    options: opts.map(o => { const v = onScale(x.before, opts[0].value - o.value); return { label: DO[o.action], value: v, what: `${o.sides ? `${o.sides[0]} of yours against ${o.sides[1]} of theirs. ` : ''}Your team wins ${pct(v)} of the playouts.` }; }), played, cls: x.cls, cost: Math.max(0, opts[0].value - opts[played].value),
     // the engine's reasons, without its own "gave up X%" line (on the raw scale; the puzzle shows its one scale)
     kind: cap(x.title.replace(/^[^:]+: /, '')), why: x.why.filter(w => !/gave up|was worth/i.test(w)).slice(0, 3),
     tag: fight ? 'Teamfight' : opts[0].action === 'objective' ? 'Objective' : x.t < 600 ? 'Laning' : 'Macro',

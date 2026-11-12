@@ -8,8 +8,8 @@ const DIST = path.resolve(import.meta.dirname, '../dist');
 const SITE = 'https://tsakhstvo.xyz';
 // the pages (src/shell/router.ts); /m is a shared moment (its code in the query)
 const PAGES = ['cs2', 'cs2/review', 'cs2/tactical', 'cs2/report', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'deadlock/meta', 'deadlock/report',
-  'puzzles', 'profile', 'pricing', 'settings', 'privacy', 'changelog', 'dev', 'm'];
-const PUBLIC = ['', 'cs2', 'cs2/review', 'cs2/tactical', 'deadlock', 'deadlock/review', 'deadlock/meta', 'puzzles', 'pricing', 'privacy', 'changelog'];
+  'puzzles', 'profile', 'pricing', 'settings', 'privacy', 'changelog', 'guides', 'dev', 'm'];
+const PUBLIC = ['', 'cs2', 'cs2/review', 'cs2/tactical', 'deadlock', 'deadlock/review', 'deadlock/meta', 'puzzles', 'pricing', 'privacy', 'changelog', 'guides'];
 
 const html = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
 // the front page's FAQ and the coach's numbers, from the same module the page uses (run with vite-node: it reads TS)
@@ -23,7 +23,7 @@ const META = {
   cs2: { title: 'CS2 demo review: every round graded S+ to F · RageView', h1: 'Every CS2 round, graded.',
     desc: 'Drop a CS2 demo: every round graded S+ to F, every move from Brilliant to Blunder, with the better play. Free, read in your browser.',
     text: ['Drop a .dem demo: every round graded S+ to F and every move from Brilliant to Blunder, with the better play.', 'A coach built on FACEIT level-10 games; the demo is read in your browser.'] },
-  deadlock: { title: 'Deadlock match review by match ID: every fight graded · RageView', h1: 'Every Deadlock fight, graded.', ogTitle: 'Who lost the fight? Find out free.',
+  deadlock: { title: 'Deadlock match review by match ID: every fight graded · RageView', h1: 'Every Deadlock fight, graded.', ogTitle: 'Every Deadlock fight, graded.',
     desc: 'Replay any Deadlock match by its match ID. Every kill, death and move graded, with the better play. Free.',
     text: ['Paste a Deadlock match ID: replay it on the map, every fight graded, and what top players do instead.', 'Match data from deadlock-api.com; replay files are read in your browser.'] },
   'deadlock/meta': { title: 'Deadlock meta & builds this patch, by position · RageView', h1: 'Deadlock meta and builds',
@@ -37,6 +37,7 @@ const META = {
     text: ['RageView is free.', 'Pro adds unlimited history; it is free during early access, later $5 a month.'] },
   privacy: { title: 'Privacy · RageView', h1: 'Privacy', desc: 'What RageView keeps: demos are read in your browser and never uploaded; logged in, only your numbers are saved.',
     text: ['Demos and replay files are read in your browser and never uploaded.', 'Log in with Steam only gives the site your SteamID, public name and avatar.'] },
+  guides: { title: 'Guides: download your CS2 demo, find a Deadlock match ID, ADR and KAST · RageView', h1: 'Guides', desc: 'How to download your CS2 demo, find a Deadlock match ID, what ADR and KAST mean, and where FACEIT level-10 players die on each map.', text: ['Download your CS2 demo, find a Deadlock match ID, ADR and KAST explained, and where FACEIT level-10 players die on each map.'] },
   changelog: { title: 'What\'s new · RageView', h1: 'What\'s new', desc: 'What changed on RageView, newest first.', text: ['What changed on RageView, newest first.'] },
 };
 const esc = t => t.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -63,7 +64,7 @@ for (const p of PAGES) {
   // Deadlock's pages get Deadlock's picture in link previews (Discord, X)
   if (p.startsWith('deadlock')) page = page
     .replace('content="https://tsakhstvo.xyz/images/og.png"', 'content="https://tsakhstvo.xyz/images/og-deadlock.png"')
-    .replace('content="Was it your fault? Find out free."', 'content="Who lost the fight? Find out free."')
+    .replace('content="Every move you make, graded."', 'content="Every Deadlock fight, graded."')
     .replace(/(<meta property="og:description" content=")[^"]*"/, '$1Replay any Deadlock match. Every kill, death and move graded, with the better play."')
     .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${SITE}/${p}"`);
   // CS2's pages get CS2's picture
@@ -85,7 +86,7 @@ fs.writeFileSync(path.join(DIST, 'index.html'), withMeta(html, '').replace('</he
 // /llms.txt: what the site is, in plain words, for AI assistants (facts from the site only)
 fs.writeFileSync(path.join(DIST, 'llms.txt'), `# RageView
 
-> Free match review for Counter-Strike 2 and Deadlock. Every play is graded (Brilliant to Blunder per move, S+ to F per round) with the better play the engine would have made.
+> Every move you make, graded. Free match review for Counter-Strike 2 and Deadlock: every move gets a mark (Brilliant to Blunder), every round and match a grade (S+ to F), with the better play the coach found.
 
 - CS2: drop a .dem demo; it is read in your browser, nothing is uploaded. The coach learned from ${MATCHES} FACEIT level-10 matches${PRO_MATCHES ? ` and ${PRO_MATCHES} pro matches` : ''}.
 - Deadlock: open any match by its match ID (match data from deadlock-api.com). The coach learned from ${DL_MATCHES.toLocaleString('en-US')} Phantom-and-up matches since the patch.

@@ -43,7 +43,7 @@ export interface ProfileMatch {
 
 /** Which move tags each habit is (a move with the tag counts its lost win chance to the habit). */
 export const LEAK_TAGS: Partial<Record<GoalId, string[]>> = {
-  untradedDeaths: ['NO TRADE'], isolatedDeaths: ['ISOLATED'], openingDeaths: ['OPENING'], whiffs: ['WHIFF'], unusedUtil: ['UNUSED UTIL'],
+  untradedDeaths: ['NO TRADE'], isolatedDeaths: ['ISOLATED'], openingDeaths: ['OPENING'], whiffs: ['WHIFF'],
   wastedFlashes: ['WASTED'], teamHarm: ['TEAM FLASH', 'TEAM KILL', 'TEAM DAMAGE'], awpLost: ['AWP LOST'], lowHpFights: ['LOW HP'],
   loud: ['LOUD'], stopped: ['MOVING SHOT'],
 };

@@ -280,7 +280,7 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
         const g = moveLook(m);
         // the same marks as on the map, for every move that's evaluated: book moves as small dots
         return (
-          <button key={`m${i}`} tabIndex={-1} className={m.note === 'book' ? 'tl-dot' : 'tl-mark'} style={{ left: pct(m.t), background: m.note === 'book' ? g.color : 'none' }}
+          <button key={`m${i}`} tabIndex={-1} className={`${m.note === 'book' ? 'tl-dot' : 'tl-mark'}${(m.note === '!!' || m.note === '??') && time >= m.t && time - m.t < 0.8 ? ' tl-hit' : ''}`} style={{ left: pct(m.t), background: m.note === 'book' ? g.color : 'none' }}
             title={`${g.label} · ${m.title}`}
             onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }}>{m.note !== 'book' && <MarkFace note={m.note} size={15} title={`${g.label} · ${m.title}`} />}</button>
         );
@@ -309,7 +309,7 @@ function ReviewOptions() {
         <EvalToggle />
         {toggle(s.popups, s.setPopups, 'chat', 'Coach cards', 'A card with the grade and comments for each graded move')}
         {s.popups && toggle(s.readSlow, s.setReadSlow, 'slow', 'Slow while reading', 'Slow motion while a card is open')}
-        {toggle(s.engineLines, s.setEngineLines, 'route', 'Arrows', "The engine's best option against what was done, and a line from each card to its player")}
+        {toggle(s.engineLines, s.setEngineLines, 'route', 'Arrows', "The coach's best option against what was done, and a line from each card to its player")}
         {siteConfig().flags.rage && toggle(s.rage !== 'off', on => s.setRage(on ? 'full' : 'off'), 'bolt', 'Rage mode', 'The coach swears at your plays (18+, strong language)', 'rage')}
         <div className="opt-head">Map</div>
         {toggle(s.autoCam, s.setAutoCam, 'target', 'Auto zoom', 'The map zooms in when everyone is on one part of it; off shows the whole map')}

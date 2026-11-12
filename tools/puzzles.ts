@@ -16,6 +16,7 @@ import { matchFromMetadata } from '../src/deadlock/match';
 import { engineReview } from '../src/deadlock/engineReview';
 import { cs2Moment, dlMoment, placeOf } from '../src/moments/build';
 import type { Moment } from '../src/moments/moments';
+import { shapePuzzle, shapeSet } from '../src/moments/quality';
 
 const args = process.argv.slice(2).filter(a => a !== '--');
 const opt = (k: string, d: number) => { const i = args.indexOf(`--${k}`); return i >= 0 ? Number(args[i + 1]) : d; };
@@ -30,7 +31,8 @@ const margin = (m: Moment) => { const v = m.options.map(o => o.value).sort((a, b
 function pick(all: Moment[], want: number, min: number, per: number): Moment[] {
   // one per moment of a match (in a fight, every player in it has the same one)
   const seen = new Set<string>();
-  const ok = all.filter(m => margin(m) >= min && new Set(m.options.map(o => placeOf(o.label))).size === m.options.length)
+  // the puzzle rules first (quality.ts): 3–4 different ideas, a clear best, no ties, no decided moments
+  const ok = all.map(shapePuzzle).filter((m): m is Moment => !!m && margin(m) >= min && new Set(m.options.map(o => placeOf(o.label))).size === m.options.length)
     .sort((a, b) => margin(b) - margin(a)).filter(m => { const k = `${m.id.split('#')[0]}@${m.when}`; if (seen.has(k)) return false; seen.add(k); return true; });
   const by = (good: boolean) => ok.filter(m => (m.played === 0) === good).sort((a, b) => margin(b) - margin(a));
   const out: Moment[] = [], count = new Map<string, number>();
@@ -43,7 +45,7 @@ function pick(all: Moment[], want: number, min: number, per: number): Moment[] {
     count.set(k, (count.get(k) ?? 0) + 1); out.push(m); n--;
   } };
   take(by(false), Math.round(want * 0.7)); take(by(true), want - out.length);
-  return out;
+  return shapeSet(out);
 }
 const slim = (m: Moment, who: string): Moment => ({ ...m, id: `p:${m.id}`, who, at: 0,
   dots: m.dots.map(d => ({ ...d, x: +d.x.toFixed(3), y: +d.y.toFixed(3) })), options: m.options.map(o => ({ ...o, value: +o.value.toFixed(3) })), cost: +m.cost.toFixed(3) });

@@ -124,7 +124,7 @@ export function Settings() {
       <section className="site-card">
         <h2>Review</h2>
         <Toggle label="Move cards" on={s.popups} text="A card with the grade and the reasons for each graded move." onChange={s.setPopups} />
-        <Toggle label="Arrows" on={s.engineLines} text="The engine's best option drawn next to what was done." onChange={s.setEngineLines} />
+        <Toggle label="Arrows" on={s.engineLines} text="The coach's best option drawn next to what was done." onChange={s.setEngineLines} />
         <Toggle label="Slow motion while reading" on={s.readSlow} text="The replay slows down while a card is open." onChange={s.setReadSlow} />
         <div className="setting">
           <div className="setting-text"><b>Grade</b><span className="muted">Every player's moves, or only yours.</span></div>

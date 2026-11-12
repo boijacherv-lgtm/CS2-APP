@@ -177,6 +177,7 @@ export function HeroBuilds({ hero, setHero }: { hero: number; setHero: (h: numbe
                   <b>{b.name}</b>
                   <span className={`num ${b.winRate >= data.base + 0.01 ? 'up' : b.winRate <= data.base - 0.01 ? 'down' : ''}`}>{pct(b.winRate)}</span>
                   <span className="muted small num">{b.matches.toLocaleString()} games · {b.players.toLocaleString()} players</span>
+                  <CopyBuild id={b.id} />
                 </div>
                 <div className="dl-build-items">{b.items.filter(id => ITEM.has(id)).slice(0, 24).map(id => <ItemIcon key={id} id={id} />)}</div>
               </div>
@@ -455,5 +456,16 @@ function SuggestedBuild({ hero, stats }: { hero: number; stats: Awaited<ReturnTy
         ))}
       </div>
     </div>
+  );
+}
+
+/** The build's ID for the game's own build browser: copy it, then in Deadlock search it under Builds and subscribe. */
+function CopyBuild({ id }: { id: number }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button className="ghost small-btn dl-copy-build" title="In Deadlock: open the hero's Builds, search this build ID, then subscribe to it"
+      onClick={async () => { try { await navigator.clipboard.writeText(String(id)); setDone(true); setTimeout(() => setDone(false), 2500); } catch { /* no clipboard: the ID is in the title */ } }}>
+      <Icon name={done ? 'check' : 'copy'} size={13} /> {done ? 'Copied: search it in Builds' : `Copy build ID ${id}`}
+    </button>
   );
 }

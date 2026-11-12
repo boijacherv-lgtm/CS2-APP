@@ -21,7 +21,7 @@ import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } f
 import { META_KEY, refreshDlMeta } from './dlMeta';
 import { botRoute, saveBotState } from './dlBot';
 import { kickBots, startWorkflow } from './botKick';
-import { addCoachEval, BOTS_PAUSED, coachEvals, deleteUser, health, loadConfig, saveConfig, setBotsPaused, siteLog, undo, users } from './site';
+import { addCoachEval, BOTS_PAUSED, coachEvals, deleteUser, health, loadConfig, puzzleStats, saveConfig, setBotsPaused, siteLog, undo, users } from './site';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { board, countAnswer, friendsBoard, friendsOnSite, updateBoard } from './puzzles';
 import { puzzleGameOf } from '../../src/engine/profile';
@@ -156,7 +156,7 @@ export default {
         return json(await friendsBoard(env.SB, steamId, env.STEAM_API_KEY, puzzleGameOf(new URL(req.url).searchParams.get('game'))));
       }
       // the dev page's control panel (site.ts): owners only, every change logged
-      if (path.startsWith('/admin/') && /^\/admin\/(config|log|undo|users|user\/delete|bots|coach|coach\/check|health)$/.test(path)) {
+      if (path.startsWith('/admin/') && /^\/admin\/(config|log|undo|users|user\/delete|bots|coach|coach\/check|health|puzzles)$/.test(path)) {
         if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can do this.' }, 403);
         const q = new URL(req.url).searchParams;
         if (path === '/admin/config') return json(req.method === 'POST' ? await saveConfig(env.SB, steamId, await body(req), String(q.get('what') ?? 'Changed the site config').slice(0, 120)) : { config: await loadConfig(env.SB) });
@@ -168,6 +168,7 @@ export default {
         if (path === '/admin/coach') return json(await coachEvals(env.SB));
         if (path === '/admin/coach/check' && req.method === 'POST') return json({ result: await startWorkflow(env.GH_TOKEN, 'coach-check.yml') });
         if (path === '/admin/health') return json(health(env as unknown as Record<string, unknown>));
+        if (path === '/admin/puzzles') return json(await puzzleStats(env.SB));
       }
       if (req.method === 'GET' && path === '/admin/stats') {
         if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);

@@ -89,6 +89,11 @@ export function MatchReportPage() {
 
       {tab === 'overview' && focus && (
         <>
+          {!report.done && (
+            <section className="top3 skel" aria-busy="true" aria-label={`Coach notes · ${view.graded}/${view.total} rounds`}>
+              {['Biggest leak', 'Best play', 'Fix next'].map(l => <div key={l} className="top3-card"><span className="eyebrow">{l}</span><i className="skel-line" /><i className="skel-line short" /><span className="muted small">Coach notes · {view.graded}/{view.total} rounds</span></div>)}
+            </section>
+          )}
           {report.done && <TopThree p={focus} fix={overview.fix[0] ?? null} onWatch={(i, t) => { openRound(i); if (t !== null) useStore.getState().setTime(Math.max(0, t - 2)); }} />}
           <Performance p={focus} players={view.players} me={me} onPlayer={setPicked} />
           {report.done && <RoundCallouts p={focus} onRound={openRound} />}
@@ -504,7 +509,7 @@ function DecisionsCard({ rounds, player, onRound, onHotRound }: {
     <section className="recap-card positioning">
       <div className="coach-head">
         <h2 className="display">Decisions</h2>
-        <span className="muted">what a level-10 player does in the same situation, and the engine · every 2 s · {Math.max(a.n, a.engine?.n ?? 0)} moments</span>
+        <span className="muted">what a level-10 player does in the same situation, and the coach's best option · every 2 s · {Math.max(a.n, a.engine?.n ?? 0)} moments</span>
       </div>
       {a.n > 0 && <p className="coach-summary">
         {Math.round(a.usual * 100)}% of your choices (hold, push, fall back, reposition, grenade, bomb) were ones level-10 players make in that
@@ -610,7 +615,7 @@ function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1
             <th title="Grade among the players of this lobby">Lobby</th>
             {hasLevel && <th title="One grade from FACEIT level 10 to pro: B = a typical level-10 game, S = a typical pro game (performance and mechanics)">Level</th>}
             {hasLvl10 && <th title="Grade against FACEIT level-10 players">Lvl 10</th>}
-            {hasEngine && <th title="Engine accuracy: every 2 s, what they did against the best option the engine calculated (100 = always the best; level-10 players average about 88)">Acc</th>}
+            {hasEngine && <th title="Accuracy: every 2 s, what they did against the best option the coach found (100 = always the best; level-10 players average about 88)">Acc</th>}
             <th>K</th><th>D</th><th title="Average damage a round">ADR</th><th title="Rounds with a kill, assist, survival or trade">KAST</th>
             {full && <><th>HS%</th>
               <th title="Opening kills – opening deaths">Open</th><th title="Clutch kills (last alive vs 2+)">Clutch</th><th title="Rounds with 3+ kills">3K+</th>
@@ -755,7 +760,7 @@ function DuoCard({ a, players }: { a: PlayerReport; players: PlayerReport[] }) {
     ['Impact a round', p => p.impactPerRound, v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`],
     ['Headshots', p => p.hs, v => `${Math.round(v)}%`],
     ['Opening duels won', p => p.openingKills / Math.max(1, p.openingKills + p.openingDeaths), v => `${Math.round(v * 100)}%`],
-    ['Engine accuracy', p => p.engineAccuracy, v => v.toFixed(1)],
+    ['Accuracy', p => p.engineAccuracy, v => v.toFixed(1)],
     ['Utility damage', p => p.utilDamage, v => v.toFixed(0)],
   ];
   return (

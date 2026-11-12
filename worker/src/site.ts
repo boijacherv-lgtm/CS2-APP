@@ -188,3 +188,13 @@ export function health(env: Record<string, unknown>) {
     rateLimits: !!env.RATE_PUBLIC && !!env.RATE_USER,
   };
 }
+
+/** Puzzle answers as the Worker counted them (pz:<id>, worker/src/puzzles.ts): for the dev page's puzzle quality. */
+export async function puzzleStats(kv: SiteKV) {
+  const rows: { id: string; tried: number; right: number }[] = [];
+  for (const k of await keys(kv, 'pz:', 2000)) {
+    const v = (await kv.get(k, 'json')) as { tried?: number; right?: number } | null;
+    if (v?.tried) rows.push({ id: k.slice(3), tried: v.tried, right: v.right ?? 0 });
+  }
+  return { rows: rows.sort((a, b) => b.tried - a.tried) };
+}

@@ -5,10 +5,10 @@ import { useSyncExternalStore } from 'react';
 export type Cs2Mode = 'home' | 'tactical' | 'review' | 'report';
 /** Deadlock: its landing page (home) and the same three modes as CS2. */
 export type DlMode = 'home' | 'tactical' | 'review' | 'report';
-export type SitePage = 'home' | 'profile' | 'pricing' | 'settings' | 'dev' | 'puzzles' | 'missing' | 'privacy' | 'changelog';
+export type SitePage = 'home' | 'profile' | 'pricing' | 'settings' | 'dev' | 'puzzles' | 'missing' | 'privacy' | 'changelog' | 'guides';
 /** `moment`: a shared moment, the whole of it in the address (/m?c=<code>). */
 export type Route = { page: SitePage } | { page: 'cs2'; mode: Cs2Mode } | { page: 'deadlock'; mode: DlMode } | { page: 'moment'; code: string };
-const PAGES: SitePage[] = ['profile', 'pricing', 'settings', 'dev', 'puzzles', 'privacy', 'changelog'];
+const PAGES: SitePage[] = ['profile', 'pricing', 'settings', 'dev', 'puzzles', 'privacy', 'changelog', 'guides'];
 
 /** A path ("/cs2/review", "/m?c=…", or an old "#/cs2/review") as a page. */
 export function parseRoute(path: string): Route {
