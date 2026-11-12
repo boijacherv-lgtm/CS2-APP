@@ -460,12 +460,12 @@ function SuggestedBuild({ hero, stats }: { hero: number; stats: Awaited<ReturnTy
 }
 
 /** The build's ID for the game's own build browser: copy it, then in Deadlock search it under Builds and subscribe. */
-function CopyBuild({ id }: { id: number }) {
+export function CopyBuild({ id, short }: { id: number; short?: boolean }) {
   const [done, setDone] = useState(false);
   return (
     <button className="ghost small-btn dl-copy-build" title="In Deadlock: open the hero's Builds, search this build ID, then subscribe to it"
       onClick={async () => { try { await navigator.clipboard.writeText(String(id)); setDone(true); setTimeout(() => setDone(false), 2500); } catch { /* no clipboard: the ID is in the title */ } }}>
-      <Icon name={done ? 'check' : 'copy'} size={13} /> {done ? 'Copied: search it in Builds' : `Copy build ID ${id}`}
+      <Icon name={done ? 'check' : 'copy'} size={13} /> {done ? (short ? 'Copied' : 'Copied: search it in Builds') : short ? 'Copy ID' : `Copy build ID ${id}`}
     </button>
   );
 }

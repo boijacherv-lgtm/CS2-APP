@@ -12,6 +12,8 @@ import { BOT_ON, botMatches } from './botApi';
 import { coachMatch, type DlTag } from './coach';
 import { heroOf } from './data';
 import { gameplayPatches } from './patchFeed';
+import { myBestBuilds, type MyBuild } from './meta';
+import { CopyBuild } from './DlMeta';
 import type { Patch } from './patches';
 import { laneOpponent, noteOf, reportCard, type GradeKey } from './grade';
 import { statAt } from './match';
@@ -82,6 +84,7 @@ export function DlProfile({ account }: { account: string | null }) {
   const [graded, setGraded] = useState<Graded[]>([]);
   const [grading, setGrading] = useState<{ done: number; of: number } | null>(null);
   const [opening, setOpening] = useState<number | null>(null);
+  const [builds, setBuilds] = useState<MyBuild[]>([]);
 
   useEffect(() => {
     if (!account) return;
@@ -115,6 +118,14 @@ export function DlProfile({ account }: { account: string | null }) {
   }, [account, rows]);
 
   const recent = useMemo(() => (rows ?? []).slice(0, RECENT), [rows]);
+  // your most-won in-game build on each hero you've played lately
+  const heroIds = useMemo(() => [...new Set(recent.map(r => r.hero_id))].join(','), [recent]);
+  useEffect(() => {
+    if (!account || !heroIds) return;
+    let live = true;
+    myBestBuilds(account, heroIds.split(',').map(Number)).then(b => live && setBuilds(b), () => live && setBuilds([]));
+    return () => { live = false; };
+  }, [account, heroIds]);
   // your report card's averages, for the coach's suggested build (Tactical → Builds)
   useEffect(() => {
     if (!graded.length || grading) return;
@@ -242,7 +253,7 @@ export function DlProfile({ account }: { account: string | null }) {
       <section className="site-card">
         <div className="card-head"><h2><Icon name="user" size={16} /> Your heroes</h2><span className="muted small">{lastN(recent.length, 'match').toLowerCase()}</span></div>
         <table className="site-table dl-pf-heroes">
-          <thead><tr><th>Hero</th><th>Games</th><th>Win rate</th><th>Grade</th><th>K/D/A</th><th>Souls a minute</th></tr></thead>
+          <thead><tr><th>Hero</th><th>Games</th><th>Win rate</th><th>Grade</th><th>K/D/A</th><th>Souls a minute</th><th>Most-won build</th></tr></thead>
           <tbody>{heroes.map(h => (
             <tr key={h.hero}>
               <td><span className="dl-sb-who">{heroOf(h.hero).card && <img className="dl-hero-img" src={heroOf(h.hero).card!} alt="" width={26} height={26} />}<b>{heroOf(h.hero).name}</b></span></td>
@@ -251,6 +262,7 @@ export function DlProfile({ account }: { account: string | null }) {
               <td className="num">{heroGrade(h.hero) ?? '–'}</td>
               <td className="num">{h.k.toFixed(1)} / {h.d.toFixed(1)} / {h.a.toFixed(1)}</td>
               <td className="num">{Math.round(h.spm).toLocaleString()}</td>
+              <td>{(() => { const b = builds.find(x => x.hero === h.hero); return b ? <span className="dl-pf-build"><span title={b.name}>{b.name}</span><span className="muted small">{b.wins} won of {b.matches}</span><CopyBuild id={b.id} short /></span> : <span className="muted">–</span>; })()}</td>
             </tr>
           ))}</tbody>
         </table>
