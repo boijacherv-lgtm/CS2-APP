@@ -485,6 +485,9 @@
   background: var(--surface-2); border: 1px solid var(--border); font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .dl-pf-game > .muted:first-child { grid-column: 1 / -1; }
 .dl-pf-heroes td, .dl-pf-heroes th { padding: 6px 8px; }
+.dl-pf-build { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dl-pf-build > span:first-child { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-pf-build .muted { white-space: nowrap; }
 @media (max-width: 900px) { .dl-pf-parts { grid-template-columns: repeat(3, minmax(0, 1fr)); } .dl-pf-overall { grid-column: 1 / -1; } }
 
 /* Tactical: patch notes, buffed / nerfed, rising / falling */

@@ -140,6 +140,21 @@ export async function heroBuilds(hero: number, band: RankBand) {
   return { since, base, games, core, offMeta, builds: topBuilds, all };
 }
 
+/** Your build on each hero: the in-game build you've won the most matches with (3+ matches), with its name. */
+export interface MyBuild { hero: number; id: number; name: string; wins: number; matches: number }
+export async function myBestBuilds(account: string, heroes: number[]): Promise<MyBuild[]> {
+  type B = { hero_id: number; hero_build_id: number; wins: number; matches: number };
+  const rows = await cached<B[]>(`mybuilds.${account}`, `/v1/analytics/hero-build-stats?account_id=${account}`);
+  const best = heroes.map(h => pickMostWon(rows.filter(r => r.hero_id === h))).filter((b): b is B => !!b);
+  const names = await Promise.all(best.map(b => cached<string>(`buildname.${b.hero_build_id}`, `/v1/builds?build_id=${b.hero_build_id}&only_latest=true`,
+    v => (v as unknown as { hero_build?: { name?: string } }[])[0]?.hero_build?.name?.trim() ?? '').catch(() => '')));
+  return best.map((b, i) => ({ hero: b.hero_id, id: b.hero_build_id, name: names[i] || `Build ${b.hero_build_id}`, wins: b.wins, matches: b.matches }));
+}
+/** The most wins (ties: the better win rate), 3 matches at least. */
+export function pickMostWon<T extends { wins: number; matches: number }>(rows: T[]): T | null {
+  return rows.filter(r => r.matches >= 3).sort((a, b) => b.wins - a.wins || b.wins / b.matches - a.wins / a.matches)[0] ?? null;
+}
+
 export interface PairStat { a: number; b: number; wins: number; matches: number }
 /** How heroes do against each other (a vs b: a's wins) and together (a with b), for the draft. */
 export async function draftStats(band: RankBand): Promise<{ counters: PairStat[]; synergy: PairStat[]; heroes: HeroMeta[] }> {
