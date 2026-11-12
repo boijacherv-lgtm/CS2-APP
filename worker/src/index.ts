@@ -23,7 +23,7 @@ import { botRoute, saveBotState } from './dlBot';
 import { kickBots, startWorkflow } from './botKick';
 import { addCoachEval, BOTS_PAUSED, coachEvals, deleteUser, health, loadConfig, puzzleStats, saveConfig, setBotsPaused, siteLog, undo, users } from './site';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
-import { board, countAnswer, friendsBoard, friendsOnSite, updateBoard } from './puzzles';
+import { board, countAnswer, countSkip, reportPuzzle, vote, votes, friendsBoard, friendsOnSite, updateBoard } from './puzzles';
 import { puzzleGameOf } from '../../src/engine/profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
@@ -127,6 +127,11 @@ export default {
       }
       // puzzles: count an answer to a premade puzzle; the leaderboard (public profiles only; names via /profiles)
       if (req.method === 'POST' && path === '/puzzle/answer') return json(await countAnswer(env.SB, await body(req)));
+      // "Settle it": who was right in a shared moment (counted per moment; anyone can vote, rate-limited like /puzzle/)
+      if (req.method === 'POST' && path === '/puzzle/vote') return json(await vote(env.SB, await body(req)));
+      { const vk = path.match(/^\/puzzle\/vote\/([a-z0-9]{6,24})$/); if (req.method === 'GET' && vk) return json(await votes(env.SB, vk[1])); }
+      if (req.method === 'POST' && path === '/puzzle/skip') return json(await countSkip(env.SB, await body(req)));
+      if (req.method === 'POST' && path === '/puzzle/report') return json(await reportPuzzle(env.SB, await body(req)));
       if (req.method === 'GET' && path === '/puzzle/board')
         return new Response(JSON.stringify({ rows: await (async () => { const off = (await loadConfig(env.SB)).banned; return (await board(env.SB, puzzleGameOf(new URL(req.url).searchParams.get('game')))).filter(r => !off.includes(r.steamId)); })() }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
       // a friend's profile, when they made it public (name, avatar and their last matches' numbers)

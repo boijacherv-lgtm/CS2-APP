@@ -191,10 +191,12 @@ export function health(env: Record<string, unknown>) {
 
 /** Puzzle answers as the Worker counted them (pz:<id>, worker/src/puzzles.ts): for the dev page's puzzle quality. */
 export async function puzzleStats(kv: SiteKV) {
-  const rows: { id: string; tried: number; right: number }[] = [];
+  const rows: { id: string; tried: number; right: number; skipped: number }[] = [];
   for (const k of await keys(kv, 'pz:', 2000)) {
-    const v = (await kv.get(k, 'json')) as { tried?: number; right?: number } | null;
-    if (v?.tried) rows.push({ id: k.slice(3), tried: v.tried, right: v.right ?? 0 });
+    if (k === 'pz:reports') continue;
+    const v = (await kv.get(k, 'json')) as { tried?: number; right?: number; skipped?: number } | null;
+    if (v?.tried || v?.skipped) rows.push({ id: k.slice(3), tried: v.tried ?? 0, right: v.right ?? 0, skipped: v.skipped ?? 0 });
   }
-  return { rows: rows.sort((a, b) => b.tried - a.tried) };
+  const reports = ((await kv.get('pz:reports', 'json')) ?? []) as { id: string; why: string; pick: string; at: number }[];
+  return { rows: rows.sort((a, b) => b.tried - a.tried), reports };
 }

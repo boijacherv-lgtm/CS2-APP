@@ -9,7 +9,7 @@ import { applyGame } from '../ui/tokens';
 import { Icon } from '../ui/Icon';
 import { cleanMoment, focusOf, fromShareCode, isMistake, loadMoments, mistakeGroups, shareCode, type Moment, type MomentGame } from './moments';
 import { dailyFor, dailyOf, dayNumber, puzzleRating, readScore, record, recordDaily, recordRush, weakSpots, type Score } from './score';
-import { loadBoard, loadFriendsBoard, sendAnswer, syncRecord, type BoardRow } from './puzzleApi';
+import { getVotes, loadBoard, loadFriendsBoard, sendAnswer, sendReport, sendSkip, sendVote, syncRecord, type BoardRow } from './puzzleApi';
 import { useProfile } from '../ui/profileApi';
 import { EmptyArt } from '../ui/Art';
 
@@ -152,6 +152,19 @@ function chime(right: boolean) {
 /** Rage mode's line on a wrong answer (it swears at the move, not at you). */
 const RAGE = ['"{x}"? Really?', '"{x}". That\'s how rounds die.', 'Who taught you "{x}"?', '"{x}". Bold. Wrong, but bold.', 'Uninstall "{x}" from your brain.'];
 
+/** "This answer looks wrong": a reason, sent to the dev page's queue. */
+function ReportAnswer({ m, pick }: { m: Moment; pick: number | null }) {
+  const [open, setOpen] = useState(false), [sent, setSent] = useState(false);
+  if (sent) return <p className="muted small">Thanks: it's in the queue to check.</p>;
+  if (!open) return <button className="link-btn small puzzle-report" onClick={() => setOpen(true)}>Report a bad answer</button>;
+  const send = async (why: string) => { setSent(await sendReport(m.id, why, pick !== null ? m.options[pick].label : '')); setOpen(false); };
+  return (
+    <div className="puzzle-report-pick" role="group" aria-label="What's wrong">
+      {['The best answer is wrong', 'Two answers are the same', 'The situation is unclear'].map(w => <button key={w} className="chip" onClick={() => void send(w)}>{w}</button>)}
+    </div>
+  );
+}
+
 /** One puzzle: the situation, the moves in a shuffled order; pick one and the engine's answer and why show. */
 export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: boolean) => number | void; shared?: boolean }) {
   const [picked, setPicked] = useState<number | null>(null);
@@ -202,6 +215,7 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
               {m.played !== 0 && picked === m.played ? <>You picked what was really played: <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best move' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span>, {pct(Math.max(0, m.options[0].value - m.options[m.played].value))} win chance given up ({Math.round(m.options[0].value * 100)}% → {Math.round(m.options[m.played].value * 100)}%).</> : m.played !== 0 ? <>The real move, “{m.options[m.played].label}”, was <span style={{ color: SEARCH_COLOR[m.cls] }}>{m.cls === 'Best' ? 'the best' : `${/^[AEIOU]/.test(m.cls) ? 'an' : 'a'} ${m.cls}`}</span> and gave up {pct(Math.max(0, m.options[0].value - m.options[m.played].value))} win chance ({Math.round(m.options[0].value * 100)}% → {Math.round(m.options[m.played].value * 100)}%).</> : <>It's what was really played.</>}
               {crowd && crowd.tried >= 5 && <span className="puzzle-crowd muted"> {Math.round((crowd.right / crowd.tried) * 100)}% of {crowd.tried} players got this.</span>}
             </p>
+            {m.id.startsWith('p:') && <ReportAnswer m={m} pick={picked} />}
             {m.why?.length ? <div className="puzzle-why"><b>Why</b><ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul></div> : null}
           </>
         )}
@@ -217,7 +231,7 @@ export function ShareMoment({ m }: { m: Moment }) {
     const url = `${location.origin}/m?c=${shareCode(m)}`;
     try { await navigator.clipboard.writeText(url); setDone(true); setTimeout(() => setDone(false), 1800); } catch { prompt('Copy this link', url); }
   };
-  return <button className="chip" onClick={copy} title="Copy a link to this moment: anyone can open it, no login"><Icon name={done ? 'check' : 'share'} size={13} /> {done ? 'Link copied' : 'Share'}</button>;
+  return <button className="chip" onClick={copy} title="Copy a link to this moment: anyone can open it, try it and vote who was right"><Icon name={done ? 'check' : 'share'} size={13} /> {done ? 'Link copied' : 'Settle it'}</button>;
 }
 
 /** The game you were last in (the site's colour), for the daily when no game is picked. */
@@ -253,14 +267,17 @@ export function MomentsPage() {
 
   // practice: one you haven't seen, the closest to your rating
   const [cur, setCur] = useState<Moment | null>(null);
+  const answered = useRef(false);
+  useEffect(() => { answered.current = false; }, [cur?.id]);
   const next = () => {
+    if (cur && !answered.current) sendSkip(cur.id); // moved on without answering: a skip
     const s = readScore(game), seen = new Set(s.seen);
     const fresh = ms.filter(m => !seen.has(m.id) && m.id !== cur?.id);
     const from = fresh.length ? fresh : ms.filter(m => m.id !== cur?.id);
     setCur([...from].sort((a, b) => Math.abs(puzzleRating(a) - s.rating) - Math.abs(puzzleRating(b) - s.rating))[0] ?? null);
   };
   useEffect(next, [ms]); // eslint-disable-line react-hooks/exhaustive-deps
-  const answer = (m: Moment) => (right: boolean) => { const r = record(m, right); if (m.game === game) setScore(r.score); syncRecord(r.score, m.game); return r.delta; };
+  const answer = (m: Moment) => (right: boolean) => { answered.current = true; const r = record(m, right); if (m.game === game) setScore(r.score); syncRecord(r.score, m.game); return r.delta; };
 
   const groups = mistakeGroups(mine.filter(m => m.game === game));
   const focus = source === 'top' ? [] : (['cs2', 'deadlock'] as MomentGame[]).filter(g => g === game).map(g => ({ g, f: focusOf(mine, g) })).filter(x => x.f);
@@ -306,7 +323,7 @@ export function MomentsPage() {
 
   const switcher = (
     <div className="seg-mini" role="group" aria-label="Whose puzzles">
-      <button className={source === 'mine' ? 'on' : ''} onClick={() => setSource('mine')}>Yours</button>
+      <button className={source === 'mine' ? 'on' : ''} onClick={() => setSource('mine')}>From your games</button>
       <button className={source === 'top' ? 'on' : ''} onClick={() => setSource('top')}>Top players</button>
     </div>
   );
@@ -357,7 +374,7 @@ export function MomentsPage() {
                 <li key={m.id} className="moment-card" style={{ '--cls': SEARCH_COLOR[m.cls] } as React.CSSProperties}>
                   <MomentMap m={m} size={84} />
                   <span><b>{m.match} · {m.when}</b><span className="muted small">{m.options[m.played].label} · best: {m.options[0].label} · −{pct(m.cost)}</span></span>
-                  <span className="reel-actions"><button className="chip" onClick={() => { setCur(m); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Puzzle</button><ShareMoment m={m} /></span>
+                  <span className="reel-actions"><button className="chip" title="Play this moment again as a puzzle: then see what you did against the best" onClick={() => { setMode('practice'); setSource('mine'); setCur(m); window.scrollTo({ top: 0, behavior: 'smooth' }); document.querySelector('.shell-main')?.scrollTo({ top: 0, behavior: 'smooth' }); }}>Redo it</button><ShareMoment m={m} /></span>
                 </li>
               ))}
             </ul>
@@ -476,13 +493,41 @@ function Leaderboard({ game, rating, tried }: { game: MomentGame; rating: number
 }
 
 /** A shared moment (/m?c=<code>): the puzzle for whoever opened the link. */
+/** "Settle it": whoever opens a shared moment votes who was right, the player or the coach, and sees the split. */
+function SettleIt({ code, m }: { code: string; m: Moment }) {
+  // the moment's short id: a hash of the link's code
+  const key = useMemo(() => { let h = 2166136261; for (const c of code) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return `m${(h >>> 0).toString(36)}`; }, [code]);
+  const [tally, setTally] = useState<{ player: number; coach: number } | null>(null);
+  const [mine, setMine] = useState<string | null>(() => { try { return localStorage.getItem(`rageview.vote.${key}`); } catch { return null; } });
+  useEffect(() => { void getVotes(key).then(setTally); }, [key]);
+  const cast = async (side: 'player' | 'coach') => {
+    setMine(side); try { localStorage.setItem(`rageview.vote.${key}`, side); } catch { /* private mode */ }
+    const t = await sendVote(key, side); if (t) setTally(t);
+  };
+  const total = tally ? tally.player + tally.coach : 0;
+  return (
+    <section className="site-card settle-it">
+      <div className="card-head"><h2>Settle it: who was right?</h2>{total > 0 && <span className="muted small">{total} vote{total === 1 ? '' : 's'}</span>}</div>
+      <p className="muted small">What was played: “{m.options[m.played].label}”. The coach's mark: {m.cls}.</p>
+      {!mine ? (
+        <div className="hero-cta"><button className="cta" onClick={() => void cast('player')}>The player</button><button className="cta" onClick={() => void cast('coach')}>The coach</button></div>
+      ) : tally && total ? (
+        <div className="settle-bar" aria-label={`Player ${Math.round((100 * tally.player) / total)}%, coach ${Math.round((100 * tally.coach) / total)}%`}>
+          <i style={{ width: `${(100 * tally.player) / total}%` }}>The player {Math.round((100 * tally.player) / total)}%</i>
+          <i style={{ width: `${(100 * tally.coach) / total}%` }}>The coach {Math.round((100 * tally.coach) / total)}%</i>
+        </div>
+      ) : <p className="muted small">Your vote is in.</p>}
+    </section>
+  );
+}
+
 export function SharedMoment({ code }: { code: string }) {
   const m = useMemo(() => fromShareCode(code), [code]);
   useEffect(() => { if (m) applyGame(m.game); }, [m]);
   return (
     <div className="page moments">
       <h1>A moment from {m ? `a ${GAME_NAME[m.game]} match` : 'a match'}</h1>
-      {m ? <section className="site-card"><Puzzle m={m} shared /></section>
+      {m ? <><section className="site-card"><Puzzle m={m} shared /></section><SettleIt code={code} m={m} /></>
         : <section className="site-card"><p className="muted">This link is broken or incomplete. Ask for it again.</p></section>}
       <p className="muted">Graded by RageView's coach. <a href="/">Review your own match</a>: it's free and runs in your browser.</p>
     </div>

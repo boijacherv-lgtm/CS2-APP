@@ -195,6 +195,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
           {reading && !held && <button className="feed-stop" onClick={stop} title="Stop the replay on this move to read it"><Icon name="pause" size={12} /> Stop to read</button>}
           {held && <button className="primary" onClick={resume} title="Carry on (Space)"><Icon name="play" size={12} /> Continue</button>}
           {!reading && !held && <button className="feed-act" onClick={() => watchAgain(card.t)} title="Watch the 3 s leading up to it"><Icon name="rewind" size={12} /> Watch again</button>}
+          {!playing && !held && <ClipButton boardRef={boardRef} t={card.t} title={brief(card.title)} rage={rage.get(card) ?? null} mark={g.label} color={g.color} />}
           {!playing && !picked && !held && group.length > 1 && (
             <span className="feed-pager">
               <button onClick={() => setPage((page + group.length - 1) % group.length)} aria-label="Previous move at this moment">‹</button>
@@ -345,3 +346,20 @@ function signedPct(gain: number) {
 
 /** The pop-up's short form: drops every "(...)" aside, e.g. "(from Jungle, 14 m)" or "(headshot)". */
 export const brief = (s: string) => s.replace(/\s*\([^()]*\)/g, '').trim();
+
+/** A 10 s video of this moment with its line (and the Rage line when it's on), made in the browser (clip.ts). */
+function ClipButton({ boardRef, t, title, rage, mark, color }: { boardRef: React.RefObject<HTMLDivElement | null>; t: number; title: string; rage: string | null; mark: string; color: string }) {
+  const [busy, setBusy] = useState(false), [err, setErr] = useState<string | null>(null);
+  const go = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!boardRef.current || busy) return;
+    setBusy(true); setErr(null);
+    try {
+      const { recordClip, saveClip } = await import('./clip');
+      const blob = await recordClip(boardRef.current, t, { title, rage, mark, color });
+      saveClip(blob, `rageview-clip-${Math.round(t)}s.webm`);
+    } catch (x) { setErr(x instanceof Error ? x.message : String(x)); }
+    setBusy(false);
+  };
+  return <button className="feed-act" onClick={go} disabled={busy} title={err ?? 'A 10 s video of this moment with its line, to post anywhere (made here, nothing uploaded)'}><Icon name="download" size={12} /> {busy ? 'Recording 10 s…' : 'Clip'}</button>;
+}

@@ -13,7 +13,8 @@ import { coachMatch, type DlTag } from './coach';
 import { heroOf } from './data';
 import { gameplayPatches } from './patchFeed';
 import type { Patch } from './patches';
-import { noteOf, reportCard, type GradeKey } from './grade';
+import { laneOpponent, noteOf, reportCard, type GradeKey } from './grade';
+import { statAt } from './match';
 import { openMatch } from './open';
 import { engineReview } from './engineReview';
 import { saveMoments } from '../moments/moments';
@@ -27,6 +28,8 @@ import { percentile } from '../engine/profileView';
  * trend, the mistakes that come back, your best and worst games. Each graded match is kept in this browser.
  */
 const RECENT = 20, GRADED = 10;
+/** Deadlock's rank tiers by number (badge = tier × 10 + subrank). */
+const RANK_TIERS = ['', 'Initiate', 'Seeker', 'Alchemist', 'Arcanist', 'Ritualist', 'Emissary', 'Archon', 'Oracle', 'Phantom', 'Ascendant', 'Eternus'];
 const PARTS: { key: GradeKey; label: string }[] = [
   { key: 'kills', label: 'Kills' }, { key: 'map', label: 'Map activity' }, { key: 'abilities', label: 'Abilities' },
   { key: 'rotations', label: 'Rotations' }, { key: 'survival', label: 'Survival' },
@@ -37,8 +40,9 @@ const MISTAKE: Partial<Record<DlTag, string>> = {
 };
 /** One graded match, as kept: enough for the profile without reading the match again. */
 interface Graded { id: number; at: number; hero: number; won: boolean; overall: number | null; parts: Partial<Record<GradeKey, number | null>>; mistakes: Partial<Record<DlTag, number>>;
-  /** the enemy heroes, and when you died (s): for matchups and deaths by phase */ enemies?: number[]; deaths?: number[] }
-const KEY = (account: string, id: number) => `dlgrade2:${account}:${id}`;
+  /** the enemy heroes, and when you died (s): for matchups and deaths by phase */ enemies?: number[]; deaths?: number[];
+  /** your lane at 10:00 against your lane opponent (souls): won / even / lost */ lane?: 'won' | 'even' | 'lost' | null }
+const KEY = (account: string, id: number) => `dlgrade3:${account}:${id}`;
 /** Your report card's averages over your last graded matches (Profile → Deadlock keeps them for the suggested build). */
 export const MY_GRADES = 'stratboard.dl.myGrades';
 
@@ -64,7 +68,8 @@ async function grade(account: string, r: DlHistoryRow): Promise<Graded | null> {
     for (const t of mv.tags) if (MISTAKE[t]) mistakes[t] = (mistakes[t] ?? 0) + 1;
   const g: Graded = { id: m.id, at: m.start, hero: me.hero, won: m.winner === me.team, overall: card.overall,
     parts: Object.fromEntries(card.parts.map(p => [p.key, p.score])), mistakes,
-    enemies: m.players.filter(p => p.team !== me.team).map(p => p.hero), deaths: m.deaths.filter(d => d.slot === me.slot).map(d => Math.round(d.t)) };
+    enemies: m.players.filter(p => p.team !== me.team).map(p => p.hero), deaths: m.deaths.filter(d => d.slot === me.slot).map(d => Math.round(d.t)),
+    lane: (() => { const o = laneOpponent(m, me.slot), a = statAt(m, me.slot, 600)?.netWorth, b = o ? statAt(m, o.slot, 600)?.netWorth : null; return a == null || b == null ? null : a - b > 1000 ? 'won' : b - a > 1000 ? 'lost' : 'even'; })() };
   await setItem(KEY(account, r.match_id), g);
   // its moments become puzzles too (the engine is a few hundred ms a match; once per match, as the grade is kept)
   try { saveMoments(dlMoments(m, engineReview(m, null, me.slot), me.slot)); } catch { /* a puzzle less, the grade stands */ }
@@ -142,6 +147,10 @@ export function DlProfile({ account }: { account: string | null }) {
   const phases = withDeaths.length ? [['Laning (0–10 min)', 0, 600], ['Mid game (10–25)', 600, 1500], ['Late game (25+)', 1500, Infinity]].map(([label, a, b]) => ({
     label: label as string, n: withDeaths.reduce((acc, g) => acc + g.deaths!.filter(t => t >= (a as number) && t < (b as number)).length, 0) / withDeaths.length })) : [];
   const ultDeaths = graded.length ? graded.reduce((a, g) => a + (g.mistakes['ULT UNUSED'] ?? 0), 0) / graded.length : null;
+  // the lane at 10:00, and the rank from the ranked matches in the history
+  const lanes = graded.filter(g => g.lane).reduce((a, g) => ({ ...a, [g.lane!]: (a[g.lane!] ?? 0) + 1 }), {} as Record<string, number>);
+  const ranked = chrono.filter(r => r.ranked_display_badge);
+  const rankName = (b: number) => `${RANK_TIERS[Math.floor(b / 10)] ?? 'Rank'} ${b % 10 || ''}`.trim();
   const heroGrade = (hero: number) => { const xs = graded.filter(g => g.hero === hero && g.overall !== null).map(g => g.overall!); return xs.length ? Math.round(xs.reduce((a, v) => a + v, 0) / xs.length) : null; };
   const open = async (id: number) => {
     setOpening(id);
@@ -157,6 +166,7 @@ export function DlProfile({ account }: { account: string | null }) {
         <TrendTile label="Souls a minute" values={chrono.filter(hasSouls).map(spm)} fmt={v => Math.round(v).toLocaleString('en-US')} />
         <TrendTile label="Last hits a minute" values={chrono.filter(hasSouls).map(r => r.last_hits / Math.max(1, r.match_duration_s / 60))} fmt={v => v.toFixed(1)} />
         <TrendTile label="Deaths" values={chrono.map(r => r.player_deaths)} fmt={v => v.toFixed(1)} higherBetter={false} />
+        {ranked.length >= 2 && <TrendTile label={`Rank · ${rankName(ranked.at(-1)!.ranked_display_badge!)}`} values={ranked.map(r => r.ranked_display_badge!)} fmt={v => rankName(Math.round(v))} sub={`your last ${ranked.length} ranked`} />}
       </div>
       {(leak || superPart) && (
         <div className="leak-row">
@@ -245,7 +255,7 @@ export function DlProfile({ account }: { account: string | null }) {
         </table>
       </section>
 
-      {(matchups.length >= 2 || phases.length > 0) && (
+      {(matchups.length >= 2 || phases.length > 0 || Object.keys(lanes).length > 0) && (
         <div className="profile-grid">
           {matchups.length >= 2 && <section className="site-card"><div className="card-head"><h2>Matchups</h2><span className="muted small">2+ games against them</span></div>
             <table className="site-table"><tbody>
@@ -253,6 +263,8 @@ export function DlProfile({ account }: { account: string | null }) {
                 <tr key={`${m.tone}${m.hero}`}><td>{m.tone === 'up' ? 'You beat' : 'You lose to'} <b>{heroOf(m.hero).name}</b></td><td className={`num ${m.wr >= 0.5 ? 'up' : 'down'}`}>{pct(m.wr)} of {m.n}</td></tr>
               ))}
             </tbody></table></section>}
+          {Object.keys(lanes).length > 0 && <section className="site-card"><div className="card-head"><h2>Lane record</h2><span className="muted small">souls at 10:00 vs your lane opponent</span></div>
+            <table className="site-table"><tbody>{(['won', 'even', 'lost'] as const).map(k => <tr key={k}><td>{k === 'won' ? 'Won (1,000+ ahead)' : k === 'lost' ? 'Lost (1,000+ behind)' : 'Even'}</td><td className={`num ${k === 'won' ? 'up' : k === 'lost' ? 'down' : ''}`}>{lanes[k] ?? 0}</td></tr>)}</tbody></table></section>}
           {phases.length > 0 && <section className="site-card"><div className="card-head"><h2>Deaths by phase</h2><span className="muted small">a match, last {withDeaths.length} graded</span></div>
             <table className="site-table"><tbody>
               {phases.map(p => <tr key={p.label}><td>{p.label}</td><td className="num">{p.n.toFixed(1)}</td></tr>)}
