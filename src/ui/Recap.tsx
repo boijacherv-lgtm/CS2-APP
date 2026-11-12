@@ -11,7 +11,7 @@ import { OPENING, SEARCH_COLOR, type RoundSearch } from '../engine/search';
 import { moveLook, NoteMark } from './NoteMark';
 import { brief } from './MoveFeed';
 import type { TacticalEngine } from '../engine/predict';
-import { equipValue, LETTER_COLOR, LETTER_INFO, moments, type Moment, movesUntil, NOTE_INFO, NOTES, roundFacts, roundGrade, TAG_INFO, teamEconomy, type Annotation, type DemoData, type DemoRound, type Move, type Replay, type Review, type Tag } from '../engine/recap';
+import { equipValue, QUIET_TAGS, LETTER_COLOR, LETTER_INFO, moments, type Moment, movesUntil, NOTE_INFO, NOTES, roundFacts, roundGrade, TAG_INFO, teamEconomy, type Annotation, type DemoData, type DemoRound, type Move, type Replay, type Review, type Tag } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { gunFromName, primaryGun } from '../engine/guns';
 import { useStore, whoAmI } from '../store';
@@ -223,7 +223,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
       </header>
 
       <div className="tabs" role="tablist">
-        {([['moves', 'Moves', 'list'], ['players', 'Players', 'friends'], ['economy', 'Economy', 'coins'], ['engine', 'Engine', 'route']] as const).map(([id, label, icon]) => (
+        {([['moves', 'Moves', 'list'], ['players', 'Players', 'friends'], ['economy', 'Economy', 'coins'], ['engine', 'Best options', 'route']] as const).map(([id, label, icon]) => (
           <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}><Icon name={icon} size={14} /> {label}</button>
         ))}
       </div>
@@ -510,7 +510,7 @@ function loadout(weapons: string[]) {
 export function Tags({ tags }: { tags: Tag[] }) {
   return (
     <div className="tags">
-      {tags.map(t => <span key={t} className="tag" style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }} title={TAG_INFO[t].tip}>{t}</span>)}
+      {tags.filter(t => !QUIET_TAGS.has(t)).map(t => <span key={t} className="tag" style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }} title={TAG_INFO[t].tip}>{t}</span>)}
     </div>
   );
 }
@@ -524,7 +524,7 @@ const USUAL_COLOR: Record<Usual, string> = { common: TOK.good, rare: '#f0c33c', 
 
 /**
  * The search engine for one player this round: accuracy over the round as a line (a dot every 2 s, coloured by
- * class), and the moments where they gave up the most, each with the engine's best option.
+ * class), and the moments where they gave up the most, each with the coach's best option.
  */
 function EngineSection({ search, id, until, duration, onJump }: { search: RoundSearch; id: string; until: number; duration: number; onJump: (t: number) => void }) {
   const ms = search.moments.filter(m => m.player === id && m.t <= until);
@@ -539,7 +539,7 @@ function EngineSection({ search, id, until, duration, onJump }: { search: RoundS
     <div className="engine-sec">
       <div className="engine-head">
         <b>Engine</b>
-        <span className="pos-acc" title="Every 2 s, what they did against the best option the engine calculated (100 = always the best). Level-10 players average about 88.">Accuracy <b className="num">{acc.toFixed(1)}</b></span>
+        <span className="pos-acc" title="Every 2 s, what they did against the best option the coach found (100 = always the best). Level-10 players average about 88.">Accuracy <b className="num">{acc.toFixed(1)}</b></span>
         <span className="engine-counts">{counts.map(([c, n]) => <i key={c} style={{ color: SEARCH_COLOR[c] }} title={c}>{n} {c}</i>)}</span>
       </div>
       <svg className="engine-graph" viewBox={`0 0 ${W} ${Hh}`} preserveAspectRatio="none" role="img" aria-label="Accuracy over the round">

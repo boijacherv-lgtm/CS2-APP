@@ -12,7 +12,7 @@ import { Deadlock } from '../site/Deadlock';
 import '../site/site.css';
 import { Hints } from '../ui/Hints';
 import { useStore, whoAmI } from '../store';
-import { Changelog, Privacy } from '../site/InfoPages';
+import { Changelog, Guides, Privacy } from '../site/InfoPages';
 import { Cs2Home } from '../site/Cs2Home';
 import { MissArt } from '../ui/Art';
 import type { DemoData } from '../engine/recap';
@@ -89,7 +89,7 @@ export function Shell() {
         <PageGuard key={routeHref(route)}><Suspense fallback={<div className="page" aria-busy="true" />}>
         {maintenance.includes(route.page) && !owner ? <BackSoon />
           : route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : route.mode === 'home' ? <Cs2Home /> : <Cs2App />)
-          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? (devOk ? <Dev /> : devOk === null ? <div className="page" aria-busy="true" /> : <NotFound />) : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
+          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? (devOk ? <Dev /> : devOk === null ? <div className="page" aria-busy="true" /> : <NotFound />) : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'guides' ? <Guides /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
         </Suspense></PageGuard>
       </main>
       <Hints />
@@ -125,7 +125,7 @@ async function recordIfYours(data: DemoData, rounds: (RoundSummary | null)[]) {
 }
 
 const MODE_TITLE = { tactical: 'Tactical Board', review: 'Review a match', report: 'Match recap', home: 'Coach' } as const;
-const PAGE_TITLE: Record<string, string> = { missing: 'Page not found', privacy: 'Privacy', changelog: 'What\'s new', profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Page not found', puzzles: 'Puzzles', moment: 'A shared moment' };
+const PAGE_TITLE: Record<string, string> = { missing: 'Page not found', privacy: 'Privacy', changelog: 'What\'s new', profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Page not found', puzzles: 'Puzzles', guides: 'Guides', moment: 'A shared moment' };
 export function pageTitle(r: Route): string {
   // the public pages: the same titles as their static copies (tools/spa-pages.mjs META)
   if (r.page === 'cs2') return r.mode === 'home' ? 'CS2 demo review: every round graded S+ to F · RageView' : r.mode === 'review' ? 'CS2 Demo Review · RageView' : `CS2 ${MODE_TITLE[r.mode]} · RageView`;

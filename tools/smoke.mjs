@@ -9,7 +9,7 @@ import path from 'node:path';
 
 const PORT = 4179, DEBUG = 9339, BASE = `http://localhost:${PORT}`;
 const ROUTES = ['/', '/cs2', '/cs2/review', '/cs2/report', '/cs2/tactical', '/deadlock', '/deadlock/review', '/deadlock/report', '/deadlock/meta',
-  '/puzzles', '/profile', '/settings', '/pricing', '/changelog', '/privacy', '/no-such-page'];
+  '/puzzles', '/profile', '/settings', '/pricing', '/changelog', '/privacy', '/guides', '/no-such-page'];
 const CHROMES = [process.env.CHROME, '/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].filter(Boolean);
 const chrome = CHROMES.find(p => fs.existsSync(p));

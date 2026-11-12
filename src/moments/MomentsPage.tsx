@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { shapeSet } from './quality';
 import { siteConfig, useSiteConfig } from '../ui/siteConfig';
 import { calloutsOf, MAPS, radarOf } from '../map/catalog';
 import { rageNow, useStore } from '../store';
@@ -182,10 +183,12 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
             const o = m.options[i];
             const state = picked === null ? '' : i === 0 ? 'best' : i === picked ? 'wrong' : '';
             return (
-              <button key={i} className={`puzzle-option ${state}`} onClick={() => pick(i)} disabled={picked !== null && state === ''}
+              <button key={i} className={`puzzle-option ${state}`} onClick={() => pick(i)} disabled={picked !== null}
                 onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(i)} onBlur={() => setHover(null)}>
                 <span>{o.label}</span>
                 {picked !== null && <span className="num muted">{Math.round(o.value * 100)}% to win{i === m.played ? (theirs ? ' · what was played' : ' · what you did') : ''}</span>}
+                {/* what happens if you take it: the engine's playouts for this answer (older sets: the win chance only) */}
+                {picked !== null && <span className="puzzle-what">{o.what ?? `The round is won ${Math.round(o.value * 100)}% of the time.`}</span>}
               </button>
             );
           })}
@@ -233,14 +236,16 @@ export function MomentsPage() {
   const [top, setTop] = useState<Moment[] | null>(null);
   useEffect(() => {
     if (top) return;
-    import('./generated/puzzles.json').then(j => { const d = j.default as { cs2: unknown[]; deadlock: unknown[] }; setTop([...d.cs2, ...d.deadlock].map(cleanMoment).filter((m): m is Moment => !!m && !siteConfig().puzzles.hide.includes(m.id))); }, () => setTop([]));
+    import('./generated/puzzles.json').then(j => { const d = j.default as { cs2: unknown[]; deadlock: unknown[] }; { const ok = (xs: unknown[]) => shapeSet(xs.map(cleanMoment).filter((m): m is Moment => !!m && !siteConfig().puzzles.hide.includes(m.id))); setTop([...ok(d.cs2), ...ok(d.deadlock)]); } }, () => setTop([]));
   }, [top]);
   // the game picks everything below it: puzzles, rating, daily, rush, weak spots and leaderboard are each the game's own
   const [game, setGameState] = useState<MomentGame>(lastGame);
   const setGame = (g: MomentGame) => { setGameState(g); setScore(readScore(g)); setTag(null); try { localStorage.setItem('stratboard.game', g); } catch { /* private mode */ } };
   const [tag, setTag] = useState<string | null>(null);
   // kept the same between renders: a new list would deal a new puzzle (answering re-renders)
-  const all = useMemo(() => (source === 'top' ? top ?? [] : mine), [source, top, mine]);
+  // your own moments as puzzles go through the same rules (the reel and the focus keep them all)
+  const minePuzzles = useMemo(() => shapeSet(mine), [mine]);
+  const all = useMemo(() => (source === 'top' ? top ?? [] : minePuzzles), [source, top, minePuzzles]);
   const ms = useMemo(() => all.filter(m => m.game === game && (!tag || m.tag === tag)), [all, game, tag]);
   const [score, setScore] = useState<Score>(() => readScore(lastGame()));
   const [sound, setSound] = useState(soundOn);
@@ -316,7 +321,7 @@ export function MomentsPage() {
       <section className="site-card empty-state">
         <Icon name="target" size={28} />
         <h2>Your puzzles come from your matches</h2>
-        <p className="muted">Review a CS2 match you played (and pick yourself), or open a Deadlock match of yours: the moments the engine flags become puzzles here. Here's one from a top player's match meanwhile:</p>
+        <p className="muted">Review a CS2 match you played (and pick yourself), or open a Deadlock match of yours: the moments the coach flags become puzzles here. Here's one from a top player's match meanwhile:</p>
         <p><a className="cta primary" href="/cs2/review">Review a CS2 match</a> <a className="cta" href="/deadlock/review">Open a Deadlock match</a></p>
       </section>
       {(() => { const t = top?.find(m => m.game === game); return t && <section className="site-card"><Puzzle m={t} onAnswer={answer(t)} /></section>; })()}
@@ -479,7 +484,7 @@ export function SharedMoment({ code }: { code: string }) {
       <h1>A moment from {m ? `a ${GAME_NAME[m.game]} match` : 'a match'}</h1>
       {m ? <section className="site-card"><Puzzle m={m} shared /></section>
         : <section className="site-card"><p className="muted">This link is broken or incomplete. Ask for it again.</p></section>}
-      <p className="muted">Graded by RageView's engine. <a href="/">Review your own match</a>: it's free and runs in your browser.</p>
+      <p className="muted">Graded by RageView's coach. <a href="/">Review your own match</a>: it's free and runs in your browser.</p>
     </div>
   );
 }

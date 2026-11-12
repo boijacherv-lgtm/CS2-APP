@@ -2,7 +2,10 @@
  * Privacy (what the site keeps, where, and what it sends) and What's new (the changelog). Plain pages; the privacy
  * text follows the code: worker/src/profile.ts, clips.ts, dlDisputes.ts, the Deadlock bot and the browser stores.
  */
+import { useState } from 'react';
 import { APP_NAME } from '../shell/Logo';
+import DEATHS from '../map/generated/death-spots.json';
+import { mapName } from './format';
 
 export function Privacy() {
   return (
@@ -65,6 +68,60 @@ export function Changelog() {
           <ul>{c.items.map(i => <li key={i}>{i}</li>)}</ul>
         </section>
       ))}
+    </div>
+  );
+}
+
+/** Guides: getting your match in, and what the numbers mean (round 8, C6). */
+export function Guides() {
+  const deaths = DEATHS as Record<string, { demos: number; deaths: number; CT: Record<'early' | 'late', { place: string; share: number }[]>; T: Record<'early' | 'late', { place: string; share: number }[]> }>;
+  const [map, setMap] = useState(Object.keys(deaths)[0] ?? '');
+  const d = deaths[map];
+  return (
+    <div className="page info-page guides">
+      <h1>Guides</h1>
+      <p className="lead">Get your match in, read the numbers, and see where level-10 players die.</p>
+      <nav className="chips" aria-label="Guides"><a className="chip" href="#cs2-demo">Download your CS2 demo</a><a className="chip" href="#deadlock-id">Find a Deadlock match ID</a><a className="chip" href="#numbers">ADR and KAST</a><a className="chip" href="#deaths">Where level-10 players die</a></nav>
+
+      <h2 id="cs2-demo">Download your CS2 demo</h2>
+      <ol>
+        <li>In CS2, open <b>Watch → Your Matches</b>.</li>
+        <li>Pick the match and press <b>Download</b>. CS2 keeps it in its replays folder.</li>
+        <li>On {APP_NAME}, open <a href="/cs2/review">Review</a> and drop the .dem file in, or pick your Steam folder once and new matches show up by themselves.</li>
+        <li>FACEIT and HLTV demos work too: unzip them first.</li>
+      </ol>
+      <p className="muted">Logged in with Steam, the bot can also fetch your Premier matches: paste your match-history code once in Review → Your matches. Valve keeps demos for about a month.</p>
+
+      <h2 id="deadlock-id">Find a Deadlock match ID</h2>
+      <ol>
+        <li>In Deadlock, open your <b>Match history</b> and pick the match: the ID is shown with it (a number like 52190833).</li>
+        <li>On {APP_NAME}, open <a href="/deadlock/review">Deadlock → Review</a> and paste it.</li>
+        <li>Logged in with Steam, your matches are listed there already; add the RageView bot as a Steam friend and new ones load by themselves.</li>
+      </ol>
+      <p className="muted">Match data comes from deadlock-api.com; a match shows up there a few minutes to an hour after it ends.</p>
+
+      <h2 id="numbers">ADR and KAST, explained</h2>
+      <dl className="guide-terms">
+        <dt>ADR</dt><dd>Average damage per round: all the damage you did to enemies, divided by rounds played. 80 is solid at FACEIT level 10; 100+ means you carried fights.</dd>
+        <dt>KAST</dt><dd>The share of rounds where you got a <b>K</b>ill, an <b>A</b>ssist, <b>S</b>urvived or were <b>T</b>raded. It says how often you were useful, even without kills. Around 70% is typical at level 10.</dd>
+        <dt>Impact</dt><dd>How much your moves changed your team's chance to win the round, on average. Positive means you added to it.</dd>
+        <dt>Grade</dt><dd>S+ to F for a round or a match, against FACEIT level 10: B is a typical level-10 game, S a pro one.</dd>
+        <dt>Mark</dt><dd>One move: Brilliant (!!), Good (!), Book (✓), Inaccuracy (?!), Mistake (?), Blunder (??).</dd>
+      </dl>
+
+      <h2 id="deaths">Where FACEIT level-10 players die</h2>
+      {!d ? <p className="muted">Not counted yet.</p> : (
+        <>
+          <div className="seg-mini" role="group" aria-label="Map">{Object.keys(deaths).map(m => <button key={m} className={m === map ? 'on' : ''} onClick={() => setMap(m)}>{mapName(m)}</button>)}</div>
+          <p className="muted small">{d.deaths.toLocaleString('en-US')} deaths in {d.demos} FACEIT level-10 matches. Share of each side's deaths in the first 40 s of a round, and after.</p>
+          <div className="guide-deaths">
+            {(['CT', 'T'] as const).map(side => (['early', 'late'] as const).map(w => (
+              <div key={side + w} className="site-card"><b>{side} · {w === 'early' ? 'first 40 s' : 'after 40 s'}</b>
+                <ol>{d[side][w].map(p => <li key={p.place}><span>{p.place}</span><span className="num muted">{Math.round(p.share * 100)}%</span></li>)}</ol></div>
+            )))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

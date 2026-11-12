@@ -435,7 +435,7 @@ function PlayHint({ match, slot, time }: { match: DlMatch; slot: number; time: n
   const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
   const tip = s ? s.options.map(o => `${ACTION_LABEL[o.action]}: ${pct(o.value)} win chance (${o.reply}${o.fight !== undefined ? `, fight ${Math.round(o.fight * 100)}%` : ''})`).join('\n') : '';
   return (
-    <span className="dl-play-hint" title={`The engine, ${WINDOW} s ahead (now ${s ? pct(s.before) : '–'}):\n${tip}\n\nPhantom-and-up players here: ${ACTION_LABEL[top[0]]} ${Math.round(top[1] * 100)}% of the time`}>
+    <span className="dl-play-hint" title={`The coach, ${WINDOW} s ahead (now ${s ? pct(s.before) : '–'}):\n${tip}\n\nPhantom-and-up players here: ${ACTION_LABEL[top[0]]} ${Math.round(top[1] * 100)}% of the time`}>
       {s ? <>
         <span><span className="muted">Best:</span> {ACTION_LABEL[s.options[0].action]}</span>
         {s.played && s.cls && <span><span className="muted">they:</span> {ACTION_LABEL[s.played.action]} <b style={{ color: SEARCH_COLOR[s.cls] }}>{s.cls}{s.loss > 0.002 ? ` −${(s.loss * 100).toFixed(1)}%` : ''}</b></span>}

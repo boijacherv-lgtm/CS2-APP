@@ -84,7 +84,7 @@ export function GamePage({ kit }: { kit: GamePageKit }) {
       </section>
 
       <footer className="site-footer">
-        <nav><a href="/pricing">Pricing</a><a href="/privacy">Privacy</a><a href="/changelog">What's new</a></nav>
+        <nav><a href="/guides">Guides</a><a href="/pricing">Pricing</a><a href="/privacy">Privacy</a><a href="/changelog">What's new</a></nav>
         <span className="muted">{kit.footer}</span>
       </footer>
     </div>

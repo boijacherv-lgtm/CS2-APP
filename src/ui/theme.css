@@ -44,7 +44,7 @@ body {
 
 /* ---- hover glow on cards ------------------------------------------------------------------------------------- */
 .site-card, .feature, .dl-row, .dl-rc-tile, .dl-counters li, .dl-rc-item, .dl-phases > div, .steam-list tr, .hero-games-live {
-  transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+  transition: box-shadow .2s ease, border-color .2s ease, transform .2s ease;
 }
 /* only on things you can click: a card that isn't a link or button stays still */
 a.site-card:hover, button.site-card:hover, a.feature:hover, .dl-row:hover:not(:disabled), .hero-games-live:hover {
@@ -77,7 +77,7 @@ a.site-card:hover, button.site-card:hover, a.feature:hover, .dl-row:hover:not(:d
 @media (prefers-reduced-motion: reduce) { .game-loader::before, .game-loader::after { animation-duration: 6s; } :root { transition: none; } }
 
 .empty-state {
-  position: relative; isolation: isolate; overflow: hidden; margin: 6px 0; padding: 16px 18px; border-radius: 12px;
+  position: relative; isolation: isolate; overflow: hidden; margin: 6px 0; padding: 16px 18px; border-radius: 10px;
   border: 1px dashed color-mix(in srgb, var(--theme) 35%, var(--border)); color: var(--text-2); text-align: center;
 }
 
@@ -165,7 +165,7 @@ body {
 .pos-worst button.moment-card b { font-size: 14px; }
 
 /* bigger numbers, fewer tiny grey words */
-.kpi-tile { padding: 14px 16px; border-radius: 14px; }
+.kpi-tile { padding: 14px 16px; border-radius: 16px; }
 .kpi-tile b { font-size: 34px; }
 .kpi b { font-size: 30px; }
 .kpi span, .kpi-tile > span { font-size: 12px; color: var(--text-2); }
@@ -178,7 +178,7 @@ body {
   background: linear-gradient(110deg, color-mix(in srgb, var(--theme) 18%, var(--surface-1)), var(--surface-1) 70%);
   box-shadow: 0 18px 50px -24px color-mix(in srgb, var(--theme) 70%, transparent); position: relative; isolation: isolate; overflow: hidden;
 }
-.profile-head .avatar { width: 72px; height: 72px; border-radius: 14px; box-shadow: 0 0 0 2px var(--theme), 0 8px 24px -8px color-mix(in srgb, var(--theme) 80%, transparent); }
+.profile-head .avatar { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 0 0 2px var(--theme), 0 8px 24px -8px color-mix(in srgb, var(--theme) 80%, transparent); }
 .profile-head h1 { font-size: 34px; }
 @media (max-width: 560px) {
   .recap-head, .profile-head { padding: 18px 16px; }

@@ -8,6 +8,9 @@ import { T } from '../ui/tokens';
  * from your profile's numbers; nothing is uploaded.
  */
 export const SHARE_W = 1200, SHARE_H = 630;
+/** The tall report card (Instagram, stories, Discord on a phone). */
+export const TALL_W = 1080, TALL_H = 1350;
+export type ShareFormat = 'wide' | 'tall';
 
 const loadImage = (src: string) => new Promise<HTMLImageElement | null>(ok => {
   const img = new Image();
@@ -16,12 +19,13 @@ const loadImage = (src: string) => new Promise<HTMLImageElement | null>(ok => {
   img.src = src;
 });
 
-export async function drawShareCard(canvas: HTMLCanvasElement, m: ProfileMatch, player: string) {
+export async function drawShareCard(canvas: HTMLCanvasElement, m: ProfileMatch, player: string, format: ShareFormat = 'wide') {
+  if (format === 'tall') return drawTall(canvas, m, player);
   canvas.width = SHARE_W; canvas.height = SHARE_H;
   const g = canvas.getContext('2d')!;
   await document.fonts?.ready;
   const display = (px: number) => `700 ${px}px Unbounded, 'Exo 2', system-ui, sans-serif`;
-  const ui = (px: number, w = 500) => `${w} ${px}px Inter, system-ui, sans-serif`;
+  const ui = (px: number, w = 500) => `${w} ${px}px Onest, system-ui, sans-serif`;
 
   g.fillStyle = T.bg0; g.fillRect(0, 0, SHARE_W, SHARE_H);
   // the map's radar, faint, on the right
@@ -36,26 +40,26 @@ export async function drawShareCard(canvas: HTMLCanvasElement, m: ProfileMatch, 
 
   const x = 72;
   g.fillStyle = T.text2; g.font = ui(26, 600); g.fillText(player, x, 92);
-  g.fillStyle = T.text1; g.font = display(96); g.fillText(mapName(m.map).toUpperCase(), x, 190);
+  g.fillStyle = T.text1; g.font = display(96); g.fillText(mapName(m.map), x, 190);
   const won = m.result === 'win', lost = m.result === 'loss';
   g.font = display(72);
   g.fillStyle = won ? T.good : lost ? T.bad : T.text2;
   const score = `${m.score[0]} : ${m.score[1]}`;
   g.fillText(score, x, 280);
   const sw = g.measureText(score).width;
-  g.font = ui(24, 700); g.fillText(won ? 'VICTORY' : lost ? 'DEFEAT' : 'DRAW', x + sw + 24, 270);
+  g.font = ui(26, 700); g.fillText(won ? 'Victory' : lost ? 'Defeat' : 'Draw', x + sw + 24, 270);
 
   // the grade
   const grade = m.level ?? m.lobby;
   g.fillStyle = LETTER_COLOR[grade];
   roundRect(g, x, 330, 150, 150, 26); g.fill();
   g.fillStyle = '#111'; g.font = display(104); g.textAlign = 'center'; g.fillText(grade, x + 75, 444); g.textAlign = 'left';
-  g.fillStyle = T.text2; g.font = ui(20, 600); g.fillText(m.level ? 'LEVEL' : 'LOBBY GRADE', x, 515);
+  g.fillStyle = T.text2; g.font = ui(20, 600); g.fillText(m.level ? 'vs FACEIT level 10' : 'in the lobby', x, 515);
 
   // the numbers
   const stats: [string, string][] = [
     ['K / D', `${m.kills} / ${m.deaths}`], ['ADR', m.adr.toFixed(0)], ['KAST', `${m.kast.toFixed(0)}%`],
-    ...(premierOf(m) !== null ? [['PREMIER', premierOf(m)!.toLocaleString('en-US')] as [string, string]] : []),
+    ...(premierOf(m) !== null ? [['Premier', premierOf(m)!.toLocaleString('en-US')] as [string, string]] : []),
   ];
   stats.forEach(([k, v], i) => {
     const cx = x + 210 + (i % 2) * 210, cy = 370 + Math.floor(i / 2) * 105;
@@ -63,7 +67,43 @@ export async function drawShareCard(canvas: HTMLCanvasElement, m: ProfileMatch, 
     g.fillStyle = T.text1; g.font = display(52); g.fillText(v, cx, cy + 52);
   });
 
-  g.fillStyle = T.text3; g.font = ui(20, 600); g.fillText('Graded by RageView. Prove me wrong. · tsakhstvo.xyz', x, SHARE_H - 40);
+  g.fillStyle = T.text3; g.font = ui(20, 600); g.fillText('Every move you make, graded. · RageView · tsakhstvo.xyz', x, SHARE_H - 40);
+}
+
+/** The tall card: the map on top, the score, the grade big, the numbers in a grid. */
+async function drawTall(canvas: HTMLCanvasElement, m: ProfileMatch, player: string) {
+  const W = TALL_W, H = TALL_H;
+  canvas.width = W; canvas.height = H;
+  const g = canvas.getContext('2d')!;
+  await document.fonts?.ready;
+  const display = (px: number) => `700 ${px}px Unbounded, 'Exo 2', system-ui, sans-serif`;
+  const ui = (px: number, w = 500) => `${w} ${px}px Onest, system-ui, sans-serif`;
+  g.fillStyle = T.bg0; g.fillRect(0, 0, W, H);
+  const radar = await loadImage(`/images/maps/${m.map}.png`);
+  if (radar) { g.globalAlpha = 0.3; g.drawImage(radar, 140, 40, 800, 800); g.globalAlpha = 1; }
+  const fade = g.createLinearGradient(0, 380, 0, 760);
+  fade.addColorStop(0, 'rgba(10,12,16,0)'); fade.addColorStop(1, T.bg0);
+  g.fillStyle = fade; g.fillRect(0, 380, W, 400);
+  g.fillStyle = T.ct; g.fillRect(0, 0, W / 2, 10); g.fillStyle = T.t; g.fillRect(W / 2, 0, W / 2, 10);
+  const x = 80;
+  g.fillStyle = T.text2; g.font = ui(32, 600); g.fillText(player, x, 120);
+  g.fillStyle = T.text1; g.font = display(104); g.fillText(mapName(m.map), x, 250);
+  const won = m.result === 'win', lost = m.result === 'loss';
+  g.fillStyle = won ? T.good : lost ? T.bad : T.text2; g.font = display(84);
+  const score = `${m.score[0]} : ${m.score[1]}`; g.fillText(score, x, 370);
+  g.font = ui(32, 700); g.fillText(won ? 'Victory' : lost ? 'Defeat' : 'Draw', x + g.measureText(score).width + 220, 360);
+  const grade = m.level ?? m.lobby;
+  g.fillStyle = LETTER_COLOR[grade]; roundRect(g, x, 470, 260, 260, 40); g.fill();
+  g.fillStyle = '#0A0C10'; g.font = display(170); g.textAlign = 'center'; g.fillText(grade, x + 130, 665); g.textAlign = 'left';
+  g.fillStyle = T.text2; g.font = ui(28, 600); g.fillText(m.level ? 'vs FACEIT level 10' : 'in the lobby', x, 790);
+  const stats: [string, string][] = [['K / D', `${m.kills} / ${m.deaths}`], ['ADR', m.adr.toFixed(0)], ['KAST', `${m.kast.toFixed(0)}%`], ['HS', `${m.hs.toFixed(0)}%`],
+    ...(premierOf(m) !== null ? [['Premier', premierOf(m)!.toLocaleString('en-US')] as [string, string]] : [])];
+  stats.forEach(([k, v], i) => {
+    const cx = x + (i % 2) * 460, cy = 900 + Math.floor(i / 2) * 140;
+    g.fillStyle = T.text3; g.font = ui(26, 600); g.fillText(k, cx, cy);
+    g.fillStyle = T.text1; g.font = display(64); g.fillText(v, cx, cy + 72);
+  });
+  g.fillStyle = T.text3; g.font = ui(26, 600); g.fillText('Every move you make, graded. · RageView · tsakhstvo.xyz', x, H - 60);
 }
 
 function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {

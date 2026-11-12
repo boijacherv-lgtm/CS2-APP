@@ -1,6 +1,6 @@
 /** App name and mark in one place, so the brand is easy to change. */
 export const APP_NAME = 'RageView';
-export const APP_TAGLINE = 'Watch the demo. Prove you were right.';
+export const APP_TAGLINE = 'Every move you make, graded.';
 
 /**
  * The mark: a pixel-art eye with a heavy, angry lid and a red skull for a pupil (public/images/logo.svg, drawn on a

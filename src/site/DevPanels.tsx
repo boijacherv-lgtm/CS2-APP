@@ -262,3 +262,40 @@ export function CoachChecks() {
   );
 }
 
+
+/** Puzzle quality: answers served and how often right, overall and the hardest / easiest; the set's rule checks. */
+export function PuzzleQuality() {
+  const { data, err } = useLoad<{ rows: { id: string; tried: number; right: number }[] }>('/admin/puzzles');
+  const [set, setSet] = useState<{ n: number; ties: number; plants: number; sameRound: number } | null>(null);
+  useEffect(() => {
+    Promise.all([import('../moments/generated/puzzles.json'), import('../moments/quality'), import('../moments/moments')]).then(([j, q, mm]) => {
+      const d = j.default as { cs2: unknown[]; deadlock: unknown[] };
+      const all = [...d.cs2, ...d.deadlock].map(mm.cleanMoment).filter((m): m is NonNullable<typeof m> => !!m);
+      const shaped = q.shapeSet(all);
+      const ties = shaped.filter(m => { const v = m.options.map(o => o.value).sort((a, b) => b - a); return v.some((x, i) => i > 0 && v[i - 1] - x < (m.game === 'deadlock' ? 0.015 : q.RULES.apart)); }).length;
+      const plants = shaped.filter(m => q.ideaOf(m.options[0].label) === 'plant').length;
+      setSet({ n: shaped.length, ties, plants, sameRound: all.length - shaped.length });
+    }).catch(() => {});
+  }, []);
+  const rows = data?.rows ?? [], tried = rows.reduce((a, r) => a + r.tried, 0), right = rows.reduce((a, r) => a + r.right, 0);
+  const rated = rows.filter(r => r.tried >= 10).map(r => ({ ...r, share: r.right / r.tried })).sort((a, b) => a.share - b.share);
+  return (
+    <section className="site-card">
+      <div className="card-head"><h2>Puzzle quality</h2><span className="muted small">answers the Worker counted · the set's rule checks</span></div>
+      {err ? <p className="warn-text small">{err}</p> : !data ? <Loading>Counting…</Loading> : (
+        <div className="kpi-strip">
+          <div className="kpi-tile"><span>Answers</span><b className="num">{tried.toLocaleString('en-US')}</b><em className="muted">{rows.length} puzzles</em></div>
+          <div className="kpi-tile"><span>Right</span><b className="num">{tried ? Math.round((100 * right) / tried) : 0}%</b><em className="muted">of all answers</em></div>
+          {set && <div className="kpi-tile"><span>Tied answers</span><b className={`num ${set.ties ? 'down' : 'up'}`}>{set.ties}</b><em className="muted">target 0 · {set.n} puzzles live</em></div>}
+          {set && <div className="kpi-tile"><span>Plant puzzles</span><b className="num">{set.plants}</b><em className="muted">at most a fifth · {set.sameRound} cut by the rules</em></div>}
+        </div>
+      )}
+      {rated.length > 0 && (
+        <table className="site-table"><thead><tr><th>Hardest (10+ answers)</th><th>Right</th></tr></thead><tbody>
+          {rated.slice(0, 5).map(r => <tr key={r.id}><td className="num">{r.id.slice(0, 48)}</td><td className="num">{Math.round(r.share * 100)}% of {r.tried}</td></tr>)}
+        </tbody></table>
+      )}
+      <p className="muted small">Skips aren't counted yet: "most skipped" needs the site to report skips.</p>
+    </section>
+  );
+}

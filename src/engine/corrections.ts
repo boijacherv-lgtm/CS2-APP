@@ -33,7 +33,7 @@ export type CorrectionTable = Record<string, Correction>;
 /** The tags that decide how a move is marked (the rest only describe it). */
 const DECIDING: Tag[] = [
   'OPENING', 'TRADED', 'ISOLATED', 'CROSSFIRE', 'BLIND', 'LOW HP', 'AWP LOST', 'UNUSED UTIL', 'WHIFF', 'POST-PLANT', 'OUTGUNNED',
-  'ECO DEATH', 'BAD PEEK', 'DRY PEEK', 'KNIFE OUT', 'NO AMMO', 'MOVING SHOT', 'LOUD', 'WASTED', 'TEAM FLASH', 'TEAM DAMAGE', 'NO TRADE',
+  'ECO DEATH', 'BAD PEEK', 'DRY PEEK', 'KNIFE OUT', 'NADE IN HAND', 'BOMB IN HAND', 'NO AMMO', 'MOVING SHOT', 'LOUD', 'WASTED', 'TEAM FLASH', 'TEAM DAMAGE', 'NO TRADE',
   'LATE ROTATION', 'OVER-ROTATION', 'STALL', 'DENIED',
 ];
 export const patternOf = (kind: string, note: string, tags: readonly string[]) =>

@@ -5,7 +5,7 @@ import { STEAM_AVAILABLE } from '../env';
 import { GOAL_CHOICES, goalInfo, habits } from '../engine/habits';
 import { focusOf, loadMoments } from '../moments/moments';
 import { EmptyArt } from '../ui/Art';
-import { averages, fullMatches, FREE_HISTORY, premierOf, goalSeries, mapStats, MAX_GOALS, type Averages, type GoalId, LETTERS, type Letter, type ProfileMatch } from '../engine/profile';
+import { averages, fullMatches, FREE_HISTORY, premierOf, goalSeries, mapStats, MAX_GOALS, type Averages, type GoalId, type ProfileMatch } from '../engine/profile';
 import { biggestLeak, SKILL_MAP_FROM, skillMap, superpower } from '../engine/profileView';
 import { matchKey } from '../engine/profile';
 import { useStore } from '../store';
@@ -16,26 +16,34 @@ import { findFriend, setGoals, useProfile, type PublicProfile } from '../ui/prof
 import { steamFetch } from '../ui/steamApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { plural, fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
-import { copyCard, drawShareCard, shareFileName } from './shareCard';
+import { copyCard, drawShareCard, shareFileName, type ShareFormat } from './shareCard';
 import { AddMatches } from './AddMatches';
-import { MiniLine, StretchLine, TrendTile } from './charts';
+import { StretchLine, TrendTile } from './charts';
 import { applyGame, gameOf, type GameId } from '../ui/tokens';
 import { DlProfile } from '../deadlock/DlProfile';
 import { steamId3 } from '../deadlock/api';
 
-/** The header strip: matches reviewed, the average grade, and your grades match by match (last 10). */
-function ProfileStrip({ matches }: { matches: ProfileMatch[] }) {
-  const recent = [...matches].sort((a, b) => a.at - b.at).slice(-10);
-  const idx = (l: Letter) => LETTERS.indexOf(l);
-  const avgIdx = Math.round(matches.reduce((a, m) => a + idx(m.level ?? m.lobby), 0) / matches.length);
-  const avgLetter = LETTERS[Math.max(0, Math.min(LETTERS.length - 1, avgIdx))];
+/** The first row: K/D, ADR, KAST, HS% and the Premier change, each the last value with a sparkline and ↑/↓ vs your average. */
+function StatStrip({ matches }: { matches: ProfileMatch[] }) {
+  const chrono = [...matches].sort((a, b) => a.at - b.at).slice(-10);
+  if (!chrono.length) return null;
+  const rated = chrono.flatMap(m => (premierOf(m) !== null ? [premierOf(m)!] : []));
   return (
-    <section className="profile-strip" aria-label="Your matches in short">
-      <div><span>Matches reviewed</span><b className="num">{matches.length}</b></div>
-      <div title="Your average match grade (level grade where the match has one, else the lobby grade)"><span>Average grade</span><b className="letter-chip big" style={letterStyle(avgLetter)}>{avgLetter}</b></div>
-      {recent.length >= 2 && <div className="ps-trend"><span>Grades, last {recent.length}</span>
-        <MiniLine values={recent.map(m => LETTERS.length - 1 - idx(m.level ?? m.lobby))} good={null} /></div>}
-    </section>
+    <div className="trend-row stat-strip">
+      <TrendTile label="K/D" values={chrono.map(m => (m.deaths ? m.kills / m.deaths : m.kills))} fmt={v => v.toFixed(2)} />
+      <TrendTile label="ADR" values={chrono.map(m => m.adr)} fmt={v => v.toFixed(0)} />
+      <TrendTile label="KAST" values={chrono.map(m => m.kast)} fmt={v => `${v.toFixed(0)}%`} />
+      <TrendTile label="HS%" values={chrono.map(m => m.hs)} fmt={v => `${v.toFixed(0)}%`} />
+      {rated.length >= 2 && <TrendTile label="Premier" values={rated} fmt={v => fmtInt(v)} sub="last 10 matches" />}
+      {chrono.length < 2 && <p className="muted small">One more match and the trends start.</p>}
+    </div>
+  );
+}
+
+/** No Steam avatar: a player silhouette in the game's colour. */
+function Silhouette() {
+  return (
+    <svg viewBox="0 0 64 64" width="40" height="40" aria-hidden><circle cx="32" cy="22" r="11" fill="currentColor" /><path d="M12 58c2-13 10-20 20-20s18 7 20 20z" fill="currentColor" /></svg>
   );
 }
 
@@ -111,11 +119,7 @@ function SkillMapCard({ matches }: { matches: ProfileMatch[] }) {
   if (!map) {
     const left = SKILL_MAP_FROM - matches.length;
     return (
-      <section className="site-card">
-        <div className="card-head"><h2>Skill map</h2></div>
-        <p className="muted">{plural(left, 'more match', 'more matches')} to unlock your skill map.</p>
-        <div className="unlock-bar"><i style={{ width: `${(matches.length / SKILL_MAP_FROM) * 100}%` }} /></div>
-      </section>
+      <p className="skill-unlock muted small"><b>Skill map</b> · {plural(left, 'more match', 'more matches')} to unlock it <span className="unlock-bar"><i style={{ width: `${(matches.length / SKILL_MAP_FROM) * 100}%` }} /></span></p>
     );
   }
   return (
@@ -165,14 +169,21 @@ export function Profile() {
   // stats per game: CS2 or Deadlock (the game you were last in first); switching also dresses the page in its colours
   const [game, setGame] = useState<GameId>(() => gameOf('profile'));
   const pickGame = (g: GameId) => { setGame(g); applyGame(gameOf(g)); };
+  // the header's dim map art: your most-played map; Premier now and over the last 10
+  const headArt = game === 'cs2' ? mapStats(matches)[0]?.map ?? null : null;
+  const premier = (() => {
+    const rs = matches.slice(0, 10).flatMap(m => (premierOf(m) !== null ? [premierOf(m)!] : []));
+    return rs.length ? { now: rs[0], change: rs.length >= 2 ? rs[0] - rs[rs.length - 1] : null } : null;
+  })();
 
   return (
     <div className="page profile">
-      <header className="profile-head">
-        {me?.avatar ? <img className="avatar" src={me.avatar} alt="" width={64} height={64} /> : <span className="avatar empty"><Icon name="user" size={34} /></span>}
+      <header className="profile-head" style={headArt ? { '--head-art': `url(/images/maps/${headArt}.png)` } as React.CSSProperties : undefined}>
+        {me?.avatar ? <img className="avatar" src={me.avatar} alt="" width={64} height={64} /> : <span className="avatar empty" aria-hidden><Silhouette /></span>}
         <div className="profile-id">
           {/* the badge sits next to the heading, not in it (a screen reader read "Your profilePRO"); only when logged in */}
-          <div className="profile-title"><h1>{name}</h1>{pro && me && <span className="pro-badge" title="Pro is free during early access">PRO</span>}</div>
+          <div className="profile-title"><h1>{name}</h1>{pro && me && <span className="pro-badge" title="Pro is free during early access">PRO</span>}
+            {game === 'cs2' && premier && <span className="profile-premier num" title="Premier going into your newest match, and the change over your last 10">{fmtInt(premier.now)}{premier.change !== null && <i className={premier.change >= 0 ? 'up' : 'down'}> {premier.change >= 0 ? '+' : '−'}{fmtInt(Math.abs(premier.change))} {premier.change >= 0 ? '▲' : '▼'}</i>}</span>}</div>
           <p className="muted">
             {remote ? <><Icon name="shield" size={13} /> Saved to your Steam account{game === 'cs2' && ` · ${matches.length} CS2 match${matches.length === 1 ? '' : 'es'}`}</>
               : <span className="pill-small">{STEAM_AVAILABLE && !me ? 'Saved in this browser · Log in to sync' : 'Saved in this browser'}</span>}
@@ -205,7 +216,7 @@ export function Profile() {
       <AddMatches />
       {!matches.length ? null : (
         <>
-          <ProfileStrip matches={matches} />
+          <StatStrip matches={matches} />
           <div className="leak-row">
             <LeakCard matches={matches} />
             <SuperCard matches={matches} />
@@ -228,7 +239,6 @@ export function Profile() {
             <MapStats matches={matches} />
             <Friend mine={last} />
           </div>
-          <Trends matches={matches} />
         </>
       )}
       {!matches.length && <Friend mine={last} />}
@@ -239,19 +249,6 @@ export function Profile() {
 }
 
 
-/** Rating and damage match by match: the last value big, ↑/↓ against the average, a sparkline (each from 2 matches). */
-function Trends({ matches }: { matches: ProfileMatch[] }) {
-  const chrono = [...matches].sort((a, b) => a.at - b.at).slice(-20);
-  const rated = chrono.flatMap(m => (premierOf(m) !== null ? [premierOf(m)!] : []));
-  if (chrono.length < 2) return null;
-  return (
-    <div className="trend-row">
-      {rated.length >= 2 && <TrendTile label="Premier rating" values={rated} fmt={v => fmtInt(v)} sub="going into each match" />}
-      <TrendTile label="Damage per round" values={chrono.map(m => m.adr)} fmt={v => v.toFixed(0)} />
-      <TrendTile label="K/D" values={chrono.map(m => (m.deaths ? m.kills / m.deaths : m.kills))} fmt={v => v.toFixed(2)} />
-    </div>
-  );
-}
 
 
 function MatchRow({ m, onShare }: { m: ProfileMatch; onShare: () => void }) {
@@ -461,10 +458,11 @@ export function ShareDialog({ m, player, onClose }: { m: ProfileMatch; player: s
   const canvas = useRef<HTMLCanvasElement>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean | null>(null);
+  const [format, setFormat] = useState<ShareFormat>('wide');
   useEffect(() => {
     const c = canvas.current!;
-    drawShareCard(c, m, player).then(() => setUrl(c.toDataURL('image/png')));
-  }, [m, player]);
+    drawShareCard(c, m, player, format).then(() => setUrl(c.toDataURL('image/png')));
+  }, [m, player, format]);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', esc);
@@ -474,7 +472,11 @@ export function ShareDialog({ m, player, onClose }: { m: ProfileMatch; player: s
     <div className="dialog-back" onClick={onClose}>
       <div className="dialog" role="dialog" aria-modal="true" aria-label="Share card" onClick={e => e.stopPropagation()}>
         <div className="card-head"><h2>Share card</h2><button className="ghost icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={16} /></button></div>
-        <canvas ref={canvas} className="share-canvas" />
+        <div className="seg-mini" role="group" aria-label="Size">
+          <button className={format === 'wide' ? 'on' : ''} onClick={() => setFormat('wide')}>Wide 1200×630</button>
+          <button className={format === 'tall' ? 'on' : ''} onClick={() => setFormat('tall')}>Tall 1080×1350</button>
+        </div>
+        <canvas ref={canvas} className={`share-canvas ${format}`} />
         <div className="dialog-actions">
           {url && <a className="cta primary" href={url} download={shareFileName(m)}><Icon name="download" size={14} /> Download</a>}
           <button className="cta" onClick={async () => setCopied(await copyCard(canvas.current!))}><Icon name="copy" size={14} /> Copy image</button>

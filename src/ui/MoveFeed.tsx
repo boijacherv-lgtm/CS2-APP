@@ -3,7 +3,7 @@ import { useSiteConfig } from './siteConfig';
 import { simStateAt, type Simulation } from '../engine/combat';
 import { moveLook, NoteMark } from './NoteMark';
 import { gunFromName } from '../engine/guns';
-import { calloutAt, NOTE_INFO, moveKey, readMs, TAG_INFO, type DemoRound, type Move, type Review, type Tag } from '../engine/recap';
+import { calloutAt, NOTE_INFO, moveKey, QUIET_TAGS, readMs, TAG_INFO, type DemoRound, type Move, type Review, type Tag } from '../engine/recap';
 import { rageNow, useStore, whoAmI } from '../store';
 import { rageLines } from '../engine/rage';
 import { GameIcon, Icon } from './Icon';
@@ -160,7 +160,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
           <circle className="feed-ring-pulse" cx={px} cy={py} r={ringR} fill="none" stroke={g.color} strokeWidth={1.5} />
         </svg>
       )}
-      <div className={`feed-card ${reading && !held ? 'reading' : ''} ${open ? 'open' : ''}`} key={cardKey} ref={anchorEl}
+      <div className={`feed-card fx-${({ '!!': 'brilliant', '!': 'good', book: 'book', '?!': 'inacc', '?': 'mistake', '??': 'blunder' } as Record<string, string>)[card.note]} ${reading && !held ? 'reading' : ''} ${open ? 'open' : ''}`} key={cardKey} ref={anchorEl}
         style={{ '--grade': g.color } as React.CSSProperties} onClick={skip} title={reading && !held ? 'Click for the next move' : undefined}>
         {/* 1. the grade, who, when */}
         {/* the same card as Deadlock's: the grade as a coloured pill, then who and when */}
@@ -187,7 +187,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
         )}
         {card.tags.length > 0 && (
           <div className="feed-tags">
-            {card.tags.map(t => <span key={t} className="feed-tag" title={TAG_INFO[t].tip}>{t === 'ISOLATED' ? 'ALONE' : t}</span>)}
+            {card.tags.filter(t => !QUIET_TAGS.has(t)).map(t => <span key={t} className="feed-tag" title={TAG_INFO[t].tip}>{t === 'ISOLATED' ? 'ALONE' : t}</span>)}
           </div>
         )}
         {/* 7. what you can do with it */}

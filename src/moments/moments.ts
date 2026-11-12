@@ -6,7 +6,8 @@ import type { SearchClass } from '../engine/search';
 export type MomentGame = 'cs2' | 'deadlock';
 export interface MomentDot { x: number; y: number; team: 0 | 1; me?: boolean }
 /** `to`: where the move goes on the map (0–1; CS2's options have one). */
-export interface MomentOption { label: string; value: number; to?: { x: number; y: number } }
+/** `what`: what happens if you take it, from the engine's playouts ("You die 34% of the time · 0.8 kills"). */
+export interface MomentOption { label: string; value: number; to?: { x: number; y: number }; what?: string }
 /**
  * The clip: everyone's positions once a second from `from` seconds (−10: before the moment) to the end (+5 after),
  * per player x, y, x, y… (−1 where they're dead or not there yet). Before an answer only up to the moment is shown.
@@ -62,8 +63,8 @@ export function cleanMoment(raw: unknown): Moment | null {
   if (!game || !map || !/^[a-z0-9_]+$/.test(map) || !id || match === null || when === null || setup === null || kind === null || at === null || played === null || cost === null || !cls) return null;
   const options = Array.isArray(r.options) ? r.options.slice(0, 8).map(o => {
     const x = o as Record<string, unknown>, label = str(x?.label, 80), value = num(x?.value, 0, 1);
-    const to = point(x?.to);
-    return label !== null && value !== null ? { label, value, ...(to ? { to } : {}) } : null;
+    const to = point(x?.to), what = str(x?.what, 160);
+    return label !== null && value !== null ? { label, value, ...(to ? { to } : {}), ...(what ? { what } : {}) } : null;
   }) : [];
   if (options.length < 2 || options.some(o => !o) || played >= options.length) return null;
   const dots = Array.isArray(r.dots) ? r.dots.slice(0, 12).map(d => {

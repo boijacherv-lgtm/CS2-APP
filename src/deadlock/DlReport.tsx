@@ -243,7 +243,7 @@ function EngineCard({ review, watch, who, ult, uses }: { review: EngineReview; w
     <section className="recap-card dl-engine">
       <h3>Engine ({who})</h3>
       <div className="dl-engine-head">
-        <div className="dl-engine-acc" title={`Accuracy: how close every move came to the engine's best, like chess.com's. A typical Phantom-and-up player's game is 90. ${review.moves.length} moves, one every 20 s alive.`}>
+        <div className="dl-engine-acc" title={`Accuracy: how close every move came to the coach's best, like chess.com's. A typical Phantom-and-up player's game is 90. ${review.moves.length} moves, one every 20 s alive.`}>
           <b className="num">{Math.round(review.accuracy)}</b><span className="muted small">accuracy</span>
         </div>
         <ul className="dl-engine-counts">
@@ -282,7 +282,7 @@ function EngineCard({ review, watch, who, ult, uses }: { review: EngineReview; w
             )}
         </>
       )}
-      <p className="muted small">The engine looks 20 s ahead: the best options good players take here, what the enemy would likely do, and the win chance after. {ULTS_IN ? (demoRead ? 'Ultimates ready count in its fights.' : 'Ultimates count once the demo is read.') : demoRead ? 'It names the ultimates ready in fights; being ready barely changed who won fights, so they don\'t change its odds.' : 'Read the demo for ultimates.'} It sees enemies you might not have.</p>
+      <p className="muted small">The coach looks 20 s ahead: the best options good players take here, what the enemy would likely do, and the win chance after. {ULTS_IN ? (demoRead ? 'Ultimates ready count in its fights.' : 'Ultimates count once the demo is read.') : demoRead ? 'It names the ultimates ready in fights; being ready barely changed who won fights, so they don\'t change its odds.' : 'Read the demo for ultimates.'} It sees enemies you might not have.</p>
     </section>
   );
 }
