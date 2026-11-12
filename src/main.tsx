@@ -4,6 +4,7 @@ import { Shell } from './shell/Shell';
 import { handleLinks } from './shell/router';
 import { applyGame, applyTokens, lookPref, setLook, themeOf } from './ui/tokens';
 import { loadSiteConfig } from './ui/siteConfig';
+import { watchErrors } from './ui/telemetry';
 import './styles.css';
 import './ui/theme.css';
 
@@ -16,6 +17,7 @@ if (ONLINE && window.top !== window.self) {
 }
 applyTokens(); // colours as CSS variables, before the first paint
 loadSiteConfig(); // the dev page's content and switches (banner, flags, samples …)
+watchErrors(); // uncaught errors, sampled, for the dev page
 // Look: System follows the system's dark / light switch while the page is open
 matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', () => { if (lookPref() === 'system') setLook('system'); });
 handleLinks(); // in-app links without a reload

@@ -21,7 +21,7 @@ import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } f
 import { META_KEY, refreshDlMeta } from './dlMeta';
 import { botRoute, saveBotState } from './dlBot';
 import { kickBots, startWorkflow } from './botKick';
-import { addCoachEval, BOTS_PAUSED, coachEvals, deleteUser, health, loadConfig, puzzleStats, saveConfig, setBotsPaused, siteLog, undo, users } from './site';
+import { addCoachEval, addTelemetry, BOTS_PAUSED, coachEvals, deleteUser, health, loadConfig, puzzleStats, telemetry, saveConfig, setBotsPaused, siteLog, undo, users } from './site';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { board, countAnswer, countSkip, reportPuzzle, vote, votes, friendsBoard, friendsOnSite, updateBoard } from './puzzles';
 import { puzzleGameOf } from '../../src/engine/profile';
@@ -101,6 +101,8 @@ export default {
       if (req.method === 'POST' && path === '/openid/verify') return json(await verifyLogin(env, await body(req)));
       if (path.startsWith('/internal/')) return await internal(req, env, path, json);
 
+      // the site's sampled numbers (grading time, client errors) for the dev page; rate-limited like /puzzle/
+      if (req.method === 'POST' && path === '/t') { if (await limited(env.RATE_PUBLIC, ip)) return slow(); return json(await addTelemetry(env.SB, await body(req))); }
       // the site's content and switches, set on the dev page (site.ts): public, cached a minute
       if (req.method === 'GET' && path === '/config')
         return new Response(JSON.stringify(await loadConfig(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
@@ -161,7 +163,7 @@ export default {
         return json(await friendsBoard(env.SB, steamId, env.STEAM_API_KEY, puzzleGameOf(new URL(req.url).searchParams.get('game'))));
       }
       // the dev page's control panel (site.ts): owners only, every change logged
-      if (path.startsWith('/admin/') && /^\/admin\/(config|log|undo|users|user\/delete|bots|coach|coach\/check|health|puzzles)$/.test(path)) {
+      if (path.startsWith('/admin/') && /^\/admin\/(config|log|undo|users|user\/delete|bots|coach|coach\/check|health|puzzles|telemetry)$/.test(path)) {
         if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can do this.' }, 403);
         const q = new URL(req.url).searchParams;
         if (path === '/admin/config') return json(req.method === 'POST' ? await saveConfig(env.SB, steamId, await body(req), String(q.get('what') ?? 'Changed the site config').slice(0, 120)) : { config: await loadConfig(env.SB) });
@@ -174,6 +176,7 @@ export default {
         if (path === '/admin/coach/check' && req.method === 'POST') return json({ result: await startWorkflow(env.GH_TOKEN, 'coach-check.yml') });
         if (path === '/admin/health') return json(health(env as unknown as Record<string, unknown>));
         if (path === '/admin/puzzles') return json(await puzzleStats(env.SB));
+        if (path === '/admin/telemetry') return json(await telemetry(env.SB));
       }
       if (req.method === 'GET' && path === '/admin/stats') {
         if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);

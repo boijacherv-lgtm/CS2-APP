@@ -1045,3 +1045,15 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .settle-bar i { font-style: normal; display: flex; align-items: center; padding: 0 10px; white-space: nowrap; overflow: hidden; color: var(--ink); }
 .settle-bar i:first-child { background: var(--good); } .settle-bar i:last-child { background: var(--theme); }
 @media (max-width: 1000px) { .round-strip { max-width: 52vw; } } @media (max-width: 640px) { .round-strip { display: none; } }
+/* C2: the hero is a real round playing */
+.hero-loop { margin: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--border-strong); box-shadow: var(--elev-3); background: var(--map-bg); align-self: center; }
+.hero-loop video { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 812; object-fit: cover; }
+@media (prefers-reduced-motion: reduce) { .hero-loop video { display: none; } .hero-loop { background: url(/videos/hero-cs2.jpg) center / cover; aspect-ratio: 1280 / 812; } }
+/* B6 scenarios: the bar over the Tactical board, the list on Puzzles */
+.scenario-bar { position: absolute; z-index: calc(var(--z-sticky) + 5); left: 50%; top: 56px; transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+  max-width: min(760px, 92vw); padding: 10px 14px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border-strong); box-shadow: var(--elev-2); font-size: 13px; }
+.scenario-score { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.scenario-stars .icon { color: var(--text-3); } .scenario-stars .icon.on { color: var(--gold); }
+.scenario-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.scenario-list li { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
+.scenario-list li > span:first-child { display: grid; gap: 2px; }

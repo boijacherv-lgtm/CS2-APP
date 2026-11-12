@@ -318,3 +318,23 @@ export function PuzzleQuality() {
     </section>
   );
 }
+
+/** Status pills from the site's own sampled numbers: recap grading time (p50 / p95) and client errors in the last 24 h. */
+export function TelemetryPills() {
+  const { data, err } = useLoad<{ grading: { n: number; p50: number | null; p95: number | null }; errors: { n: number; recent: { msg: string; page: string; at: number }[] } }>('/admin/telemetry');
+  if (err) return <p className="warn-text small">{err}</p>;
+  if (!data) return null;
+  const s = (ms: number | null) => (ms === null ? '–' : `${Math.round(ms / 1000)} s`);
+  return (
+    <section className="site-card">
+      <div className="card-head"><h2>The site, last 24 h</h2><span className="muted small">sampled: a quarter of the gradings, 3 errors a visit at most</span></div>
+      <div className="dev-checks">
+        <span className={`dev-check ${data.grading.p50 === null ? 'off' : data.grading.p50 < 60000 ? 'ok' : 'warn'}`} title="Time to grade a whole match (target: p50 under 60 s)"><i />Recap grading<b>p50 {s(data.grading.p50)} · p95 {s(data.grading.p95)} · {data.grading.n} sampled</b></span>
+        <span className={`dev-check ${data.errors.n ? 'warn' : 'ok'}`}><i />Client errors<b>{data.errors.n}</b></span>
+      </div>
+      {data.errors.recent.length > 0 && (
+        <table className="site-table"><tbody>{data.errors.recent.map((e, i) => <tr key={i}><td className="num">{when(e.at)}</td><td className="num">{e.page}</td><td>{e.msg}</td></tr>)}</tbody></table>
+      )}
+    </section>
+  );
+}

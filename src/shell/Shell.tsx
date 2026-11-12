@@ -1,4 +1,5 @@
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { reportError, reportGradingTime } from '../ui/telemetry';
 import { useSiteConfig } from '../ui/siteConfig';
 import type { RoundSummary } from '../engine/match';
 import { finishSteamLogin } from '../ui/steamApi';
@@ -104,7 +105,8 @@ function useMatchGrader() {
     if (!data) return;
     useStore.setState({ report: { data, rounds: Array(data.rounds.length).fill(null), done: false } });
     const g = gradeMatch(data, useStore.getState().board.context, rounds => useStore.setState({ report: { data, rounds, done: false } }));
-    g.done.then(({ rounds, error }) => useStore.setState({ report: { data, rounds, done: true, ...(error ? { error } : {}) } }));
+    const started = performance.now();
+    g.done.then(({ rounds, error }) => { useStore.setState({ report: { data, rounds, done: true, ...(error ? { error } : {}) } }); if (!error) reportGradingTime(performance.now() - started); });
     return () => g.stop();
   }, [data]);
 }
@@ -170,7 +172,7 @@ function NotFound() {
 class PageGuard extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(e: unknown) { console.error(e); }
+  componentDidCatch(e: unknown) { console.error(e); reportError(e instanceof Error ? e.message : String(e)); }
   render() {
     return this.state.failed
       ? <div className="page not-found"><h1>This page broke.</h1><p className="muted">Something went wrong showing it. Reload, or go back home.</p><p><a className="cta" href="/">Back to home</a></p></div>
