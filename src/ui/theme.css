@@ -157,9 +157,9 @@ body {
     var(--surface-1);
   box-shadow: 0 18px 50px -24px color-mix(in srgb, var(--hero-tint, var(--theme)) 70%, transparent);
 }
-.recap-map { font-size: 36px; }
+.recap-map { font-size: 32px; }
 .recap-score { font-size: 64px; text-shadow: 0 2px 24px #0008; }
-.recap-result { font-size: 18px; padding: 5px 14px; }
+.recap-result { font-size: 16px; padding: 5px 14px; }
 .recap-verdict {
   margin: 14px 0 2px !important; max-width: 720px; font-size: 16px; line-height: 1.45; font-weight: 600; color: var(--text-1);
   padding-left: 12px; border-left: 3px solid var(--theme);
@@ -179,11 +179,11 @@ body {
 
 /* bigger numbers, fewer tiny grey words */
 .kpi-tile { padding: 14px 16px; border-radius: 16px; }
-.kpi-tile b { font-size: 34px; }
-.kpi b { font-size: 30px; }
+.kpi-tile b { font-size: 32px; }
+.kpi b { font-size: 32px; }
 .kpi span, .kpi-tile > span { font-size: 12px; color: var(--text-2); }
 .kpi i, .kpi-tile i { font-size: 12px; }
-.dl-engine-acc b { font-size: 44px; }
+.dl-engine-acc b { font-size: 48px; }
 
 /* the profile's head: the same big card, your avatar lit in the game's colour */
 .profile-head {
@@ -192,13 +192,13 @@ body {
   box-shadow: 0 18px 50px -24px color-mix(in srgb, var(--theme) 70%, transparent); position: relative; isolation: isolate; overflow: hidden;
 }
 .profile-head .avatar { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 0 0 2px var(--theme), 0 8px 24px -8px color-mix(in srgb, var(--theme) 80%, transparent); }
-.profile-head h1 { font-size: 34px; }
+.profile-head h1 { font-size: 32px; }
 @media (max-width: 560px) {
   .recap-head, .profile-head { padding: 18px 16px; }
-  .recap-score { font-size: 44px; }
-  .recap-map { font-size: 26px; }
-  .recap-verdict { font-size: 14.5px; }
-  .kpi-tile b { font-size: 28px; }
+  .recap-score { font-size: 48px; }
+  .recap-map { font-size: 24px; }
+  .recap-verdict { font-size: 14px; }
+  .kpi-tile b { font-size: 32px; }
 }
 
 /* ---- audit Nov 10: tap targets (WCAG 2.5.8: 24×24 at least) ---------------------------------------------------- */
@@ -219,7 +219,7 @@ input[type=range] { min-height: 24px; }
 b, strong { font-weight: 600; }
 .recap-card > h3, .recap-card h3:first-child { text-transform: none; letter-spacing: 0; font-size: 14px; }
 /* marketing pages (home, game pages, pricing, info): body text 15 px */
-.site-section p, .site-section li, .feature p, .steps li, .game-card p, .site-section details p, .info-page p, .info-page li { font-size: 15px; line-height: 1.55; }
+.site-section p, .site-section li, .feature p, .steps li, .game-card p, .site-section details p, .info-page p, .info-page li { font-size: 16px; line-height: 1.55; }
 .game-card-points li, .site-section p.muted { font-size: 14px; }
 /* four button looks: .cta.primary, .cta (secondary), .cta.ghost (no fill), and plain text links */
 .cta.ghost { background: transparent; border-color: transparent; }
