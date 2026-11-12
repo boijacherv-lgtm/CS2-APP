@@ -69,6 +69,7 @@ export function Deadlock() {
       </section>
 
       <footer className="site-footer">
+        <nav><a href="/pricing">Pricing</a><a href="/privacy">Privacy</a><a href="/changelog">What's new</a></nav>
         <span className="muted">Not affiliated with Valve. Deadlock and its logo belong to Valve.</span>
       </footer>
     </div>

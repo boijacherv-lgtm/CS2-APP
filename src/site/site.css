@@ -451,8 +451,8 @@ a.hero-games-live:hover b { text-decoration: underline; }
   .nav-right { gap: 2px; }
   .nav-right .nav-link { padding: 6px 7px; }
   /* CS2's modes: icons, with the name only on the one you're on */
-  .modes button:not(.on) .mode-label { display: none; }
-  .modes button { padding: 5px 8px; }
+  .modes a:not(.on) .mode-label, .modes .mode-off .mode-label { display: none; }
+  .modes a, .modes .mode-off { padding: 5px 8px; }
   /* on CS2's pages the modes need the room: the CS2 button is its logo, Pricing waits on the other pages */
   .modes ~ .nav-right a[href="/pricing"] { display: none; }
   .navbar:has(.modes) .game-btn.live > span:last-child { display: none; }
@@ -830,3 +830,29 @@ a.hero-games-live:hover b { text-decoration: underline; }
 @keyframes confetti { 0% { opacity: 1; transform: rotate(var(--a)) translateX(0); } 100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--d)) rotate(180deg); } }
 @media (prefers-reduced-motion: reduce) { .perf-letter.reveal, .confetti i { animation: none; } .confetti { display: none; } }
 .dl-rc-head .track-rows { width: min(380px, 100%); }
+
+/* §1 the game kit nav: the game switcher, then the same 5 places for every game */
+.game-switch { position: relative; }
+.game-switch > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; padding: 3px 9px 3px 3px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--bg-1); color: var(--text-1); font-weight: 700; font-size: 13px; }
+.game-switch > summary::-webkit-details-marker { display: none; }
+.game-switch .account-pop { left: 0; right: auto; min-width: 220px; }
+.game-switch .account-pop a, .game-switch .game-soon { display: flex; align-items: center; gap: 8px; min-height: 40px; }
+.game-switch .account-pop a.on { background: var(--surface-3); }
+.game-switch .games-status { margin-left: auto; }
+.game-soon { padding: 6px 10px; color: var(--text-3); cursor: default; }
+.modes a, .modes .mode-off { text-decoration: none; }
+.modes .mode-off { opacity: .45; cursor: not-allowed; }
+.match-tab a { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; color: inherit; }
+.site-footer nav { flex-wrap: wrap; }
+@media (max-width: 560px) {
+  .game-switch .gs-name, .game-switch > summary > .icon { display: none; }
+  header.navbar { gap: 4px; padding: 0 6px; }
+  .game-switch > summary { padding-right: 5px; gap: 3px; }
+  .navbar .modes { margin-left: 2px; }
+  .navbar .modes a, .navbar .modes .mode-off { padding: 5px 5px; }
+  .modes a.on .mode-label { display: none; }
+}
+/* phones with a match open: the Review tab's dot says so; the tab keeps only its × (the other game's tab waits) */
+@media (max-width: 560px) { .navbar .match-tab.away { display: none; } .navbar .match-tab > a { display: none; } .navbar .match-tab { padding: 0 2px; } }
+.nav-menu.always { display: block; }
