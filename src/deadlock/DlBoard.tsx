@@ -85,6 +85,7 @@ export function DlBoard() {
       if ((e.target as HTMLElement).tagName === 'INPUT' || e.metaKey || e.ctrlKey) return;
       const s = useDl.getState();
       if (e.key === ' ') { e.preventDefault(); if (!s.playing && s.time >= match.duration) s.setTime(0); s.setPlaying(!s.playing); }
+      else if (e.key === 'j' || e.key === 'l') s.setTime(Math.max(0, Math.min(match.duration, s.time + (e.key === 'l' ? 5 : -5))));
       else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         e.preventDefault();
         if (e.shiftKey) s.setTime(s.time + (e.key === 'ArrowRight' ? 10 : -10));

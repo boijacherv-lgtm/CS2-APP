@@ -9,7 +9,7 @@ import { NavBar } from '../site/Nav';
 import { Pricing } from '../site/Pricing';
 import { Deadlock } from '../site/Deadlock';
 import '../site/site.css';
-import { Tours } from '../ui/Tour';
+import { Hints } from '../ui/Hints';
 import { useStore, whoAmI } from '../store';
 import { Changelog, Privacy } from '../site/InfoPages';
 import { Cs2Home } from '../site/Cs2Home';
@@ -87,7 +87,7 @@ export function Shell() {
           : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? (devOk ? <Dev /> : devOk === null ? <div className="page" aria-busy="true" /> : <NotFound />) : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
         </Suspense></PageGuard>
       </main>
-      <Tours />
+      <Hints />
     </div>
   );
 }

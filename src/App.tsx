@@ -147,6 +147,19 @@ export function App() {
         st.setReviewSpoilers(!st.reviewSpoilers);
         return;
       }
+      // J / L: 5 s back / forward; ↑ ↓: the round before / after
+      if ((e.key === 'j' || e.key === 'l') && useStore.getState().review) {
+        const st = useStore.getState();
+        st.setTime(Math.max(0, Math.min(end, st.time + (e.key === 'l' ? 5 : -5))));
+        return;
+      }
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && useStore.getState().review && useStore.getState().mode === 'review') {
+        e.preventDefault();
+        const st = useStore.getState(), r = st.review!;
+        const n = r.round + (e.key === 'ArrowDown' ? 1 : -1);
+        if (n >= 0 && n < r.data.rounds.length) st.setReviewRound(n);
+        return;
+      }
       // ← → step through the round's key moments, like moves in a chess review
       if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && recap) {
         e.preventDefault();

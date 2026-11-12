@@ -90,6 +90,7 @@ export function NavBar({ route }: { route: Route }) {
       )}
       <div className="nav-right">
         {/* phones: the page links in a labelled menu */}
+        <button className="nav-help" onClick={() => dispatchEvent(new Event('rv:hints'))} aria-label="Shortcuts and hints" title="Shortcuts and hints (?)">?</button>
         {/* logged out there is no account menu: this one (Profile, Pricing, Settings) shows at every width */}
         <details className={`nav-menu ${me ? '' : 'always'}`} key={routeHref(route)}>
           <summary aria-label="Menu"><Icon name="menu" size={18} /></summary>
@@ -97,6 +98,7 @@ export function NavBar({ route }: { route: Route }) {
             <a role="menuitem" href="/profile"><Icon name="user" size={16} /> Profile</a>
             <a role="menuitem" href="/pricing"><Icon name="coins" size={16} /> Pricing</a>
             <a role="menuitem" href="/settings"><Icon name="gear" size={16} /> Settings</a>
+            <button role="menuitem" className="ghost" onClick={() => dispatchEvent(new Event('rv:hints'))}><Icon name="info" size={16} /> Shortcuts and hints</button>
           </div>
         </details>
         <AccountMenu route={route} />
