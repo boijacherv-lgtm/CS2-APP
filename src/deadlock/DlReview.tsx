@@ -12,7 +12,7 @@ import { DlBoard } from './DlBoard';
 import { openMatch } from './open';
 
 /** A public Phantom+ match to try (also the front page's sample). */
-const SAMPLE_MATCH = 131074890;
+import { DL_SAMPLE_MATCH as SAMPLE_MATCH } from '../ui/sample';
 import { addLocalReplay, replayId } from './localReplays';
 import { DlSteamFolder } from './DlSteamFolder';
 import { BOT_ON, botFriend, botInfo, botMatches, type BotRelation } from './botApi';

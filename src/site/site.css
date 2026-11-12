@@ -856,3 +856,14 @@ a.hero-games-live:hover b { text-decoration: underline; }
 /* phones with a match open: the Review tab's dot says so; the tab keeps only its × (the other game's tab waits) */
 @media (max-width: 560px) { .navbar .match-tab.away { display: none; } .navbar .match-tab > a { display: none; } .navbar .match-tab { padding: 0 2px; } }
 .nav-menu.always { display: block; }
+
+/* §2 game page: one real moment, the meta teaser */
+.gp-moment figure { margin: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.gp-moment img { display: block; width: 100%; height: auto; max-height: 440px; object-fit: cover; object-position: top; }
+.gp-moment figcaption { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; flex-wrap: wrap; }
+.gp-meta-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.gp-meta { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.gp-meta li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.gp-meta li > span:last-child { display: grid; gap: 2px; }
+.gp-meta img { border-radius: 8px; object-fit: cover; }
+.gp-meta-n { font: 700 18px/1 var(--font-display); color: var(--theme); min-width: 18px; }

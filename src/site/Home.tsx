@@ -8,11 +8,8 @@ import { GameMark } from './gameMarks';
 import { MarkFace } from '../ui/MarkFace';
 import { useState } from 'react';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
-import { navigate } from '../shell/router';
-import { openCs2Sample } from '../ui/sample';
+import { openCs2Sample, openDlSample } from '../ui/sample';
 
-/** The sample: a public Phantom+ match (46 min, both teams' fights and objectives), opened from deadlock-api. */
-const SAMPLE_MATCH = 131074890;
 
 const toGames = () => document.getElementById('games')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -28,7 +25,7 @@ export function Home() {
   };
   const trySample = async () => {
     setSample('opening');
-    try { const { openMatch } = await import('../deadlock/open'); await openMatch(SAMPLE_MATCH); navigate({ page: 'deadlock', mode: 'review' }); } catch { setSample('failed'); }
+    try { await openDlSample(); } catch { setSample('failed'); }
   };
   return (
     <div className="page home">
