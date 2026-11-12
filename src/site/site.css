@@ -884,3 +884,24 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .top3-card.leak { border-color: color-mix(in srgb, var(--bad) 45%, var(--border)); }
 .top3-card.best { border-color: color-mix(in srgb, var(--good) 45%, var(--border)); }
 .top3-card.fix { border-color: color-mix(in srgb, var(--theme) 45%, var(--border)); }
+
+/* §3 hints: the welcome card, one-line hints, the ? button and sheet (nothing dims the page) */
+.hint-card { position: fixed; z-index: 900; left: 50%; bottom: 84px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 12px 10px 16px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border-strong); box-shadow: 0 12px 32px #0009; font-size: 14px; }
+.hint-card.welcome { left: auto; right: 16px; bottom: 64px; transform: none; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 16px; }
+.hint-card.welcome b { font: 700 18px/1.2 var(--font-display); }
+.hint-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.hint-x { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; padding: 0; display: grid; place-items: center; }
+.hint-help { position: fixed; z-index: 890; right: 16px; bottom: 16px; width: 36px; height: 36px; border-radius: 50%; padding: 0;
+  background: var(--surface-1); border: 1px solid var(--border-strong); color: var(--text-2); font-weight: 700; box-shadow: 0 6px 18px #0007; }
+.hint-help:hover { color: var(--text-1); }
+.hint-sheet { position: fixed; z-index: 950; right: 16px; top: 56px; width: min(380px, calc(100vw - 32px)); max-height: 70vh; overflow: auto; display: grid; gap: 10px;
+  padding: 14px 16px; border-radius: 14px; background: var(--surface-1); border: 1px solid var(--border-strong); box-shadow: 0 16px 40px #000a; font-size: 13px; }
+.hint-sheet-head { position: relative; } .hint-sheet .hint-x { top: -6px; right: -8px; }
+.hint-sheet dl { margin: 0; display: grid; gap: 6px; } .hint-sheet dl > div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; }
+.hint-sheet dt, .hint-sheet dd { margin: 0; }
+.hint-sheet kbd { font: 600 12px var(--font-ui); padding: 1px 6px; border-radius: 5px; border: 1px solid var(--border-strong); background: var(--surface-2); }
+.hint-sheet ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--text-2); }
+.nav-help { width: 32px; height: 32px; padding: 0; border-radius: 50%; border: 1px solid var(--border-strong); background: transparent; color: var(--text-2); font-weight: 700; }
+.nav-help:hover { color: var(--text-1); background: var(--surface-2); }
+@media (max-width: 560px) { .nav-help { display: none; } }

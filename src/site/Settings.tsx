@@ -8,7 +8,7 @@ import { forgetProfile, refreshProfile, setPrefs, useProfile } from '../ui/profi
 import { VERDICT_LABEL, type MoveVerdict } from '../engine/profile';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { steamSignOut } from '../ui/steamApi';
-import { resetTours } from '../ui/Tour';
+import { resetHints } from '../ui/Hints';
 import { lookPref, setLook, type Look } from '../ui/tokens';
 
 /** Your account, privacy, the coach's and Review's defaults, and your data. */
@@ -130,8 +130,8 @@ export function Settings() {
           </div>
         </div>
         <div className="setting">
-          <div className="setting-text"><b>Tips</b><span className="muted">Show the short page tours again.</span></div>
-          <button className="ghost small-btn" onClick={() => { resetTours(); setTipsReset(true); }} disabled={tipsReset}>{tipsReset ? 'They\'ll show again' : 'Show the tips again'}</button>
+          <div className="setting-text"><b>Tips</b><span className="muted">The welcome card and the one-line hints, once more.</span></div>
+          <button className="ghost small-btn" onClick={() => { resetHints(); setTipsReset(true); }} disabled={tipsReset}>{tipsReset ? 'They\'ll show again' : 'Show the tips again'}</button>
         </div>
       </section>
     </div>
