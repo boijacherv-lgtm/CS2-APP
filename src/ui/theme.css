@@ -10,6 +10,11 @@
   /* layers: base 0 · sticky 10 · overlay 100 · modal 200 · toast 300 */
   --z-base: 0; --z-sticky: 10; --z-overlay: 100; --z-modal: 200; --z-toast: 300;
   --map-bg: #0b0e12; --gold: #F5C451; --amber: #f2c230; --violet: #b07ce8;
+  /* Deadlock's own colours: the two teams, souls, item tiers (grey → blue), hero positions and tier ranks */
+  --dl-amber: #E8A33D; --dl-sapphire: #5B8DEF; --dl-souls: #3fd0e6; --dl-grey: #9aa3ad; --dl-blue: #5fb0ff;
+  --dl-green: #59b247; --dl-cyan: #29b1cc; --dl-orange: #ff9b52; --dl-red: #e0533a;
+  /* glows, the colour written after the token (var(--glow-sm) var(--gold)): a spark, an alert, a lift on hover, a hero */
+  --glow-sm: 0 0 6px; --glow-md: 0 0 18px; --glow-lift: 0 10px 30px -12px; --glow-hero: 0 18px 50px -24px;
 }
 /*
  * The game theme: the site takes on the colour of the game you're in (tokens.ts GAME_THEME → --theme, --theme-ink and
@@ -62,7 +67,7 @@ body {
 /* only on things you can click: a card that isn't a link or button stays still */
 a.site-card:hover, button.site-card:hover, a.feature:hover, .dl-row:hover:not(:disabled), .hero-games-live:hover {
   border-color: color-mix(in srgb, var(--theme) 40%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--theme) 18%, transparent), 0 10px 34px -14px color-mix(in srgb, var(--theme) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--theme) 18%, transparent), var(--glow-lift) color-mix(in srgb, var(--theme) 55%, transparent);
 }
 
 /* ---- the game's pattern behind page headers (a mask, so it's drawn in the game's colour) --------------------------- */
@@ -155,7 +160,7 @@ body {
     linear-gradient(90deg, color-mix(in srgb, var(--hero-tint, var(--theme)) 16%, var(--surface-1)) 30%, color-mix(in srgb, var(--surface-1) 40%, transparent) 75%),
     var(--map-art) right -30px center / auto 130% no-repeat,
     var(--surface-1);
-  box-shadow: 0 18px 50px -24px color-mix(in srgb, var(--hero-tint, var(--theme)) 70%, transparent);
+  box-shadow: var(--glow-hero) color-mix(in srgb, var(--hero-tint, var(--theme)) 70%, transparent);
 }
 .recap-map { font-size: 32px; }
 .recap-score { font-size: 64px; text-shadow: 0 2px 24px #0008; }
@@ -189,9 +194,9 @@ body {
 .profile-head {
   padding: 22px 26px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--theme) 40%, var(--border));
   background: linear-gradient(110deg, color-mix(in srgb, var(--theme) 18%, var(--surface-1)), var(--surface-1) 70%);
-  box-shadow: 0 18px 50px -24px color-mix(in srgb, var(--theme) 70%, transparent); position: relative; isolation: isolate; overflow: hidden;
+  box-shadow: var(--glow-hero) color-mix(in srgb, var(--theme) 70%, transparent); position: relative; isolation: isolate; overflow: hidden;
 }
-.profile-head .avatar { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 0 0 2px var(--theme), 0 8px 24px -8px color-mix(in srgb, var(--theme) 80%, transparent); }
+.profile-head .avatar { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 0 0 2px var(--theme), var(--glow-lift) color-mix(in srgb, var(--theme) 80%, transparent); }
 .profile-head h1 { font-size: 32px; }
 @media (max-width: 560px) {
   .recap-head, .profile-head { padding: 18px 16px; }
