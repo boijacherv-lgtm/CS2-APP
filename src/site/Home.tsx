@@ -1,5 +1,6 @@
 import { DL_MATCHES, FAQ, MATCHES, PRO_MATCHES } from './faq';
-import { PRO_EARLY_ACCESS } from '../engine/profile';
+import { proEarlyAccess, useSiteConfig } from '../ui/siteConfig';
+
 import { DL_MAP_IMAGE } from '../deadlock/data';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { Icon, type IconName } from '../ui/Icon';
@@ -16,6 +17,7 @@ const toGames = () => document.getElementById('games')?.scrollIntoView({ behavio
 /** The front page, about every game rather than one: what it is, which games, how it works, what you get, what it
  * costs. Short on purpose; dressed in the neutral theme (tokens.ts themeOf). */
 export function Home() {
+  const coming = useSiteConfig().flags.comingSoon;
   const top = GAMES.slice(0, 3), more = GAMES.slice(3);
   // a public high-rank Deadlock match, opened on the board: the product without a demo of your own
   const [sample, setSample] = useState<'idle' | 'opening' | 'failed'>('idle');
@@ -62,6 +64,8 @@ export function Home() {
 
       <section className="site-section" id="games">
         <h2 className="section-title">Pick your game</h2>
+        {/* set on the dev page (Content → flags) */}
+        {coming && <p className="muted coming-soon"><Icon name="bell" size={13} /> Coming soon: {coming}</p>}
         <div className="game-cards">
           {top.map(g => g.review ? (
             <article key={g.id} className={`game-card live ${g.status}`} style={{ '--game': g.color } as React.CSSProperties}>
@@ -191,7 +195,7 @@ const SHOTS = [
 const WHY: { icon: IconName; title: string; text: string }[] = [
   { icon: 'shield', title: 'Nothing uploaded', text: 'Your demo stays on your PC.' },
   { icon: 'target', title: 'One coach, every game', text: 'The same marks and grades in every game.' },
-  { icon: 'star', title: 'Free', text: PRO_EARLY_ACCESS ? 'Pro is free in early access.' : 'Everything you need is free.' },
+  { icon: 'star', title: 'Free', text: proEarlyAccess() ? 'Pro is free in early access.' : 'Everything you need is free.' },
 ];
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [

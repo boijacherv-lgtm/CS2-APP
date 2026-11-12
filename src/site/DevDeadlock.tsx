@@ -29,7 +29,7 @@ const pct = (v: number | null | undefined) => (v == null ? '–' : `${(v * 100).
 const calib = (rows: { bin: number; n: number; won: number | null }[], min: number) => rows.filter(c => c.n >= min).map(c => `${Math.round(c.bin * 100 + 5)}→${Math.round((c.won ?? 0) * 100)}%`).join(' · ');
 
 /** The dev page's Deadlock tab: the engine's models (each next to what it beat), the other trained data, disputes. */
-export function DevDeadlock({ owner }: { owner: boolean }) {
+export function DevDeadlock({ owner, withDisputes = true }: { owner: boolean; withDisputes?: boolean }) {
   const wc = W.compare, fc = F.compare;
   return (
     <>
@@ -102,7 +102,7 @@ export function DevDeadlock({ owner }: { owner: boolean }) {
         <p className="muted small">An older date than the patch above means it wasn't retrained this patch.</p>
       </section>
 
-      {owner ? <DevDlDisputes /> : <p className="muted">Log in with Steam as the owner to see disputed moments.</p>}
+      {withDisputes && (owner ? <DevDlDisputes /> : <p className="muted">Log in with Steam as the owner to see disputed moments.</p>)}
     </>
   );
 }

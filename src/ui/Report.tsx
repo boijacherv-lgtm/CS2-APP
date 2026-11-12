@@ -1,4 +1,5 @@
 import { letterStyle } from '../engine/notes';
+import { useSiteConfig } from './siteConfig';
 import { CountUp } from './CountUp';
 import { useEffect, useMemo, useState } from 'react';
 import { coach, modelFor, type CoachNote, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
@@ -18,7 +19,7 @@ import { ShareDialog } from '../site/Profile';
 import { SEARCH_COLOR, type SearchMoment } from '../engine/search';
 import { MAPS } from '../map/catalog';
 import { navigate } from '../shell/router';
-import { useStore, whoAmI } from '../store';
+import { rageNow, useStore, whoAmI } from '../store';
 import { ReviewStart } from './Recap';
 import { Icon, type IconName } from './Icon';
 
@@ -303,7 +304,7 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
   const role = p.roles[0]?.role ?? 'Rifler';
   const byRole = modelFor(model, role).byRole;
   const [open, setOpen] = useState<FeatureId | null>(null);
-  const rage = useStore(s => s.rage);
+  const rage = useStore(rageNow); useSiteConfig();
   const rows = c.profile.slice(0, 9);
   const side = (v: number | null) => (v === null ? '–' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
   return (

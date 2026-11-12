@@ -1,9 +1,10 @@
 import { navigate } from '../shell/router';
 import { useStore } from '../store';
+import { siteConfig } from './siteConfig';
 
 /** The CS2 sample (a FACEIT level-10 Mirage match, names and IDs replaced: public/samples), opened in Review like your own demo. */
 export async function openCs2Sample() {
-  const res = await fetch('/samples/cs2-mirage.json.gz');
+  const res = await fetch(siteConfig().samples.cs2); // the dev page can pick another sample (Content)
   if (!res.ok) throw new Error(String(res.status));
   // still gzipped (GitHub Pages) or already unpacked by the server (the dev server sends it gzip-encoded)
   const bytes = new Uint8Array(await res.arrayBuffer());
@@ -17,7 +18,7 @@ export async function openCs2Sample() {
 export const DL_SAMPLE_MATCH = 131074890;
 export async function openDlSample() {
   const { openMatch } = await import('../deadlock/open');
-  await openMatch(DL_SAMPLE_MATCH);
+  await openMatch(siteConfig().samples.deadlock || DL_SAMPLE_MATCH);
   navigate({ page: 'deadlock', mode: 'review' });
   document.querySelector('.shell-main')?.scrollTo({ top: 0 });
 }

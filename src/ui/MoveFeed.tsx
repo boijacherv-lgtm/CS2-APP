@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useSiteConfig } from './siteConfig';
 import { simStateAt, type Simulation } from '../engine/combat';
 import { moveLook, NoteMark } from './NoteMark';
 import { gunFromName } from '../engine/guns';
 import { calloutAt, NOTE_INFO, moveKey, readMs, TAG_INFO, type DemoRound, type Move, type Review, type Tag } from '../engine/recap';
-import { useStore, whoAmI } from '../store';
+import { rageNow, useStore, whoAmI } from '../store';
 import { rageLines } from '../engine/rage';
 import { GameIcon, Icon } from './Icon';
 import { IMPACT_ICON, isImpactWeapon, KillIcon, killMods } from './KillIcons';
@@ -58,7 +59,8 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   // see why you died (a lost duel you were the favourite in has no mark now, but it still pops up)
   const me = useStore(whoAmI);
   const carded = (m: Move) => shown(m) && (m.note !== 'book' || (m.kind === 'death' && !!me && m.player === me));
-  const rageLevel = useStore(st => st.rage);
+  useSiteConfig();
+  const rageLevel = useStore(rageNow);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const rage = useMemo(() => rageLines(recap.moves.filter(carded), rageLevel), [recap.moves, rageLevel, me, shown]);
   const { pending, backlog } = calloutAt(recap.moves, time, queueing, read, 0, carded);

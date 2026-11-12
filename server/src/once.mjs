@@ -19,6 +19,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // a hard stop well inside the job's time limit, so the cache with the renewed login is always saved
 setTimeout(() => { log('time is up: stopping'); process.exit(0); }, Number(process.env.RUN_MINUTES || 40) * 60_000).unref();
 
+// paused from the dev page (Bots → Pause): this run does nothing (the Worker's answer; on no answer, run as usual)
+if (WORKER_URL && SERVER_TOKEN) {
+  const paused = await fetch(`${WORKER_URL}/internal/paused`, { headers: { Authorization: `Bearer ${SERVER_TOKEN}` }, signal: AbortSignal.timeout(10_000) })
+    .then(r => (r.ok ? r.json() : null)).then(j => !!j?.paused).catch(() => false);
+  if (paused) { log('paused from the dev page: nothing to do'); process.exit(0); }
+}
+
 const cs2 = cs2Configured() && process.env.CS2_BOT !== 'off' ? new Bot(log) : null;
 const bot = new DeadlockBot({ token: readToken(TOKEN_FILE), saveToken: t => fs.writeFileSync(TOKEN_FILE, t, { mode: 0o600 }), log,
   games: cs2 ? [730, APP_ID] : [APP_ID], onUser: user => cs2?.attach(user) });

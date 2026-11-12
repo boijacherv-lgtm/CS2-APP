@@ -67,10 +67,22 @@ export function DevDisputes({ myId }: { myId: string | null }) {
   const open = (clips ?? []).filter(c => !c.done && !c.ask), asks = (clips ?? []).filter(c => !c.done && c.ask).sort((a, b) => b.ask!.score - a.ask!.score);
   const done = (clips ?? []).filter(c => c.done);
   const rows = show === 'open' ? open : show === 'asks' ? asks : done;
+  // one key a ruling: 1 = the player's right, 2 = the coach was right, on the first moment here without a call
+  const first = rows.find(c => !c.ruling);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (!first || (e.key !== '1' && e.key !== '2') || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      void update(first, { ruling: e.key === '1' ? 'player' : 'coach', rulingNote: noteOf(first) });
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  }, [first?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <section className="site-card">
       <div className="card-head">
         <h2>Disputed moments</h2>
+        <span className="muted small"><kbd>1</kbd> player's right · <kbd>2</kbd> coach was right (the first one without a call)</span>
         <span className="muted small">"Coach wrong?" from logged-in players, and moments the coach asks about · clips of {CLIP_BEFORE + CLIP_AFTER} s around the moment</span>
       </div>
       {clips && toJudge(clips).length > 0 && (
@@ -108,7 +120,7 @@ export function DevDisputes({ myId }: { myId: string | null }) {
                   </div>
                 )}
                 {v.note && !c.ask && <blockquote className="dispute-quote">{v.note}</blockquote>}
-                {c.ruling && <div className="muted small">Your call: {c.ruling.side === 'player' ? (c.ask ? 'mark is wrong' : 'player\'s right') : (c.ask ? 'mark is right' : 'coach was right')}{c.ruling.reason ? ` · ${JUDGE_REASONS[c.ruling.reason].toLowerCase()}` : ''}{c.ruling.note ? ` · “${c.ruling.note}”` : ''}</div>}
+                {c.ruling && <div className="muted small">Your call: {c.ruling.side === 'player' ? (c.ask ? 'mark is wrong' : 'player\'s right') : (c.ask ? 'mark is right' : 'coach was right')}{c.ruling.reason ? ` · ${JUDGE_REASONS[c.ruling.reason].toLowerCase()}` : ''}{c.ruling.note ? ` · “${c.ruling.note}”` : ''} <span className="chip small learned" title="Your call is in the coach's corrections table: grading uses it right away">Auto-learned</span></div>}
                 {c.card.why.length > 0 && (
                   <details className="dispute-why"><summary className="muted small">Coach's reasons</summary>
                     <ul>{c.card.why.map((w, i) => <li key={i}>{w}</li>)}</ul>

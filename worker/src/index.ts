@@ -20,7 +20,8 @@ import { askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES,
 import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } from './dlDisputes';
 import { META_KEY, refreshDlMeta } from './dlMeta';
 import { botRoute, saveBotState } from './dlBot';
-import { kickBots } from './botKick';
+import { kickBots, startWorkflow } from './botKick';
+import { addCoachEval, BOTS_PAUSED, coachEvals, deleteUser, health, loadConfig, saveConfig, setBotsPaused, siteLog, undo, users } from './site';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
 import { board, countAnswer, friendsBoard, friendsOnSite, updateBoard } from './puzzles';
 import { puzzleGameOf } from '../../src/engine/profile';
@@ -100,6 +101,9 @@ export default {
       if (req.method === 'POST' && path === '/openid/verify') return json(await verifyLogin(env, await body(req)));
       if (path.startsWith('/internal/')) return await internal(req, env, path, json);
 
+      // the site's content and switches, set on the dev page (site.ts): public, cached a minute
+      if (req.method === 'GET' && path === '/config')
+        return new Response(JSON.stringify(await loadConfig(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
       // the coach's corrections from checked disputes: public (they're counts per kind of move), cached a few minutes
       if (req.method === 'GET' && path === '/corrections')
         return new Response(JSON.stringify(await corrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });
@@ -124,7 +128,7 @@ export default {
       // puzzles: count an answer to a premade puzzle; the leaderboard (public profiles only; names via /profiles)
       if (req.method === 'POST' && path === '/puzzle/answer') return json(await countAnswer(env.SB, await body(req)));
       if (req.method === 'GET' && path === '/puzzle/board')
-        return new Response(JSON.stringify({ rows: await board(env.SB, puzzleGameOf(new URL(req.url).searchParams.get('game'))) }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
+        return new Response(JSON.stringify({ rows: await (async () => { const off = (await loadConfig(env.SB)).banned; return (await board(env.SB, puzzleGameOf(new URL(req.url).searchParams.get('game')))).filter(r => !off.includes(r.steamId)); })() }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
       // a friend's profile, when they made it public (name, avatar and their last matches' numbers)
       const pub = path.match(/^\/public\/(7656\d{13})$/);
       if (req.method === 'GET' && pub) {
@@ -150,6 +154,20 @@ export default {
       if (req.method === 'GET' && path === '/puzzle/friends') {
         if (await limited(env.RATE_USER, steamId)) return slow();
         return json(await friendsBoard(env.SB, steamId, env.STEAM_API_KEY, puzzleGameOf(new URL(req.url).searchParams.get('game'))));
+      }
+      // the dev page's control panel (site.ts): owners only, every change logged
+      if (path.startsWith('/admin/') && /^\/admin\/(config|log|undo|users|user\/delete|bots|coach|coach\/check|health)$/.test(path)) {
+        if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can do this.' }, 403);
+        const q = new URL(req.url).searchParams;
+        if (path === '/admin/config') return json(req.method === 'POST' ? await saveConfig(env.SB, steamId, await body(req), String(q.get('what') ?? 'Changed the site config').slice(0, 120)) : { config: await loadConfig(env.SB) });
+        if (path === '/admin/log') return json(await siteLog(env.SB));
+        if (path === '/admin/undo' && req.method === 'POST') return json(await undo(env.SB, steamId, (await body(req)).at));
+        if (path === '/admin/users') return json(await users(env.SB, q.get('q') ?? '', (await loadConfig(env.SB)).banned));
+        if (path === '/admin/user/delete' && req.method === 'POST') return json(await deleteUser(env.SB, steamId, (await body(req)).steamId));
+        if (path === '/admin/bots') return json(req.method === 'POST' ? await setBotsPaused(env.SB, steamId, (await body(req)).paused) : { paused: !!(await env.SB.get(BOTS_PAUSED)) });
+        if (path === '/admin/coach') return json(await coachEvals(env.SB));
+        if (path === '/admin/coach/check' && req.method === 'POST') return json({ result: await startWorkflow(env.GH_TOKEN, 'coach-check.yml') });
+        if (path === '/admin/health') return json(health(env as unknown as Record<string, unknown>));
       }
       if (req.method === 'GET' && path === '/admin/stats') {
         if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);
@@ -435,6 +453,9 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
   const got = req.headers.get('Authorization')?.replace(/^Bearer /, '') ?? '';
   if (!env.SERVER_TOKEN || !sameToken(got, env.SERVER_TOKEN)) return json({ error: 'Not allowed.' }, 403);
 
+  // the bots ask whether the owner paused them (dev page → Bots); the nightly coach check reports its score
+  if (req.method === 'GET' && path === '/internal/paused') return json({ paused: !!(await env.SB.get(BOTS_PAUSED)) });
+  if (req.method === 'POST' && path === '/internal/coach-eval') return json(await addCoachEval(env.SB, await req.json().catch(() => ({}))));
   // the moments the owner has ruled on, for the coach's tools on the owner's computer (tools/pull-disputes.ts)
   if (req.method === 'GET' && path === '/internal/disputes') return json(await ruledClips(env.SB));
   // the coach's own questions (tools/ask-coach.ts): moments it's unsure of, judged on the dev page like disputes
