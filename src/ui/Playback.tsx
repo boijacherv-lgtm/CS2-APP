@@ -196,8 +196,11 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
   const s = useStore();
   const review = s.mode === 'review';
   const max = review ? Math.ceil(end) : Math.max(60, Math.ceil(end));
+  // the end of the match's last round: the recap is the next step
+  const lastRoundOver = review && !!s.review && s.review.round === s.review.data.rounds.length - 1 && s.time >= end - 0.2;
   return (
     <div className="playbar">
+      {lastRoundOver && <a className="cta primary small-btn recap-next" href="/cs2/report"><Icon name="star" size={13} /> Recap</a>}
       <button className={`play-main ${s.playing ? 'on' : ''}`} title="Play / pause (Space)" onClick={() => {
         if (!s.playing && s.time >= end - 0.05) s.setTime(s.judging?.from ?? 0);
         s.setPlaying(!s.playing);

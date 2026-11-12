@@ -54,13 +54,7 @@ a.site-card:hover, button.site-card:hover, a.feature:hover, .dl-row:hover:not(:d
 
 /* ---- the game's pattern behind page headers (a mask, so it's drawn in the game's colour) --------------------------- */
 .recap-head, .rs-head, .hero, .dl-hero, .dev-head { position: relative; isolation: isolate; }
-.recap-head::after, .rs-head::after, .hero::after, .dl-hero::after, .dev-head::after {
-  content: ''; position: absolute; inset: -24px -24px auto; height: calc(100% + 48px); z-index: -1; pointer-events: none;
-  background: var(--theme); opacity: .09;
-  -webkit-mask: var(--theme-pattern) repeat, linear-gradient(to bottom, #000 0%, transparent 85%);
-  -webkit-mask-composite: source-in; mask: var(--theme-pattern) repeat, linear-gradient(to bottom, #000 0%, transparent 85%);
-  mask-composite: intersect;
-}
+/* (one pattern per page: .shell-main::before; headers, cards and empty states stay flat so lines never double) */
 /* CS2: a tactical map grid with crosshair ticks */
 :root[data-game="cs2"] { --theme-pattern: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'><path d='M0 .5H44M.5 0V44' stroke='black' stroke-width='1'/><path d='M22 18v8M18 22h8' stroke='black' stroke-width='1.4'/></svg>"); }
 /* the site's own pages: a quiet dot grid, no game's motif */
@@ -86,10 +80,6 @@ a.site-card:hover, button.site-card:hover, a.feature:hover, .dl-row:hover:not(:d
   position: relative; isolation: isolate; overflow: hidden; margin: 6px 0; padding: 16px 18px; border-radius: 12px;
   border: 1px dashed color-mix(in srgb, var(--theme) 35%, var(--border)); color: var(--text-2); text-align: center;
 }
-.empty-state::after {
-  content: ''; position: absolute; inset: 0; z-index: -1; background: var(--theme); opacity: .06;
-  -webkit-mask: var(--theme-pattern) repeat; mask: var(--theme-pattern) repeat;
-}
 
 /* ---- the marks as faces (MarkFace) where text marks used to sit ---------------------------------------------------- */
 .mark-face { display: inline-block; vertical-align: middle; flex: none; filter: drop-shadow(0 1px 1px #0008); }
@@ -102,20 +92,15 @@ a.site-card:hover, button.site-card:hover, a.feature:hover, .dl-row:hover:not(:d
 .shell-main { position: relative; isolation: isolate; }
 .shell-main::before {
   content: ''; position: absolute; inset: 0 0 auto; height: 900px; z-index: -1; pointer-events: none;
-  background: var(--theme); opacity: .035;
-  -webkit-mask: var(--theme-pattern) repeat, linear-gradient(to bottom, #000, transparent);
-  -webkit-mask-composite: source-in; mask: var(--theme-pattern) repeat, linear-gradient(to bottom, #000, transparent); mask-composite: intersect;
+  background: var(--theme); opacity: .05;
+  /* anchored at the page's corner, so the grid starts in one place; it fades out over the first 900px */
+  -webkit-mask: var(--theme-pattern) 0 0 repeat, linear-gradient(to bottom, #000 40%, transparent);
+  -webkit-mask-composite: source-in; mask: var(--theme-pattern) 0 0 repeat, linear-gradient(to bottom, #000 40%, transparent); mask-composite: intersect;
 }
 .site-card, .recap-card, .feature { position: relative; isolation: isolate; }
 .site-card::before, .recap-card::before, .feature::before {
   content: ''; position: absolute; inset: -1px -1px auto; height: 1px; border-radius: inherit; pointer-events: none;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--theme) 55%, transparent) 35%, transparent 80%);
-}
-.site-card::after, .recap-card::after {
-  content: ''; position: absolute; top: 0; right: 0; width: 160px; height: 120px; z-index: -1; pointer-events: none; border-top-right-radius: inherit;
-  background: var(--theme); opacity: .07;
-  -webkit-mask: var(--theme-pattern) repeat, radial-gradient(circle at 100% 0, #000, transparent 70%);
-  -webkit-mask-composite: source-in; mask: var(--theme-pattern) repeat, radial-gradient(circle at 100% 0, #000, transparent 70%); mask-composite: intersect;
 }
 .card-head h2::before, .card-head h3::before, .dl-meta-head h2::before {
   content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 8px; vertical-align: .12em; background: var(--theme); opacity: .9;
@@ -145,8 +130,7 @@ body {
   background: linear-gradient(180deg, color-mix(in srgb, var(--theme) 9%, var(--surface-1)), color-mix(in srgb, var(--theme) 3%, var(--surface-1)));
   border-color: color-mix(in srgb, var(--theme) 22%, var(--border));
 }
-.shell-main::before { opacity: .06; }
-.recap-head::after, .rs-head::after, .hero::after, .dl-hero::after, .dev-head::after { opacity: .14; }
+.shell-main::before { opacity: .05; }
 .page h1, .review-start h1, .rs-head h1 { text-shadow: 0 0 40px color-mix(in srgb, var(--theme) 45%, transparent); }
 .card-head h2, .recap-card > h3, .recap-card h3:first-child { color: color-mix(in srgb, var(--theme) 30%, var(--text-1)); }
 

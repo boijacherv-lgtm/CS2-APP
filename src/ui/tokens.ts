@@ -103,7 +103,10 @@ export const SIDE_COLOR = { CT: T.ct, T: T.t } as const;
 export const UTIL_COLOR = { smoke: T.smoke, flash: T.flash, molotov: T.molly, he: T.he } as const;
 
 // Both have Cyrillic (player names like КРЫСА): Unbounded for headlines, grade letters and big numbers; Onest for the UI
-export const FONT_DISPLAY = "Unbounded, 'Exo 2', system-ui, sans-serif";
+// --font-display is for numbers and short labels in the app (Onest, tabular); Unbounded only for page headlines
+// (28px and up) and the grade letters (--font-headline)
+export const FONT_DISPLAY = "Onest, system-ui, -apple-system, 'Segoe UI', sans-serif";
+export const FONT_HEADLINE = "Unbounded, 'Exo 2', system-ui, sans-serif";
 export const FONT_UI = "Onest, system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 const kebab = (k: string) => k.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`).replace(/(\d)/, '-$1');
@@ -118,7 +121,7 @@ export function applyTokens(root: HTMLElement = document.documentElement) {
   // the letter colours (moves, rounds and matches share them): --letter-splus, --letter-s … --letter-f
   for (const [l, c] of Object.entries(LETTER_COLOR)) vars[`--letter-${l === 'S+' ? 'splus' : l.toLowerCase()}`] = c;
   Object.assign(vars, {
-    '--overlay': OVERLAY, '--font-display': FONT_DISPLAY, '--font-ui': FONT_UI,
+    '--overlay': OVERLAY, '--font-display': FONT_DISPLAY, '--font-headline': FONT_HEADLINE, '--font-ui': FONT_UI,
     // older names, kept so every existing rule picks up the new palette
     '--bg': P.bg0, '--panel': P.surface1, '--panel2': P.surface2, '--line': P.border,
     '--text': P.text1, '--muted': P.text2, '--accent': P.text1,
