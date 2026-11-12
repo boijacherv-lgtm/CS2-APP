@@ -6,6 +6,7 @@ import { useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { Icon } from '../ui/Icon';
 import { loadMatch, matchHistory, steamId3, type DlHistoryRow } from './api';
+import { DlScout } from './DlScout';
 import { demoState, loadDemo, NoDemo } from './demo';
 import { heroOf } from './data';
 import { DlBoard } from './DlBoard';
@@ -161,6 +162,7 @@ function DlStart() {
       </div>
       <div className="rs-right">
       <DlSteamFolder account={account} open={id => void open(id)} busy={busy} />
+      {account && <DlScout account={account} />}
 
       <section className="site-card dl-history">
         <div className="card-head"><h2>Your matches</h2>{rows && <span className="muted small" title={checked ? `Checked ${Date.now() - checked < 60_000 ? 'just now' : `${Math.round((Date.now() - checked) / 60_000)} min ago`}, again every 2 min` : undefined}>{rows.length}</span>}</div>

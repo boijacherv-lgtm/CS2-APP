@@ -485,6 +485,10 @@
   background: var(--surface-2); border: 1px solid var(--border); font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .dl-pf-game > .muted:first-child { grid-column: 1 / -1; }
 .dl-pf-heroes td, .dl-pf-heroes th { padding: 6px 8px; }
+.dl-scout-table { margin-bottom: 10px; }
+.dl-scout-team th { text-align: left; color: var(--text-2); padding-top: 12px; }
+.dl-scout-table tr.me td { background: color-mix(in srgb, var(--theme) 8%, transparent); }
+.dl-scout-table .dl-sb-who > span { display: flex; flex-direction: column; }
 .dl-pf-build { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .dl-pf-build > span:first-child { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dl-pf-build .muted { white-space: nowrap; }

@@ -43,6 +43,42 @@ export function soloVsParty(rows: DlHistoryRow[], party: Set<number>) {
   return { solo: side(rows.filter(r => !party.has(r.match_id))), party: side(rows.filter(r => party.has(r.match_id))) };
 }
 
+/** A rank badge (tier × 10 + subrank) as words: "Oracle 4". */
+export const RANK_TIERS = ['', 'Initiate', 'Seeker', 'Alchemist', 'Arcanist', 'Ritualist', 'Emissary', 'Archon', 'Oracle', 'Phantom', 'Ascendant', 'Eternus'];
+export const rankName = (b: number) => `${RANK_TIERS[Math.floor(b / 10)] ?? 'Rank'} ${b % 10 || ''}`.trim();
+
+/** A player in a live match, scouted: their rank, and how they do on the hero they're playing (all their matches). */
+export interface ScoutRow { account: number; team: number; hero: number; name: string | null; badge: number | null; games: number; wr: number | null; kda: number | null }
+type LivePlayer = { account_id: number; team: number; hero_id: number };
+type HeroStat = { account_id: number; hero_id: number; matches_played: number; wins: number; kills: number; deaths: number; assists: number };
+/** Your live match, when it's in the game's watch list (the top 200 matches being played), or null. */
+export async function liveMatch(account: string): Promise<{ id: number; start: number; players: LivePlayer[] } | null> {
+  const ms = await get<{ match_id: number; start_time: number; players: LivePlayer[] }[]>(`/v1/matches/active?account_id=${account}`).catch(() => []);
+  const m = ms.find(x => x.players.some(p => String(p.account_id) === account));
+  return m ? { id: m.match_id, start: m.start_time, players: m.players } : null;
+}
+/** Every player in it with their rank and their record on this hero. */
+export async function scout(players: LivePlayer[]): Promise<ScoutRow[]> {
+  const ids = players.map(p => p.account_id).join(',');
+  const [stats, ranks, names] = await Promise.all([
+    get<HeroStat[]>(`/v1/players/hero-stats?account_ids=${ids}`).catch(() => [] as HeroStat[]),
+    get<{ account_id: number; badge?: number | null }[]>(`/v1/players/rank?account_ids=${ids}`).catch(() => []),
+    steamNames(players.map(p => p.account_id)),
+  ]);
+  return scoutRows(players, stats, ranks, names);
+}
+export function scoutRows(players: LivePlayer[], stats: HeroStat[], ranks: { account_id: number; badge?: number | null }[], names: Record<number, { name: string }>): ScoutRow[] {
+  return players.map(p => {
+    const s = stats.find(x => x.account_id === p.account_id && x.hero_id === p.hero_id);
+    return {
+      account: p.account_id, team: p.team, hero: p.hero_id, name: names[p.account_id]?.name ?? null,
+      badge: ranks.find(r => r.account_id === p.account_id)?.badge || null,
+      games: s?.matches_played ?? 0, wr: s?.matches_played ? s.wins / s.matches_played : null,
+      kda: s?.matches_played ? (s.kills + s.assists) / Math.max(1, s.deaths) : null,
+    };
+  });
+}
+
 const KEY = (id: number) => `dlmatch4:${id}`;
 /** A match: from this browser when read before, else from deadlock-api (about 1 MB), then kept here. */
 export async function loadMatch(id: number): Promise<DlMatch> {
