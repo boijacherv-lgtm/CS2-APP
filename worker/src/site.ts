@@ -1,0 +1,190 @@
+/**
+ * The site's content, controlled from the dev page without a deploy (spec §11): one JSON config the Worker serves at
+ * /config and the site reads at load (banner, maintenance, feature flags, samples, the daily puzzle, Rage lines, the
+ * hints version), and a log of every change made from the dev page, each with Undo. Plus the owner's tools that touch
+ * KV directly: users (find, delete with a 7-day undo, keep off the leaderboard), pausing the bots, the coach's nightly
+ * check results, and which secrets are set (never their values).
+ */
+export interface SiteKV {
+  get(key: string, type: 'json'): Promise<unknown>;
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
+  delete(key: string): Promise<void>;
+  list(opts: { prefix: string; cursor?: string }): Promise<{ keys: { name: string }[]; list_complete: boolean; cursor?: string }>;
+}
+
+export interface SiteConfig {
+  banner: { on: boolean; text: string; link: string; until: number | null };
+  /** Pages showing "back soon" instead of themselves (route page names: cs2, deadlock, puzzles, profile …). */
+  maintenance: string[];
+  flags: { rage: boolean; proEarlyAccess: boolean; puzzlesBoard: boolean; comingSoon: string };
+  samples: { cs2: string; deadlock: number };
+  /** The daily puzzle: a pinned id, ids skipped as daily, ids hidden everywhere. */
+  puzzles: { pin: string; skip: string[]; hide: string[] };
+  /** Rage lines over coach-remarks.json, per situation: { chance, lines: [{ text, weight }] }. */
+  rage: Record<string, { chance?: number; lines?: { text: string; weight: number }[] }>;
+  /** Raise it and everyone sees the hints once more. */
+  hintsVersion: number;
+  /** SteamIDs kept off the puzzle leaderboards. */
+  banned: string[];
+}
+export const DEFAULT_CONFIG: SiteConfig = {
+  banner: { on: false, text: '', link: '', until: null },
+  maintenance: [],
+  flags: { rage: true, proEarlyAccess: true, puzzlesBoard: true, comingSoon: '' },
+  samples: { cs2: '/samples/cs2-mirage.json.gz', deadlock: 131074890 },
+  puzzles: { pin: '', skip: [], hide: [] },
+  rage: {},
+  hintsVersion: 1,
+  banned: [],
+};
+const CONFIG = 'site:config', LOG = 'site:log', MAX_LOG = 200;
+const PAGES = ['home', 'cs2', 'deadlock', 'puzzles', 'profile', 'pricing', 'settings'];
+
+const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+const strs = (v: unknown, max: number, len = 60) => (Array.isArray(v) ? v.map(x => str(x, len)).filter(Boolean).slice(0, max) : []);
+const bool = (v: unknown, or: boolean) => (typeof v === 'boolean' ? v : or);
+
+/** Only what the site understands, within limits (the dev page is the owner's, but a typo shouldn't break the site). */
+export function cleanConfig(raw: unknown, was: SiteConfig = DEFAULT_CONFIG): SiteConfig {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const b = r.banner ?? was.banner, f = r.flags ?? was.flags, s = r.samples ?? was.samples, p = r.puzzles ?? was.puzzles;
+  const link = str(b.link, 300);
+  const rage: SiteConfig['rage'] = {};
+  for (const [k, v] of Object.entries((r.rage ?? was.rage) as Record<string, any>).slice(0, 60)) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (!/^[a-zA-Z]{2,30}$/.test(k) || !v || typeof v !== 'object') continue;
+    const chance = typeof v.chance === 'number' && v.chance >= 0 && v.chance <= 1 ? v.chance : undefined;
+    const lines = Array.isArray(v.lines) ? v.lines.slice(0, 20).map((l: any) => ({ text: str(l?.text ?? l, 200), weight: Math.max(0, Math.min(3, Math.round(+l?.weight || 2))) })).filter((l: { text: string }) => l.text) : undefined; // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (chance !== undefined || lines?.length) rage[k] = { ...(chance !== undefined ? { chance } : {}), ...(lines?.length ? { lines } : {}) };
+  }
+  return {
+    banner: { on: bool(b.on, false), text: str(b.text, 200), link: /^(https:\/\/|\/)/.test(link) ? link : '', until: typeof b.until === 'number' && b.until > 0 ? b.until : null },
+    maintenance: strs(r.maintenance ?? was.maintenance, 10).filter(x => PAGES.includes(x)),
+    flags: { rage: bool(f.rage, true), proEarlyAccess: bool(f.proEarlyAccess, true), puzzlesBoard: bool(f.puzzlesBoard, true), comingSoon: str(f.comingSoon, 40) },
+    samples: { cs2: /^\/samples\/[\w.-]+\.json(\.gz)?$/.test(str(s.cs2, 120)) ? str(s.cs2, 120) : DEFAULT_CONFIG.samples.cs2, deadlock: Number.isInteger(+s.deadlock) && +s.deadlock > 0 ? +s.deadlock : DEFAULT_CONFIG.samples.deadlock },
+    puzzles: { pin: str(p.pin, 80), skip: strs(p.skip, 100, 80), hide: strs(p.hide, 300, 80) },
+    rage,
+    hintsVersion: Number.isInteger(+(r.hintsVersion ?? was.hintsVersion)) ? Math.max(1, +(r.hintsVersion ?? was.hintsVersion)) : 1,
+    banned: strs(r.banned ?? was.banned, 500, 17).filter(x => /^7656\d{13}$/.test(x)),
+  };
+}
+
+export async function loadConfig(kv: SiteKV): Promise<SiteConfig> {
+  return cleanConfig(await kv.get(CONFIG, 'json'));
+}
+
+export interface LogEntry { at: number; who: string; what: string; before?: unknown; after?: unknown; undone?: boolean }
+async function addLog(kv: SiteKV, e: LogEntry) {
+  const rows = ((await kv.get(LOG, 'json')) as LogEntry[] | null) ?? [];
+  await kv.put(LOG, JSON.stringify([e, ...rows].slice(0, MAX_LOG)));
+}
+export const siteLog = async (kv: SiteKV) => ({ rows: ((await kv.get(LOG, 'json')) as LogEntry[] | null) ?? [] });
+
+/** A change to the config from the dev page: merged, cleaned, logged. */
+export async function saveConfig(kv: SiteKV, who: string, patch: unknown, what = 'Changed the site config') {
+  const before = await loadConfig(kv);
+  const after = cleanConfig({ ...before, ...(patch && typeof patch === 'object' ? patch : {}) }, before);
+  await kv.put(CONFIG, JSON.stringify(after));
+  await addLog(kv, { at: Date.now(), who, what, before, after });
+  return { config: after };
+}
+
+/** Undo a logged change: the config goes back to what it was before it; a deleted user comes back from the trash. */
+export async function undo(kv: SiteKV, who: string, at: unknown) {
+  const rows = ((await kv.get(LOG, 'json')) as LogEntry[] | null) ?? [];
+  const e = rows.find(r => r.at === at);
+  if (!e || e.undone) return { error: 'Nothing to undo there.' };
+  if (e.what.startsWith('Deleted user ')) {
+    const id = e.what.slice('Deleted user '.length);
+    const trash = (await kv.get(`trash:${id}`, 'json')) as Record<string, string> | null;
+    if (!trash) return { error: 'The 7 days to undo it are over.' };
+    for (const [k, v] of Object.entries(trash)) await kv.put(k, v);
+    await kv.delete(`trash:${id}`);
+  } else if (e.before) await kv.put(CONFIG, JSON.stringify(cleanConfig(e.before)));
+  e.undone = true;
+  await kv.put(LOG, JSON.stringify(rows));
+  await addLog(kv, { at: Date.now(), who, what: `Undid: ${e.what}` });
+  return { ok: true, config: await loadConfig(kv) };
+}
+
+// ---- users ---------------------------------------------------------------------------------------------------------
+
+async function keys(kv: SiteKV, prefix: string, cap = 5000) {
+  const out: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await kv.list({ prefix, cursor });
+    out.push(...page.keys.map(k => k.name));
+    cursor = page.list_complete || out.length >= cap ? undefined : page.cursor;
+  } while (cursor);
+  return out;
+}
+
+interface Stats { matches?: { at: number; name?: string }[]; prefs?: { public?: boolean }; puzzles?: { tried?: number } | null; puzzlesDeadlock?: { tried?: number } | null }
+/** Players with a profile, newest activity first; `q` narrows by SteamID or in-game name. */
+export async function users(kv: SiteKV, q: string, banned: string[]) {
+  const ids = (await keys(kv, 'stats:')).map(k => k.slice(6));
+  const want = q.trim().toLowerCase();
+  const rows = [];
+  for (const id of ids) {
+    if (rows.length >= 50) break;
+    if (want && /^\d+$/.test(want) && !id.includes(want)) continue;
+    const s = (await kv.get(`stats:${id}`, 'json')) as Stats | null;
+    if (!s) continue;
+    const name = s.matches?.find(m => m.name)?.name ?? null;
+    if (want && !/^\d+$/.test(want) && !(name ?? '').toLowerCase().includes(want)) continue;
+    rows.push({
+      steamId: id, name, matches: s.matches?.length ?? 0, lastSeen: Math.max(0, ...(s.matches ?? []).map(m => m.at)),
+      public: !!s.prefs?.public, puzzles: (s.puzzles?.tried ?? 0) + (s.puzzlesDeadlock?.tried ?? 0), banned: banned.includes(id),
+    });
+  }
+  return { rows: rows.sort((a, b) => b.lastSeen - a.lastSeen), total: ids.length };
+}
+
+/** Deletes a player's data, kept in the trash for 7 days so the log's Undo can bring it back. */
+export async function deleteUser(kv: SiteKV, who: string, id: unknown) {
+  if (typeof id !== 'string' || !/^7656\d{13}$/.test(id)) return { error: 'Which player?' };
+  const trash: Record<string, string> = {};
+  for (const k of [`stats:${id}`, `user:${id}`]) { const v = await kv.get(k); if (v) trash[k] = v; }
+  if (!Object.keys(trash).length) return { error: 'No data for that player.' };
+  await kv.put(`trash:${id}`, JSON.stringify(trash), { expirationTtl: 7 * 86400 });
+  for (const k of Object.keys(trash)) await kv.delete(k);
+  await addLog(kv, { at: Date.now(), who, what: `Deleted user ${id}` });
+  return { ok: true };
+}
+
+// ---- bots, coach, health -------------------------------------------------------------------------------------------
+
+export const BOTS_PAUSED = 'bots:paused';
+export async function setBotsPaused(kv: SiteKV, who: string, on: unknown) {
+  if (on) await kv.put(BOTS_PAUSED, String(Date.now())); else await kv.delete(BOTS_PAUSED);
+  await addLog(kv, { at: Date.now(), who, what: on ? 'Paused the bots' : 'Started the bots again' });
+  return { paused: !!on };
+}
+
+export interface CoachEval { at: number; game: 'cs2' | 'deadlock'; right: number; total: number; sha: string; note: string }
+const EVALS = 'coach:evals';
+/** The nightly check (.github/workflows/coach-check.yml): how often the coach agrees with the owner's rulings. */
+export async function addCoachEval(kv: SiteKV, raw: unknown) {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const e: CoachEval = {
+    at: Date.now(), game: r.game === 'deadlock' ? 'deadlock' : 'cs2', right: Math.max(0, Math.round(+(r.right as number) || 0)),
+    total: Math.max(0, Math.round(+(r.total as number) || 0)), sha: str(r.sha, 40), note: str(r.note, 300),
+  };
+  const rows = ((await kv.get(EVALS, 'json')) as CoachEval[] | null) ?? [];
+  await kv.put(EVALS, JSON.stringify([e, ...rows].slice(0, 120)));
+  return { ok: true };
+}
+export const coachEvals = async (kv: SiteKV) => ({ rows: ((await kv.get(EVALS, 'json')) as CoachEval[] | null) ?? [] });
+
+/** Which secrets and settings the Worker has (present or missing, never the values). */
+export function health(env: Record<string, unknown>) {
+  const has = (k: string) => typeof env[k] === 'string' && (env[k] as string).trim().length > 0;
+  return {
+    secrets: Object.fromEntries(['STEAM_API_KEY', 'SERVER_TOKEN', 'GH_TOKEN'].map(k => [k, has(k)])),
+    owners: String(env.OWNER_IDS ?? '').split(',').map(s => s.trim()).filter(Boolean),
+    origins: String(env.SITE_ORIGINS ?? '').split(',').map(s => s.trim()).filter(Boolean),
+    proForAll: env.PRO_FOR_ALL === '1',
+    rateLimits: !!env.RATE_PUBLIC && !!env.RATE_USER,
+  };
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { siteConfig, useSiteConfig } from '../ui/siteConfig';
 import { calloutsOf, MAPS, radarOf } from '../map/catalog';
-import { useStore } from '../store';
+import { rageNow, useStore } from '../store';
 import { DL_MAP_IMAGE } from '../deadlock/data';
 import { SEARCH_COLOR } from '../deadlock/search';
 import { applyGame } from '../ui/tokens';
@@ -156,7 +157,8 @@ export function Puzzle({ m, onAnswer, shared }: { m: Moment; onAnswer?: (right: 
   const [hover, setHover] = useState<number | null>(null);
   const [delta, setDelta] = useState<number | null>(null);
   const [crowd, setCrowd] = useState<{ tried: number; right: number } | null>(null);
-  const rage = useStore(s => s.rage);
+  useSiteConfig();
+  const rage = useStore(rageNow);
   useEffect(() => { setPicked(null); setDelta(null); setHover(null); setCrowd(null); }, [m.id]);
   const right = picked === 0;
   const pick = (i: number) => {
@@ -231,7 +233,7 @@ export function MomentsPage() {
   const [top, setTop] = useState<Moment[] | null>(null);
   useEffect(() => {
     if (top) return;
-    import('./generated/puzzles.json').then(j => { const d = j.default as { cs2: unknown[]; deadlock: unknown[] }; setTop([...d.cs2, ...d.deadlock].map(cleanMoment).filter((m): m is Moment => !!m)); }, () => setTop([]));
+    import('./generated/puzzles.json').then(j => { const d = j.default as { cs2: unknown[]; deadlock: unknown[] }; setTop([...d.cs2, ...d.deadlock].map(cleanMoment).filter((m): m is Moment => !!m && !siteConfig().puzzles.hide.includes(m.id))); }, () => setTop([]));
   }, [top]);
   // the game picks everything below it: puzzles, rating, daily, rush, weak spots and leaderboard are each the game's own
   const [game, setGameState] = useState<MomentGame>(lastGame);
@@ -257,12 +259,14 @@ export function MomentsPage() {
 
   const groups = mistakeGroups(mine.filter(m => m.game === game));
   const focus = source === 'top' ? [] : (['cs2', 'deadlock'] as MomentGame[]).filter(g => g === game).map(g => ({ g, f: focusOf(mine, g) })).filter(x => x.f);
+  // the leaderboard can be switched off from the dev page (Content → flags)
+  const boardOn = useSiteConfig().flags.puzzlesBoard;
   const header = (
     <header className="moments-head">
       <h1>Puzzles</h1>
       <p className="muted moments-sub">Real moments. Pick the best move.</p>
       <div className="seg-mini" role="tablist" aria-label="Mode">
-        {([['practice', 'Practice'], ['daily', 'Daily'], ['rush', 'Rush'], ['weak', 'Weak spots'], ['board', 'Leaderboard']] as [Mode, string][]).map(([k, l]) =>
+        {([['practice', 'Practice'], ['daily', 'Daily'], ['rush', 'Rush'], ['weak', 'Weak spots'], ...(boardOn ? [['board', 'Leaderboard']] : [])] as [Mode, string][]).map(([k, l]) =>
           <button key={k} role="tab" aria-selected={mode === k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}
       </div>
       <div className="seg-mini puzzle-game" role="group" aria-label="Game">
@@ -275,7 +279,7 @@ export function MomentsPage() {
 
   if (mode === 'daily') return <div className="page moments">{header}<DailyPuzzle key={game} pool={top?.filter(m => m.game === game) ?? null} game={game} onScore={setScore} /></div>;
   if (mode === 'rush') return <div className="page moments">{header}<Rush key={game} pool={top?.filter(m => m.game === game) ?? null} game={game} onScore={setScore} /></div>;
-  if (mode === 'board') return <div className="page moments">{header}<Leaderboard key={game} game={game} rating={score.rating} tried={score.tried} /></div>;
+  if (mode === 'board' && boardOn) return <div className="page moments">{header}<Leaderboard key={game} game={game} rating={score.rating} tried={score.tried} /></div>;
   if (mode === 'weak') {
     const spots = weakSpots(score);
     return (
@@ -361,7 +365,8 @@ export function MomentsPage() {
 
 /** Today's puzzle: the same one for everyone; one try; a day streak; a share line. */
 function DailyPuzzle({ pool, game, onScore }: { pool: Moment[] | null; game: MomentGame; onScore: (s: Score) => void }) {
-  const day = dayNumber(), m = useMemo(() => (pool ? dailyOf(pool, day) : null), [pool, day]);
+  const ctl = useSiteConfig().puzzles;
+  const day = dayNumber(), m = useMemo(() => (pool ? dailyOf(pool, day, ctl) : null), [pool, day, ctl]);
   const [s, setS] = useState(() => readScore(game));
   const d = dailyFor(s, game), done = d.day === day;
   const [copied, setCopied] = useState(false);

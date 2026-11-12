@@ -1,10 +1,11 @@
 import { letterStyle } from '../engine/notes';
+import { proEarlyAccess } from '../ui/siteConfig';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { GOAL_CHOICES, goalInfo, habits } from '../engine/habits';
 import { focusOf, loadMoments } from '../moments/moments';
 import { EmptyArt } from '../ui/Art';
-import { averages, fullMatches, FREE_HISTORY, premierOf, goalSeries, hasPro, mapStats, MAX_GOALS, type Averages, type GoalId, LETTERS, type Letter, type ProfileMatch } from '../engine/profile';
+import { averages, fullMatches, FREE_HISTORY, premierOf, goalSeries, mapStats, MAX_GOALS, type Averages, type GoalId, LETTERS, type Letter, type ProfileMatch } from '../engine/profile';
 import { biggestLeak, SKILL_MAP_FROM, skillMap, superpower } from '../engine/profileView';
 import { matchKey } from '../engine/profile';
 import { useStore } from '../store';
@@ -154,7 +155,7 @@ function SkillMapCard({ matches }: { matches: ProfileMatch[] }) {
 /** Your profile: your last matches, how they trend, your goals, your maps, a friend next to you, and share cards. */
 export function Profile() {
   const { me, data, remote, loaded, error } = useProfile();
-  const pro = hasPro();
+  const pro = proEarlyAccess();
   const [all, setAll] = useState(false);
   const [share, setShare] = useState<ProfileMatch | null>(null);
   const matches = fullMatches(data.matches).sort((a, b) => b.at - a.at);

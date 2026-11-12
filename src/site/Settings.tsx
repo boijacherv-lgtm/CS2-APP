@@ -10,9 +10,11 @@ import { SteamLoginButton } from '../ui/SteamLogin';
 import { steamSignOut } from '../ui/steamApi';
 import { resetHints } from '../ui/Hints';
 import { lookPref, setLook, type Look } from '../ui/tokens';
+import { useSiteConfig } from '../ui/siteConfig';
 
 /** Your account, privacy, the coach's and Review's defaults, and your data. */
 export function Settings() {
+  const flags = useSiteConfig().flags;
   const { me, data, remote } = useProfile();
   const s = useStore();
   const [confirm, setConfirm] = useState(false);
@@ -83,6 +85,7 @@ export function Settings() {
 
       <section className="site-card">
         <h2>Coach (CS2)</h2>
+        {flags.rage && <>
         <Toggle label="Rage mode" on={s.rage !== 'off' || askRage} text="The coach roasts your worst plays. 18+, strong language. Grades don't change." onChange={v => (v ? setAskRage(true) : s.setRage('off'))} />
         {s.rage !== 'off' && (
           <div className="setting">
@@ -99,6 +102,7 @@ export function Settings() {
             <span className="confirm-row"><button className="cta danger" onClick={() => { s.setRage('full'); setAskRage(false); }}>Roast me</button><button className="ghost" onClick={() => setAskRage(false)}>Keep it calm</button></span>
           </div>
         )}
+        </>}
         <div className="setting">
           <div className="setting-text"><b>Compare with</b><span className="muted">Who the coach compares you with first.</span></div>
           <div className="seg-mini">

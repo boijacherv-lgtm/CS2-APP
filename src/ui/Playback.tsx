@@ -1,4 +1,5 @@
 import { MarkFace } from './MarkFace';
+import { siteConfig } from './siteConfig';
 import { useMemo, useRef } from 'react';
 import { bombAt, bombTryAt, DEFUSE_KIT_SECONDS, DEFUSE_SECONDS, gearAt, NOTE_INFO, PLANT_SECONDS, type Annotation, type DemoData, type DemoRound, type Review } from '../engine/recap';
 import { moveLook, NoteMark } from './NoteMark';
@@ -306,7 +307,7 @@ function ReviewOptions() {
         {toggle(s.popups, s.setPopups, 'chat', 'Coach cards', 'A card with the grade and comments for each graded move')}
         {s.popups && toggle(s.readSlow, s.setReadSlow, 'slow', 'Slow while reading', 'Slow motion while a card is open')}
         {toggle(s.engineLines, s.setEngineLines, 'route', 'Arrows', "The engine's best option against what was done, and a line from each card to its player")}
-        {toggle(s.rage !== 'off', on => s.setRage(on ? 'full' : 'off'), 'bolt', 'Rage mode', 'The coach swears at your plays (18+, strong language)', 'rage')}
+        {siteConfig().flags.rage && toggle(s.rage !== 'off', on => s.setRage(on ? 'full' : 'off'), 'bolt', 'Rage mode', 'The coach swears at your plays (18+, strong language)', 'rage')}
         <div className="opt-head">Map</div>
         {toggle(s.autoCam, s.setAutoCam, 'target', 'Auto zoom', 'The map zooms in when everyone is on one part of it; off shows the whole map')}
         <div className="opt-head">What the marks mean</div>

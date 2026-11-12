@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { proEarlyAccess } from '../ui/siteConfig';
 import { STEAM_AVAILABLE } from '../env';
-import { FREE_HISTORY, MAX_HISTORY, PRO_EARLY_ACCESS } from '../engine/profile';
+import { FREE_HISTORY, MAX_HISTORY } from '../engine/profile';
 import { Icon, type IconName } from '../ui/Icon';
 import { setNotifyPro, useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
@@ -35,9 +36,9 @@ export function Pricing() {
   return (
     <div className="page pricing">
       <header className="page-head">
-        <h1>{PRO_EARLY_ACCESS ? 'Free. Pro is free too, for now.' : 'Plans'}</h1>
+        <h1>{proEarlyAccess() ? 'Free. Pro is free too, for now.' : 'Plans'}</h1>
       </header>
-      {PRO_EARLY_ACCESS && (<>
+      {proEarlyAccess() && (<>
         <div className="notice"><Icon name="bolt" size={16} /> <span><b>Early access:</b> every Pro feature is unlocked for everyone while RageView is new. Nothing to pay, no card needed.</span></div>
         <p className="muted small pricing-after"><b>When early access ends:</b> Pro costs $5 a month. Everything in Free stays free, and the matches you've reviewed stay saved (Free shows your last 5). You'll see it on your profile before anything changes.</p>
       </>)}
@@ -49,9 +50,9 @@ export function Pricing() {
           <a className="cta" href="/cs2/review">Review a CS2 match</a>
         </section>
         <section className="plan featured">
-          <span className="plan-tag">{PRO_EARLY_ACCESS ? 'Free in early access' : 'Most complete'}</span>
+          <span className="plan-tag">{proEarlyAccess() ? 'Free in early access' : 'Most complete'}</span>
           <h2>Pro</h2>
-          <p className="price"><b>$5</b><span>/ month{PRO_EARLY_ACCESS ? ' after early access' : ''}</span></p>
+          <p className="price"><b>$5</b><span>/ month{proEarlyAccess() ? ' after early access' : ''}</span></p>
           <ul>{PRO.map(f => <li key={f}><Icon name={iconFor(f)} size={14} /> {f}</li>)}</ul>
           {me && remote ? (
             <button className={notify ? 'cta' : 'cta primary'} onClick={toggle} disabled={busy} aria-pressed={notify}>

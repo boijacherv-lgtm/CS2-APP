@@ -48,6 +48,9 @@ const WHEN: [Situation, (m: Move) => boolean][] = [
 ];
 
 export type RageLevel = 'off' | 'mild' | 'full';
+/** Lines and chances set on the dev page (Content → Rage lines), over coach-remarks.json. */
+let RAGE_OVERRIDE: Record<string, Partial<Kind>> = {};
+export const setRageOverride = (o: Record<string, Partial<Kind>>) => { RAGE_OVERRIDE = o ?? {}; };
 /** One line as written in coach-remarks.json: a plain string (weight 2), or { text, weight } (1 rare, 2 normal, 3 common). */
 type Line = string | { text: string; weight?: number };
 type Kind = { chance?: number; lines: Line[] };
@@ -70,7 +73,7 @@ export function rageLine(m: Move, level: RageLevel = 'full'): string | null {
   if (m.note === 'book' && !m.tags.some(t => (['NO TRADE', 'WASTED', 'TEAM FLASH'] as Tag[]).includes(t))) return null;
   const rule = WHEN.find(([, when]) => when(m));
   if (!rule) return null;
-  const kind = REMARKS.rage.moves[rule[0]] as Kind;
+  const kind = { ...(REMARKS.rage.moves[rule[0]] as Kind), ...(RAGE_OVERRIDE[rule[0]] ?? {}) } as Kind;
   const lines = kind.lines.map(l => (typeof l === 'string' ? { text: l, weight: 2 } : { text: l.text, weight: l.weight ?? 2 }))
     .filter(l => l.weight > 0 && (level === 'full' || !SWEAR.test(l.text)));
   const [u1, u2] = rolls(m);

@@ -6,6 +6,17 @@
  */
 const REPO = 'boijacherv-lgtm/CS2-APP', WORKFLOW = 'bots.yml', GAP_MS = 12 * 60_000;
 
+/** Starts a workflow of this repo now (the dev page's "Check the coach now"). */
+export async function startWorkflow(token: string | undefined, workflow: string): Promise<string> {
+  token = token?.trim();
+  if (!token) return 'no GH_TOKEN';
+  const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${workflow}/dispatches`, {
+    method: 'POST', body: JSON.stringify({ ref: 'main' }),
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'rageview-worker', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
+  });
+  return res.status === 204 ? 'started' : `dispatch: ${res.status}`;
+}
+
 export async function kickBots(token: string | undefined): Promise<string> {
   token = token?.trim();
   if (!token) return 'no GH_TOKEN';

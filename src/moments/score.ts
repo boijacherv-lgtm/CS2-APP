@@ -53,9 +53,12 @@ export function record(m: Moment, right: boolean): { score: Score; delta: number
 /** Days since 1 Jan 2026 (UTC): the daily puzzle's number. */
 export const dayNumber = (now = Date.now()) => Math.floor((now - Date.UTC(2026, 0, 1)) / 86400e3);
 /** Today's puzzle: the same for everyone (by the day's number, through a fixed shuffle of the premade list). */
-export function dailyOf(pool: Moment[], day = dayNumber()): Moment | null {
-  if (!pool.length) return null;
-  const sorted = [...pool].sort((a, b) => (a.id < b.id ? -1 : 1));
+export function dailyOf(pool: Moment[], day = dayNumber(), ctl: { pin?: string; skip?: string[] } = {}): Moment | null {
+  // the dev page can pin today's puzzle, or skip some as dailies (Content → daily puzzle)
+  const pinned = ctl.pin ? pool.find(m => m.id === ctl.pin) : undefined;
+  if (pinned) return pinned;
+  const sorted = [...pool].filter(m => !ctl.skip?.includes(m.id)).sort((a, b) => (a.id < b.id ? -1 : 1));
+  if (!sorted.length) return null;
   return sorted[(day * 7919) % sorted.length];
 }
 export function recordDaily(right: boolean, day = dayNumber(), game: PuzzleGame = 'cs2'): Score {

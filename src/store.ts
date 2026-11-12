@@ -1,4 +1,5 @@
 import type { RageLevel } from './engine/rage';
+import { siteConfig } from './ui/siteConfig';
 import { create } from 'zustand';
 import { UTIL_FLIGHT } from './engine/grid';
 import type { RoundSummary } from './engine/match';
@@ -453,3 +454,5 @@ export const useStore = create<Store>((set, get) => {
 
 /** You: the Steam login, or else the player picked with "This is me". */
 export const whoAmI = (s: Pick<Store, 'me' | 'claimed'>) => s.me ?? s.claimed;
+/** Rage mode as it applies now: off when the dev page switched the feature off (Content → flags). */
+export const rageNow = (s: Pick<Store, 'rage'>): RageLevel => (siteConfig().flags.rage ? s.rage : 'off');

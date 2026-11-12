@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
+import { proEarlyAccess } from '../ui/siteConfig';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { navigate, routeHref, type Route } from '../shell/router';
 import { STEAM_AVAILABLE } from '../env';
 import { GAMES } from './games';
 import { GameMark } from './gameMarks';
-import { hasPro } from '../engine/profile';
+
 import { useStore } from '../store';
 import { MAPS } from '../map/catalog';
 import { Icon } from '../ui/Icon';
@@ -148,7 +149,7 @@ function AccountMenu({ route }: { route: Route }) {
       <summary title="Your account">
         {me.avatar ? <img src={me.avatar} alt="" width={28} height={28} /> : <Icon name="user" size={22} />}
         <span className="account-name">{me.name ?? 'You'}</span>
-        {hasPro() && <span className="pro-badge" title="Pro is free during early access">PRO</span>}
+        {proEarlyAccess() && <span className="pro-badge" title="Pro is free during early access">PRO</span>}
         <Icon name="chevronDown" size={12} />
       </summary>
       <div className="account-pop" role="menu">

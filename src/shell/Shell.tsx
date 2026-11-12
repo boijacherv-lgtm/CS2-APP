@@ -1,4 +1,5 @@
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { useSiteConfig } from '../ui/siteConfig';
 import type { RoundSummary } from '../engine/match';
 import { finishSteamLogin } from '../ui/steamApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
@@ -75,6 +76,8 @@ export function Shell() {
   // /dev: the owner (or a local copy) only; for anyone else it's an address that doesn't exist, and its code never loads
   const devOk = useProfile(s => (LOCAL || s.me?.owner ? true : s.loaded ? false : null));
   useEffect(() => { useStore.setState({ me: steamId }); }, [steamId]);
+  // pages the dev page took down for a moment (Content → maintenance); the owner still sees them
+  const maintenance = useSiteConfig().maintenance, owner = useProfile(s => !!s.me?.owner);
 
   return (
     <div className="shell">
@@ -82,8 +85,10 @@ export function Shell() {
       <NavBar route={route} />
       <main className="shell-main" id="main" tabIndex={-1}>
         {loginFailed && <div className="login-failed" role="alert"><span>Steam login didn't finish. Try again.</span><SteamLoginButton compact /><button className="ghost" aria-label="Dismiss" onClick={() => setLoginFailed(false)}><Icon name="close" size={14} /></button></div>}
+        <SiteBanner />
         <PageGuard key={routeHref(route)}><Suspense fallback={<div className="page" aria-busy="true" />}>
-        {route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : route.mode === 'home' ? <Cs2Home /> : <Cs2App />)
+        {maintenance.includes(route.page) && !owner ? <BackSoon />
+          : route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : route.mode === 'home' ? <Cs2Home /> : <Cs2App />)
           : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? (devOk ? <Dev /> : devOk === null ? <div className="page" aria-busy="true" /> : <NotFound />) : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
         </Suspense></PageGuard>
       </main>
@@ -132,6 +137,24 @@ export function pageTitle(r: Route): string {
 }
 
 /** An address that isn't a page. */
+/** The dev page's announcement (Content → banner): until its date, closable for this visit. */
+function SiteBanner() {
+  const b = useSiteConfig().banner;
+  const [closed, setClosed] = useState(false);
+  if (!b.on || !b.text || closed || (b.until && Date.now() > b.until)) return null;
+  return (
+    <div className="site-banner" role="status">
+      <span>{b.text}</span>{b.link && <a href={b.link}>More</a>}
+      <button className="ghost" aria-label="Dismiss" onClick={() => setClosed(true)}><Icon name="close" size={14} /></button>
+    </div>
+  );
+}
+
+/** A page the dev page took down for a moment. */
+function BackSoon() {
+  return <div className="page not-found"><h1>Back in a moment.</h1><p className="muted">This page is being worked on. Everything else works.</p><p><a className="cta primary" href="/">Back to home</a></p></div>;
+}
+
 function NotFound() {
   return (
     <div className="page not-found">
