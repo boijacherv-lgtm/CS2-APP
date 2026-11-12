@@ -7,7 +7,7 @@ import { Icon } from '../ui/Icon';
 import { Loading } from '../ui/Loading';
 import { getItem, setItem } from '../ui/localStore';
 import { ScoreRing } from '../ui/ScoreRing';
-import { loadMatch, matchHistory, type DlHistoryRow } from './api';
+import { loadMatch, matchHistory, partyMatches, soloVsParty, type DlHistoryRow } from './api';
 import { BOT_ON, botMatches } from './botApi';
 import { coachMatch, type DlTag } from './coach';
 import { heroOf } from './data';
@@ -237,6 +237,7 @@ export function DlProfile({ account }: { account: string | null }) {
       </section>
 
       <PatchEffect rows={rows} />
+      <SoloVsParty account={account} rows={rows} />
 
       <section className="site-card">
         <div className="card-head"><h2><Icon name="user" size={16} /> Your heroes</h2><span className="muted small">{lastN(recent.length, 'match').toLowerCase()}</span></div>
@@ -297,6 +298,30 @@ export function DlProfile({ account }: { account: string | null }) {
   );
 }
 
+
+/** Solo or with a friend: your win rate and KDA in each, over every match here. */
+function SoloVsParty({ account, rows }: { account: string; rows: DlHistoryRow[] }) {
+  const [party, setParty] = useState<Set<number> | null>(null);
+  useEffect(() => { let live = true; partyMatches(account).then(p => live && setParty(p), () => live && setParty(null)); return () => { live = false; }; }, [account]);
+  if (!party) return null;
+  const s = soloVsParty(rows, party);
+  if (!s.solo.n || !s.party.n) return null;
+  const wr = (x: { n: number; wins: number }) => x.wins / x.n;
+  const better = wr(s.party) > wr(s.solo) ? 'party' : 'solo';
+  return (
+    <section className="site-card">
+      <div className="card-head"><h2><Icon name="user" size={16} /> Solo or with friends</h2><span className="muted small">with friends: a Steam friend on your team · {plural(rows.length, 'match')}</span></div>
+      <table className="duo-table">
+        <thead><tr><th /><th>Matches</th><th>Won</th><th>KDA</th></tr></thead>
+        <tbody>
+          {(['solo', 'party'] as const).map(k => (
+            <tr key={k}><td>{k === 'solo' ? 'Solo' : 'With friends'}</td><td>{s[k].n}</td><td className={better === k ? 'hi' : ''}>{pct(wr(s[k]))}</td><td>{s[k].kda.toFixed(2)}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
 
 /** Before and after the newest gameplay patch: your heroes you played on both sides of it, and what the patch did to them. */
 function PatchEffect({ rows }: { rows: DlHistoryRow[] }) {
