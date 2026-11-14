@@ -91,7 +91,7 @@ export function MatchReportPage() {
         <>
           {!report.done && (
             <section className="top3 skel" aria-busy="true" aria-label={`Coach notes · ${view.graded}/${view.total} rounds`}>
-              {['Biggest leak', 'Best play', 'Fix next'].map(l => <div key={l} className="top3-card"><span className="eyebrow">{l}</span><i className="skel-line" /><i className="skel-line short" /><span className="muted small">Coach notes · {view.graded}/{view.total} rounds</span></div>)}
+              {['Costliest moment', 'Best play', 'Fix next'].map(l => <div key={l} className="top3-card"><span className="eyebrow">{l}</span><i className="skel-line" /><i className="skel-line short" /><span className="muted small">Coach notes · {view.graded}/{view.total} rounds</span></div>)}
             </section>
           )}
           {report.done && <TopThree p={focus} fix={overview.fix[0] ?? null} onWatch={(i, t) => { openRound(i); if (t !== null) useStore.getState().setTime(Math.max(0, t - 2)); }} />}
@@ -218,7 +218,7 @@ function TopThree({ p, fix, onWatch }: { p: PlayerReport; fix: CoachNote | null;
   );
   return (
     <section className="top3">
-      {card('leak', 'Biggest leak', worst ? <><b>{worst.m.title}</b><span className="muted small">Round {worst.i + 1} · {pct(worst.m.gain)} win chance</span></> : <span className="muted">No costly move. Clean game.</span>, worst ? () => onWatch(worst.i, worst.m.t) : null)}
+      {card('leak', 'Costliest moment', worst ? <><b>{worst.m.title}</b><span className="muted small">Round {worst.i + 1} · {pct(worst.m.gain)} win chance</span></> : <span className="muted">No costly move. Clean game.</span>, worst ? () => onWatch(worst.i, worst.m.t) : null)}
       {card('best', 'Best play', best ? <><b>{best.m.title}</b><span className="muted small">Round {best.i + 1} · {pct(best.m.gain)} win chance</span></> : <span className="muted">No big swing in your favour this time.</span>, best ? () => onWatch(best.i, best.m.t) : null)}
       {card('fix', 'Fix next', fix ? <><b>{fix.rounds.length ? 'See where it happened' : 'Open the Coach tab'}</b><span className="muted small">{fix.rounds.length ? `Rounds ${fix.rounds.slice(0, 4).map(r => r + 1).join(', ')}` : 'Details are in the Coach tab'}</span></> : <span className="muted">Nothing stands out against level 10.</span>, fix?.rounds.length ? () => onWatch(fix.rounds[0], null) : null)}
     </section>

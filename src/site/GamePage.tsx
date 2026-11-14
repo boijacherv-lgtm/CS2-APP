@@ -1,3 +1,4 @@
+import { SiteFooter } from './SiteFooter';
 import { useEffect, useState } from 'react';
 import { Icon, type IconName } from '../ui/Icon';
 import { GameMark } from './gameMarks';
@@ -83,10 +84,7 @@ export function GamePage({ kit }: { kit: GamePageKit }) {
         <div className="faq">{kit.faq.map(q => <details key={q.q}><summary>{q.q}</summary><p>{q.a}</p></details>)}</div>
       </section>
 
-      <footer className="site-footer">
-        <nav><a href="/guides">Guides</a><a href="/pricing">Pricing</a><a href="/privacy">Privacy</a><a href="/changelog">What's new</a></nav>
-        <span className="muted">{kit.footer}</span>
-      </footer>
+      <SiteFooter note={kit.footer} />
     </div>
   );
 }

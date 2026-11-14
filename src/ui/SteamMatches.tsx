@@ -41,7 +41,9 @@ export function SteamMatches() {
       // the website's Worker answers 401 until you log in: show the box logged out, not hidden
       if (res.status === 401) { setSt(LOGGED_OUT); setOffline(false); return; }
       if (!res.ok) throw new Error();
-      setSt(await res.json());
+      const j = await res.json();
+      if (j?.loggedOut) { setSt(LOGGED_OUT); setOffline(false); return; }
+      setSt(j);
       setOffline(false);
     } catch { setOffline(true); }
   }, []);
