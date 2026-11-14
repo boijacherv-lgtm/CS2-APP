@@ -70,7 +70,8 @@ export function NavBar({ route }: { route: Route }) {
     <header className="navbar">
       <a className="brand" href="/" aria-label={`${APP_NAME} home`}><LogoMark /><span>{APP_NAME}</span></a>
       <GameRow game={game} active={here !== null} />
-      <nav className="modes" aria-label={`${GAMES.find(g => g.id === game)?.name}`}>
+      {/* on the pages that belong to no game (home, guides, pricing, settings …) the game's tabs are hidden: none would be lit */}
+      {here !== null && <nav className="modes" aria-label={`${GAMES.find(g => g.id === game)?.name}`}>
         {places.map(p => (
           <a key={p} href={HREF[game][p]} aria-current={here === p ? 'page' : undefined} className={`${here === p ? 'on' : ''} ${p === 'recap' && ready.pulse ? 'pulse' : ''}`} title={tip[p]}
             onClick={() => { if (p === 'puzzles') { try { localStorage.setItem('stratboard.game', game); } catch { /* private mode */ } } }}>
@@ -79,7 +80,7 @@ export function NavBar({ route }: { route: Route }) {
             {p === 'recap' && grading && <ProgressRing done={grading.done} of={grading.of} />}
           </a>
         ))}
-      </nav>
+      </nav>}
       {/* the open matches, like browser tabs: back to one, or × to close it */}
       {loaded && (
         <span className={`match-tab ${cs2 ? '' : 'away'}`} title={`Open CS2 match: ${MAPS.find(m => m.id === loaded.data.map)?.name ?? loaded.data.map}, ${loaded.data.rounds.length} rounds`}>

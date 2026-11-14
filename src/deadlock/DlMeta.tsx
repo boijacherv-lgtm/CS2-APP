@@ -132,7 +132,7 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
         </table>
       )}
       <p className="muted small">Tier from the win rate, pulled toward 50% for heroes with fewer games: S 52.5%+, A 51%+, B 49%+, C 47.5%+, D below. Pick rate: share of matches with the hero.
-        Position: by farm priority (Pos 1 farms most), from how each hero farmed in {POSITIONS_SOURCE.matches.toLocaleString()} games since {POSITIONS_SOURCE.since.slice(0, 10)}; hover for how often they play each. Data: deadlock-api.</p>
+        Position: by farm priority (the lower the number, the more it farms), from how each hero farmed in {POSITIONS_SOURCE.matches.toLocaleString()} games since {POSITIONS_SOURCE.since.slice(0, 10)}; hover for how often they play each. Data: deadlock-api.</p>
     </section>
   );
 }

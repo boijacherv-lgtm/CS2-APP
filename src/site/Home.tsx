@@ -4,6 +4,7 @@ import { proEarlyAccess, useSiteConfig } from '../ui/siteConfig';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { Icon, type IconName } from '../ui/Icon';
 import { GAMES, PLAYABLE, STATUS_LABEL } from './games';
+import { SiteFooter } from './SiteFooter';
 import { GameMark } from './gameMarks';
 import { useState } from 'react';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
@@ -74,9 +75,9 @@ export function Home() {
               <p>{g.note}</p>
               {g.points && <ul className="game-card-points">{g.points.map(x => <li key={x}>{x}</li>)}</ul>}
               <div className="game-card-cta">
-                <a className="cta primary" href={g.review}>Review a {g.short} match</a>
+                <a className="cta primary" href={g.review}>Review a {g.id === 'deadlock' ? g.name : g.short} match</a>
                 {g.plan && <a className="cta" href={g.plan}>{g.planLabel ?? 'Tactical board'}</a>}
-                {g.page && <a className="cta ghost" href={g.page}>About {g.short}</a>}
+                {g.page && <a className="cta ghost" href={g.page}>About {g.id === 'deadlock' ? g.name : g.short}</a>}
               </div>
             </article>
           ) : (
@@ -172,13 +173,7 @@ export function Home() {
         </div>
       </section>
 
-      <footer className="site-footer">
-        <span className="brand-small"><LogoMark size={18} /> {APP_NAME}</span>
-        <nav>
-          {PLAYABLE.map(g => <a key={g.id} href={g.page ?? g.review}>{g.name}</a>)}<a href="/profile">Profile</a><a href="/pricing">Pricing</a><a href="/settings">Settings</a><a href="/puzzles">Puzzles</a><a href="/guides">Guides</a><a href="/changelog">What's new</a><a href="/privacy">Privacy</a>
-        </nav>
-        <span className="muted">Made by a player. Not affiliated with Valve. © {new Date().getFullYear()} {APP_NAME}</span>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

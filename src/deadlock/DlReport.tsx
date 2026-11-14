@@ -359,7 +359,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
           <div>
             <span className="muted small">{name}'s report card · {hero}{card.pos ? ` · Pos ${card.pos}` : ''}</span>
             <p className="dl-rc-verdict">{verdict}</p>
-            <span className="muted small">{overallRank ? `${ORD(overallRank.n)} of ${overallRank.of} in this match · ` : ''}50 is an average game for {hero} in this position {level === 'high' ? 'among Phantom+ players' : ''} ({src.matches.toLocaleString()} {level === 'high' ? 'high-rank' : 'public'} matches since the patch)</span>
+            <span className="muted small">{overallRank ? `Overall ${ORD(overallRank.n)} of ${overallRank.of} in this match · ` : ''}50 is an average game for {hero} in this position {level === 'high' ? 'among Phantom+ players' : ''} ({src.matches.toLocaleString()} {level === 'high' ? 'high-rank' : 'public'} matches since the patch)</span>
             {HAS_HIGH && (
               <span className="dl-level" role="group" aria-label="Compare with">
                 <span className="muted small">Compare with</span>
@@ -369,7 +369,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
             )}
           </div>
         </div>
-        <TrackRows refLabel="the average for the position" rows={card.parts.map(p => ({ label: p.label, pct: p.z === null ? null : percentile(p.z), tip: `${p.label}: ${p.score ?? 'not graded'}`, onClick: () => jump(p.key) }))} />
+        <TrackRows refLabel="the average for the position" rows={card.parts.map(p => ({ label: p.label, pct: p.score, tip: `${p.label}: ${p.score ?? 'not graded'} (50 is average)`, onClick: () => jump(p.key) }))} />
       </section>
 
       <div className="dl-rc-tiles">
@@ -379,7 +379,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
             <button key={p.key} className="dl-rc-tile" onClick={() => jump(p.key)} title={p.summary}>
               <span className="dl-rc-tile-top"><ScoreRing score={p.score} note={p.note} size={44} /><b>{p.label}</b></span>
               <span className="dl-rc-bar"><i style={{ width: `${p.score ?? 0}%`, background: p.score === null ? 'transparent' : p.note === 'book' ? 'var(--text-2)' : NOTE_INFO[p.note].color }} /></span>
-              <span className="muted small">{p.score === null ? 'not graded' : r ? `${ORD(r.n)} of ${r.of} in the match` : ''}</span>
+              <span className="muted small">{p.score === null ? 'not graded' : r ? `${ORD(r.n)} of ${r.of} for ${p.label.toLowerCase()}` : ''}</span>
             </button>
           );
         })}
@@ -401,7 +401,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
               <ScoreRing score={p.score} note={p.note} size={40} />
               <span className="dl-grade-title"><h3>{p.label}</h3><span className="muted small">{p.summary}</span></span>
               {p.note !== 'book' && <MarkFace note={p.note} size={22} className="dl-card-mark" />}
-              {r && <span className="dl-grade-rank muted small">{ORD(r.n)} of {r.of}</span>}
+              {r && <span className="dl-grade-rank muted small">{ORD(r.n)} of {r.of} in the match</span>}
             </div>
             {facts.length > 0 && (
               <ul className="dl-grade-facts">

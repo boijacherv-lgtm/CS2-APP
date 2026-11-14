@@ -890,6 +890,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 /* §3 hints: the welcome card, one-line hints, the ? button and sheet (nothing dims the page) */
 .hint-card { position: fixed; z-index: var(--z-toast); left: 50%; bottom: 84px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: min(560px, calc(100vw - 32px));
   padding: 10px 12px 10px 16px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border-strong); box-shadow: var(--elev-3); font-size: 14px; }
+.hint-card.inline { position: relative; left: auto; bottom: auto; transform: none; z-index: auto; max-width: none; margin: 8px 0; box-shadow: none; border-color: color-mix(in srgb, var(--theme) 45%, var(--border-strong)); }
 .hint-card.welcome { left: auto; right: 16px; bottom: 64px; transform: none; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 16px; }
 .hint-card.welcome b { font: 700 16px/1.2 var(--font-display); }
 .hint-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1039,7 +1040,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 /* C1: the rounds along the top of the player */
 .round-strip { display: flex; gap: 2px; list-style: none; margin: 0 0 6px; padding: 3px 5px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 85%, transparent); pointer-events: auto; flex-wrap: nowrap; max-width: 92vw; overflow-x: auto; scrollbar-width: none; }
 .round-strip li.half { margin-left: 8px; }
-.rs-chip { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 6px; display: grid; place-items: center; background: var(--white-8); color: color-mix(in srgb, var(--white) 60%, transparent); font-size: 12px; }
+.rs-chip { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; display: grid; place-items: center; background: var(--white-8); color: color-mix(in srgb, var(--white) 60%, transparent); font-size: 12px; }
 .rs-chip.ct { background: color-mix(in srgb, var(--ct) 70%, var(--ink)); color: var(--ink); }
 .rs-chip.t { background: color-mix(in srgb, var(--t) 75%, var(--ink)); color: var(--ink); }
 .rs-chip.on { outline: 2px solid var(--white); outline-offset: 1px; }

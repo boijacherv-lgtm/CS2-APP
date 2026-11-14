@@ -17,8 +17,6 @@ const KIT: GamePageKit = {
     { icon: 'friends', title: 'Trades', text: 'Who traded, and who died alone.' },
     { icon: 'bomb', title: 'Utility', text: 'Flashes that worked, grenades that didn\'t.' },
     { icon: 'map', title: 'Positioning', text: 'Where you stood vs where level-10 players stand.' },
-    { icon: 'coins', title: 'Economy', text: 'What you bought and what it got you.' },
-    { icon: 'trophy', title: 'Clutches', text: '1vX: what won it, what lost it.' },
   ],
   moment: { src: '/images/shots/cs2-moment.jpg', alt: 'A graded moment from the CS2 sample match on Mirage', caption: 'From the sample: a FACEIT level-10 Mirage match, names replaced.' },
   meta: {

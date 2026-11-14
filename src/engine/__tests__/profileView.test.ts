@@ -35,9 +35,8 @@ describe('profile reading', () => {
   it('opens the skill map at 3 matches, with clutches counted', () => {
     expect(skillMap([match(0), match(1)])).toBeNull();
     const map = skillMap([0, 1, 2].map(i => match(i, { clutch: [1, 1] })))!;
-    expect(map.map(s => s.name)).toEqual(['Aim duels', 'Trades', 'Utility', 'Positioning', 'Economy', 'Clutches']);
+    expect(map.map(s => s.name)).toEqual(['Aim duels', 'Trades', 'Utility', 'Positioning', 'Clutches']);
     expect(map.find(s => s.name === 'Trades')!.pct).toBe(50);
-    expect(map.find(s => s.name === 'Economy')!.pct).toBeNull();
     expect(map.find(s => s.name === 'Clutches')!.clutch).toEqual([3, 3]);
   });
 });

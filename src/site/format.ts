@@ -1,5 +1,5 @@
 /** Small formatting helpers for the site pages. */
-const MAP_NAMES: Record<string, string> = { de_dust2: 'Dust 2' };
+const MAP_NAMES: Record<string, string> = { de_dust2: 'Dust II' };
 export const mapName = (id: string) => MAP_NAMES[id] ?? id.replace(/^de_/, '').replace(/^\w/, c => c.toUpperCase());
 export const pct = (v: number) => `${Math.round(v * 100)}%`;
 export const fmtInt = (v: number) => Math.round(v).toLocaleString('en-US');

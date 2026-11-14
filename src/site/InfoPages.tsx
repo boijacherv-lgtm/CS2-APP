@@ -106,7 +106,7 @@ export function Guides() {
         <dt>KAST</dt><dd>The share of rounds where you got a <b>K</b>ill, an <b>A</b>ssist, <b>S</b>urvived or were <b>T</b>raded. It says how often you were useful, even without kills. Around 70% is typical at level 10.</dd>
         <dt>Impact</dt><dd>How much your moves changed your team's chance to win the round, on average. Positive means you added to it.</dd>
         <dt>Grade</dt><dd>S+ to F for a round or a match, against FACEIT level 10: B is a typical level-10 game, S a pro one.</dd>
-        <dt>Mark</dt><dd>One move: Brilliant (!!), Good (!), Book (✓), Inaccuracy (?!), Mistake (?), Blunder (??).</dd>
+        <dt>Mark</dt><dd>One move: Brilliant (!!), Great (!), Book (·), Inaccuracy (?!), Mistake (?), Blunder (??).</dd>
       </dl>
 
       <h2 id="deaths">Where FACEIT level-10 players die</h2>

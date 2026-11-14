@@ -77,8 +77,7 @@ export const SKILLS: { name: string; ids: string[] }[] = [
   { name: 'Trades', ids: ['trades', 'untradedDeaths'] },
   { name: 'Utility', ids: ['utilDamage', 'flashAssists', 'wastedFlashes', 'unusedUtil', 'teamHarm'] },
   { name: 'Positioning', ids: ['isolatedDeaths', 'openingDeaths', 'loud', 'lowHpFights'] },
-  // no level-10 number for buys yet (an AWP you never bought isn't a skill): shown as not measured
-  { name: 'Economy', ids: [] },
+  // Economy has no level-10 number yet, so it isn't on the map (nor on the CS2 page's grades); Clutches shows once you've played one
   { name: 'Clutches', ids: [] },
 ];
 /** The skill map opens at this many matches. */
@@ -102,7 +101,7 @@ export function skillMap(ms: ProfileMatch[]): Skill[] | null {
   const sorted = [...ms].sort((a, b) => b.at - a.at);
   const all = habits(sorted), last = habits(sorted.slice(0, 5)), prev = sorted.length >= 7 ? habits(sorted.slice(5, 10)) : null;
   if (!all) return null;
-  return SKILLS.map(s => {
+  return SKILLS.map((s): Skill => {
     if (!s.ids.length && s.name !== 'Clutches') return { name: s.name, pct: null, trend: null, rows: [] };
     if (s.name === 'Clutches') {
       const c = sorted.filter(m => m.clutch).reduce<[number, number]>((a, m) => [a[0] + m.clutch![0], a[1] + m.clutch![1]], [0, 0]);
@@ -111,7 +110,7 @@ export function skillMap(ms: ProfileMatch[]): Skill[] | null {
     const pick = (h: ReturnType<typeof habits>) => h?.rows.filter(r => s.ids.includes(r.id)) ?? [];
     const rows = pick(all), z = meanZ(rows);
     const a = meanZ(pick(last)), b = meanZ(pick(prev));
-    const trend = a === null || b === null ? null : Math.abs(a - b) < 0.15 ? 'flat' : a > b ? 'up' : 'down';
+    const trend: Skill['trend'] = a === null || b === null ? null : Math.abs(a - b) < 0.15 ? 'flat' : a > b ? 'up' : 'down';
     return { name: s.name, pct: z === null ? null : percentile(z), trend, rows: rows.sort((x, y) => x.z - y.z) };
-  });
+  }).filter(s => !(s.name === 'Clutches' && !s.clutch?.[0]));
 }

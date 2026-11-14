@@ -91,7 +91,7 @@ export function MatchReportPage() {
         <>
           {!report.done && (
             <section className="top3 skel" aria-busy="true" aria-label={`Coach notes · ${view.graded}/${view.total} rounds`}>
-              {['Biggest leak', 'Best play', 'Fix next'].map(l => <div key={l} className="top3-card"><span className="eyebrow">{l}</span><i className="skel-line" /><i className="skel-line short" /><span className="muted small">Coach notes · {view.graded}/{view.total} rounds</span></div>)}
+              {['Costliest moment', 'Best play', 'Fix next'].map(l => <div key={l} className="top3-card"><span className="eyebrow">{l}</span><i className="skel-line" /><i className="skel-line short" /><span className="muted small">Coach notes · {view.graded}/{view.total} rounds</span></div>)}
             </section>
           )}
           {report.done && <TopThree p={focus} fix={overview.fix[0] ?? null} onWatch={(i, t) => { openRound(i); if (t !== null) useStore.getState().setTime(Math.max(0, t - 2)); }} />}
@@ -102,11 +102,12 @@ export function MatchReportPage() {
             {/* half-graded notes read like verdicts: wait for every round */}
             {!report.done && <p className="ov-summary muted">The coach's notes appear once every round is graded ({view.graded}/{view.total}).</p>}
             {/* the summary is the header's one line (recap-verdict): not repeated here */}
-            {report.done && overview.fix.length > 0 && (
+            {/* the first fix is the header's line and the Fix next card: the list adds only what comes after it */}
+            {report.done && overview.fix.length > 1 && (
               <>
-                <h3>Fix first</h3>
-                <ol className="ov-list">
-                  {overview.fix.map(n => (
+                <h3>Also work on</h3>
+                <ol className="ov-list" start={2}>
+                  {overview.fix.slice(1).map(n => (
                     <li key={n.title}>
                       <b>{n.title}</b>
                       {n.rounds.length > 0 && <span className="coach-rounds">{watch(n.rounds)}</span>}
@@ -179,7 +180,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
           <b className={mine ? (mine.team === 0 ? 'ct' : 't') : 'ct'}>{a}</b><i>:</i><b className={mine ? (mine.team === 0 ? 't' : 'ct') : 't'}>{b}</b>
         </span>
         {result && <span className={`recap-result ${result.toLowerCase()}`}>{result}</span>}
-        {mine && done && <span className="recap-grade" title="Your grade against FACEIT level 10 (level 10 = B, pros = S)"><span className="perf-letter display reveal" style={letterStyle(matchGrade(mine))}>{matchGrade(mine)}</span><span className="muted small">your grade</span></span>}
+        {mine && done && <span className="recap-grade" title="Your grade for this match: how it compares with a typical FACEIT level-10 game"><span className="perf-letter display reveal" style={letterStyle(matchGrade(mine))}>{matchGrade(mine)}</span><span className="muted small">your grade</span></span>}
         {saved && <button className="recap-share" onClick={() => setShare(true)}><Icon name="share" size={14} /> Share</button>}
       </div>
       {share && saved && <ShareDialog m={saved} player={profileName ?? saved.name ?? 'Me'} onClose={() => setShare(false)} />}
@@ -217,9 +218,9 @@ function TopThree({ p, fix, onWatch }: { p: PlayerReport; fix: CoachNote | null;
   );
   return (
     <section className="top3">
-      {card('leak', 'Biggest leak', worst ? <><b>{worst.m.title}</b><span className="muted small">Round {worst.i + 1} · {pct(worst.m.gain)} win chance</span></> : <span className="muted">No costly move. Clean game.</span>, worst ? () => onWatch(worst.i, worst.m.t) : null)}
+      {card('leak', 'Costliest moment', worst ? <><b>{worst.m.title}</b><span className="muted small">Round {worst.i + 1} · {pct(worst.m.gain)} win chance</span></> : <span className="muted">No costly move. Clean game.</span>, worst ? () => onWatch(worst.i, worst.m.t) : null)}
       {card('best', 'Best play', best ? <><b>{best.m.title}</b><span className="muted small">Round {best.i + 1} · {pct(best.m.gain)} win chance</span></> : <span className="muted">No big swing in your favour this time.</span>, best ? () => onWatch(best.i, best.m.t) : null)}
-      {card('fix', 'Fix next', fix ? <><b>{fix.title}</b><span className="muted small">{fix.rounds.length ? `Rounds ${fix.rounds.slice(0, 4).map(r => r + 1).join(', ')}` : fix.detail}</span></> : <span className="muted">Nothing stands out against level 10.</span>, fix?.rounds.length ? () => onWatch(fix.rounds[0], null) : null)}
+      {card('fix', 'Fix next', fix ? <><b>{fix.rounds.length ? 'See where it happened' : 'Open the Coach tab'}</b><span className="muted small">{fix.rounds.length ? `Rounds ${fix.rounds.slice(0, 4).map(r => r + 1).join(', ')}` : 'Details are in the Coach tab'}</span></> : <span className="muted">Nothing stands out against level 10.</span>, fix?.rounds.length ? () => onWatch(fix.rounds[0], null) : null)}
     </section>
   );
 }
@@ -260,7 +261,7 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
               {matchGrade(p) === 'S+' && <span className="confetti" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} style={{ '--a': `${(i * 360) / 14}deg`, '--d': `${38 + (i % 3) * 10}px` } as React.CSSProperties} />)}</span>}
             </span>
             <span className="muted">{p.level || p.lvl10 ? 'vs FACEIT level 10' : 'in this lobby'}{NICK[matchGrade(p)] ? <> · <b className="perf-nick">{NICK[matchGrade(p)]}</b></> : null}</span>
-            <span className="perf-sub muted">level 10 = B, pros = S</span>
+            <span className="perf-sub muted" title={whyTitle(p)}>{whyGrade(p)}</span>
           </div>
         </div>
         {p.gameRating !== null && <Gauge rating={p.gameRating} rank={p.rank} />}
@@ -316,7 +317,6 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
           Compared with {model.name ?? 'trained'} players{byRole ? ` (${role.toLowerCase()}s)` : ''}
         </p>
       )}
-      <p className="coach-summary">{c.summary}</p>
       {rageSummary(c.improve[0]?.feature ?? null, !!c.improve[0]?.title.startsWith('Your '), rage) && <p className="coach-rage">{rageSummary(c.improve[0]?.feature ?? null, !!c.improve[0]?.title.startsWith('Your '), rage)}</p>}
       <div className="dev-axis muted"><span><Icon name="prev" size={10} /> worse than normal</span><span>better than normal <Icon name="next" size={10} /></span></div>
       <div className="dev-list">
@@ -596,8 +596,6 @@ function tone(id: FeatureId, v: number) {
 
 /** The players' numbers: the main ones, or every column with `full`. */
 function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1; players: PlayerReport[]; score: number; focus: string; onPick: (id: string) => void; full: boolean }) {
-  const hasLevel = players.some(p => p.level);
-  const hasLvl10 = !hasLevel && players.some(p => p.lvl10);
   const hasEngine = full && players.some(p => p.engineAccuracy !== null);
   return (
     <div className="sb-wrap">
@@ -605,16 +603,14 @@ function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1
         <thead>
           {full && <tr className="sb-groups">
             <th className={team === 0 ? 'ct' : 't'}>{team === 0 ? 'Team A' : 'Team B'} <span className="num">{score}</span></th>
-            <th colSpan={(hasLvl10 || hasLevel ? 5 : 4) + (hasEngine ? 1 : 0)}>Rating</th><th colSpan={5}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
+            <th colSpan={4 + (hasEngine ? 1 : 0)}>Rating</th><th colSpan={5}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
           </tr>}
           <tr>
             <th className="sb-name muted">{full ? (team === 0 ? 'started CT' : 'started T') : <span className={team === 0 ? 'ct' : 't'}>{team === 0 ? 'Team A' : 'Team B'} <span className="num">{score}</span></span>}</th>
             <th title="Premier rating at the start of the match">Rank</th>
             <th title="Estimated rating for this game: duel performance + round impact">Game</th>
             {full && <th title="Game rating minus their real rating">±</th>}
-            <th title="Grade among the players of this lobby">Lobby</th>
-            {hasLevel && <th title="One grade from FACEIT level 10 to pro: B = a typical level-10 game, S = a typical pro game (performance and mechanics)">Level</th>}
-            {hasLvl10 && <th title="Grade against FACEIT level-10 players">Lvl 10</th>}
+            <th title="The match grade, the same one as in the header and Side by side: duel and round performance, plus mechanics when the demo has them">Grade</th>
             {hasEngine && <th title="Accuracy: every 2 s, what they did against the best option the coach found (100 = always the best; level-10 players average about 88)">Acc</th>}
             <th>K</th><th>D</th><th title="Average damage a round">ADR</th><th title="Rounds with a kill, assist, survival or trade">KAST</th>
             {full && <><th>HS%</th>
@@ -637,9 +633,7 @@ function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1
                   <b>{p.gameRating !== null ? fmt(p.gameRating) : '–'}</b>
                 </td>
                 {full && <td className={delta === null ? '' : delta >= 1000 ? 'hi' : delta <= -1000 ? 'lo' : ''}>{delta === null ? '' : `${delta >= 0 ? '+' : '−'}${fmt(Math.abs(delta))}`}</td>}
-                <td title={lobbyText(p.lobbyZ)}><LetterChip letter={p.letter} /></td>
-                {hasLvl10 && <td title={p.lvl10 ? lvl10Text(p.lvl10.z) : ''}>{p.lvl10 ? <LetterChip letter={p.lvl10.letter} /> : ''}</td>}
-                {hasLevel && <td title={p.level ? levelText(p.level) : ''}>{p.level ? <LetterChip letter={p.level.letter} /> : ''}</td>}
+                <td title={whyTitle(p)}><LetterChip letter={matchGrade(p)} /></td>
                 {hasEngine && <td className={p.engineAccuracy === null ? '' : p.engineAccuracy >= 90 ? 'hi' : p.engineAccuracy < 82 ? 'lo' : ''} title={`${p.engineMoments} moments`}>{p.engineAccuracy !== null ? p.engineAccuracy.toFixed(0) : ''}</td>}
                 <td className="sep">{p.kills}</td><td>{p.deaths}</td>
                 <td className={tone('adr', p.adr)}>{p.adr.toFixed(0)}</td>
@@ -667,6 +661,18 @@ function rolesText(p: PlayerReport, counts: boolean) {
   return [...top, ...(awp ? [awp] : [])].map(r => (counts || r === awp ? `${r.role} ×${r.rounds}` : r.role)).join(counts ? ', ' : ' / ');
 }
 
+/** One line on why this is the grade (the same grade everywhere on the recap). */
+function whyGrade(p: PlayerReport): string {
+  const word = (v: number | null) => (v === null ? null : v >= 0.5 ? 'above' : v <= -0.5 ? 'below' : 'near');
+  if (p.level) {
+    const a = word(p.level.perf), b = word(p.level.mech);
+    return `${a === 'near' ? 'Duels and impact near' : `Duels and impact ${a}`} a level-10 game${b ? `, mechanics ${b === 'near' ? 'near it' : b + ' it'}` : ''}`;
+  }
+  const z = p.lvl10?.z ?? p.lobbyZ, w = word(z);
+  return `${p.lvl10 ? 'Stats' : 'Stats in this lobby'} ${w === 'near' ? 'near' : w} ${p.lvl10 ? 'a level-10 player' : 'the average'}`;
+}
+const whyTitle = (p: PlayerReport) => (p.level ? levelText(p.level) : p.lvl10 ? lvl10Text(p.lvl10.z) : lobbyText(p.lobbyZ));
+
 const spreads = (z: number) => `${Math.abs(z).toFixed(1)} spreads`;
 function lobbyText(z: number) {
   return Math.abs(z) < 0.15 ? 'about the middle of the lobby' : `${spreads(z)} ${z > 0 ? 'above' : 'below'} the lobby's average`;
@@ -676,7 +682,7 @@ function levelText(l: LevelGrade) {
   const where = l.score >= l.proAt ? 'at or above a typical pro game' : l.score >= 0 ? `between a typical level-10 game and a typical pro game (${Math.round((l.score / l.proAt) * 100)}% of the way)` : 'below a typical level-10 game';
   const part = (v: number | null) => (v === null ? 'not measured' : `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}`);
   const cap = l.capped ? ` Held at A: this lobby averages ${l.capped.toLocaleString('en-US')} Premier, and a pro-level grade needs a lobby near level-10 strength.` : '';
-  return `Level, from FACEIT level 10 (B) to pro (S): ${where}.${cap} Performance ${part(l.perf)}, mechanics (reaction, crosshair, sound, counter-strafing) ${part(l.mech)}, in level-10 spreads.`;
+  return `This match against a typical FACEIT level-10 game: ${where}.${cap} Performance ${part(l.perf)}, mechanics (reaction, crosshair, sound, counter-strafing) ${part(l.mech)}, in level-10 spreads.`;
 }
 
 function lvl10Text(z: number) {
@@ -772,7 +778,7 @@ function DuoCard({ a, players }: { a: PlayerReport; players: PlayerReport[] }) {
       <table className="duo-table">
         <thead><tr><th /><th>{a.name}</th><th>{b.name}</th></tr></thead>
         <tbody>
-          <tr><td>Grade in this lobby</td><td><b>{a.letter}</b></td><td><b>{b.letter}</b></td></tr>
+          <tr><td>Grade</td><td><b>{matchGrade(a)}</b></td><td><b>{matchGrade(b)}</b></td></tr>
           {rows.map(([label, f, fmt]) => {
             const x = f(a), y = f(b);
             return <tr key={label}><td>{label}</td>

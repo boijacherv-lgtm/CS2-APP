@@ -195,9 +195,12 @@ function BombDial({ fuse, defuse }: { fuse: number; defuse: { share: number; ok:
  * defuse, the clock), a gap at half-time; rounds ahead stay blank until Reveal all. Click one to go there. */
 export function RoundStrip({ data, at, spoilers, onPick }: { data: DemoData; at: number; spoilers: boolean; onPick: (i: number) => void }) {
   const swaps = new Set(sideSwitches(data));
-  const how = (reason: string): 'skull' | 'bomb' | 'scissors' | 'timer' => {
-    const r = reason.toLowerCase().replace(/[^a-z]/g, '');
-    return r.includes('defus') ? 'scissors' : r.includes('exploded') || r.includes('targetbombed') ? 'bomb' : r.includes('saved') || r.includes('time') ? 'timer' : 'skull';
+  // how the round ended: from the demo's reason when it has one, else from the plant (bomb down: exploded or defused) and the clock
+  const how = (r: { reason: string; winner: string | null; plant: number | null; duration: number }): 'skull' | 'bomb' | 'scissors' | 'timer' => {
+    const x = r.reason.toLowerCase().replace(/[^a-z]/g, '');
+    if (x) return x.includes('defus') ? 'scissors' : x.includes('exploded') || x.includes('targetbombed') ? 'bomb' : x.includes('saved') || x.includes('time') ? 'timer' : 'skull';
+    if (r.plant !== null) return r.winner === 'CT' ? 'scissors' : 'bomb';
+    return r.winner === 'CT' && r.duration >= 110 ? 'timer' : 'skull';
   };
   return (
     <ol className="round-strip" aria-label="Rounds">
@@ -206,8 +209,9 @@ export function RoundStrip({ data, at, spoilers, onPick }: { data: DemoData; at:
         return (
           <li key={i} className={swaps.has(i) && i > 0 ? 'half' : ''}>
             <button className={`rs-chip ${i === at ? 'on' : ''} ${shown && r.winner ? r.winner.toLowerCase() : ''}`} onClick={() => onPick(i)}
-              title={`Round ${r.n}${shown && r.winner ? `: ${r.winner} won${r.reason ? ` (${r.reason.replace(/_/g, ' ')})` : ''}` : ''}`}>
-              {shown && r.winner && r.reason ? <Icon name={how(r.reason)} size={10} /> : <span className="num">{r.n}</span>}
+              title={`Round ${r.n}${shown && r.winner ? `: ${r.winner} won${r.reason ? ` (${r.reason.replace(/_/g, ' ')})` : ''}` : ''}`}
+              aria-label={`Round ${r.n}${shown && r.winner ? `, ${r.winner} won` : ''}`}>
+              {shown && r.winner ? <Icon name={how(r)} size={14} /> : <span className="num">{r.n}</span>}
             </button>
           </li>
         );

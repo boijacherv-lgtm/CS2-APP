@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { useDl } from '../deadlock/store';
 import { createPortal } from 'react-dom';
@@ -12,12 +12,16 @@ import { openCs2Sample, openDlSample } from './sample';
  * needed (at most 3 a session, each once ever), and a "?" button in the corner that shows the shortcuts and brings
  * the hints back. Nothing dims the page.
  */
-interface Hint { id: string; when: (r: Route) => boolean; ready: string; text: string }
+/** `inline`: shown right after the thing it's about (in the page's flow, so it never covers a number), not floating. */
+interface Hint { id: string; when: (r: Route) => boolean; ready: string; text: string; inline?: boolean }
+/** The first element of the selector that's really on screen (a coach card that isn't shown doesn't count). */
+const onScreen = (sel: string): HTMLElement | null =>
+  [...document.querySelectorAll<HTMLElement>(sel)].find(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight; }) ?? null;
 export const HINTS: Hint[] = [
-  { id: 'card', when: r => (r.page === 'cs2' || r.page === 'deadlock') && r.mode === 'review', ready: '.feed-card, .dl-card',
+  { id: 'card', when: r => (r.page === 'cs2' || r.page === 'deadlock') && r.mode === 'review', ready: '.feed-card, .dl-card', inline: true,
     text: 'A coach card: what happened, the grade, the better play. → for the next one.' },
-  { id: 'recap', when: r => (r.page === 'cs2' || r.page === 'deadlock') && r.mode === 'report', ready: '.top3, .dl-rc-head',
-    text: 'Start with your Biggest leak. Each Watch button jumps to that moment.' },
+  { id: 'recap', when: r => (r.page === 'cs2' || r.page === 'deadlock') && r.mode === 'report', ready: '.top3, .dl-rc-head', inline: true,
+    text: 'Start with your Costliest moment. Each Watch button jumps to that moment.' },
   { id: 'tactical', when: r => r.page === 'cs2' && r.mode === 'tactical', ready: '.rail',
     text: 'Drag players, drop grenades, then press Play.' },
 ];
@@ -54,7 +58,7 @@ export function Hints() {
     const todo = HINTS.find(h => h.when(route) && !seen().includes(h.id));
     if (!todo || shownThisSession() >= MAX_A_SESSION) return;
     const t = setInterval(() => {
-      if (!document.querySelector(todo.ready)) return;
+      if (!onScreen(todo.ready)) return;
       clearInterval(t);
       markSeen(todo.id);
       read(() => sessionStorage.setItem(SESSION, String(shownThisSession() + 1)), undefined);
@@ -64,6 +68,22 @@ export function Hints() {
   }, [where, quiet]); // eslint-disable-line react-hooks/exhaustive-deps
   // it goes by itself after a while
   useEffect(() => { if (!hint) return; const t = setTimeout(() => setHint(null), 14000); return () => clearTimeout(t); }, [hint]);
+  // an inline hint sits right after its target; it goes when the target does (the card was replaced, the page scrolled on)
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!hint?.inline) { setHost(null); return; }
+    const target = onScreen(hint.ready);
+    if (!target) { setHint(null); return; }
+    const el = document.createElement('div');
+    el.className = 'hint-host';
+    target.after(el);
+    setHost(el);
+    const t = setInterval(() => { if (!target.isConnected || !onScreen(hint.ready)) setHint(null); }, 800);
+    return () => { clearInterval(t); el.remove(); };
+  }, [hint]);
+  // the welcome card goes with the first page change (they've found their way)
+  const firstWhere = useRef(where);
+  useEffect(() => { if (where !== firstWhere.current && welcome) done(); }, [where]); // eslint-disable-line react-hooks/exhaustive-deps
   // ? opens the sheet (not while typing)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -93,12 +113,15 @@ export function Hints() {
           </div>
         </div>
       )}
-      {hint && !welcome && (
-        <div className="hint-card" role="status">
-          <span>{hint.text}</span>
-          <button className="ghost small-btn" onClick={() => setHint(null)}>Got it</button>
-        </div>
-      )}
+      {hint && !welcome && (!hint.inline || host) && (() => {
+        const card = (
+          <div className={`hint-card${hint.inline ? ' inline' : ''}`} role="status">
+            <span>{hint.text}</span>
+            <button className="ghost small-btn" onClick={() => setHint(null)}>Got it</button>
+          </div>
+        );
+        return hint.inline && host ? createPortal(card, host) : card;
+      })()}
       {sheet && (
         <div className="hint-sheet" role="dialog" aria-label="Shortcuts and hints">
           <div className="hint-sheet-head"><b>Shortcuts</b><button className="ghost hint-x" onClick={() => setSheet(false)} aria-label="Close"><Icon name="close" size={14} /></button></div>

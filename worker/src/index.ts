@@ -152,6 +152,9 @@ export default {
       const token = req.headers.get('Authorization')?.match(/^Bearer ([\w-]{20,})$/)?.[1];
       const steamId = token ? await env.SB.get(`session:${token}`) : null;
       if (path === '/me' && req.method === 'GET') return json({ me: steamId ? { steamId, ...(await publicProfile(env, steamId)), ...(isOwner(env.OWNER_IDS, steamId) ? { owner: true } : {}), ...(isPro(env, steamId) ? { pro: true } : {}) } : null });
+      // the pages ask for these on load: logged out is an answer, not an error (no red 401 in a visitor's console)
+      if (!steamId && req.method === 'GET' && path === '/status') return json({ loggedOut: true });
+      if (!steamId && req.method === 'GET' && path === '/puzzle/friends') return json({ rows: [], note: 'Log in with Steam to see your friends.' });
       if (!steamId) return json({ error: 'Log in with Steam first.' }, 401);
       // a logged-in player's writes and Steam look-ups, so often per player
       if ((req.method === 'POST' || path === '/resolve') && await limited(env.RATE_USER, steamId)) return slow();

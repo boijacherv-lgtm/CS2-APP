@@ -4,6 +4,7 @@ import { simStateAt, type Simulation } from '../engine/combat';
 import { moveLook, NoteMark } from './NoteMark';
 import { gunFromName } from '../engine/guns';
 import { calloutAt, NOTE_INFO, moveKey, QUIET_TAGS, readMs, TAG_INFO, type DemoRound, type Move, type Review, type Tag } from '../engine/recap';
+import { swingNote } from '../engine/notes';
 import { rageNow, useStore, whoAmI } from '../store';
 import { rageLines } from '../engine/rage';
 import { GameIcon, Icon } from './Icon';
@@ -246,7 +247,7 @@ function WinMeter({ m, swing }: { m: Move; swing: { side: 'CT' | 'T'; before: nu
   return (
     <div className="feed-win" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
       <span className="bar"><i style={{ '--from': `${swing.before}%`, width: `${swing.after}%`, background: swing.after >= swing.before ? 'var(--good)' : 'var(--bad)' } as React.CSSProperties} /></span>
-      <span className="num">{swing.before}% → {swing.after}% <b className={d > 0 ? 'up' : d < 0 ? 'down' : 'muted'}>({d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(swing.after - swing.before)} pts)</b></span>
+      <span className="num">{swing.before}% → {swing.after}% {(() => { const n = swingNote(m.note, (swing.after - swing.before) / 100); return n ? <b className={n.tone}>{n.text}</b> : null; })()}</span>
     </div>
   );
 }
