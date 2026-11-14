@@ -181,15 +181,13 @@ export function DlProfile({ account }: { account: string | null }) {
         <div className="leak-row">
           {leak && <section className="site-card leak-card"><span className="eyebrow">Biggest leak</span><h2>{MISTAKE[leak[0] as DlTag]}</h2>
             <p className="leak-num"><b>{(leak[1] / graded.length).toFixed(1)} a match</b> over your last {graded.length} graded</p>
-            <div className="hero-cta"><a className="cta" href="/puzzles">Practise in Puzzles</a></div></section>}
+            <div className="hero-cta"><a className="cta" href="/puzzles">Practise in Puzzles</a><a className="cta" href="/deadlock/review">Watch your matches</a></div></section>}
           {superPart && <section className="site-card super-card"><span className="eyebrow">Your superpower</span><h2>{superPart.label}</h2>
             <p className="muted">Better than <b>{superPart.better}%</b> of players on your hero and position</p><p className="muted small">Your average {superPart.v} · 50 is average</p></section>}
         </div>
       )}
 
       <div className="dash-row">
-        <TrendTile label="Souls a minute" values={chrono.filter(hasSouls).map(spm)} fmt={v => Math.round(v).toLocaleString('en-US')}
-          sub={chrono.filter(hasSouls).length < chrono.length ? `${chrono.filter(hasSouls).length} of the last ${chrono.length} (no soul stats for the rest)` : undefined} />
         <section className="site-card dash-narrow">
           <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2><span className="muted small">{plural(recent.length, 'match')}</span></div>
           <ResultStrip results={chrono.slice(-20).map(r => ({ win: won(r), title: `${heroOf(r.hero_id).name} · ${day(r.start_time)} · ${won(r) ? 'won' : 'lost'}` }))} />

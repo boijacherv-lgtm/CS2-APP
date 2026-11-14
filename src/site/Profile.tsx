@@ -18,7 +18,7 @@ import { SteamLoginButton } from '../ui/SteamLogin';
 import { plural, fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
 import { copyCard, drawShareCard, shareFileName, type ShareFormat } from './shareCard';
 import { AddMatches } from './AddMatches';
-import { StretchLine, TrendTile } from './charts';
+import { ResultStrip, StretchLine, TrendTile } from './charts';
 import { applyGame, gameOf, type GameId } from '../ui/tokens';
 import { DlProfile } from '../deadlock/DlProfile';
 import { BETTER, type FeatureId } from '../engine/coach';
@@ -167,6 +167,7 @@ export function Profile() {
   const pro = proEarlyAccess();
   const [all, setAll] = useState(false);
   const [share, setShare] = useState<ProfileMatch | null>(null);
+  const [ptab, setPtab] = useState<'overview' | 'matches' | 'skills' | 'goals' | 'friends'>('overview');
   const matches = fullMatches(data.matches).sort((a, b) => b.at - a.at);
   const shown = all && pro ? matches : matches.slice(0, FREE_HISTORY);
   const last = averages(matches.slice(0, FREE_HISTORY));
@@ -220,33 +221,49 @@ export function Profile() {
       ) : null}
       {!matches.length && <AddMatches />}
       {!matches.length ? null : (
-        <>
-          <StatStrip matches={matches} />
-          <div className="leak-row">
-            <LeakCard matches={matches} />
-            <SuperCard matches={matches} />
+        <div className="profile-cols">
+          {/* left, sticky: the last 20 results, adding matches, settings */}
+          <aside className="profile-side">
+            <section className="site-card">
+              <div className="card-head"><h2>Last 20</h2></div>
+              <ResultStrip results={[...matches].slice(0, 20).reverse().map(m => ({ win: m.result === 'win' ? true : m.result === 'loss' ? false : null, title: `${mapName(m.map)} ${m.score[0]}:${m.score[1]}` }))} />
+            </section>
+            <AddMatches />
+            <section className="site-card profile-side-links"><a className="cta" href="/settings"><Icon name="gear" size={14} /> Settings</a>
+              {matches[0] && <button className="cta" onClick={() => setShare(matches[0])}><Icon name="share" size={14} /> Share card</button>}</section>
+          </aside>
+          <div className="profile-main">
+            <nav className="recap-tabs" aria-label="Profile">
+              <div className="recap-tabs-list" role="tablist">
+                {([['overview', 'Overview'], ['matches', 'Matches'], ['skills', 'Skills'], ['goals', 'Goals'], ['friends', 'Friends']] as const).map(([id, l]) => (
+                  <button key={id} role="tab" aria-selected={ptab === id} className={ptab === id ? 'on' : ''} onClick={() => setPtab(id)}>{l}</button>
+                ))}
+              </div>
+            </nav>
+            {ptab === 'overview' && <>
+              <StatStrip matches={matches} />
+              <div className="leak-row"><LeakCard matches={matches} /><SuperCard matches={matches} /></div>
+              <SkillMapCard matches={matches.slice(0, pro ? matches.length : FREE_HISTORY * 2)} />
+              <section className="site-card"><div className="card-head"><h2>Last 5 matches</h2><button className="ghost small-btn" onClick={() => setPtab('matches')}>All matches</button></div>
+                <div className="match-list">{matches.slice(0, 5).map(m => <MatchRow key={m.id} m={m} onShare={() => setShare(m)} />)}</div></section>
+            </>}
+            {ptab === 'matches' && (
+              <section className="site-card">
+                <div className="card-head">
+                  <h2>{all && pro ? 'All matches' : 'Matches'}</h2>
+                  <span className="muted small">Last {shown.length}</span>
+                  {matches.length > FREE_HISTORY && (pro
+                    ? <button className="ghost small-btn" onClick={() => setAll(!all)}>{all ? 'Show the last 5' : `Show all ${matches.length}`}</button>
+                    : <a className="muted small" href="/pricing"><Icon name="lock" size={12} /> {matches.length - FREE_HISTORY} older with Pro</a>)}
+                </div>
+                <div className="match-list">{shown.map(m => <MatchRow key={m.id} m={m} onShare={() => setShare(m)} />)}</div>
+              </section>
+            )}
+            {ptab === 'skills' && <SkillMapCard matches={matches.slice(0, pro ? matches.length : FREE_HISTORY * 2)} />}
+            {ptab === 'goals' && <div className="profile-grid"><Goals matches={matches} /><MapStats matches={matches} /></div>}
+            {ptab === 'friends' && <Friend mine={last} />}
           </div>
-          <SkillMapCard matches={matches.slice(0, pro ? matches.length : FREE_HISTORY * 2)} />
-          <section className="site-card">
-            <div className="card-head">
-              <h2>{all && pro ? 'All matches' : 'Matches'}</h2>
-              <span className="muted small">Last {shown.length}</span>
-              <span className="wl-row" aria-label="Results, oldest first">{[...shown].reverse().map(m => <i key={m.id} className={m.result} title={`${mapName(m.map)} ${m.score[0]}:${m.score[1]}`} />)}</span>
-              {matches.length > FREE_HISTORY && (pro
-                ? <button className="ghost small-btn" onClick={() => setAll(!all)}>{all ? 'Show the last 5' : `Show all ${matches.length}`}</button>
-                : <a className="muted small" href="/pricing"><Icon name="lock" size={12} /> {matches.length - FREE_HISTORY} older with Pro</a>)}
-            </div>
-            <div className="match-list">
-              {shown.map(m => <MatchRow key={m.id} m={m} onShare={() => setShare(m)} />)}
-            </div>
-          </section>
-          <AddMatches />
-          <div className="profile-grid">
-            <Goals matches={matches} />
-            <MapStats matches={matches} />
-            <Friend mine={last} />
-          </div>
-        </>
+        </div>
       )}
       {!matches.length && <Friend mine={last} />}
       </>}

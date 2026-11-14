@@ -1191,3 +1191,14 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .numbers-table th, .numbers-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; } .numbers-table th:first-child, .numbers-table td:first-child { text-align: left; }
 .numbers-table th { font-weight: 500; color: var(--text-2); font-size: 14px; }
 .numbers-more td { text-align: left !important; background: var(--surface-2); }
+
+/* round 10 E7: the results are one row of 20 with a legend */
+.result-strip ol { flex-wrap: nowrap; overflow-x: auto; }
+.result-strip li { flex: none; }
+.rs-legend { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; } .rs-legend i { width: 10px; height: 10px; border-radius: 6px; background: var(--text-3); } .rs-legend i.win { background: var(--good); } .rs-legend i.loss { background: var(--bad); }
+
+/* round 10 D3: profile in two columns: a sticky 320 px side, tabs on the right */
+.profile-cols { display: grid; gap: 20px; grid-template-columns: 320px minmax(0, 1fr); align-items: start; }
+.profile-side { position: sticky; top: 72px; display: grid; gap: 12px; }
+.profile-side-links { display: grid; gap: 8px; }
+@media (max-width: 1000px) { .profile-cols { grid-template-columns: 1fr; } .profile-side { position: static; } }
