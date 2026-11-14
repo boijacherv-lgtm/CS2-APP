@@ -6,7 +6,7 @@ import { Icon, type IconName } from '../ui/Icon';
 import { GAMES, PLAYABLE, STATUS_LABEL } from './games';
 import { SiteFooter } from './SiteFooter';
 import { GameMark } from './gameMarks';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
 import { openCs2Sample, openDlSample } from '../ui/sample';
 
@@ -15,7 +15,15 @@ import { openCs2Sample, openDlSample } from '../ui/sample';
 function HeroLoop() {
   const ref = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(true);
-  const toggle = () => { const v = ref.current; if (!v) return; if (v.paused) { void v.play(); setPlaying(true); } else { v.pause(); setPlaying(false); } };
+  // plays only while it's on screen (and only if you haven't paused it)
+  const paused = useRef(false);
+  useEffect(() => {
+    const v = ref.current; if (!v || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { if (!paused.current) void v.play().catch(() => {}); } else v.pause(); }, { threshold: 0.25 });
+    io.observe(v);
+    return () => io.disconnect();
+  }, []);
+  const toggle = () => { const v = ref.current; if (!v) return; if (v.paused) { paused.current = false; void v.play(); setPlaying(true); } else { paused.current = true; v.pause(); setPlaying(false); } };
   return (
     <figure className="hero-loop">
       <video ref={ref} src="/videos/hero-cs2.webm" poster="/videos/hero-cs2.jpg" autoPlay muted loop playsInline preload="metadata" aria-label="A graded round from the CS2 sample playing on the radar" />
