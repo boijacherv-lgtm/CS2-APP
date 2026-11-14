@@ -106,12 +106,13 @@ export function DevContent() {
         {([['rage', 'Rage mode', 'Off hides the switch and every Rage line'], ['proEarlyAccess', 'Pro early access', 'Pro free for everyone (the site; the Worker\'s PRO_FOR_ALL decides on its side)'], ['puzzlesBoard', 'Puzzle leaderboards', 'Off hides the Leaderboard tab']] as const).map(([k, label, tip]) => (
           <label key={k} className="dev-check-row" title={tip}><input type="checkbox" checked={c.flags[k]} onChange={e => set({ flags: { ...c.flags, [k]: e.target.checked } })} /> {label} <span className="muted small">{tip}</span></label>
         ))}
-        <label className="dev-field"><span>"Coming soon" on the front page (empty: none)</span><input value={c.flags.comingSoon} maxLength={40} placeholder="e.g. Dota 2" onChange={e => set({ flags: { ...c.flags, comingSoon: e.target.value } })} /></label>
+        <label className="dev-field"><span>Coming soon: games, one a line (shown on the front page)</span><textarea rows={3} value={c.soon.join('\n')} onChange={e => set({ soon: e.target.value.split('\n').map(x => x.trim()).filter(Boolean) })} /></label>
+        <label className="dev-field"><span>"Coming soon" text (older single field; added after the list)</span><input value={c.flags.comingSoon} maxLength={40} placeholder="e.g. Dota 2" onChange={e => set({ flags: { ...c.flags, comingSoon: e.target.value } })} /></label>
         <div className="dev-field"><span>Back in a moment (pages taken down; you still see them)</span>
           <div className="chips">{PAGE_NAMES.map(p => <button key={p} className={`chip ${c.maintenance.includes(p) ? 'on' : ''}`} aria-pressed={c.maintenance.includes(p)}
             onClick={() => set({ maintenance: c.maintenance.includes(p) ? c.maintenance.filter(x => x !== p) : [...c.maintenance, p] })}>{p}</button>)}</div>
         </div>
-        <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Switches', { flags: c.flags, maintenance: c.maintenance })}>Save</button></div>
+        <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Switches', { flags: c.flags, maintenance: c.maintenance, soon: c.soon })}>Save</button></div>
       </section>
 
       <section className="site-card">

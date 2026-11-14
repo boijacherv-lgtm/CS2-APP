@@ -37,6 +37,8 @@ export interface SiteConfig {
   faq: { q: string; a: string }[];
   /** The game pages' headline and first line (cs2, deadlock); empty: the built-in ones. */
   games: Record<'cs2' | 'deadlock', { h1: string; lead: string }>;
+  /** Games to list as coming soon on the front page (names, one each); empty: nothing (the old single text field still works). */
+  soon: string[];
   /** The guides' headline and opening line, by slug (download-cs2-demo, deadlock-match-id, adr-and-kast, where-players-die); empty: the built-in ones. */
   guides: Record<string, { h1: string; desc: string }>;
   /** What's new entries, newest first, shown above the file's: { date: 'Nov 14, 2026', items: [...] }. */
@@ -55,6 +57,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
   pricing: { price: '', earlyEnds: '' },
   hero: { h1: '', lead: '' },
   faq: [],
+  soon: [],
   guides: {},
   games: { cs2: { h1: '', lead: '' }, deadlock: { h1: '', lead: '' } },
   changelog: [],
@@ -96,6 +99,7 @@ export function cleanConfig(raw: unknown, was: SiteConfig = DEFAULT_CONFIG): Sit
     hero: { h1: str(r.hero?.h1 ?? was.hero.h1, 80), lead: str(r.hero?.lead ?? was.hero.lead, 240) },
     games: { cs2: { h1: str(r.games?.cs2?.h1 ?? was.games.cs2.h1, 80), lead: str(r.games?.cs2?.lead ?? was.games.cs2.lead, 240) }, deadlock: { h1: str(r.games?.deadlock?.h1 ?? was.games.deadlock.h1, 80), lead: str(r.games?.deadlock?.lead ?? was.games.deadlock.lead, 240) } },
     guides: Object.fromEntries(Object.entries((r.guides ?? was.guides ?? {}) as Record<string, { h1?: unknown; desc?: unknown }>).filter(([k]) => /^[a-z0-9-]{3,40}$/.test(k)).slice(0, 10).map(([k, v]) => [k, { h1: str(v?.h1, 80), desc: str(v?.desc, 300) }]).filter(([, v]) => (v as { h1: string; desc: string }).h1 || (v as { h1: string; desc: string }).desc)),
+    soon: strs(r.soon ?? was.soon, 8, 40),
     faq: (Array.isArray(r.faq ?? was.faq) ? (r.faq ?? was.faq) as { q?: unknown; a?: unknown }[] : []).slice(0, 12).map(x => ({ q: str(x?.q, 120), a: str(x?.a, 600) })).filter(x => x.q && x.a),
     changelog: (Array.isArray(r.changelog ?? was.changelog) ? (r.changelog ?? was.changelog) as { date?: unknown; items?: unknown }[] : []).slice(0, 20).map(x => ({ date: str(x?.date, 30), items: strs(x?.items, 12, 300) })).filter(x => x.date && x.items.length),
   };

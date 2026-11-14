@@ -39,7 +39,7 @@ const toGames = () => document.getElementById('games')?.scrollIntoView({ behavio
 /** The front page, about every game rather than one: what it is, which games, how it works, what you get, what it
  * costs. Short on purpose; dressed in the neutral theme (tokens.ts themeOf). */
 export function Home() {
-  const cfg = useSiteConfig(), coming = cfg.flags.comingSoon;
+  const cfg = useSiteConfig(), coming = [...cfg.soon, cfg.flags.comingSoon].filter(Boolean).join(', ');
   const top = GAMES.slice(0, 3), more = GAMES.slice(3);
   // a public high-rank Deadlock match, opened on the board: the product without a demo of your own
   const [sample, setSample] = useState<'idle' | 'opening' | 'failed'>('idle');
