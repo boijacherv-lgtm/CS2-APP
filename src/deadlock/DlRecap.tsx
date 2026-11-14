@@ -101,7 +101,7 @@ export function TeamSouls({ match, team }: { match: DlMatch; team: DlTeam }) {
           label={lead[far] ? { t: pts[far].t, text: `${lead[far] > 0 ? 'Biggest lead' : 'Furthest behind'} ${sign(lead[far])}` } : null}
           dots={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], title: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />;
       })()}
-      {!demo && <p className="muted small">Between the match's snapshots (every 3 min); a match with a demo shows it every 2 s.</p>}
+      {!demo && <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Between the match's snapshots (every 3 min); a match with a demo shows it every 2 s.</p></details>}
     </section>
   );
 }
@@ -188,7 +188,7 @@ export function Economy({ match, slot, watch, slim }: { match: DlMatch; slot: nu
             </li>
           ))}
         </ul>
-        <p className="muted small">Top bar: you; under it: the average {who}.</p>
+        <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Top bar: you; under it: the average {who}.</p></details>
       </section>
       )}
     </>
@@ -215,7 +215,7 @@ export function Items({ match, slot, slim }: { match: DlMatch; slot: number; sli
       {!slim && (
       <section className="recap-card">
         <h3>Buy against this enemy team</h3>
-        <p className="muted small">Items that win more than usual on {hero.name} against these heroes this patch ({band.label}), from public matches: the number is how much more often games with it are won against them; the heroes, who it helps most against.</p>
+        <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Items that win more than usual on {hero.name} against these heroes this patch ({band.label}), from public matches: the number is how much more often games with it are won against them; the heroes, who it helps most against.</p></details>
         <div className="dl-enemies">{enemies.map(h => <HeroImg key={h} hero={h} size={30} />)}</div>
         {counters === null ? <Loading>Reading the item stats…</Loading> : counters === 'error' ? <p className="muted">Couldn't read the item stats (deadlock-api). Try again later.</p> : (
           <ul className="dl-counters">
@@ -259,7 +259,7 @@ export function Items({ match, slot, slim }: { match: DlMatch; slot: number; sli
             );
           })}
         </div>
-        <p className="muted small">Faded: sold later. Core: in most {hero.name} builds this patch. Off-meta: rarely bought but wins more on {hero.name}.</p>
+        <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Faded: sold later. Core: in most {hero.name} builds this patch. Off-meta: rarely bought but wins more on {hero.name}.</p></details>
       </section>
 
       {!slim && (
@@ -344,7 +344,7 @@ export function Objectives({ match, team, watch }: { match: DlMatch; team: DlTea
               <Node o={find(other, o => o.kind === 'patron')} label="Patron" />
             </div>
           </div>
-          <p className="muted small dl-tug-key">Guardian, Walker, Base Guardian from the middle out; hollow ones fell (click to watch).</p>
+          <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Guardian, Walker, Base Guardian from the middle out; hollow ones fell (click to watch).</p></details>
         </div>
       </section>
       <section className="recap-card">
@@ -428,7 +428,7 @@ export function Positioning({ match, slot, watch }: { match: DlMatch; slot: numb
   return (
     <section className="recap-card dl-spots">
       <h3>Where you played</h3>
-      <p className="muted small">Next to Pos {p.pos} players at {SPOT_SOURCE.minBadge >= 91 ? 'Phantom and up' : 'high ranks'} ({SPOT_SOURCE.matches} matches): time spent where they usually are.</p>
+      <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Next to Pos {p.pos} players at {SPOT_SOURCE.minBadge >= 91 ? 'Phantom and up' : 'high ranks'} ({SPOT_SOURCE.matches} matches): time spent where they usually are.</p></details>
       <div className="dl-spots-body">
         <svg viewBox={`0 0 ${S} ${S}`} className="dl-spots-map" role="img" aria-label={`Your path from ${ph.label}, over where good Pos ${p.pos} players usually are`}>
           <image href={DL_MAP_IMAGE} width={S} height={S} opacity={0.5} />

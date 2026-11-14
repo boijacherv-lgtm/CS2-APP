@@ -545,11 +545,11 @@ function PositioningCard({ data, rounds, player, done, onRound, onHotRound }: {
         <h3 className="display">Positioning</h3>
         <span className="muted">vs FACEIT level 10 in the same situations · {a.demos} matches on this map{a.likePros !== null ? ` · ${Math.round(a.likePros * 100)}% level-10 decisions` : ''}</span>
       </div>
-      <p className="coach-summary">{a.summary}</p>
+      <p className="coach-summary" title={a.summary}>{a.summary.split(/(?<=\.)\s/)[0]}</p>
       {a.worst.length > 0 && (
         <><h4>Spots where level-10 players win more from elsewhere</h4>
           <div className="pos-worst">
-            {a.worst.map((w, i) => (
+            {a.worst.slice(0, 3).map((w, i) => (
               <button key={i} className="ghost" onClick={() => onRound(w.round)} onMouseEnter={() => onHotRound(w.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">
                 <span className="muted num">R{w.round + 1} {Math.floor(w.t / 60)}:{String(Math.floor(w.t % 60)).padStart(2, '0')}</span>
                 <b>{w.what}</b>

@@ -1166,3 +1166,10 @@ input.switch { min-height: 24px; height: 24px; }
 .sb-line i { position: absolute; inset: 0 auto 0 0; background: var(--t); } .sb-line.fuse.amber i { background: var(--gold); } .sb-line.fuse.orange i { background: var(--letter-d); } .sb-line.fuse.red i { background: var(--bad); }
 .sb-line b { position: absolute; inset: 0 auto 0 0; background: var(--ct); } .sb-line b.late { background: repeating-linear-gradient(45deg, var(--bad) 0 3px, var(--ink) 3px 5px); }
 .sb-note { margin-top: 3px; text-align: center; font-size: 12px; color: var(--text-2); } .sb-note.ok { color: var(--ct); } .sb-note.late { color: var(--bad); font-weight: 600; }
+
+/* round 10 B3: the roster's expected bomb damage, a blinking red slice at the end of the health bar */
+.tb-row { position: relative; }
+.tb-bomb-hp { position: absolute; bottom: 0; height: 4px; background: var(--bad); animation: bomb-blink .7s steps(2) infinite; pointer-events: auto; }
+.tb-bomb-hp.lethal { height: 100%; opacity: .25; }
+@keyframes bomb-blink { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .tb-bomb-hp { animation: none; } }

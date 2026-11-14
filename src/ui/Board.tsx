@@ -2,7 +2,8 @@ import Konva from 'konva';
 import { MAPS } from '../map/catalog';
 import { useCanvasLabel } from './canvasLabel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { blastCanvas, blastField } from '../engine/blast';
+import { blastDamageAt, blastField } from '../engine/blast';
+import { blastCanvas } from './blastCanvas';
 import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import { KonvaFace } from './KonvaFace';
 import { JudgePanel } from './JudgePanel';
@@ -393,6 +394,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
       }
     return out;
   }, [s.review?.data, s.review?.round]);
+  // the planted bomb's blast over the walkable grid (an estimate): each player's expected damage, for the roster's blinking slice
+  const plantedAt = (() => { const b = s.review ? bombAt(s.review.data.rounds[s.review.round], s.time) : null; return b && b.kind === 'plant' ? worldToRadar(b, engine.map.radar) : null; })();
+  const blastF = useMemo(() => (plantedAt ? blastField(engine.grid, plantedAt, UNITS_PER_PX) : null), [plantedAt?.x, plantedAt?.y, engine]); // eslint-disable-line react-hooks/exhaustive-deps
   const roster = (side: 'CT' | 'T') => rosterRound && (
     <TeamRoster side={side} round={rosterRound} time={s.time}
       players={s.board.players.filter(p => p.side === side).slice(0, 5).map(p => {
@@ -402,6 +406,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           id: p.id, name: s.review?.data.names[p.id] ?? p.label, alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100, avatar: avatars[p.id],
           kills: (pastKd.get(p.id)?.k ?? 0) + now.filter(kl => kl.attacker === p.id && kl.victim !== p.id).length,
           deaths: (pastKd.get(p.id)?.d ?? 0) + now.filter(kl => kl.victim === p.id).length, roundKills,
+          bombDmg: blastF && live.get(p.id)?.pos ? blastDamageAt(blastF, live.get(p.id)!.pos) : 0,
         };
       })} />
   );

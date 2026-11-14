@@ -35,6 +35,8 @@ export interface SiteConfig {
   hero: { h1: string; lead: string };
   /** The front page's questions; empty: the built-in ones. (The static FAQ data and /llms.txt are built with the site.) */
   faq: { q: string; a: string }[];
+  /** The game pages' headline and first line (cs2, deadlock); empty: the built-in ones. */
+  games: Record<'cs2' | 'deadlock', { h1: string; lead: string }>;
   /** What's new entries, newest first, shown above the file's: { date: 'Nov 14, 2026', items: [...] }. */
   changelog: { date: string; items: string[] }[];
 }
@@ -51,6 +53,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
   pricing: { price: '', earlyEnds: '' },
   hero: { h1: '', lead: '' },
   faq: [],
+  games: { cs2: { h1: '', lead: '' }, deadlock: { h1: '', lead: '' } },
   changelog: [],
 };
 const CONFIG = 'site:config', LOG = 'site:log', MAX_LOG = 200;
@@ -88,6 +91,7 @@ export function cleanConfig(raw: unknown, was: SiteConfig = DEFAULT_CONFIG): Sit
     footer: { discord: url(r.footer?.discord ?? was.footer.discord), contact: contact(r.footer?.contact ?? was.footer.contact) },
     pricing: { price: str(r.pricing?.price ?? was.pricing.price, 20), earlyEnds: str(r.pricing?.earlyEnds ?? was.pricing.earlyEnds, 40) },
     hero: { h1: str(r.hero?.h1 ?? was.hero.h1, 80), lead: str(r.hero?.lead ?? was.hero.lead, 240) },
+    games: { cs2: { h1: str(r.games?.cs2?.h1 ?? was.games.cs2.h1, 80), lead: str(r.games?.cs2?.lead ?? was.games.cs2.lead, 240) }, deadlock: { h1: str(r.games?.deadlock?.h1 ?? was.games.deadlock.h1, 80), lead: str(r.games?.deadlock?.lead ?? was.games.deadlock.lead, 240) } },
     faq: (Array.isArray(r.faq ?? was.faq) ? (r.faq ?? was.faq) as { q?: unknown; a?: unknown }[] : []).slice(0, 12).map(x => ({ q: str(x?.q, 120), a: str(x?.a, 600) })).filter(x => x.q && x.a),
     changelog: (Array.isArray(r.changelog ?? was.changelog) ? (r.changelog ?? was.changelog) as { date?: unknown; items?: unknown }[] : []).slice(0, 20).map(x => ({ date: str(x?.date, 30), items: strs(x?.items, 12, 300) })).filter(x => x.date && x.items.length),
   };

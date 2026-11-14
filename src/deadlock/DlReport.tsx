@@ -288,7 +288,7 @@ function EngineCard({ review, watch, who, ult, uses }: { review: EngineReview; w
             )}
         </>
       )}
-      <p className="muted small">The coach looks 20 s ahead: the best options good players take here, what the enemy would likely do, and the win chance after. {ULTS_IN ? (demoRead ? 'Ultimates ready count in its fights.' : 'Ultimates count once the demo is read.') : demoRead ? 'It names the ultimates ready in fights; being ready barely changed who won fights, so they don\'t change its odds.' : 'Read the demo for ultimates.'} It sees enemies you might not have.</p>
+      <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">The coach looks 20 s ahead: the best options good players take here, what the enemy would likely do, and the win chance after. {ULTS_IN ? (demoRead ? 'Ultimates ready count in its fights.' : 'Ultimates count once the demo is read.') : demoRead ? 'It names the ultimates ready in fights; being ready barely changed who won fights, so they don\'t change its odds.' : 'Read the demo for ultimates.'} It sees enemies you might not have.</p></details>
     </section>
   );
 }

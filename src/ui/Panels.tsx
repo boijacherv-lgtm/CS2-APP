@@ -425,7 +425,7 @@ function KillFeed({ sim, engine }: { sim: Simulation; engine: TacticalEngine }) 
       ].sort((a, b) => a.t - b.t).map((row, i) => row.kind === 'kill' ? (
         <button key={i} className={`kill ${row.k.t <= s.time ? 'past' : ''}`} onClick={() => { s.setPlaying(false); s.setTime(row.k.t + 0.05); }}>
           <span className="muted">{fmt(row.k.t)}</span>
-          {row.k.killer ? <b className={side(row.k.killer).toLowerCase()}>{name(row.k.killer)}</b> : <b>{row.k.cause === 'he' ? <><Icon name="burst" /> HE</> : <><Icon name="flame" /> Molotov</>}</b>}
+          {row.k.killer ? <b className={side(row.k.killer).toLowerCase()}>{name(row.k.killer)}</b> : <b>{row.k.cause === 'he' ? <><Icon name="burst" /> HE</> : row.k.cause === 'bomb' ? <><Icon name="bomb" /> Bomb</> : <><Icon name="flame" /> Molotov</>}</b>}
           <Icon name="close" size={11} /> <b className={side(row.k.victim).toLowerCase()}>{name(row.k.victim)}</b>
           <span className="muted grow-r">{where(row.k.at)}</span>
         </button>

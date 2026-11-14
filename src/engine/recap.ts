@@ -891,7 +891,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const dk = demoKill(k);
     const kGun = dk ? gunFromName(dk.weapon) : undefined;
     const withGun = kGun ? ` with ${kGun.name}${dk?.headshot ? ' (headshot)' : ''}`
-      : k.cause === 'he' ? ' with an HE grenade' : k.cause === 'molotov' ? ' with fire' : k.cause === 'impact' ? ` with a ${impactName(dk?.weapon)} to the face` : dk?.headshot ? ' (headshot)' : '';
+      : k.cause === 'he' ? ' with an HE grenade' : k.cause === 'bomb' ? ' to the bomb' : k.cause === 'molotov' ? ' with fire' : k.cause === 'impact' ? ` with a ${impactName(dk?.weapon)} to the face` : dk?.headshot ? ' (headshot)' : '';
     const before = stateAt(k.t - 0.05), after = stateAt(k.t + 0.05);
     const ctDelta = after - before;
     const vi = idx(k.victim);
@@ -899,7 +899,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const firstKill = n === 0;
     const ki = k.killer ? idx(k.killer) : -1;
     const killerAt = ki >= 0 ? posAt(ki, k.t) : null;
-    const cause = k.cause === 'he' ? 'HE grenade' : k.cause === 'molotov' ? 'fire' : k.cause === 'impact' ? `${impactName(dk?.weapon)} (direct hit)` : kGun?.name ?? '';
+    const cause = k.cause === 'he' ? 'HE grenade' : k.cause === 'bomb' ? 'the bomb' : k.cause === 'molotov' ? 'fire' : k.cause === 'impact' ? `${impactName(dk?.weapon)} (direct hit)` : kGun?.name ?? '';
     // how the bullet got there (newer parses): through walls, through a smoke, from a flashed / jumping shooter
     const walls = dk?.wall ?? 0, thruSmoke = !!dk?.smoke, blindShot = !!dk?.blind;
     const wallText = walls === 1 ? 'a wall' : `${walls} walls`;
