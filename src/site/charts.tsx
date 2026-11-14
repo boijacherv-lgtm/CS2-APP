@@ -346,6 +346,7 @@ export function ResultStrip({ results }: { results: { win: boolean | null; lette
       <ol aria-label="Results, oldest first">
         {last.map((r, i) => <li key={i} className={r.win === null ? 'tie' : r.win ? 'win' : 'loss'} title={r.title}>{r.letter ?? ''}</li>)}
       </ol>
+      <span className="muted small rs-legend"><i className="win" /> won <i className="loss" /> lost · oldest first</span>
     </div>
   );
 }
