@@ -1054,7 +1054,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .hero-loop { margin: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--border-strong); box-shadow: var(--elev-3); background: var(--map-bg); align-self: center; }
 .hero-loop { position: relative; }
 .hero-loop video { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 800; object-fit: cover; }
-.hero-loop-btn { position: absolute; right: 10px; bottom: 10px; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--ink) 80%, transparent); border: 1px solid var(--border-strong); color: var(--white); }
+.hero-loop-btn { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--ink) 80%, transparent); border: 1px solid var(--border-strong); color: var(--white); }
 .hero-loop-btn:hover { background: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .hero-loop video { display: none; } .hero-loop { background: url(/videos/hero-cs2.jpg) center / cover; aspect-ratio: 1280 / 800; } .hero-loop-btn { display: none; } }
 /* B6 scenarios: the bar over the Tactical board, the list on Puzzles */
