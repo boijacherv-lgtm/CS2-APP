@@ -1,3 +1,4 @@
+import { blastDamageAt, blastField } from './blast';
 import { activeSmokes, lifeOf, popAt } from './grid';
 import { FOV, inFov, type TacticalEngine } from './predict';
 import { gunHazard, gunOf } from './guns';
@@ -33,7 +34,7 @@ export interface KillEvent {
   victim: string;
   at: Vec2;
   /** impact: a smoke, flash or decoy that hit them directly (1 hp of damage that finished them). */
-  cause: 'gun' | 'he' | 'molotov' | 'impact';
+  cause: 'gun' | 'he' | 'molotov' | 'impact' | 'bomb';
 }
 
 /** Something utility did to a player: blinded (amount = seconds) or damaged (amount = hp). */
@@ -226,7 +227,16 @@ export function simulate(engine: TacticalEngine, board: BoardState, end: number,
       if (defuser >= 0 && (!free(defuser) || !near(defuser))) defuser = -1;
       if (defuser < 0) { const i = agents.findIndex((a, k) => a.p.side === 'CT' && free(k) && near(k)); if (i >= 0) { defuser = i; defuseFrom = t; } }
       if (defuser >= 0 && t - defuseFrom >= defuseSecs) { sim.bomb.defuseT = t; sim.bomb.defuser = agents[defuser].p.id; }
-      else if (t - sim.bomb.plantT >= SIM_FUSE) sim.bomb.explodeT = t;
+      else if (t - sim.bomb.plantT >= SIM_FUSE) {
+        sim.bomb.explodeT = t;
+        // the blast follows open paths (blast.ts, an estimate): whoever it reaches is hurt, and dies if it's enough
+        const field = blastField(engine.grid, sim.bomb.pos, engine.map.radar.scale);
+        for (let i = 0; i < n; i++) {
+          if (!agents[i].alive) continue;
+          agents[i].hp -= blastDamageAt(field, agents[i].pos);
+          if (agents[i].hp <= 0) kill(i, t, '', 'bomb');
+        }
+      }
       // the retake: a CT who's done with their own route (or has none) heads for the bomb
       for (let i = 0; i < n; i++) {
         const a = agents[i];

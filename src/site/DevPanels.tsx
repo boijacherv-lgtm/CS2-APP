@@ -133,6 +133,17 @@ export function DevContent() {
       </section>
 
       <section className="site-card">
+        <div className="card-head"><h2>Game pages text</h2><ShowsOn pages={['/cs2', '/deadlock']} /></div>
+        {(['cs2', 'deadlock'] as const).map(g => (
+          <div key={g}><b>{g === 'cs2' ? 'CS2' : 'Deadlock'}</b>
+            <label className="dev-field"><span>Headline (empty: the built-in one)</span><input value={c.games[g].h1} maxLength={80} onChange={e => set({ games: { ...c.games, [g]: { ...c.games[g], h1: e.target.value } } })} /></label>
+            <label className="dev-field"><span>First line (empty: the built-in one)</span><textarea rows={2} maxLength={240} value={c.games[g].lead} onChange={e => set({ games: { ...c.games, [g]: { ...c.games[g], lead: e.target.value } } })} /></label>
+          </div>
+        ))}
+        <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Game pages text', { games: c.games })}>Save</button></div>
+      </section>
+
+      <section className="site-card">
         <div className="card-head"><h2>Pricing</h2><ShowsOn pages={['/pricing']} /></div>
         <label className="dev-field"><span>Price a month (empty: $5)</span><input value={c.pricing.price} maxLength={20} placeholder="$5" onChange={e => set({ pricing: { ...c.pricing, price: e.target.value } })} /></label>
         <label className="dev-field"><span>Early access ends (a date in words, empty: not announced)</span><input value={c.pricing.earlyEnds} maxLength={40} placeholder="Dec 31, 2026" onChange={e => set({ pricing: { ...c.pricing, earlyEnds: e.target.value } })} /></label>

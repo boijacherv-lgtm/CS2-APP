@@ -8,7 +8,7 @@ import { GameIcon, Icon } from './Icon';
  * the match's kills / deaths so far, the gun in hand (and what else they carry), grenades, armour, kit or bomb, and
  * money. Reads the gear log of the demo (newer parses), else the buy minus the grenades thrown since.
  */
-export interface RosterPlayer { id: string; name: string; alive: boolean; hp: number; avatar?: string; kills: number; deaths: number; roundKills: number }
+export interface RosterPlayer { id: string; name: string; alive: boolean; hp: number; avatar?: string; kills: number; deaths: number; roundKills: number; /** the planted bomb's expected damage here (blast.ts, an estimate): a blinking red slice of the health bar */ bombDmg?: number }
 
 /** Inventory names ("AK-47", "Smoke Grenade") and weapon-in-hand names ("ak47") → CS2's pictogram. */
 const ICON_OF: Record<string, string> = {
@@ -64,6 +64,10 @@ export function TeamRoster({ side, players, round, time }: { side: 'CT' | 'T'; p
         const hp = Math.max(0, Math.min(100, Math.round(p.hp)));
         return (
           <div key={p.id} className={`tb-row ${p.alive ? '' : 'dead'} ${p.alive && hp <= 30 ? 'low' : ''}`} style={{ '--hp': `${p.alive ? hp : 0}%` } as React.CSSProperties}>
+            {p.alive && !!p.bombDmg && p.bombDmg >= 1 && (
+              <i className={`tb-bomb-hp ${p.bombDmg >= hp ? 'lethal' : ''}`} style={{ left: `${Math.max(0, hp - p.bombDmg)}%`, width: `${Math.min(hp, p.bombDmg)}%` }}
+                title={p.bombDmg >= hp ? 'The blast would kill them here (estimate)' : `The blast would do about ${Math.round(p.bombDmg)} damage here (estimate)`} />
+            )}
             <span className="tb-pic">{p.avatar ? <img src={p.avatar} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <b>{initials(p.name)}</b>}</span>
             <div className="tb-main">
               <div className="tb-line">

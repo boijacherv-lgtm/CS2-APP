@@ -1,3 +1,4 @@
+import { useSiteConfig } from '../ui/siteConfig';
 import { SiteFooter } from './SiteFooter';
 import { useEffect, useState } from 'react';
 import { Icon, type IconName } from '../ui/Icon';
@@ -23,6 +24,7 @@ export interface GamePageKit {
 }
 
 export function GamePage({ kit }: { kit: GamePageKit }) {
+  const over = useSiteConfig().games[kit.game === 'deadlock' ? 'deadlock' : 'cs2'];
   const g = GAMES.find(x => x.id === kit.game)!;
   const [opening, setOpening] = useState<'idle' | 'opening' | 'failed'>('idle');
   const watch = async () => { setOpening('opening'); try { await kit.sample(); } catch { setOpening('failed'); } };
@@ -33,8 +35,8 @@ export function GamePage({ kit }: { kit: GamePageKit }) {
       <section className="dl-hero">
         <div className="dl-hero-text">
           <span className="eyebrow"><GameMark game={g} size={14} /> {g.name} <span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></span>
-          <h1>{kit.h1}</h1>
-          <p className="lead">{kit.lead}</p>
+          <h1>{over?.h1 || kit.h1}</h1>
+          <p className="lead">{over?.lead || kit.lead}</p>
           <div className="hero-cta">
             <a className="cta primary" href={kit.review}>{kit.reviewLabel} <Icon name="arrowRight" size={14} /></a>
             <button className="cta" onClick={watch} disabled={opening === 'opening'}><Icon name="play" size={12} /> {opening === 'opening' ? 'Opening…' : 'Watch a sample'}</button>
