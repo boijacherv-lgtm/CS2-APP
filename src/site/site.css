@@ -890,7 +890,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 /* §3 hints: the welcome card, one-line hints, the ? button and sheet (nothing dims the page) */
 .hint-card { position: fixed; z-index: var(--z-toast); left: 50%; bottom: 84px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; max-width: min(560px, calc(100vw - 32px));
   padding: 10px 12px 10px 16px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border-strong); box-shadow: var(--elev-3); font-size: 14px; }
-.hint-card.inline { position: relative; left: auto; bottom: auto; transform: none; z-index: auto; max-width: none; margin: 8px 0; box-shadow: none; border-color: color-mix(in srgb, var(--theme) 45%, var(--border-strong)); }
+.hint-card.inline { position: relative; left: auto; bottom: auto; transform: none; z-index: var(--z-base); max-width: none; margin: 8px 0; box-shadow: none; border-color: color-mix(in srgb, var(--theme) 45%, var(--border-strong)); }
 .hint-card.welcome { left: auto; right: 16px; bottom: 64px; transform: none; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 16px; }
 .hint-card.welcome b { font: 700 16px/1.2 var(--font-display); }
 .hint-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1060,3 +1060,9 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .scenario-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .scenario-list li { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
 .scenario-list li > span:first-child { display: grid; gap: 2px; }
+
+/* the Coach tab's Numbers card: three parts in one card */
+.numbers .numbers-part { padding-top: 18px; margin-top: 18px; border-top: 1px solid var(--border); }
+.numbers .numbers-part:first-of-type { margin-top: 8px; }
+.numbers .numbers-part > .coach-head h3, .numbers .numbers-part > h3 { font-size: 20px; margin: 0; }
+.numbers .numbers-part h4 { margin: 14px 0 6px; font-size: 16px; }

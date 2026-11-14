@@ -247,7 +247,7 @@ function WinMeter({ m, swing }: { m: Move; swing: { side: 'CT' | 'T'; before: nu
   return (
     <div className="feed-win" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
       <span className="bar"><i style={{ '--from': `${swing.before}%`, width: `${swing.after}%`, background: swing.after >= swing.before ? 'var(--good)' : 'var(--bad)' } as React.CSSProperties} /></span>
-      <span className="num">{swing.before}% → {swing.after}% {(() => { const n = swingNote(m.note, (swing.after - swing.before) / 100); return n ? <b className={n.tone}>{n.text}</b> : null; })()}</span>
+      <span className="num">{swing.side} {swing.before}% → {swing.after}% {(() => { const n = swingNote(m.note, (swing.after - swing.before) / 100); return n ? <b className={n.tone}>{n.text}</b> : null; })()}</span>
     </div>
   );
 }

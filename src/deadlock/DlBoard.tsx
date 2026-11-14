@@ -494,6 +494,7 @@ function DlCard({ moves, time, canMine, mineLabel = 'Mine' }: { moves: DlMove[];
 }
 
 const BETTER_DO: Record<Action, string> = { fight: 'take the fight', objective: 'go for the objective', farm: 'farm camps', lane: 'stay in lane', base: 'go back to base', move: 'rotate' };
+const DOING: Record<Action, string> = { fight: 'fighting', objective: 'going for the objective', farm: 'farming', lane: 'staying in lane', base: 'going back to base', move: 'rotating' };
 /** The engine's best move a little before a death or kill (the 2-step search, every 20 s alive): the "Better:" line. */
 const reviews = new WeakMap<DlMatch, Map<number, ReturnType<typeof engineReview>>>();
 function betterBefore(match: DlMatch, demo: ReturnType<typeof useDl.getState>['demo'], m: DlMove): string | null {
@@ -504,7 +505,7 @@ function betterBefore(match: DlMatch, demo: ReturnType<typeof useDl.getState>['d
   if (!rv) { try { rv = engineReview(match, demo, m.slot); } catch { return null; } per.set(m.slot, rv); }
   const before = rv.moves.filter(x => x.t <= m.t - 3 && x.t >= m.t - 30).at(-1);
   if (!before || before.played.action === before.options[0].action) return null;
-  return `${BETTER_DO[before.options[0].action]} at ${mins(before.t)}, not ${BETTER_DO[before.played.action]}`;
+  return `${BETTER_DO[before.options[0].action]} instead of ${DOING[before.played.action]} (${mins(before.t)})`;
 }
 
 /**
@@ -533,7 +534,7 @@ function MoveCardDl({ m }: { m: DlMove }) {
       {m.win && (
         <div className="dl-card-win" title="Your team's win chance just before and 30 s after">
           <span className="bar"><i style={{ '--from': `${Math.round(m.win.before * 100)}%`, width: `${Math.round(m.win.after * 100)}%`, background: m.win.swing >= 0 ? 'var(--good)' : 'var(--bad)' } as React.CSSProperties} /></span>
-          <span className="num">{Math.round(m.win.before * 100)}% → {Math.round(m.win.after * 100)}% <SwingNote note={m.note} swing={m.win.swing} /></span>
+          <span className="num">{TEAM_NAME[m.team]} {Math.round(m.win.before * 100)}% → {Math.round(m.win.after * 100)}% <SwingNote note={m.note} swing={m.win.swing} /></span>
         </div>
       )}
       {m.why.length > 0 && <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}
