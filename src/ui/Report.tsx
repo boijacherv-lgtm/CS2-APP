@@ -1,7 +1,7 @@
 import { letterStyle } from '../engine/notes';
 import { useSiteConfig } from './siteConfig';
 import { CountUp } from './CountUp';
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { SplitChart } from '../site/charts';
 import { closeCs2Match } from './closeMatch';
 import { matchCurve } from '../engine/matchChance';
@@ -19,6 +19,7 @@ import { habits } from '../engine/habits';
 import { useProfile } from './profileApi';
 import { rageSummary } from '../engine/rage';
 import { matchKey } from '../engine/profile';
+import { percentile, SKILLS, skillMap } from '../engine/profileView';
 import { ShareDialog } from '../site/Profile';
 import { SEARCH_COLOR, type SearchMoment } from '../engine/search';
 import { MAPS } from '../map/catalog';
@@ -139,10 +140,13 @@ export function MatchReportPage() {
           <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />
           {/* the numbers behind the notes: three parts in one card (round analysis, where you stood, your habits) */}
           <section className="recap-card numbers">
-            <div className="coach-head"><h2 className="display">Numbers</h2><span className="muted">what the coach's notes come from</span></div>
+            <div className="coach-head"><h2 className="display">Numbers</h2><span className="muted" title={`vs FACEIT level 10, from the coach's model (${modelOf(level).trainedOn} player-games)`}>6 skills</span></div>
+            <NumbersTable p={focus} level={level} onRound={openRound} />
+            <details className="all-numbers"><summary className="muted">Full analysis</summary>
             <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
             <PositioningCard data={data} rounds={report.rounds} player={focus.id} done={report.done} onRound={openRound} onHotRound={setHotRound} />
             {me && view.players.some(p => p.id === me) && <HabitsCard />}
+            </details>
           </section>
         </>
       )}
@@ -334,6 +338,43 @@ function Gauge({ rating, rank }: { rating: number | null; rank: number | null })
       <b className="display num">{rating !== null ? fmt(rating) : '–'}</b>
       <span className="muted">game rating{delta !== null && <> · <span className={delta >= 0 ? 'up' : 'down'}>{delta >= 0 ? '+' : '−'}{fmt(Math.abs(delta))}</span> vs {fmt(rank!)}</>}</span>
     </div>
+  );
+}
+
+/** The same six skills as the profile, for this match: you against level 10, with a row that opens to what to work on (three rounds at most). */
+function NumbersTable({ p, level, onRound }: { p: PlayerReport; level: Level; onRound: (i: number) => void }) {
+  const c = useMemo(() => coach(p, modelOf(level)), [p, level]);
+  const matches = useProfile(s => s.data.matches);
+  const map = useMemo(() => skillMap(matches), [matches]);
+  const [open, setOpen] = useState<string | null>(null);
+  const skills = SKILLS.filter(sk => sk.ids.length).map(sk => {
+    const rows = c.profile.filter(d => sk.ids.includes(d.feature));
+    const z = rows.length ? rows.reduce((a, d) => a + d.z, 0) / rows.length : null;
+    const notes = c.improve.filter(n => sk.ids.includes(n.feature as string));
+    const trend = map?.find(m => m.name === sk.name)?.trend ?? null;
+    return { name: sk.name, pct: z === null ? null : percentile(z), notes, trend, worst: [...rows].sort((a, b) => a.z - b.z)[0] };
+  });
+  return (
+    <table className="numbers-table">
+      <thead><tr><th>Skill</th><th>You</th><th title="50 is a typical level-10 player">Level 10</th><th>Pros</th><th>Trend</th></tr></thead>
+      <tbody>
+        {skills.map(k => (
+          <Fragment key={k.name}>
+            <tr className={open === k.name ? 'open' : ''}>
+              <td><button className="link-btn" onClick={() => setOpen(open === k.name ? null : k.name)} aria-expanded={open === k.name}>{k.name}</button></td>
+              <td className="num"><b>{k.pct ?? '–'}</b></td><td className="num muted">50</td><td className="num muted">–</td>
+              <td>{k.trend === 'up' ? <Icon name="trendUp" size={14} /> : k.trend === 'down' ? <Icon name="trendDown" size={14} /> : <span className="muted">–</span>}</td>
+            </tr>
+            {open === k.name && (
+              <tr className="numbers-more"><td colSpan={5}>
+                {k.notes.length ? k.notes.slice(0, 2).map(n => <p key={n.title}><b>{n.title}.</b> <span className="muted">{n.detail}</span></p>) : <p className="muted">{k.worst ? `${k.worst.label}: ${k.worst.value} (level 10: ${k.worst.normal}). Nothing to work on here.` : 'Nothing measured.'}</p>}
+                {k.notes[0] && k.notes[0].rounds.length > 0 && <div className="coach-rounds"><span className="muted">Watch:</span>{k.notes[0].rounds.slice(0, 3).map(i => <button key={i} className="round-link" onClick={() => onRound(i)}>R{i + 1}</button>)}</div>}
+              </td></tr>
+            )}
+          </Fragment>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -556,45 +597,32 @@ function DecisionsCard({ rounds, player, onRound, onHotRound }: {
     <section className="recap-card positioning">
       <div className="coach-head">
         <h2 className="display">Key moments</h2>
-        <span className="muted">what a level-10 player does in the same situation, and the coach's best option · every 2 s · {Math.max(a.n, a.engine?.n ?? 0)} moments</span>
+        <span className="muted">{a.engine ? `Accuracy ${a.engine.accuracy.toFixed(1)} (level 10 ≈ 88)` : `${a.n} moments`}</span>
       </div>
-      {a.n > 0 && <p className="coach-summary">
-        {Math.round(a.usual * 100)}% of your choices (hold, push, fall back, reposition, grenade, bomb) were ones level-10 players make in that
-        situation; level-10 players themselves: {Math.round(pro * 100)}%. {diff >= -0.03 ? 'You read situations like they do.' : diff >= -0.08 ? 'A few of your choices are ones they rarely make.' : 'You often do what level-10 players almost never do in that spot: look at the moments below.'}
-      </p>}
-      {a.engine && (
-        <>
-          <h3>The coach's best option</h3>
-          <p className="coach-summary">
-            Accuracy <b className="num">{a.engine.accuracy.toFixed(1)}</b> over {a.engine.n} moments: every 2 s, what you did against the best option the coach
-            calculated from there (hold, move, peek, a grenade you had, the bomb). Level-10 players average about 88.
-          </p>
-          {a.engine.key.length > 0 && (
-            <div className="pos-worst">
-              {a.engine.key.map((m, i) => (
-                <button key={i} className="ghost moment-card" style={{ '--cls': SEARCH_COLOR[m.cls] } as React.CSSProperties} onClick={() => onRound(m.round)} onMouseEnter={() => onHotRound(m.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review (turn on Engine lines to see it on the map)">
-                  <span className="muted num">R{m.round + 1} {Math.floor(m.t / 60)}:{String(Math.floor(m.t % 60)).padStart(2, '0')}</span>
-                  <b>{m.did.label}</b>
-                  <span className="usual" style={{ color: SEARCH_COLOR[m.cls], borderColor: SEARCH_COLOR[m.cls] }}>{m.cls} −{(m.cost * 100).toFixed(1)}%</span>
-                  <span className="muted">best: {m.options[0].label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-      {a.key.length > 0 && (
-        <><h3>Choices level-10 players rarely make</h3>
-          <div className="pos-worst">
-            {a.key.map((k, i) => (
-              <button key={i} className="ghost" onClick={() => onRound(k.round)} onMouseEnter={() => onHotRound(k.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">
-                <span className="muted num">R{k.round + 1} {Math.floor(k.t / 60)}:{String(Math.floor(k.t % 60)).padStart(2, '0')}</span>
-                <b>Chose to {ACTION_TEXT[k.did]}</b>
-                <span className="muted">level-10 players {ACTION_TEXT[k.best]} here {Math.round(k.agree * 100)}% of the time; {Math.round(k.share * 100)}% {ACTION_TEXT[k.did]}</span>
-              </button>
-            ))}
-          </div></>
-      )}
+      {/* five rows, two columns: the costliest moments of the coach's search plus the rare choices, each with a size-coloured chip */}
+      {(() => {
+        const mm = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+        const rows = [
+          ...(a.engine?.key ?? []).map(m => ({ round: m.round, t: m.t, did: m.did.label, better: m.options[0].label, cost: m.cost, rare: false })),
+          ...a.key.map(k => ({ round: k.round, t: k.t, did: `Chose to ${ACTION_TEXT[k.did]}`, better: `level 10: ${ACTION_TEXT[k.best]} (${Math.round(k.agree * 100)}%)`, cost: k.agree - k.share, rare: true })),
+        ].sort((x, y) => y.cost - x.cost).slice(0, 5);
+        return rows.length ? (
+          <ul className="km-list">
+            {rows.map((m, i) => {
+              const pctc = Math.round(Math.abs(m.cost) * 100), tone = pctc >= 12 ? 'bad' : pctc >= 5 ? 'warn' : 'flat';
+              return (
+                <li key={i}>
+                  <button className="ghost km-row" onClick={() => onRound(m.round)} onMouseEnter={() => onHotRound(m.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">
+                    <span className="num muted">R{m.round + 1} {mm(m.t)}</span>
+                    <span className="km-text"><b>{m.did}</b><span className="muted"> → better: {m.better}</span>{m.rare && <span className="chip small"> rare choice</span>}</span>
+                    <span className={`chip small km-chip ${tone}`}>−{pctc}%</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : <p className="muted">No standout moments.</p>;
+      })()}
     </section>
   );
 }
@@ -757,11 +785,11 @@ function RoundGrid({ data, players, focus, hot, onPick, onRound }: {
     && r.frames.players[ref].side !== data.rounds[i - 1].frames.players[ref].side);
   return (
     <section className="recap-card">
-      <h2 className="display">Round grades</h2>
-      <p className="muted">Click a name to focus that player · click a grade to watch the round in Review.</p>
-      <p className="rg-legend muted">
-        {ROUND_LEGEND.map(([l, t]) => <span key={l}><LetterChip letter={l} /> {t}</span>)}
-      </p>
+      <div className="coach-head"><h2 className="display">Round grades</h2>
+        <details className="help-pop"><summary aria-label="What the colours mean">?</summary>
+          <p className="rg-legend muted">{ROUND_LEGEND.map(([l, t]) => <span key={l}><LetterChip letter={l} /> {t}</span>)}</p>
+          <p className="muted small">Click a name to focus that player; click a cell to watch the round in Review.</p>
+        </details></div>
       <div className="sb-wrap">
         <table className="rg">
           <thead>
@@ -776,13 +804,13 @@ function RoundGrid({ data, players, focus, hot, onPick, onRound }: {
             </tr>
           </thead>
           <tbody>
-            {players.map(p => (
+            {[...players].sort((a, b) => Number(b.id === focus) - Number(a.id === focus)).map(p => (
               <tr key={p.id} className={p.id === focus ? 'focus' : ''}>
                 <td className="name" onClick={() => onPick(p.id)}><span className={p.team === 0 ? 'ct' : 't'}>{p.name}</span></td>
                 {p.rounds.map((l, i) => (
                   <td key={i} onClick={() => onRound(i)} className={`cell ${swap[i] ? 'half' : ''} ${hot === i ? 'hot' : ''}`}
                     title={l ? `${l.side} · ${l.role} · ${l.kills}K ${l.deaths}D · ${Math.round(l.damage)} dmg · ${l.points >= 0 ? '+' : ''}${l.points.toFixed(0)} pts${l.tags.length ? ` · ${[...new Set(l.tags)].join(', ')}` : ''}` : 'not graded yet'}>
-                    {l ? <LetterChip letter={l.letter} /> : <span className="muted">·</span>}
+                    {l ? <span className="hc" style={{ background: LETTER_COLOR[l.letter] }}><span className="hc-l">{l.letter}</span></span> : <span className="muted">·</span>}
                   </td>
                 ))}
               </tr>
