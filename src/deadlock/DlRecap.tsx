@@ -108,7 +108,7 @@ export function TeamSouls({ match, team }: { match: DlMatch; team: DlTeam }) {
 
 // ---- economy ---------------------------------------------------------------------------------------------------
 
-export function Economy({ match, slot, watch }: { match: DlMatch; slot: number; watch: (t: number) => void }) {
+export function Economy({ match, slot, watch, slim }: { match: DlMatch; slot: number; watch: (t: number) => void; slim?: boolean }) {
   const demo = useDl(s => s.demo), names = useDl(s => s.names);
   const me = match.players.find(p => p.slot === slot)!, hero = heroOf(me.hero), pos = matchPosition(match, slot);
   const rows = useMemo(() => economy(match, slot), [match, slot]);
@@ -148,6 +148,7 @@ export function Economy({ match, slot, watch }: { match: DlMatch; slot: number; 
             ...(opp ? [{ label: heroOf(opp.hero).name, color: TEAM_COLOR[opp.team], points: oppCurve }] : [])]} />
       </section>
 
+      {!slim && (
       <section className="recap-card">
         <h3>What to take away</h3>
         <ul className="dl-take">
@@ -157,6 +158,7 @@ export function Economy({ match, slot, watch }: { match: DlMatch; slot: number; 
           {!carried.length && <li className="is-up"><b>Souls spent</b> before your deaths: you never died holding much.</li>}
         </ul>
       </section>
+      )}
 
       <section className="recap-card">
         <h3>Souls a minute by phase</h3>
@@ -171,6 +173,7 @@ export function Economy({ match, slot, watch }: { match: DlMatch; slot: number; 
         </div>
       </section>
 
+      {!slim && (
       <section className="recap-card">
         <h3>Where the souls came from (by {last.minute} min)</h3>
         <ul className="dl-src">
@@ -187,13 +190,14 @@ export function Economy({ match, slot, watch }: { match: DlMatch; slot: number; 
         </ul>
         <p className="muted small">Top bar: you; under it: the average {who}.</p>
       </section>
+      )}
     </>
   );
 }
 
 // ---- items -----------------------------------------------------------------------------------------------------
 
-export function Items({ match, slot }: { match: DlMatch; slot: number }) {
+export function Items({ match, slot, slim }: { match: DlMatch; slot: number; slim?: boolean }) {
   const p = match.players.find(x => x.slot === slot)!, hero = heroOf(p.hero);
   const enemies = useMemo(() => match.players.filter(x => x.team !== p.team).map(x => x.hero), [match, p.team]);
   const [band] = useRank();
@@ -208,6 +212,7 @@ export function Items({ match, slot }: { match: DlMatch; slot: number }) {
   const PH = [['Laning', 0, 720], ['Mid game', 720, 1500], ['Late game', 1500, Infinity]] as const;
   return (
     <>
+      {!slim && (
       <section className="recap-card">
         <h3>Buy against this enemy team</h3>
         <p className="muted small">Items that win more than usual on {hero.name} against these heroes this patch ({band.label}), from public matches: the number is how much more often games with it are won against them; the heroes, who it helps most against.</p>
@@ -230,6 +235,7 @@ export function Items({ match, slot }: { match: DlMatch; slot: number }) {
           </ul>
         )}
       </section>
+      )}
 
       <section className="recap-card">
         <h3>Your build</h3>
@@ -256,6 +262,7 @@ export function Items({ match, slot }: { match: DlMatch; slot: number }) {
         <p className="muted small">Faded: sold later. Core: in most {hero.name} builds this patch. Off-meta: rarely bought but wins more on {hero.name}.</p>
       </section>
 
+      {!slim && (
       <section className="recap-card">
         <h3>Core items on {hero.name}</h3>
         {meta === null ? <Loading>Reading this patch's items…</Loading> : meta === 'error' ? <p className="muted">Couldn't read the item stats.</p> : (
@@ -275,6 +282,7 @@ export function Items({ match, slot }: { match: DlMatch; slot: number }) {
           </div>
         )}
       </section>
+      )}
     </>
   );
 }

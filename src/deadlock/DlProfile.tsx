@@ -2,7 +2,7 @@ import { lastN, plural } from '../site/format';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { useEffect, useMemo, useState } from 'react';
 import { navigate } from '../shell/router';
-import { MiniLine, ResultStrip, TrendTile } from '../site/charts';
+import { AreaChart, MiniLine, ResultStrip, TrendTile } from '../site/charts';
 import { Icon } from '../ui/Icon';
 import { Loading } from '../ui/Loading';
 import { getItem, setItem } from '../ui/localStore';
@@ -177,6 +177,7 @@ export function DlProfile({ account }: { account: string | null }) {
         <TrendTile label="Deaths" values={chrono.map(r => r.player_deaths)} fmt={v => v.toFixed(1)} higherBetter={false} />
         {ranked.length >= 2 && <TrendTile label={`Rank · ${rankName(ranked.at(-1)!.ranked_display_badge!)}`} values={ranked.map(r => r.ranked_display_badge!)} fmt={v => rankName(Math.round(v))} sub={`your last ${ranked.length} ranked`} />}
       </div>
+      <TrendsCard chrono={chrono} />
       {(leak || superPart) && (
         <div className="leak-row">
           {leak && <section className="site-card leak-card"><span className="eyebrow">Biggest leak</span><h2>{MISTAKE[leak[0] as DlTag]}</h2>
@@ -358,6 +359,25 @@ function PatchEffect({ rows }: { rows: DlHistoryRow[] }) {
         </table>
       )}
       {after.length > 0 && !heroes.length && <p className="muted small">None of your heroes since the patch were played before it in these matches.</p>}
+    </section>
+  );
+}
+
+/** One Trends card with a switch (KDA, souls a minute, last hits a minute, deaths): the same numbers as the tiles, bigger. */
+function TrendsCard({ chrono }: { chrono: DlHistoryRow[] }) {
+  const [metric, setMetric] = useState<'kda' | 'souls' | 'hits' | 'deaths'>('kda');
+  const M = {
+    kda: { label: 'KDA', f: (r: DlHistoryRow) => (r.player_kills + r.player_assists) / Math.max(1, r.player_deaths), fmt: (v: number) => v.toFixed(2), rows: chrono },
+    souls: { label: 'Souls a minute', f: spm, fmt: (v: number) => Math.round(v).toLocaleString('en-US'), rows: chrono.filter(hasSouls) },
+    hits: { label: 'Last hits a minute', f: (r: DlHistoryRow) => r.last_hits / Math.max(1, r.match_duration_s / 60), fmt: (v: number) => v.toFixed(1), rows: chrono.filter(hasSouls) },
+    deaths: { label: 'Deaths', f: (r: DlHistoryRow) => r.player_deaths, fmt: (v: number) => v.toFixed(1), rows: chrono },
+  }[metric];
+  if (M.rows.length < 3) return null;
+  return (
+    <section className="site-card trends-card">
+      <div className="card-head"><h2>Trends</h2>
+        <div className="seg-mini" role="group" aria-label="Metric">{(['kda', 'souls', 'hits', 'deaths'] as const).map(k => <button key={k} className={metric === k ? 'on' : ''} onClick={() => setMetric(k)}>{{ kda: 'KDA', souls: 'Souls/min', hits: 'Last hits/min', deaths: 'Deaths' }[k]}</button>)}</div></div>
+      <AreaChart points={M.rows.map((r, i) => ({ label: `#${i + 1} ${heroOf(r.hero_id).name}`, value: M.f(r) }))} fmt={M.fmt} />
     </section>
   );
 }
