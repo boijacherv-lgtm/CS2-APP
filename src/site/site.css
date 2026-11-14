@@ -1174,3 +1174,20 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .danger-zone h3 { margin: 0 0 6px; color: var(--bad); font-size: 16px; }
 @media (max-width: 760px) { .settings-layout { grid-template-columns: 1fr; } .settings-menu { position: static; grid-auto-flow: column; overflow-x: auto; } }
 .new-dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: var(--theme); vertical-align: middle; }
+.dev-health-group { margin-top: 10px; } .dev-health-group h3 { margin: 0 0 6px; font-size: 14px; font-weight: 500; color: var(--text-2); }
+
+/* round 10 C8: the timeline is a heat grid: 24 px cells coloured by grade, the letter on hover, you on top */
+.rg .hc { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; color: var(--ink); font-size: 12px; font-weight: 700; }
+.rg .hc .hc-l { opacity: 0; } .rg .cell:hover .hc-l, .rg .cell:focus-within .hc-l { opacity: 1; }
+.rg td.cell { padding: 2px; }
+
+/* round 10 C5: key moments, five rows in two columns */
+.km-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; max-width: 880px; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+.km-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; width: 100%; text-align: left; padding: 8px 10px; }
+.km-chip.bad { color: var(--bad); border-color: var(--bad); } .km-chip.warn { color: var(--warn); border-color: var(--warn); }
+@media (max-width: 480px) { .km-list { grid-template-columns: 1fr; } }
+
+.numbers-table { width: 100%; max-width: 880px; border-collapse: collapse; margin-top: 6px; }
+.numbers-table th, .numbers-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; } .numbers-table th:first-child, .numbers-table td:first-child { text-align: left; }
+.numbers-table th { font-weight: 500; color: var(--text-2); font-size: 14px; }
+.numbers-more td { text-align: left !important; background: var(--surface-2); }

@@ -128,11 +128,21 @@ export function Dev() {
         {DEV_TABS.map(t => <button key={t.id} className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => pickTab(t.id)}><Icon name={t.icon} size={15} /> {t.label}</button>)}
       </nav>
       <div className="dev-main">
-      <div className="dev-checks">
-        {checks.map(c => c.label === 'Demo bot' && c.value === 'not set up'
-          ? <a key={c.label} className={`dev-check ${c.tone}`} title="How to set up the demo bot" href="https://github.com/boijacherv-lgtm/CS2-APP/blob/main/server/README.md" target="_blank" rel="noreferrer"><i />{c.label}<b>{c.value} · setup</b></a>
-          : <span key={c.label} className={`dev-check ${c.tone}`} title={c.tip}><i />{c.label}<b>{c.value}</b></span>)}
-      </div>
+      {/* one Health card in three groups, the ones that need a look first */}
+      <section className="site-card dev-health">
+        <div className="card-head"><h2>Health</h2></div>
+        {([['Site', ['Build', 'Worker']], ['Coach', null], ['Bots', ['Demo bot', 'Failing demos']]] as [string, string[] | null][]).map(([group, names]) => {
+          const rank = { bad: 0, warn: 1, off: 2, ok: 3 } as const;
+          const mine = checks.filter(c => names ? names.includes(c.label) : !['Build', 'Worker', 'Demo bot', 'Failing demos'].includes(c.label)).sort((a, b) => rank[a.tone] - rank[b.tone]);
+          return mine.length ? (
+            <div key={group} className="dev-health-group"><h3>{group}</h3>
+              <div className="dev-checks">{mine.map(c => c.label === 'Demo bot' && c.value === 'not set up'
+                ? <a key={c.label} className={`dev-check ${c.tone}`} title="How to set up the demo bot" href="https://github.com/boijacherv-lgtm/CS2-APP/blob/main/server/README.md" target="_blank" rel="noreferrer"><i />{c.label}<b>{c.value}</b></a>
+                : <span key={c.label} className={`dev-check ${c.tone}`} title={c.tip}><i />{c.label}<b>{c.value}</b></span>)}</div>
+            </div>
+          ) : null;
+        })}
+      </section>
       {!owner && <p className="muted small">{LOCAL ? 'Server numbers come from the Worker: open this page on the website, logged in as the owner.' : 'Log in with Steam as the owner for the server numbers.'}</p>}
       {err && <p className="warn-text small">{err}</p>}
       {(tab === 'coach' || tab === 'disputes') && (
