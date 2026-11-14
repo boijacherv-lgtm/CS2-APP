@@ -1151,3 +1151,14 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .report .sb th.sb-name, .report .sb td.sb-name { text-align: left; }
 .report .sb thead th { position: sticky; top: 0; background: var(--surface-1); z-index: var(--z-base); }
 .report .sb tr.focus td { background: color-mix(in srgb, var(--theme) 10%, transparent); }
+
+/* round 10 C3: Side by side on the left (≤ 720), what to fix and keep on the right (≤ 420), two columns above 1100 */
+.recap-two { display: grid; gap: 14px; align-items: start; }
+@media (min-width: 1100px) { .recap-two { grid-template-columns: minmax(0, 720px) minmax(0, 420px); } }
+.recap-two .duo-table td:first-child, .recap-two .duo-table th:first-child { width: 40%; }
+.recap-two .duo-table td.hi { color: var(--good); font-weight: 600; }
+
+/* round 10 E2: Everyone / Phantom+ as a segmented control, top right of the report card */
+.dl-level { display: inline-flex; gap: 0; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; margin-left: auto; }
+.dl-level .muted { display: none; }
+.dl-level .chip { border: 0; border-radius: 0; margin: 0; }

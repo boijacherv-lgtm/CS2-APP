@@ -1129,3 +1129,20 @@ input.switch { min-height: 24px; height: 24px; }
 .steam-list td:nth-child(3) { min-width: 11ch; text-align: right; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .steam-list td:nth-child(3).win { color: var(--good); } .steam-list td:nth-child(3).loss { color: var(--bad); }
 .steam-list td:nth-child(4) { min-width: 5ch; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* round 10 C1: the player card is one row of equal tiles */
+.perf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 14px 0; }
+.perf-tiles .kpi { min-height: 112px; justify-content: space-between; }
+.perf-tiles .kpi b { font-size: 32px; }
+.perf-grade-tile .perf-letter { width: 56px; height: 56px; font-size: 32px; }
+
+/* round 10 C4: label column wide enough, one legend, the line from the number */
+.dev-label { min-width: 200px; }
+.dev-axis { display: grid; grid-template-columns: 200px 1fr auto; justify-content: space-between; font-size: 12px; }
+.dev-axis span:nth-child(2) { text-align: center; }
+.coach-top { margin: 4px 0 8px; font-size: 16px; }
+.all-numbers { margin-top: 10px; }
+
+/* round 10 E8: the look stays, the hit area is 24 px (the mark's text is decoration: the button has its own label) */
+.timeline .tl-mark::before, .timeline .tl-dot::before { content: ''; position: absolute; left: 50%; top: 50%; width: 24px; height: 24px; transform: translate(-50%, -50%); }
+.match-tab a, .match-tab-x { min-height: 24px; display: inline-flex; align-items: center; }

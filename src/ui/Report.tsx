@@ -102,6 +102,7 @@ export function MatchReportPage() {
           <Performance p={focus} players={view.players} me={me} onPlayer={setPicked} />
           {report.done && <RoundCallouts p={focus} onRound={openRound} />}
           <MatchChance data={data} team={focus.team as 0 | 1} onRound={i => openRound(i)} />
+          <div className="recap-two">
           {report.done && <DuoCard a={focus} players={view.players} />}
           <section className="recap-card overview">
             {/* half-graded notes read like verdicts: wait for every round */}
@@ -128,6 +129,7 @@ export function MatchReportPage() {
               </>
             )}
           </section>
+          </div>
         </>
       )}
       {/* one Coach tab (was Coach, Analyst, Positions and Engine): the notes, the engine's moments, the numbers, where you stood */}
@@ -289,22 +291,23 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
             title="Open your own game first and evaluate only your moves in Review (remembered in this browser)">This is me</button>
         )}
       </div>
-      <div className="perf-main">
-        <div className="perf-grades">
-          {/* one grade a match everywhere: against level 10 (the lobby grade lives in the scoreboard only) */}
-          <div className="perf-grade" title={p.level ? levelText(p.level) : p.lvl10 ? `Against FACEIT level-10 players (the coach's numbers): ${lvl10Text(p.lvl10.z)}` : `Against the other players in this lobby: ${lobbyText(p.lobbyZ)}`}>
-            {/* the reveal: the badge flips in once; S+ gets a short confetti burst (no motion with reduced motion) */}
-            <span className="perf-reveal">
-              <span className={`perf-letter display reveal g-${gradeKey(matchGrade(p))}`} style={letterStyle(matchGrade(p))}>{matchGrade(p)}</span>
-              {matchGrade(p) === 'S+' && <span className="confetti" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} style={{ '--a': `${(i * 360) / 14}deg`, '--d': `${38 + (i % 3) * 10}px` } as React.CSSProperties} />)}</span>}
-            </span>
-            <span className="muted">{p.level || p.lvl10 ? 'vs FACEIT level 10' : 'in this lobby'}{NICK[matchGrade(p)] ? <> · <b className="perf-nick">{NICK[matchGrade(p)]}</b></> : null}</span>
-            <span className="perf-sub muted" title={whyTitle(p)}>{whyGrade(p)}</span>
-          </div>
+      <div className="perf-tiles">
+        <div className="kpi perf-grade-tile" title={whyTitle(p)}>
+          <span>Grade</span>
+          {/* the reveal: the badge flips in once; S+ gets a short confetti burst (no motion with reduced motion) */}
+          <span className="perf-reveal">
+            <span className={`perf-letter display reveal g-${gradeKey(matchGrade(p))}`} style={letterStyle(matchGrade(p))}>{matchGrade(p)}</span>
+            {matchGrade(p) === 'S+' && <span className="confetti" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} style={{ '--a': `${(i * 360) / 14}deg`, '--d': `${38 + (i % 3) * 10}px` } as React.CSSProperties} />)}</span>}
+          </span>
+          <i>{p.level || p.lvl10 ? 'vs level 10' : 'in this lobby'}{NICK[matchGrade(p)] ? ` · ${NICK[matchGrade(p)]}` : ''}</i>
         </div>
-        {p.gameRating !== null && <Gauge rating={p.gameRating} rank={p.rank} />}
-      </div>
-      <div className="kpis">
+        {p.gameRating !== null && (
+          <div className="kpi" title="Estimated rating for this match (duel performance + round impact); the change is against their real Premier rating">
+            <span>Premier</span>
+            <b className="num"><CountUp text={fmt(p.gameRating)} id={`${p.id}:rating`} /></b>
+            {p.rank !== null ? <i className={p.gameRating >= p.rank ? 'up' : 'down'}>{p.gameRating >= p.rank ? '▲' : '▼'} {fmt(Math.abs(p.gameRating - p.rank))}</i> : <i>estimate</i>}
+          </div>
+        )}
         {kpi('adr', 'ADR', p.adr.toFixed(0), p.adr)}
         {kpi('kast', 'KAST', `${p.kast.toFixed(0)}%`, p.kast)}
         {kpi('impact', 'Impact', `${p.impactPerRound >= 0 ? '+' : ''}${p.impactPerRound.toFixed(1)}%`, p.impactPerRound)}
@@ -342,27 +345,33 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
   const byRole = modelFor(model, role).byRole;
   const [open, setOpen] = useState<FeatureId | null>(null);
   const rage = useStore(rageNow); useSiteConfig();
-  const rows = c.profile.slice(0, 9);
+  // five bars: your three worst against level 10 and your two best; every number is in "All numbers"
+  const byZ = [...c.profile].sort((a, b) => a.z - b.z);
+  const rows = [...byZ.filter(d => d.z < -0.3).slice(0, 3), ...[...byZ].reverse().filter(d => d.z > 0.3).slice(0, 2)];
+  const restRows = c.profile.filter(d => !rows.includes(d));
   const side = (v: number | null) => (v === null ? '–' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`);
   return (
     <section className="recap-card coach">
       <div className="coach-head">
         <h2 className="display">Coach</h2>
-        <span className="muted" title="How much you changed your team's chance to win the round, on average, on each side">Win chance you added a round: CT {side(c.sides.CT)} · T {side(c.sides.T)}</span>
+        <span className="muted" title="How much you changed your team's chance to win the round, on average, on each side">Impact per round: CT {side(c.sides.CT)} · T {side(c.sides.T)}</span>
       </div>
       {model.trainedOn > 0 && (
-        <p className="coach-vs muted" title={`Learned from ${model.trainedOn} player-games${model.source ? ` in ${model.source.demos} demos` : ''}`}>
-          Compared with {model.name ?? 'trained'} players{byRole ? ` (${role.toLowerCase()}s)` : ''}
+        <p className="coach-vs muted" title={`Compared with ${model.name ?? 'trained'} players${byRole ? ` (${role.toLowerCase()}s)` : ''}. Learned from ${model.trainedOn} player-games${model.source ? ` in ${model.source.demos} demos` : ''}`}>
+          vs {level === 'pro' ? 'pros' : 'level 10'}
         </p>
       )}
       {(() => { const top = c.improve[0], dev = top && c.profile.find(d => d.feature === top.feature), stat = dev ? `${dev.value} (level 10: ${dev.normal})` : '', t = rageSummary(top?.feature ?? null, !!top?.title.startsWith('Your '), rage, stat); return t ? <p className="coach-rage">{t}</p> : null; })()}
-      <div className="dev-axis muted"><span><Icon name="prev" size={10} /> worse than normal</span><span>better than normal <Icon name="next" size={10} /></span></div>
+      {c.improve[0] && (() => { const dev = c.profile.find(d => d.feature === c.improve[0].feature); return dev ? <p className="coach-top"><b>{c.improve[0].title}</b>: {dev.label.toLowerCase()} {dev.value} (level 10: {dev.normal})</p> : null; })()}
+      <div className="dev-axis muted"><span>worse</span><span>← level 10 →</span><span>better</span></div>
       <div className="dev-list">
         {rows.map(d => <DevRow key={d.feature} d={d} open={open === d.feature} onToggle={() => setOpen(open === d.feature ? null : d.feature)}
           onRound={onRound} onHotRound={onHotRound} />)}
       </div>
-      {c.improve.some(n => !rows.some(r => r.note === n)) && (
-        <p className="muted">{c.improve.filter(n => !rows.some(r => r.note === n)).map(n => n.title).join(' · ')}</p>
+      {restRows.length > 0 && (
+        <details className="all-numbers"><summary className="muted">All numbers ({restRows.length} more)</summary>
+          <div className="dev-list">{restRows.map(d => <DevRow key={d.feature} d={d} open={open === d.feature} onToggle={() => setOpen(open === d.feature ? null : d.feature)} onRound={onRound} onHotRound={onHotRound} />)}</div>
+        </details>
       )}
     </section>
   );
