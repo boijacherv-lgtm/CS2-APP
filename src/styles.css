@@ -1214,3 +1214,13 @@ input.switch { min-height: 24px; height: 24px; }
 .review-panel .rp-match { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
 .review-panel .rp-map { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .review-panel li, .review-panel .feed-row, .review-panel .mv { min-width: 0; }
+
+/* round 11 recheck (phone): the tab row keeps every tab (it scrolls) with the level switch on its own line; Close match sits in the flow */
+@media (max-width: 640px) {
+  .recap-tabs { flex-wrap: wrap; gap: 6px; top: 0; margin: 0 -16px 12px; padding: 8px 16px; }
+  .recap-tabs-list { flex: 1 1 100%; }
+  .recap-tabs-list button { flex: none; }
+  .recap-tabs .level-toggle { margin-left: auto; }
+  .recap-head-main .recap-close { position: static; margin: 4px 0 0; flex: 1 1 100%; justify-content: flex-start; }
+}
+@media (max-width: 640px) { .recap-tabs-list button { padding: 7px 8px; gap: 0; } .recap-tabs-list button .icon, .recap-tabs-list button svg { display: none; } }
