@@ -83,7 +83,10 @@ export function Changelog() {
 
 /** Guides: getting your match in, and what the numbers mean (round 8, C6). */
 export function Guides({ guide }: { guide?: string }) {
-  const only = guide ? GUIDES.find(g => g.slug === guide) ?? null : null;
+  const cfg = useSiteConfig();
+  const base = guide ? GUIDES.find(g => g.slug === guide) ?? null : null;
+  const over = base ? cfg.guides[base.slug] : undefined;
+  const only = base ? { ...base, h1: over?.h1 || base.h1, desc: over?.desc || base.desc } : null;
   // on a guide's own page only its section shows, under its own H1
   const show = (id: string) => !only || only.id === id;
   const head = (id: string, text: string) => (only ? null : <h2 id={id}>{text}</h2>);
