@@ -1121,3 +1121,20 @@ a.hero-games-live:hover b { text-decoration: underline; }
 /* Home "See it": three big close-ups, one under the other */
 .home .shots { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 960px; }
 .home .shot { margin: 0; } .home .shot img { display: block; width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--border); }
+
+/* round 10 A4 widths: reading cards 1120, tables 880, charts 960 (the scoreboard 980) */
+.report .recap-card .duo-table, .report .recap-card .habits-table, .report .recap-card .site-table { max-width: 880px; }
+.report .recap-card .sb-wrap { max-width: 980px; }
+.report .recap-card .split-chart, .report .recap-card .chart-wrap, .report .recap-card .area-chart { max-width: 960px; }
+.sc-divider { stroke: var(--text-3); stroke-dasharray: 3 3; }
+.split-chart svg:focus-visible { outline: 2px solid var(--theme); outline-offset: 2px; border-radius: 6px; }
+.chip.takeaway { margin-left: auto; font-size: 14px; color: var(--text-1); }
+
+/* round 10 D1: every tile the same: label, big value, one chip, sparkline with an average line */
+.trend-tile { display: grid; grid-template-rows: auto auto auto 30px auto; gap: 6px; align-content: start; min-height: 170px; }
+.tt-value { font-size: 40px; font-weight: 800; line-height: 1; font-family: var(--font-num, var(--font-display)); font-variant-numeric: tabular-nums lining-nums; }
+.tt-delta.chip { width: max-content; max-width: 100%; white-space: nowrap; font-size: 13px; padding: 2px 8px; }
+.tt-delta.chip.up { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, var(--border)); }
+.tt-delta.chip.down { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, var(--border)); }
+.stat-strip-head { margin: 0 0 6px; }
+.stat-strip .stretch-line .sl-target { stroke: var(--text-3); stroke-dasharray: 3 3; }

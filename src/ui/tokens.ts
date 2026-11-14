@@ -24,11 +24,11 @@ export const T = {
   t: '#F2B13C', tDim: '#5A4317',
   smoke: '#C9D1D9', flash: '#FFF6A8', molly: '#FF6B2C', mollyCore: '#FFB020', he: '#7BD88F',
   bomb: '#E5483A', c4: '#B8963A',
-  good: '#22C55E', warn: '#F0C33C', bad: '#E5484D',
+  good: '#2DD4BF', warn: '#F0C33C', bad: '#FF6B3D',
   // the brand's red: the logo and Rage mode, nothing else
   rage: '#FF4D3D',
   // the same on dark text: health, money, a better or worse number
-  goodSoft: '#7FD18B', badSoft: '#FF7A6E',
+  goodSoft: '#6FE3D2', badSoft: '#FF9266',
   // what the screen points at right now: a place a card names, a lineup, the spot ranking
   highlight: '#FFD166',
 } as const;
@@ -40,7 +40,7 @@ export const T = {
 export const LIGHT: Partial<Record<keyof typeof T, string>> = {
   bg0: '#F6F7F9', bg1: '#EEF1F5', surface1: '#FFFFFF', surface2: '#EEF1F5', surface3: '#E3E8EF', border: '#D9DEE6', borderStrong: '#C3CBD6',
   text1: '#0F141A', text2: '#4A5566', text3: '#6B7686', ct: '#2563EB', ctDim: '#DCE7FD', t: '#B7791F', tDim: '#F6E7CC',
-  good: '#15803D', warn: '#B45309', bad: '#DC2626', goodSoft: '#15803D', badSoft: '#DC2626', highlight: '#B7791F',
+  good: '#0F766E', warn: '#B45309', bad: '#C2410C', goodSoft: '#0F766E', badSoft: '#C2410C', highlight: '#B7791F',
 };
 /** How the site looks: the system's choice, or always dark / light (Settings → Look). */
 export type Look = 'system' | 'dark' | 'light';

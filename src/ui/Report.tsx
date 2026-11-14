@@ -219,17 +219,16 @@ function MatchChance({ data, team, onRound }: { data: DemoData; team: 0 | 1; onR
     return matchCurve(winners, team);
   }, [data, swaps, team]);
   if (data.rounds.length < 4) return null;
-  const vs = curve.map(p => p.v), peak = Math.max(...vs), low = Math.min(...vs), won = curve[curve.length - 1].v > 50;
+  const vs = curve.map(p => p.v), peak = Math.max(...vs), low = Math.min(...vs), end = vs[vs.length - 1], won = end > 50;
+  const peakAt = curve[vs.indexOf(peak)].t, lowAt = curve[vs.indexOf(low)].t, last = curve[curve.length - 1].t;
+  const story = `Peaked ${Math.round(peak)}% in R${peakAt}${low < 50 ? ` · fell to ${Math.round(low)}% by R${lowAt}` : ''} · ${won ? (low < 35 ? 'a comeback' : 'won as expected') : (peak > 65 ? 'lost from ahead' : 'never really ahead')}`;
+  const first = [...swaps].find(i => i > 0);
   return (
     <section className="recap-card match-chance">
-      <div className="coach-head"><h2 className="display">Chance to win</h2><span className="muted">from the score, round by round: every round a coin flip</span></div>
-      <div className="dl-kpis">
-        <span><b className="num">{Math.round(peak)}%</b><i>highest</i></span>
-        <span><b className="num">{Math.round(low)}%</b><i>lowest</i></span>
-        <span><b className="num" style={{ color: won ? 'var(--good)' : 'var(--bad)' }}>{won ? 'Won' : 'Lost'}</b><i>{won ? (low < 35 ? 'a comeback' : 'as expected') : (peak > 65 ? 'thrown from ahead' : 'never really ahead')}</i></span>
-      </div>
-      <SplitChart caption={`${team === 0 ? 'Team A' : 'Team B'}'s chance to win the match`} base={50} top={100} bottom={0} colors={['var(--ct)', 'var(--t)']}
-        points={curve} fmt={v => `${Math.round(v)}%`} xfmt={t => `R${t}`} ticks={[...swaps]} onPick={t => onRound(Math.max(0, Math.min(data.rounds.length - 1, t - 1)))} />
+      <div className="coach-head"><h2 className="display">Chance to win</h2><span className="chip takeaway">{story}</span></div>
+      <SplitChart caption="Your team's chance to win the match, round by round" base={50} top={100} bottom={0} colors={['var(--good)', 'var(--bad)']}
+        points={curve} fmt={v => `${Math.round(v)}%`} xfmt={t => (t === 0 ? 'Start' : `R${t}`)} xticks={Array.from({ length: Math.floor(last / 3) + 1 }, (_, k) => k * 3)} divider={first ? { t: first, label: 'Sides switched' } : null}
+        onPick={t => onRound(Math.max(0, Math.min(data.rounds.length - 1, t - 1)))} />
     </section>
   );
 }
