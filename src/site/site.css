@@ -1162,3 +1162,14 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .dl-level { display: inline-flex; gap: 0; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; margin-left: auto; }
 .dl-level .muted { display: none; }
 .dl-level .chip { border: 0; border-radius: 0; margin: 0; }
+
+/* round 10 F: Settings with a sticky menu; row = text left, control right; each setting once */
+.settings-layout { display: grid; gap: 24px; grid-template-columns: 200px minmax(0, 1fr); align-items: start; }
+.settings-menu { position: sticky; top: 72px; display: grid; gap: 2px; }
+.settings-menu a { padding: 8px 12px; border-radius: 10px; color: var(--text-2); text-decoration: none; font-weight: 500; }
+.settings-menu a:hover { background: var(--surface-2); color: var(--text-1); }
+.settings-body { display: grid; gap: 14px; max-width: 720px; }
+.settings-body .setting-text { max-width: 60ch; }
+.danger-zone { margin-top: 14px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--bad) 45%, var(--border)); border-radius: 10px; }
+.danger-zone h3 { margin: 0 0 6px; color: var(--bad); font-size: 16px; }
+@media (max-width: 760px) { .settings-layout { grid-template-columns: 1fr; } .settings-menu { position: static; grid-auto-flow: column; overflow-x: auto; } }

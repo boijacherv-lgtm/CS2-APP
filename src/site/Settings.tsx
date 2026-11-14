@@ -32,14 +32,20 @@ export function Settings() {
   return (
     <div className="page settings">
       <header className="page-head"><h1>Settings</h1></header>
+      <div className="settings-layout">
+      <nav className="settings-menu" aria-label="Settings sections">
+        {[['look', 'Look'], ['account', 'Account & privacy'], ['coach', 'Coach & Rage'], ['review', 'Review'], ['games', 'Games'], ['data', 'Tips & data']].map(([id, l]) => <a key={id} href={`#${id}`}>{l}</a>)}
+      </nav>
+      <div className="settings-body">
 
       <section className="site-card">
-        <h2>Look</h2>
+        <h2 id="look">Look</h2>
         <LookSetting />
+        <SoundSetting />
       </section>
 
       <section className="site-card">
-        <h2>Account</h2>
+        <h2 id="account">Account &amp; privacy</h2>
         {me ? (
           <div className="setting">
             <div className="setting-text">
@@ -68,23 +74,16 @@ export function Settings() {
         <Toggle label="Public profile" on={data.prefs.public} disabled={!remote}
           text={remote ? 'Friends can compare their last 5 matches with yours. Never your demos.' : 'Log in with Steam to make your profile public.'}
           onChange={v => setPrefs({ public: v })} />
-        <div className="setting">
-          <div className="setting-text"><b>Delete my data</b><span className="muted">{remote ? 'Removes your profile, goals and match list from your account.' : 'Removes the profile kept in this browser.'}</span></div>
-          {confirm
-            ? <span className="confirm-row"><button className="cta danger" onClick={forget}>Delete for good</button><button className="ghost" onClick={() => setConfirm(false)}>Cancel</button></span>
-            : <button className="cta" onClick={() => setConfirm(true)}>Delete…</button>}
-        </div>
-        {done && <p className="muted small">{done}</p>}
       </section>
 
       <section className="site-card">
-        <h2>Deadlock</h2>
-        <Toggle label="Only one player's moves" on={dlScope === 'mine'} text="Coach cards for you (or the player you click), not all twelve." onChange={v => useDl.getState().setScope(v ? 'mine' : 'all')} />
+        <h2 id="games">Games</h2>
+        <p className="muted small">Deadlock: the map and its cards. CS2 has no game-only settings yet.</p>
         <Toggle label="Danger map" on={dlDanger} text="Where high-rank players die at this point of the match." onChange={() => useDl.getState().toggleDanger()} />
       </section>
 
       <section className="site-card">
-        <h2>Coach (CS2)</h2>
+        <h2 id="coach">Coach &amp; Rage</h2>
         {flags.rage && <>
         <Toggle label="Rage mode" on={s.rage !== 'off' || askRage} text="The coach roasts your worst plays. 18+, strong language. Grades don't change." onChange={v => (v ? setAskRage(true) : s.setRage('off'))} />
         {s.rage !== 'off' && (
@@ -111,6 +110,27 @@ export function Settings() {
           </div>
         </div>
         <div className="setting">
+          <div className="setting-text"><b>Whose moves</b><span className="muted">Coach cards for every player, or only you (or the player you click). Both games.</span></div>
+          <div className="seg-mini">
+            <button className={s.evalScope === 'all' ? 'on' : ''} onClick={() => { s.setEvalScope('all'); useDl.getState().setScope('all'); }}>All</button>
+            <button className={s.evalScope === 'mine' ? 'on' : ''} onClick={() => { s.setEvalScope('mine'); useDl.getState().setScope('mine'); }}>Mine</button>
+          </div>
+        </div>
+      </section>
+
+      <section className="site-card">
+        <h2 id="review">Review</h2>
+        <Toggle label="Move cards" on={s.popups} text="A card with the grade and the reasons for each graded move." onChange={s.setPopups} />
+        <Toggle label="Arrows" on={s.engineLines} text="The coach's best option drawn next to what was done." onChange={s.setEngineLines} />
+        <Toggle label="Slow motion while reading" on={s.readSlow} text="The replay slows down while a card is open." onChange={s.setReadSlow} />
+      </section>
+      <section className="site-card">
+        <h2 id="data">Tips &amp; data</h2>
+        <div className="setting">
+          <div className="setting-text"><b>Tips</b><span className="muted">The welcome card and the one-line hints, once more.</span></div>
+          <button className="ghost small-btn" onClick={() => { resetHints(); setTipsReset(true); }} disabled={tipsReset}>{tipsReset ? 'They\'ll show again' : 'Show the tips again'}</button>
+        </div>
+        <div className="setting">
           <div className="setting-text">
             <b>Your "Coach wrong" marks</b>
             <span className="muted">{data.verdicts.length
@@ -119,25 +139,19 @@ export function Settings() {
           </div>
           <button className="cta" disabled={!data.verdicts.length} onClick={() => downloadVerdicts(data.verdicts)} title="A file for the coach's learning tools (my-demos folder)">Download my "Coach wrong" marks</button>
         </div>
-      </section>
-
-      <section className="site-card">
-        <h2>Review</h2>
-        <Toggle label="Move cards" on={s.popups} text="A card with the grade and the reasons for each graded move." onChange={s.setPopups} />
-        <Toggle label="Arrows" on={s.engineLines} text="The coach's best option drawn next to what was done." onChange={s.setEngineLines} />
-        <Toggle label="Slow motion while reading" on={s.readSlow} text="The replay slows down while a card is open." onChange={s.setReadSlow} />
+        <div className="danger-zone">
+          <h3>Danger zone</h3>
         <div className="setting">
-          <div className="setting-text"><b>Grade</b><span className="muted">Every player's moves, or only yours.</span></div>
-          <div className="seg-mini">
-            <button className={s.evalScope === 'all' ? 'on' : ''} onClick={() => s.setEvalScope('all')}>All</button>
-            <button className={s.evalScope === 'mine' ? 'on' : ''} onClick={() => s.setEvalScope('mine')}>Mine</button>
-          </div>
+          <div className="setting-text"><b>Delete my data</b><span className="muted">{remote ? 'Removes your profile, goals and match list from your account.' : 'Removes the profile kept in this browser.'}</span></div>
+          {confirm
+            ? <span className="confirm-row"><button className="cta danger" onClick={forget}>Delete for good</button><button className="ghost" onClick={() => setConfirm(false)}>Cancel</button></span>
+            : <button className="cta" onClick={() => setConfirm(true)}>Delete…</button>}
         </div>
-        <div className="setting">
-          <div className="setting-text"><b>Tips</b><span className="muted">The welcome card and the one-line hints, once more.</span></div>
-          <button className="ghost small-btn" onClick={() => { resetHints(); setTipsReset(true); }} disabled={tipsReset}>{tipsReset ? 'They\'ll show again' : 'Show the tips again'}</button>
+        {done && <p className="muted small">{done}</p>}
         </div>
       </section>
+      </div>
+      </div>
     </div>
   );
 }
@@ -172,4 +186,10 @@ function LookSetting() {
       </div>
     </div>
   );
+}
+
+/** Sound on a puzzle answer (the same switch as the speaker button on Puzzles). */
+function SoundSetting() {
+  const [on, setOn] = useState(() => { try { return localStorage.getItem('rageview.sound') !== '0'; } catch { return true; } });
+  return <Toggle label="Sound" text="Two short tones on a right or wrong puzzle answer." on={on} onChange={v => { setOn(v); try { localStorage.setItem('rageview.sound', v ? '1' : '0'); } catch { /* private mode */ } }} />;
 }
