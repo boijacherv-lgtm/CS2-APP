@@ -104,47 +104,57 @@ export function ScoreBug({ score, round, roundNo, time, switched }: {
   const fuse = plantedAt !== null ? Math.max(0, BOMB_SECONDS - (time - plantedAt)) : null;
   const ended = bomb?.kind === 'defuse' || bomb?.kind === 'explode';
   const left = fuse ?? ROUND_SECONDS - time;
-  let strip: { cls: string; label: string; share: number; icon?: 'bomb' | 'scissors' } | null = null;
-  let defuse: { share: number; ok: boolean } | null = null;
-  if (bomb?.kind === 'defuse') strip = { cls: 'defused', label: 'Bomb defused', share: 1, icon: 'scissors' };
-  else if (bomb?.kind === 'explode') strip = { cls: 'exploded', label: 'Bomb exploded', share: 1, icon: 'bomb' };
-  else if (act?.kind === 'defuse') {
+  const al = aliveAt(round, time);
+  // ONE timer line under the bar (3 px): planting fills it (3.2 s), the fuse drains it (amber, orange ≤ 10, red ≤ 5), a defuse
+  // fills CT blue over it (striped red when it can't finish)
+  const planting = act?.kind === 'plant' && !ended ? Math.min(1, (time - act.t) / PLANT_SECONDS) : null;
+  const tone = fuse === null ? '' : fuse > 10 ? 'amber' : fuse > 5 ? 'orange' : 'red';
+  let defuse: { share: number; ok: boolean; need: number; kit: boolean } | null = null;
+  if (act?.kind === 'defuse' && !ended) {
     const full = act.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS, made = time - act.t, need = Math.max(0, full - made);
-    const ok = fuse === null || need <= fuse;
-    defuse = { share: Math.min(1, made / full), ok };
-    strip = ok
-      ? { cls: 'defusing ok', label: `Defusing${act.kit ? ' with kit' : ''} · ${need.toFixed(1)} s`, share: defuse.share, icon: 'scissors' }
-      : { cls: 'defusing late', label: `Too late · ${(need - (fuse ?? 0)).toFixed(1)} s short`, share: defuse.share, icon: 'scissors' };
-  } else if (act?.kind === 'plant') strip = { cls: 'planting', label: `Planting · ${Math.max(0, PLANT_SECONDS - (time - act.t)).toFixed(1)} s`, share: Math.min(1, (time - act.t) / PLANT_SECONDS), icon: 'bomb' };
-  else if (fuse !== null && !ended && fuse > 0) {
-    // after the plant: what the CTs need to stop it
-    const { alive, kit } = ctsAt(round, time);
-    if (alive > 0) strip = { cls: 'helper', label: `${alive} CT left · need ${kit ? '5 s with kit' : '10 s without kit'} · ${Math.ceil(fuse)} s left`, share: 0 };
+    defuse = { share: Math.min(1, made / full), ok: fuse === null || need <= fuse, need, kit: !!act.kit };
   }
-  // (the fuse itself counts down in the clock above: one timer, not two)
+  // the end flashes in the centre for 1.5 s: DEFUSED (CT blue) or EXPLODED
+  const flash = bomb?.kind === 'defuse' || bomb?.kind === 'explode' ? (time - bomb.since < 1.5 ? bomb.kind : null) : null;
+  const dots = (n: number, side: 'ct' | 't') => <span className={`sb-dots ${side}`} aria-label={`${n} ${side.toUpperCase()} alive`}>{Array.from({ length: 5 }, (_, k) => <i key={k} className={k < n ? 'on' : ''} />)}</span>;
+  const clockText = fuse !== null && !ended ? String(Math.ceil(fuse)) : ended ? clock(ROUND_SECONDS - time) : clock(left);
   return (
     <div className="scorebug">
-      <div className="sb-main">
-        <span className="sb-team ct">CT</span>
-        <span className="sb-score ct num">{score[0]}</span>
-        <span className={`sb-clock num ${fuse !== null && !ended ? `bomb ${fuse > 10 ? 'amber' : fuse > 5 ? 'orange' : 'red'}` : left <= 10 && !ended ? 'low' : ''}`}>
-          {fuse !== null && !ended ? <><BombDial fuse={fuse} defuse={defuse} />{Math.ceil(fuse)}</> : ended ? clock(ROUND_SECONDS - time) : clock(left)}
-        </span>
-        <span className="sb-score t num">{score[1]}</span>
-        <span className="sb-team t">T</span>
+      <div className="sb-bar" title={`Round ${roundNo}`}>
+        <div className="sb-side ct"><span className="sb-team">CT</span><span className="sb-score num">{score[0]}</span>{dots(al.ct, 'ct')}</div>
+        <div className={`sb-mid ${flash ? `flash ${flash}` : ''}`}>
+          {flash ? <span className="sb-flash"><Icon name={flash === 'defuse' ? 'scissors' : 'bomb'} size={14} />{flash === 'defuse' ? 'DEFUSED' : 'EXPLODED'}</span>
+            : <span className={`sb-clock num ${fuse !== null && !ended ? `bomb ${tone}` : left <= 10 && !ended ? 'low' : ''}`}>
+              {(planting !== null || (fuse !== null && !ended)) && <Icon name="bomb" size={16} />}{planting !== null ? '' : clockText}
+            </span>}
+        </div>
+        <div className="sb-side t">{dots(al.t, 't')}<span className="sb-score num">{score[1]}</span><span className="sb-team">T</span></div>
       </div>
-      <div className="sb-round">Round {roundNo}</div>
+      <div className={`sb-line ${planting !== null ? 'planting' : fuse !== null && !ended ? `fuse ${tone}` : ''}`} aria-hidden="true">
+        {planting !== null && <i style={{ width: `${Math.round(planting * 100)}%` }} />}
+        {fuse !== null && !ended && <i style={{ width: `${Math.round((fuse / BOMB_SECONDS) * 100)}%` }} />}
+        {defuse && <b className={defuse.ok ? 'ok' : 'late'} style={{ width: `${Math.round(defuse.share * 100)}%` }} />}
+      </div>
+      {defuse ? <div className={`sb-note ${defuse.ok ? 'ok' : 'late'}`}>{defuse.ok ? `Defusing · ${defuse.need.toFixed(1)} s` : 'Too late'}</div>
+        : fuse !== null && !ended && fuse > 0 && al.ct > 0 && al.kit ? <div className="sb-note">Kit defuse needs 5 s</div> : null}
       {switched && time < SWITCH_BANNER && (
         <div className="sb-switch" role="status"><Icon name="swap" size={13} /> Sides switched · {switched}'s team is CT now</div>
       )}
-      {strip && (
-        <div className={`sb-strip ${strip.cls}`}>
-          <i style={{ width: `${Math.round(strip.share * 1000) / 10}%` }} />
-          <span>{strip.icon && <Icon name={strip.icon} size={12} />}{strip.label}</span>
-        </div>
-      )}
     </div>
   );
+}
+
+/** Players alive on each side at time t, and whether a living CT has a kit. */
+function aliveAt(r: DemoRound, t: number) {
+  const ft = r.frames.t;
+  let k = 0;
+  while (k + 1 < ft.length && ft[k + 1] <= t) k++;
+  let ct = 0, tt = 0, kit = false;
+  for (const [id, f] of Object.entries(r.frames.players)) {
+    if (!f.alive[k]) continue;
+    if (f.side === 'CT') { ct++; if (gearAt(r, id, t)?.kit) kit = true; } else tt++;
+  }
+  return { ct, t: tt, kit };
 }
 
 /** CTs alive at time t, and whether any of them carries a defuse kit. */
