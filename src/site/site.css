@@ -1132,8 +1132,8 @@ a.hero-games-live:hover b { text-decoration: underline; }
 
 /* round 10 D1: every tile the same: label, big value, one chip, sparkline with an average line */
 .trend-tile { display: grid; grid-template-rows: auto auto auto 30px auto; gap: 6px; align-content: start; min-height: 170px; }
-.tt-value { font-size: 40px; font-weight: 800; line-height: 1; font-family: var(--font-num, var(--font-display)); font-variant-numeric: tabular-nums lining-nums; }
-.tt-delta.chip { width: max-content; max-width: 100%; white-space: nowrap; font-size: 13px; padding: 2px 8px; }
+.tt-value { font-size: 48px; font-weight: 800; line-height: 1; font-family: var(--font-num, var(--font-display)); font-variant-numeric: tabular-nums lining-nums; }
+.tt-delta.chip { width: max-content; max-width: 100%; white-space: nowrap; font-size: 14px; padding: 2px 8px; }
 .tt-delta.chip.up { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, var(--border)); }
 .tt-delta.chip.down { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, var(--border)); }
 .stat-strip-head { margin: 0 0 6px; }
