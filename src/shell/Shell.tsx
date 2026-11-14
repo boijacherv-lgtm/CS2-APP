@@ -2,6 +2,7 @@ import { GUIDES } from '../site/guideList';
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { reportError, reportGradingTime } from '../ui/telemetry';
 import { ToastHost } from '../ui/closeMatch';
+import { useConfigProblem } from '../ui/siteConfig';
 import { useSiteConfig } from '../ui/siteConfig';
 import type { RoundSummary } from '../engine/match';
 import { finishSteamLogin } from '../ui/steamApi';
@@ -97,6 +98,7 @@ export function Shell() {
       </main>
       <Hints />
       <ToastHost />
+      <ConfigWarning />
     </div>
   );
 }
@@ -182,4 +184,11 @@ class PageGuard extends Component<{ children: ReactNode }, { failed: boolean }> 
       ? <div className="page not-found"><h1>This page broke.</h1><p className="muted">Something went wrong showing it. Reload, or go back home.</p><p><a className="cta" href="/">Back to home</a></p></div>
       : this.props.children;
   }
+}
+
+/** The owner's own sessions say so when the site's config didn't load (the visitors silently get the defaults). */
+function ConfigWarning() {
+  const problem = useConfigProblem(), owner = useProfile(s => !!s.me?.owner);
+  if (!problem || !owner) return null;
+  return <div className="login-failed" role="alert"><span>Config failed to load ({problem}). Visitors see the built-in content; your edits on the dev page won't show until it does.</span></div>;
 }

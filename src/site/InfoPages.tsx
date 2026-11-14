@@ -2,8 +2,9 @@
  * Privacy (what the site keeps, where, and what it sends) and What's new (the changelog). Plain pages; the privacy
  * text follows the code: worker/src/profile.ts, clips.ts, dlDisputes.ts, the Deadlock bot and the browser stores.
  */
+import { siteConfig, useSiteConfig } from '../ui/siteConfig';
 import { GUIDES } from './guideList';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { APP_NAME } from '../shell/Logo';
 import DEATHS from '../map/generated/death-spots.json';
 import { mapName } from './format';
@@ -61,11 +62,16 @@ const CHANGES: { date: string; items: string[] }[] = [
   { date: 'Nov 4, 2026', items: ['Deadlock engine: win chance, likely moves, fights and a 2-step search grade every move, like a chess engine.', 'Every hero\'s abilities and ultimate explained in the recap.', 'Deadlock replay files read in your browser.'] },
 ];
 
+export const CHANGES_SEEN = 'rageview.changesSeen';
+/** The newest entry's date (the dev page's entries come first), for the footer's "New" dot. */
+export const latestChange = () => siteConfig().changelog[0]?.date ?? CHANGES[0].date;
 export function Changelog() {
+  const cfg = useSiteConfig();
+  useEffect(() => { try { localStorage.setItem(CHANGES_SEEN, latestChange()); } catch { /* private mode */ } }, [cfg.changelog]);
   return (
     <div className="page info-page">
       <h1>What's new</h1>
-      {CHANGES.map(c => (
+      {[...cfg.changelog, ...CHANGES].map(c => (
         <section key={c.date}>
           <h2>{c.date}</h2>
           <ul>{c.items.map(i => <li key={i}>{i}</li>)}</ul>

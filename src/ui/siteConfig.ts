@@ -29,11 +29,18 @@ export function useSiteConfig(): SiteConfig {
 /** Called once at start-up (main.tsx). */
 export function loadSiteConfig() {
   if (!API_URL) return;
-  fetch(`${API_URL}/config`, { signal: AbortSignal.timeout(6000) })
-    .then(r => (r.ok ? (r.json() as Promise<SiteConfig>) : null))
-    .then(c => { if (c) setSiteConfig({ ...DEFAULT_CONFIG, ...c, flags: { ...DEFAULT_CONFIG.flags, ...c.flags } }); })
-    .catch(() => { /* the defaults stay */ });
+  const once = () => fetch(`${API_URL}/config`, { signal: AbortSignal.timeout(6000) })
+    .then(r => (r.ok ? (r.json() as Promise<SiteConfig>) : Promise.reject(new Error(`The Worker answered ${r.status}.`))))
+    .then(c => { configError = null; setSiteConfig({ ...DEFAULT_CONFIG, ...c, flags: { ...DEFAULT_CONFIG.flags, ...c.flags } }); })
+    .catch(e => { configError = e instanceof Error ? e.message : String(e); subs.forEach(f => f()); /* the defaults stay */ });
+  void once();
+  // edits from the dev page show without a reload: look again every minute while the tab is open
+  setInterval(() => { if (document.visibilityState === 'visible') void once(); }, 60_000);
 }
+/** Why the config didn't load (shown to the owner only); null when it did. */
+let configError: string | null = null;
+export const configProblem = () => configError;
+export const useConfigProblem = () => useSyncExternalStore(f => { subs.add(f); return () => subs.delete(f); }, () => configError);
 
 /** Pro for everyone while early access is on (dev page → Content → flags); there are no payments yet. */
 export const proEarlyAccess = () => config.flags.proEarlyAccess;
