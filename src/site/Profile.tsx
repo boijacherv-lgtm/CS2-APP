@@ -30,13 +30,16 @@ function StatStrip({ matches }: { matches: ProfileMatch[] }) {
   if (!chrono.length) return null;
   const rated = chrono.flatMap(m => (premierOf(m) !== null ? [premierOf(m)!] : []));
   return (
+    <div className="stat-strip-wrap">
+    <p className="muted small stat-strip-head">Last match vs your last {chrono.length}</p>
     <div className="trend-row stat-strip">
       <TrendTile label="K/D" values={chrono.map(m => (m.deaths ? m.kills / m.deaths : m.kills))} fmt={v => v.toFixed(2)} />
       <TrendTile label="ADR" values={chrono.map(m => m.adr)} fmt={v => v.toFixed(0)} />
       <TrendTile label="KAST" values={chrono.map(m => m.kast)} fmt={v => `${v.toFixed(0)}%`} />
       <TrendTile label="HS%" values={chrono.map(m => m.hs)} fmt={v => `${v.toFixed(0)}%`} />
-      {rated.length >= 2 && <TrendTile label="Premier" values={rated} fmt={v => fmtInt(v)} sub="last 10 matches" />}
+      {rated.length >= 2 && <TrendTile label="Premier" values={rated} fmt={v => fmtInt(v)} sub="rating going in" />}
       {chrono.length < 2 && <p className="muted small">One more match and the trends start.</p>}
+    </div>
     </div>
   );
 }
@@ -70,7 +73,7 @@ function LeakCard({ matches }: { matches: ProfileMatch[] }) {
       <span className="eyebrow">Biggest leak</span>
       <h2>{leak.title}</h2>
       <p className="leak-num">{leak.cost !== null && leak.cost > 0
-        ? <>Costs you <b>~{Math.round(leak.cost * 100)}% win chance</b> a match</>
+        ? <>Costs you about <b>{Math.min(3, leak.cost).toFixed(1)} rounds</b> a match</>
         : <>{leak.row.label}: you <b>{leak.row.fmt(leak.row.you)}</b> · level 10 {leak.row.fmt(leak.row.lvl10)}</>}</p>
       {leak.clip && (
         <p className="leak-clips">
@@ -82,8 +85,9 @@ function LeakCard({ matches }: { matches: ProfileMatch[] }) {
         {progress.b < progress.a ? 'Down' : 'Up'} from {goalInfo(id).fmt(progress.a)} to {goalInfo(id).fmt(progress.b)} since {fmtDate(progress.since)}</p>}
       <div className="hero-cta">
         <a className="cta" href="/puzzles">Practise in Puzzles</a>
-        {!goal && <button className="cta primary" disabled={ids.length >= MAX_GOALS} title={ids.length >= MAX_GOALS ? `You have ${MAX_GOALS} goals already` : undefined}
-          onClick={() => setGoals([...ids, id])}>Make it a goal</button>}
+        {!goal && (ids.length >= MAX_GOALS
+          ? <a className="cta" href="#goals" title={`You have ${MAX_GOALS} goals already: change one to make room`}>Goals full · manage</a>
+          : <button className="cta primary" onClick={() => setGoals([...ids, id])}>Make it a goal</button>)}
       </div>
     </section>
   );
@@ -282,7 +286,7 @@ function Goals({ matches }: { matches: ProfileMatch[] }) {
   const suggested = useMemo(() => habits(matches)?.work.map(r => r.id as GoalId) ?? [], [matches]);
   const toggle = (id: GoalId) => setGoals(ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id].slice(0, MAX_GOALS));
   return (
-    <section className="site-card goals">
+    <section className="site-card goals" id="goals">
       <div className="card-head">
         <h2><Icon name="goal" size={16} /> Goals</h2>
         <button className="ghost small-btn" onClick={() => setEditing(!editing)}>{editing ? 'Done' : ids.length ? 'Change' : 'Pick goals'}</button>

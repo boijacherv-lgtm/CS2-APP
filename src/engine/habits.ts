@@ -133,5 +133,5 @@ export function goalInfo(id: GoalId): GoalInfo {
   return { id, label: FEATURE_LABEL[f], fmt: FMT[f] ?? PCT, lvl10: modelFor(COACH_MODEL, 'Rifler').features[f]?.baseline ?? null, higherBetter: BETTER[f] !== 'low', tip: TIP[f] };
 }
 /** Every habit that can be a goal, in a sensible order. */
-export const GOAL_CHOICES: GoalId[] = ['isolatedDeaths', 'untradedDeaths', 'openingDeaths', 'loud', 'stopped', 'aim', 'react', 'unusedUtil', 'wastedFlashes',
+export const GOAL_CHOICES: GoalId[] = ['isolatedDeaths', 'untradedDeaths', 'openingDeaths', 'stopped', 'aim', 'react', 'unusedUtil', 'wastedFlashes',
   'teamHarm', 'whiffs', 'lowHpFights', 'trades', 'utilDamage', 'flashAssists', 'adr', 'kast', 'hs', 'impact', 'awpLost'];

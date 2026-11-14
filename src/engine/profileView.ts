@@ -23,7 +23,7 @@ export const LEAK_TITLE: Record<string, string> = {
   teamHarm: 'You hurt your own team', awpLost: 'You lose the AWP', lowHpFights: 'You take fights on low HP', adr: 'Your damage is low',
   kast: 'Too many rounds without impact', hs: 'Few of your kills are headshots', utilDamage: 'Your grenades do little damage',
   flashAssists: 'Your flashes rarely set up kills', trades: 'You don\'t trade your teammates', impact: 'You rarely swing rounds',
-  loud: 'You run near enemies', react: 'You react late', aim: 'Your crosshair sits off the head', stopped: 'You shoot while moving',
+  react: 'You react late', aim: 'Your crosshair sits off the head', stopped: 'You shoot while moving',
 };
 /** Each habit as a strength. */
 export const SUPER_TITLE: Record<string, string> = {
@@ -31,7 +31,7 @@ export const SUPER_TITLE: Record<string, string> = {
   whiffs: 'Your sprays land', unusedUtil: 'You use your grenades', wastedFlashes: 'Your flashes land', teamHarm: 'You never hurt your team',
   awpLost: 'You keep the AWP', lowHpFights: 'You hide when hurt', adr: 'High damage', kast: 'Useful every round', hs: 'Headshots',
   utilDamage: 'Grenade damage', flashAssists: 'Flashes that set up kills', trades: 'You trade your teammates', impact: 'You swing rounds',
-  loud: 'Quiet moving', react: 'Fast reactions', aim: 'Crosshair on the head', stopped: 'Counter-strafing',
+  react: 'Fast reactions', aim: 'Crosshair on the head', stopped: 'Counter-strafing',
 };
 
 export interface Leak {
@@ -49,10 +49,13 @@ const costOf = (ms: ProfileMatch[], id: GoalId) => {
 };
 
 /** The habit that costs you most: by win chance lost where the matches have it, else the furthest below level 10. */
+/** Only habits a player can act on are ranked as a leak (footsteps near enemies, reaction time and the like stay in the coach). */
+const ACTIONABLE = new Set(['untradedDeaths', 'isolatedDeaths', 'openingDeaths', 'wastedFlashes', 'teamHarm', 'lowHpFights', 'whiffs', 'stopped', 'trades', 'unusedUtil']);
 export function biggestLeak(ms: ProfileMatch[]): Leak | null {
+  if (ms.length < 3) return null;
   const h = habits(ms);
   if (!h) return null;
-  const below = h.rows.filter(r => r.z < -0.1 && LEAK_TITLE[r.id]);
+  const below = h.rows.filter(r => r.z < -0.1 && LEAK_TITLE[r.id] && ACTIONABLE.has(r.id));
   if (!below.length) return null;
   const costed = below.map(r => ({ r, cost: costOf(ms, r.id as GoalId) }));
   const ranked = costed.some(x => (x.cost ?? 0) > 0)
@@ -76,7 +79,7 @@ export const SKILLS: { name: string; ids: string[] }[] = [
   { name: 'Aim duels', ids: ['hs', 'whiffs', 'aim', 'stopped', 'react'] },
   { name: 'Trades', ids: ['trades', 'untradedDeaths'] },
   { name: 'Utility', ids: ['utilDamage', 'flashAssists', 'wastedFlashes', 'unusedUtil', 'teamHarm'] },
-  { name: 'Positioning', ids: ['isolatedDeaths', 'openingDeaths', 'loud', 'lowHpFights'] },
+  { name: 'Positioning', ids: ['isolatedDeaths', 'openingDeaths', 'lowHpFights'] },
   // Economy has no level-10 number yet, so it isn't on the map (nor on the CS2 page's grades); Clutches shows once you've played one
   { name: 'Clutches', ids: [] },
 ];

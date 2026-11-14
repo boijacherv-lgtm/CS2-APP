@@ -1,53 +1,53 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="robots" content="noindex" />
-<title>RageView type preview</title>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="robots" content="noindex" />
+<title>RageView type preview, round 10</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@600;700;800&family=Onest:wght@400;500;600&family=Unbounded:wght@600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Sofia+Sans+Extra+Condensed:wght@700;800&family=Oswald:wght@600&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet" />
 <style>
-  :root { color-scheme: dark; --bg:#0A0C10; --card:#12161C; --line:#262D38; --text:#ECEFF4; --mute:#A3ACBA; --accent:#F2A23A; }
+  :root { color-scheme: dark; --bg:#0A0C10; --card:#12161C; --card2:#191E26; --line:#262D38; --text:#ECEFF4; --mute:#A3ACBA; --ct:#5B9BFF; --t:#F2B13C; --good:#2DD4BF; --bad:#FF6B3D; }
   * { box-sizing: border-box; } body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.5 Onest, system-ui, sans-serif; padding: 24px 16px 64px; }
-  main { max-width: 1100px; margin: 0 auto; display: grid; gap: 24px; }
-  h1.page { font: 600 20px Onest; margin: 0; } p.note { color: var(--mute); margin: 4px 0 0; max-width: 68ch; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
-  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
-  .opt { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: grid; gap: 14px; align-content: start; }
-  .tag { font: 500 12px Onest; color: var(--accent); letter-spacing: .02em; }
-  .h { margin: 0; color: var(--text); }
-  .a .h { font: 700 clamp(32px, 4vw, 56px)/1.05 Geologica, Onest, sans-serif; letter-spacing: -.015em; }
-  .b .h { font: 600 clamp(32px, 3.4vw, 44px)/1.1 Unbounded, Onest, sans-serif; }
-  .opt p { margin: 0; color: var(--mute); max-width: 68ch; }
-  .btn { display: inline-block; padding: 10px 16px; border-radius: 10px; background: var(--accent); color: #1A1206; font: 600 16px Onest; width: max-content; }
-  .names { display: grid; gap: 4px; font: 600 16px Onest; } .names span { color: var(--mute); font: 400 14px Onest; }
-  .names.a-n b { font: 700 20px Geologica; } .names.b-n b { font: 600 20px Unbounded; }
-  .phone { max-width: 375px; border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--bg); }
-  .phone .h { font-size: 32px !important; }
-  .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
-</style>
-</head>
-<body>
-<main>
-  <div><h1 class="page">Headline fonts: two options, same copy</h1>
-    <p class="note">Body stays Onest 16 px. Only headlines change. Check the Cyrillic names, the long headline, and the phone width. Option A is Geologica 700 with −1.5% letter-spacing; option B is Unbounded 600 capped at 44 px (32 px on phones).</p></div>
-  <div class="grid">
-    <section class="opt a"><span class="tag">A · Geologica 700 (my pick)</span>
-      <h2 class="h">Every move you make, graded.</h2>
-      <p>Load a match. The coach marks every kill, death and grenade, right or wrong, and shows the better play.</p>
-      <span class="btn">Review my match</span>
-      <div class="names a-n"><b>Игрок КРЫСА убил ВАСЯ228</b><b>Дмитрий «Шмель» Кузнецов</b><b>Every CS2 round, graded.</b><span>Player names in the app stay in Onest.</span></div>
-      <div class="phone"><h2 class="h">Every move you make, graded.</h2></div>
-    </section>
-    <section class="opt b"><span class="tag">B · Unbounded 600, capped</span>
-      <h2 class="h">Every move you make, graded.</h2>
-      <p>Load a match. The coach marks every kill, death and grenade, right or wrong, and shows the better play.</p>
-      <span class="btn">Review my match</span>
-      <div class="names b-n"><b>Игрок КРЫСА убил ВАСЯ228</b><b>Дмитрий «Шмель» Кузнецов</b><b>Every CS2 round, graded.</b><span>Player names in the app stay in Onest.</span></div>
-      <div class="phone"><h2 class="h">Every move you make, graded.</h2></div>
-    </section>
+  main { max-width: 1240px; margin: 0 auto; display: grid; gap: 20px; } h1 { font: 600 20px Onest; margin: 0; } .note { color: var(--mute); margin: 4px 0 0; max-width: 70ch; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; } @media (max-width: 460px) { .opts { grid-template-columns: 1fr; } }
+  .opt { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 16px; align-content: start; }
+  .tag { font: 500 14px Onest; color: #F2A23A; }
+  .A { --f: 'Sofia Sans Extra Condensed', 'Oswald', sans-serif; --w: 800; } .B { --f: 'Oswald', sans-serif; --w: 600; } .C { --f: 'Roboto Condensed', sans-serif; --w: 700; }
+  .num, .hero, .hud b, .tile b, .badge { font-family: var(--f); font-weight: var(--w); font-variant-numeric: tabular-nums lining-nums; }
+  .hero { font-size: 52px; line-height: 1; letter-spacing: .005em; margin: 0; text-transform: none; }
+  .hud { display: flex; align-items: center; gap: 0; height: 44px; width: max-content; max-width: 100%; transform: skewX(-10deg); background: rgba(10,12,16,.85); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .hud > * { transform: skewX(10deg); padding: 0 14px; display: flex; align-items: center; gap: 8px; height: 100%; }
+  .hud .ct { box-shadow: inset 3px 0 var(--ct); } .hud .t { box-shadow: inset -3px 0 var(--t); } .hud b { font-size: 32px; } .hud .clock { font-size: 28px; font-weight: var(--w); font-family: var(--f); }
+  .hud small { font: 500 14px Onest; color: var(--mute); }
+  .row { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 10px; align-items: center; padding: 8px 10px; background: var(--card2); border-radius: 10px; }
+  .row .name { font: 500 15px Onest; } .row .num { font-size: 24px; text-align: right; }
+  .tiles { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; } .tile { background: var(--card2); border-radius: 10px; padding: 10px; display: grid; gap: 2px; }
+  .tile span { font: 500 14px Onest; color: var(--mute); } .tile b { font-size: 40px; line-height: 1; } .tile i { font: 500 13px Onest; font-style: normal; color: var(--good); }
+  .badge { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 16px; background: #9BD653; color: #0A0C10; font-size: 52px; }
+  .cyr { font: 500 16px Onest; } .cyr .num { font-size: 22px; } .mono { color: var(--mute); font: 400 14px Onest; }
+  .mini { display: grid; gap: 8px; }
+</style></head>
+<body><main>
+  <div><h1>Number and headline fonts: three options</h1>
+    <p class="note">Text stays Onest everywhere. Only the condensed face for numbers, scores, the scoreboard, grade letters and headlines changes. All three have Cyrillic. Look at the clock, the scoreboard row, the five tiles and the Cyrillic name. A is my pick (narrowest, most weight range). Nothing is switched on the site yet.</p></div>
+  <div class="opts">
+    <section class="opt A"><span class="tag">A · Sofia Sans Extra Condensed 800</span>
+      <p class="hero">Every move you make, graded.</p>
+      <div class="hud"><div class="ct"><small>CT</small><b>8</b></div><div class="clock">1:34</div><div class="t"><b>5</b><small>T</small></div></div>
+      <div class="row"><span class="name">Игрок КРЫСА</span><span class="num">23/21</span><span class="num">81</span><span class="num">72%</span><span class="num">+7.1%</span></div>
+      <div class="tiles"><div class="tile"><span>Grade</span><div class="badge" style="width:48px;height:48px;font-size:34px">A</div></div><div class="tile"><span>Premier</span><b>9,789</b><i>▲ 363</i></div><div class="tile"><span>ADR</span><b>86</b><i>▲ 4</i></div><div class="tile"><span>KAST</span><b>72%</b><i>≈</i></div><div class="tile"><span>Impact</span><b>+2.5%</b><i>▲ 0.4</i></div></div>
+      <p class="cyr">Дмитрий «Шмель» Кузнецов · <span class="num">11–13</span> · <span class="num">1,234,567</span></p></section>
+    <section class="opt B"><span class="tag">B · Oswald 600</span>
+      <p class="hero">Every move you make, graded.</p>
+      <div class="hud"><div class="ct"><small>CT</small><b>8</b></div><div class="clock">1:34</div><div class="t"><b>5</b><small>T</small></div></div>
+      <div class="row"><span class="name">Игрок КРЫСА</span><span class="num">23/21</span><span class="num">81</span><span class="num">72%</span><span class="num">+7.1%</span></div>
+      <div class="tiles"><div class="tile"><span>Grade</span><div class="badge" style="width:48px;height:48px;font-size:34px">A</div></div><div class="tile"><span>Premier</span><b>9,789</b><i>▲ 363</i></div><div class="tile"><span>ADR</span><b>86</b><i>▲ 4</i></div><div class="tile"><span>KAST</span><b>72%</b><i>≈</i></div><div class="tile"><span>Impact</span><b>+2.5%</b><i>▲ 0.4</i></div></div>
+      <p class="cyr">Дмитрий «Шмель» Кузнецов · <span class="num">11–13</span> · <span class="num">1,234,567</span></p></section>
+    <section class="opt C"><span class="tag">C · Roboto Condensed 700</span>
+      <p class="hero">Every move you make, graded.</p>
+      <div class="hud"><div class="ct"><small>CT</small><b>8</b></div><div class="clock">1:34</div><div class="t"><b>5</b><small>T</small></div></div>
+      <div class="row"><span class="name">Игрок КРЫСА</span><span class="num">23/21</span><span class="num">81</span><span class="num">72%</span><span class="num">+7.1%</span></div>
+      <div class="tiles"><div class="tile"><span>Grade</span><div class="badge" style="width:48px;height:48px;font-size:34px">A</div></div><div class="tile"><span>Premier</span><b>9,789</b><i>▲ 363</i></div><div class="tile"><span>ADR</span><b>86</b><i>▲ 4</i></div><div class="tile"><span>KAST</span><b>72%</b><i>≈</i></div><div class="tile"><span>Impact</span><b>+2.5%</b><i>▲ 0.4</i></div></div>
+      <p class="cyr">Дмитрий «Шмель» Кузнецов · <span class="num">11–13</span> · <span class="num">1,234,567</span></p></section>
   </div>
-</main>
-</body>
-</html>
+</main></body></html>
