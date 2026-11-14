@@ -83,7 +83,7 @@ export function DevContent() {
   const save = async (what: string, patch: Partial<SiteConfig>) => {
     try {
       const { config } = await api<{ config: SiteConfig }>(`/admin/config?what=${encodeURIComponent(what)}`, patch);
-      setData({ config }); setSiteConfig(config); setSaved(`${what}: live for everyone within a minute.`);
+      setData({ config }); setSiteConfig(config); setSaved(`${what}: live now, saved ${new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}. Visitors see it within a minute. Undo is in the Log tab.`);
     } catch (e) { setSaved((e as Error).message); }
   };
   const lines = (s: string[]) => s.join('\n'), unlines = (s: string) => s.split(/[\n,]/).map(x => x.trim()).filter(Boolean);
@@ -122,6 +122,42 @@ export function DevContent() {
         <label className="dev-field"><span>Never as the daily (IDs, one a line)</span><textarea rows={2} value={lines(c.puzzles.skip)} onChange={e => set({ puzzles: { ...c.puzzles, skip: unlines(e.target.value) } })} /></label>
         <label className="dev-field"><span>Hidden everywhere (IDs, one a line)</span><textarea rows={2} value={lines(c.puzzles.hide)} onChange={e => set({ puzzles: { ...c.puzzles, hide: unlines(e.target.value) } })} /></label>
         <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Samples and the daily puzzle', { samples: c.samples, puzzles: c.puzzles })}>Save</button></div>
+      </section>
+
+      {/* the pages' own words (round 10, G3): each shows where it appears, and saving says when it went live */}
+      <section className="site-card">
+        <div className="card-head"><h2>Front page text</h2><ShowsOn pages={['/']} /></div>
+        <label className="dev-field"><span>Headline (empty: "Every move you make, graded.")</span><input value={c.hero.h1} maxLength={80} onChange={e => set({ hero: { ...c.hero, h1: e.target.value } })} /></label>
+        <label className="dev-field"><span>First line (empty: the built-in one)</span><textarea rows={2} maxLength={240} value={c.hero.lead} onChange={e => set({ hero: { ...c.hero, lead: e.target.value } })} /></label>
+        <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Front page text', { hero: c.hero })}>Save</button></div>
+      </section>
+
+      <section className="site-card">
+        <div className="card-head"><h2>Pricing</h2><ShowsOn pages={['/pricing']} /></div>
+        <label className="dev-field"><span>Price a month (empty: $5)</span><input value={c.pricing.price} maxLength={20} placeholder="$5" onChange={e => set({ pricing: { ...c.pricing, price: e.target.value } })} /></label>
+        <label className="dev-field"><span>Early access ends (a date in words, empty: not announced)</span><input value={c.pricing.earlyEnds} maxLength={40} placeholder="Dec 31, 2026" onChange={e => set({ pricing: { ...c.pricing, earlyEnds: e.target.value } })} /></label>
+        <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Pricing', { pricing: c.pricing })}>Save</button></div>
+      </section>
+
+      <section className="site-card">
+        <div className="card-head"><h2>Footer links</h2><ShowsOn pages={['/', '/cs2', '/deadlock']} /></div>
+        <label className="dev-field"><span>Discord (https://…, empty: hidden)</span><input value={c.footer.discord} placeholder="https://discord.gg/…" onChange={e => set({ footer: { ...c.footer, discord: e.target.value } })} /></label>
+        <label className="dev-field"><span>Contact (https://… or mailto:…, empty: hidden)</span><input value={c.footer.contact} placeholder="mailto:you@example.com" onChange={e => set({ footer: { ...c.footer, contact: e.target.value } })} /></label>
+        <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Footer links', { footer: c.footer })}>Save</button></div>
+      </section>
+
+      <section className="site-card">
+        <div className="card-head"><h2>Questions (front page)</h2><ShowsOn pages={['/']} /></div>
+        <p className="muted small">One a line: question :: answer. Empty keeps the built-in questions. The questions in the page's search data and /llms.txt are built with the site, not from here.</p>
+        <textarea rows={6} value={c.faq.map(x => `${x.q} :: ${x.a}`).join('\n')} onChange={e => set({ faq: e.target.value.split('\n').map(l => { const [q, ...a] = l.split('::'); return { q: (q ?? '').trim(), a: a.join('::').trim() }; }).filter(x => x.q && x.a) })} />
+        <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Questions', { faq: c.faq })}>Save</button></div>
+      </section>
+
+      <section className="site-card">
+        <div className="card-head"><h2>What's new</h2><ShowsOn pages={['/changelog']} /></div>
+        <p className="muted small">New entries on top of the file's. The footer shows a dot to everyone who hasn't seen the newest one. One entry per block: a date line, then one change a line.</p>
+        <textarea rows={6} value={c.changelog.map(e => `${e.date}\n${e.items.join('\n')}`).join('\n\n')} onChange={e => set({ changelog: e.target.value.split(/\n\s*\n/).map(b => { const [date, ...items] = b.split('\n').map(x => x.trim()).filter(Boolean); return { date: date ?? '', items }; }).filter(x => x.date && x.items.length) })} />
+        <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save("What's new", { changelog: c.changelog })}>Save</button></div>
       </section>
 
       <RageEditor config={c} onSave={rage => void save('Rage lines', { rage })} />
@@ -337,4 +373,9 @@ export function TelemetryPills() {
       )}
     </section>
   );
+}
+
+/** Where a piece of content shows, as links to those pages. */
+function ShowsOn({ pages }: { pages: string[] }) {
+  return <span className="muted small">Shows on: {pages.map((p, i) => <span key={p}>{i > 0 && ' · '}<a href={p} target="_blank" rel="noreferrer">{p}</a></span>)}</span>;
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { proEarlyAccess } from '../ui/siteConfig';
+import { proEarlyAccess, siteConfig } from '../ui/siteConfig';
 import { STEAM_AVAILABLE } from '../env';
 import { FREE_HISTORY, MAX_HISTORY } from '../engine/profile';
 import { Icon, type IconName } from '../ui/Icon';
@@ -30,6 +30,7 @@ const iconFor = (f: string): IconName => /replay/i.test(f) ? 'play' : /coach|lev
 
 /** Plans. There are no payments yet: during early access everyone has Pro. */
 export function Pricing() {
+  const price = siteConfig().pricing.price || '$5';
   const me = useProfile(s => s.me), notify = useProfile(s => s.data.notifyPro), remote = useProfile(s => s.remote);
   const [busy, setBusy] = useState(false);
   const toggle = async () => { setBusy(true); await setNotifyPro(!notify); setBusy(false); };
@@ -40,7 +41,7 @@ export function Pricing() {
       </header>
       {proEarlyAccess() && (<>
         <div className="notice"><Icon name="bolt" size={16} /> <span><b>Early access:</b> every Pro feature is unlocked for everyone while RageView is new. Nothing to pay, no card needed.</span></div>
-        <p className="muted small pricing-after"><b>When early access ends:</b> Pro costs $5 a month. Everything in Free stays free, and the matches you've reviewed stay saved (Free shows your last 5). You'll see it on your profile before anything changes.</p>
+        <p className="muted small pricing-after"><b>When early access ends{siteConfig().pricing.earlyEnds ? ` (${siteConfig().pricing.earlyEnds})` : ''}:</b> Pro costs {price} a month. Everything in Free stays free, and the matches you've reviewed stay saved (Free shows your last 5). You'll see it on your profile before anything changes.</p>
       </>)}
       <div className="plans">
         <section className="plan">
@@ -52,7 +53,7 @@ export function Pricing() {
         <section className="plan featured">
           <span className="plan-tag">{proEarlyAccess() ? 'Free in early access' : 'Most complete'}</span>
           <h2>Pro</h2>
-          <p className="price"><b>$5</b><span>/ month{proEarlyAccess() ? ' after early access' : ''}</span></p>
+          <p className="price"><b>{price}</b><span>/ month{proEarlyAccess() ? ' after early access' : ''}</span></p>
           <ul>{PRO.map(f => <li key={f}><Icon name={iconFor(f)} size={14} /> {f}</li>)}</ul>
           {me && remote ? (
             <button className={notify ? 'cta' : 'cta primary'} onClick={toggle} disabled={busy} aria-pressed={notify}>

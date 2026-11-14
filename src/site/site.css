@@ -1173,3 +1173,4 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .danger-zone { margin-top: 14px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--bad) 45%, var(--border)); border-radius: 10px; }
 .danger-zone h3 { margin: 0 0 6px; color: var(--bad); font-size: 16px; }
 @media (max-width: 760px) { .settings-layout { grid-template-columns: 1fr; } .settings-menu { position: static; grid-auto-flow: column; overflow-x: auto; } }
+.new-dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: var(--theme); vertical-align: middle; }

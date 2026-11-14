@@ -31,7 +31,7 @@ const toGames = () => document.getElementById('games')?.scrollIntoView({ behavio
 /** The front page, about every game rather than one: what it is, which games, how it works, what you get, what it
  * costs. Short on purpose; dressed in the neutral theme (tokens.ts themeOf). */
 export function Home() {
-  const coming = useSiteConfig().flags.comingSoon;
+  const cfg = useSiteConfig(), coming = cfg.flags.comingSoon;
   const top = GAMES.slice(0, 3), more = GAMES.slice(3);
   // a public high-rank Deadlock match, opened on the board: the product without a demo of your own
   const [sample, setSample] = useState<'idle' | 'opening' | 'failed'>('idle');
@@ -48,8 +48,8 @@ export function Home() {
       <section className="hero">
         <div className="hero-text">
           <span className="eyebrow"><Icon name="bolt" size={12} /> Free · Nothing uploaded</span>
-          <h1>Every move you make, graded.</h1>
-          <p className="lead">Load a match. The coach marks every kill, death and grenade, right or wrong, and shows the better play.</p>
+          <h1>{cfg.hero.h1 || 'Every move you make, graded.'}</h1>
+          <p className="lead">{cfg.hero.lead || 'Load a match. The coach marks every kill, death and grenade, right or wrong, and shows the better play.'}</p>
           <div className="hero-games" aria-label="Games">
             {PLAYABLE.map(g => (
               <a key={g.id} className="hero-games-live" href={g.page ?? g.review}><GameMark game={g} size={30} /><b>{g.name}</b><span className={`games-status ${g.status}`}>{STATUS_LABEL[g.status]}</span></a>
@@ -186,7 +186,7 @@ export function Home() {
       <section className="site-section">
         <h2 className="section-title">Questions</h2>
         <div className="faq">
-          {FAQ.map(q => <details key={q.q}><summary>{q.q}</summary><p>{q.a}</p></details>)}
+          {(cfg.faq.length ? cfg.faq : FAQ).map(q => <details key={q.q}><summary>{q.q}</summary><p>{q.a}</p></details>)}
         </div>
       </section>
 

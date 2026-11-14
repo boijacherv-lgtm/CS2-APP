@@ -27,6 +27,16 @@ export interface SiteConfig {
   hintsVersion: number;
   /** SteamIDs kept off the puzzle leaderboards. */
   banned: string[];
+  /** Footer links (round 10, G3): empty hides the link. */
+  footer: { discord: string; contact: string };
+  /** The price and when early access ends (shown on Pricing and Profile); empty: the built-in words. */
+  pricing: { price: string; earlyEnds: string };
+  /** The front page's headline and first line; empty: the built-in ones. */
+  hero: { h1: string; lead: string };
+  /** The front page's questions; empty: the built-in ones. (The static FAQ data and /llms.txt are built with the site.) */
+  faq: { q: string; a: string }[];
+  /** What's new entries, newest first, shown above the file's: { date: 'Nov 14, 2026', items: [...] }. */
+  changelog: { date: string; items: string[] }[];
 }
 export const DEFAULT_CONFIG: SiteConfig = {
   banner: { on: false, text: '', link: '', until: null },
@@ -37,12 +47,21 @@ export const DEFAULT_CONFIG: SiteConfig = {
   rage: {},
   hintsVersion: 1,
   banned: [],
+  footer: { discord: '', contact: '' },
+  pricing: { price: '', earlyEnds: '' },
+  hero: { h1: '', lead: '' },
+  faq: [],
+  changelog: [],
 };
 const CONFIG = 'site:config', LOG = 'site:log', MAX_LOG = 200;
 const PAGES = ['home', 'cs2', 'deadlock', 'puzzles', 'profile', 'pricing', 'settings'];
 
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const strs = (v: unknown, max: number, len = 60) => (Array.isArray(v) ? v.map(x => str(x, len)).filter(Boolean).slice(0, max) : []);
+/** An https address or empty. */
+const url = (v: unknown) => { const t = str(v, 300); return /^https:\/\//.test(t) ? t : ''; };
+/** An https address or a mailto: or empty. */
+const contact = (v: unknown) => { const t = str(v, 300); return /^(https:\/\/|mailto:)/.test(t) ? t : ''; };
 const bool = (v: unknown, or: boolean) => (typeof v === 'boolean' ? v : or);
 
 /** Only what the site understands, within limits (the dev page is the owner's, but a typo shouldn't break the site). */
@@ -66,6 +85,11 @@ export function cleanConfig(raw: unknown, was: SiteConfig = DEFAULT_CONFIG): Sit
     rage,
     hintsVersion: Number.isInteger(+(r.hintsVersion ?? was.hintsVersion)) ? Math.max(1, +(r.hintsVersion ?? was.hintsVersion)) : 1,
     banned: strs(r.banned ?? was.banned, 500, 17).filter(x => /^7656\d{13}$/.test(x)),
+    footer: { discord: url(r.footer?.discord ?? was.footer.discord), contact: contact(r.footer?.contact ?? was.footer.contact) },
+    pricing: { price: str(r.pricing?.price ?? was.pricing.price, 20), earlyEnds: str(r.pricing?.earlyEnds ?? was.pricing.earlyEnds, 40) },
+    hero: { h1: str(r.hero?.h1 ?? was.hero.h1, 80), lead: str(r.hero?.lead ?? was.hero.lead, 240) },
+    faq: (Array.isArray(r.faq ?? was.faq) ? (r.faq ?? was.faq) as { q?: unknown; a?: unknown }[] : []).slice(0, 12).map(x => ({ q: str(x?.q, 120), a: str(x?.a, 600) })).filter(x => x.q && x.a),
+    changelog: (Array.isArray(r.changelog ?? was.changelog) ? (r.changelog ?? was.changelog) as { date?: unknown; items?: unknown }[] : []).slice(0, 20).map(x => ({ date: str(x?.date, 30), items: strs(x?.items, 12, 300) })).filter(x => x.date && x.items.length),
   };
 }
 
