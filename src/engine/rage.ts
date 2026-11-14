@@ -94,8 +94,10 @@ export function rageLines(moves: Move[], level: RageLevel): Map<Move, string> {
 }
 
 /** The match coach's main point, shouted: one line per thing to work on (coach-remarks.json, rage.summary). */
-export function rageSummary(feature: FeatureId | null, side = false, level: RageLevel = 'full'): string | null {
+/** `stat`: the real number for that habit ("17% of rounds (level 10: 11%)"), put where the line says {stat}. */
+export function rageSummary(feature: FeatureId | null, side = false, level: RageLevel = 'full', stat = ''): string | null {
   const S = REMARKS.rage.summary as Record<string, string>;
   const line = (side ? S.side : feature ? S[feature] : null) ?? S.none;
-  return level === 'off' || (level === 'mild' && SWEAR.test(line)) ? null : line;
+  const text = line.includes('{stat}') ? (stat ? line.replace('{stat}', stat) : line.replace(/\{stat\}/g, 'too many rounds')) : line;
+  return level === 'off' || (level === 'mild' && SWEAR.test(text)) ? null : text;
 }

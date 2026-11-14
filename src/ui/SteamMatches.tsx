@@ -166,7 +166,7 @@ export function SteamMatches() {
                 const when = m?.time ?? (f ? f.modified : null);
                 return (
                   <tr key={m?.code ?? f!.name} className={result ?? ''} style={{ '--radar': map ? `url(/images/maps/${map}.png)` : 'none' } as React.CSSProperties}>
-                    <td>{when ? new Date(when).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                    <td>{when ? fmtWhen(when)
                       : m?.loadedAt ? <span className="muted">loaded {fmtDay(m.loadedAt)}</span>
                       : m?.foundAt ? <span className="muted">found {fmtDay(m.foundAt)}</span> : ''}
                       {' '}{(() => { const by = m?.source === 'upload' ? 'saved' : 'bot'; return <span className="muted small" title={m ? `${by === 'saved' ? 'Saved to your account from your demo folder' : 'Fetched by the bot'}: opens on any device you're logged in on${f ? '; also in your demo folder' : ''}` : 'In your demo folder on this computer (saved to your account once you log in)'}>{m && f ? `· ${by} + folder` : m ? `· ${by}` : '· folder'}</span>; })()}</td>
@@ -286,5 +286,7 @@ function ValveSetup({ st, post, first, onDone }: { st: SteamStatus; post: <T>(ro
   );
 }
 
+/** "Nov 11 · 4:12 PM": never cut short. */
+const fmtWhen = (t: number) => `${new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
 const fmtDay = (t: number) => new Date(t).toLocaleDateString(undefined, { dateStyle: 'medium' });
 const errText = (e: unknown) => `Couldn't do that: ${e instanceof Error ? e.message : String(e)}`;

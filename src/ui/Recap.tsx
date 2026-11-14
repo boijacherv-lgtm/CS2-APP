@@ -189,32 +189,6 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
           <b className="rp-map">{engine.map.name}</b>
           <span className="rp-score num" title="Score before this round (this round's sides)"><i className="ct">{score[0]}</i><em>:</em><i className="t">{score[1]}</i></span>
         </div>
-        <div className="rp-rounds">
-          {halves.filter(h => !h.label.startsWith('OT')).map((h, hi) => (
-            <div key={hi} className="rp-half-wrap">
-              {hi > 0 && h.switched && <div className="rp-switch"><Icon name="swap" size={12} /> Sides switched</div>}
-              <div className="rp-half">
-                <span className="rp-half-label">{h.label}</span>
-                <div className="rp-chips">{h.rounds.map(chip)}</div>
-              </div>
-            </div>
-          ))}
-          {/* each overtime on one line, same chip size: its first half, a swap mark, its second half */}
-          {[...new Set(halves.filter(h => h.label.startsWith('OT')).map(h => h.label))].map(label => {
-            const parts = halves.filter(h => h.label === label);
-            return (
-              <div key={label} className="rp-half ot">
-                <span className="rp-half-label">{label}</span>
-                <div className="rp-chips">
-                  {parts.map((h, pi) => [
-                    pi > 0 && <span key={`sw${pi}`} className="rp-ot-swap" title={h.switched ? 'Sides switched' : 'Second half'}><Icon name="swap" size={12} /></span>,
-                    ...h.rounds.map(chip),
-                  ])}
-                </div>
-              </div>
-            );
-          })}
-        </div>
         {finished && (
           <div className="rp-result">
             {r.winner ? <span className={`rp-pill ${r.winner.toLowerCase()}`}>{r.winner} won</span> : <span className="rp-pill">Result unknown</span>}

@@ -3,6 +3,7 @@ import { useSiteConfig } from './siteConfig';
 import { CountUp } from './CountUp';
 import { useEffect, useMemo, useState } from 'react';
 import { SplitChart } from '../site/charts';
+import { closeCs2Match } from './closeMatch';
 import { matchCurve } from '../engine/matchChance';
 import { sideSwitches } from './Playback';
 import { coach, modelFor, type CoachNote, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
@@ -190,6 +191,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
         {result && <span className={`recap-result ${result.toLowerCase()}`}>{result}</span>}
         {mine && done && <span className="recap-grade" title="Your grade for this match: how it compares with a typical FACEIT level-10 game"><span className="perf-letter display reveal" style={letterStyle(matchGrade(mine))}>{matchGrade(mine)}</span><span className="muted small">your grade</span></span>}
         {saved && <button className="recap-share" onClick={() => setShare(true)}><Icon name="share" size={14} /> Share</button>}
+        <button className="ghost small-btn recap-close" onClick={closeCs2Match}><Icon name="close" size={13} /> Close match</button>
       </div>
       {share && saved && <ShareDialog m={saved} player={profileName ?? saved.name ?? 'Me'} onClose={() => setShare(false)} />}
       <p className="muted">
@@ -353,7 +355,7 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
           Compared with {model.name ?? 'trained'} players{byRole ? ` (${role.toLowerCase()}s)` : ''}
         </p>
       )}
-      {rageSummary(c.improve[0]?.feature ?? null, !!c.improve[0]?.title.startsWith('Your '), rage) && <p className="coach-rage">{rageSummary(c.improve[0]?.feature ?? null, !!c.improve[0]?.title.startsWith('Your '), rage)}</p>}
+      {(() => { const top = c.improve[0], dev = top && c.profile.find(d => d.feature === top.feature), stat = dev ? `${dev.value} (level 10: ${dev.normal})` : '', t = rageSummary(top?.feature ?? null, !!top?.title.startsWith('Your '), rage, stat); return t ? <p className="coach-rage">{t}</p> : null; })()}
       <div className="dev-axis muted"><span><Icon name="prev" size={10} /> worse than normal</span><span>better than normal <Icon name="next" size={10} /></span></div>
       <div className="dev-list">
         {rows.map(d => <DevRow key={d.feature} d={d} open={open === d.feature} onToggle={() => setOpen(open === d.feature ? null : d.feature)}
@@ -645,8 +647,8 @@ function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1
           </tr>}
           <tr>
             <th className="sb-name muted">{full ? (team === 0 ? 'started CT' : 'started T') : <span className={team === 0 ? 'ct' : 't'}>{team === 0 ? 'Team A' : 'Team B'} <span className="num">{score}</span></span>}</th>
-            {hasRank && <th title="Premier rating at the start of the match">Rank</th>}
-            {hasGame && <th title="Estimated rating for this game: duel performance + round impact">Game</th>}
+            {hasRank && <th title="Premier rating at the start of the match">Premier</th>}
+            {hasGame && <th title="Estimated rating for this match: duel performance + round impact">This match</th>}
             {full && hasDelta && <th title="Game rating minus their real rating">±</th>}
             <th title="The match grade, the same one as in the header and Side by side: duel and round performance, plus mechanics when the demo has them">Grade</th>
             {hasEngine && <th title="Accuracy: every 2 s, what they did against the best option the coach found (100 = always the best; level-10 players average about 88)">Acc</th>}

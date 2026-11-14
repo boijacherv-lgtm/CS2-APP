@@ -206,10 +206,14 @@ export function RoundStrip({ data, at, spoilers, onPick }: { data: DemoData; at:
     <ol className="round-strip" aria-label="Rounds">
       {data.rounds.map((r, i) => {
         const shown = spoilers || i < at;
+        // dividers in the strip itself: sides switched at half-time, and where overtime starts
+        const first = [...swaps].find(x => x > 0) ?? 0, reg = first * 2;
+        const divider = swaps.has(i) && i > 0 ? (reg && i === reg ? 'OT' : 'Sides switched') : reg && i === reg ? 'OT' : null;
         return (
-          <li key={i} className={swaps.has(i) && i > 0 ? 'half' : ''}>
+          <li key={i} className={divider ? 'half' : ''}>
+            {divider && <span className="rs-divider" title={divider === 'OT' ? 'Overtime' : 'Sides switched'}>{divider === 'OT' ? 'OT' : <Icon name="swap" size={12} />}</span>}
             <button className={`rs-chip ${i === at ? 'on' : ''} ${shown && r.winner ? r.winner.toLowerCase() : ''}`} onClick={() => onPick(i)}
-              title={`Round ${r.n}${shown && r.winner ? `: ${r.winner} won${r.reason ? ` (${r.reason.replace(/_/g, ' ')})` : ''}` : ''}`}
+              title={`R${r.n}${shown && r.winner ? ` · ${r.winner} won${r.reason ? ` · ${r.reason.replace(/_/g, ' ')}` : ''}` : ''}`}
               aria-label={`Round ${r.n}${shown && r.winner ? `, ${r.winner} won` : ''}`}>
               {shown && r.winner ? <Icon name={how(r)} size={14} /> : <span className="num">{r.n}</span>}
             </button>
