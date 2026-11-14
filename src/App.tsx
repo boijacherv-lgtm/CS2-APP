@@ -185,7 +185,7 @@ export function App() {
     <div className={`app ${drawerOpen ? '' : 'drawer-closed'} ${review ? 'no-rail' : ''}`}>
       {/* Review has no tools: the match's controls live in the right panel's header */}
       {!review && <Rail engine={engine} />}
-      {!review && <ScenarioBar batch={batch} />}
+      {!review && <ScenarioBar batch={batch} sim={sim} />}
       <Board key={`${mapId}:${level}`} timelineEnd={end} analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch?.stats ?? null} recap={recap} />
       <div className="drawer" aria-hidden={!drawerOpen}>
         <button className="ghost drawer-close" onClick={() => useStore.getState().setDrawerOpen(false)} title="Hide this panel (more room for the map; the Panel button brings it back)" aria-label="Hide the panel"><Icon name="panelClose" /></button>

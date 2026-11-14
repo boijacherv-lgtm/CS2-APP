@@ -8,7 +8,8 @@ import { useStore } from '../store';
  */
 export const CLIP_BEFORE = 6, CLIP_AFTER = 4;
 
-export async function recordClip(board: HTMLElement, at: number, lines: { title: string; rage?: string | null; mark: string; color: string }, bitrate = 4_000_000): Promise<Blob> {
+/** `font`: the caption's size in px of the recording (18 for a clip you save; bigger for a clip shown small, like the front page's). */
+export async function recordClip(board: HTMLElement, at: number, lines: { title: string; rage?: string | null; mark: string; color: string }, bitrate = 4_000_000, font = 18): Promise<Blob> {
   const layers = [...board.querySelectorAll('canvas')].filter(c => c.width > 50 && c.height > 50);
   if (!layers.length || typeof MediaRecorder === 'undefined') throw new Error('This browser can\'t record the map.');
   const W = layers[0].width, H = layers[0].height;
@@ -20,15 +21,19 @@ export async function recordClip(board: HTMLElement, at: number, lines: { title:
     g.fillStyle = '#0A0C10'; g.fillRect(0, 0, W, H);
     for (const c of layers) g.drawImage(c, 0, 0, W, H);
     // the card's line along the bottom, the mark in its colour, the Rage line above it
-    const pad = 18 * scale, fs = Math.round(18 * scale);
+    const pad = font * scale, fs = Math.round(font * scale);
     g.fillStyle = 'rgba(10,12,16,0.82)'; g.fillRect(0, H - (lines.rage ? 4.4 : 2.6) * fs - pad, W, (lines.rage ? 4.4 : 2.6) * fs + pad);
     g.font = `700 ${fs}px Onest, system-ui, sans-serif`; g.textBaseline = 'alphabetic';
     g.fillStyle = lines.color; g.fillText(lines.mark, pad, H - pad - (lines.rage ? 1.8 * fs : 0));
     const mw = g.measureText(lines.mark).width;
-    g.fillStyle = '#ECEFF4'; g.font = `600 ${fs}px Onest, system-ui, sans-serif`; g.fillText(lines.title.slice(0, 90), pad + mw + 12 * scale, H - pad - (lines.rage ? 1.8 * fs : 0));
+    g.fillStyle = '#ECEFF4'; g.font = `600 ${fs}px Onest, system-ui, sans-serif`;
+    // the line has to fit the picture: cut it with an ellipsis rather than run off the edge
+    let title = lines.title.slice(0, 90); const room = W - pad * 2 - mw - 12 * scale;
+    while (title.length > 8 && g.measureText(title).width > room) title = title.slice(0, -2).trimEnd() + '…';
+    g.fillText(title, pad + mw + 12 * scale, H - pad - (lines.rage ? 1.8 * fs : 0));
     if (lines.rage) { g.fillStyle = '#FF4D3D'; g.font = `700 ${fs}px Onest, system-ui, sans-serif`; g.fillText(lines.rage.slice(0, 100), pad, H - pad); }
-    g.fillStyle = 'rgba(236,239,244,0.7)'; g.font = `700 ${Math.round(14 * scale)}px Unbounded, system-ui, sans-serif`; g.textAlign = 'right';
-    g.fillText('RageView', W - pad, pad + 14 * scale); g.textAlign = 'left';
+    g.fillStyle = 'rgba(236,239,244,0.7)'; g.font = `700 ${Math.round(font * 0.78 * scale)}px Unbounded, system-ui, sans-serif`; g.textAlign = 'right';
+    g.fillText('RageView', W - pad, pad + font * 0.78 * scale); g.textAlign = 'left';
   };
   const st = useStore.getState();
   const was = { time: st.time, playing: st.playing, speed: st.speed, popups: st.popups };

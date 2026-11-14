@@ -80,7 +80,7 @@ export interface HabitRow {
 }
 const PCT = (v: number) => `${Math.round(v * 100)}%`;
 const FMT: Partial<Record<FeatureId, (v: number) => string>> = {
-  adr: v => v.toFixed(0), kast: v => `${v.toFixed(0)}%`, hs: v => `${v.toFixed(0)}%`, utilDamage: v => v.toFixed(1), impact: v => v.toFixed(1),
+  adr: v => v.toFixed(0), kast: v => `${v.toFixed(0)}%`, hs: v => `${v.toFixed(0)}%`, utilDamage: v => `${v.toFixed(1)} dmg`, impact: v => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}% a round`,
 };
 /** What to do about each habit, in a line (coach-remarks.json, tips). */
 const TIP: Record<string, string> = REMARKS.tips;

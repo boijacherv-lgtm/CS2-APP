@@ -2,6 +2,7 @@
  * Deadlock's page: the game kit's game page (GamePage) filled in for Deadlock. Reached at /deadlock (Review, Recap and
  * Meta — Meta & builds — are /deadlock/review, /deadlock/report and /deadlock/meta).
  */
+import { DEADLOCK_FAQ } from './gameFaq';
 import { heroArt, heroOf } from '../deadlock/data';
 import { openDlSample } from '../ui/sample';
 import { GamePage, type GamePageKit } from './GamePage';
@@ -36,11 +37,8 @@ const KIT: GamePageKit = {
     { title: 'Replay it', text: 'Every hero on the map, every play graded against your hero and position.' },
     { title: 'Fix one thing', text: 'The coach picks it. You track it.' },
   ],
-  faq: [
-    { q: 'Where do matches come from?', a: 'deadlock-api.com, a free community service with Deadlock match data. A match shows up there a few minutes to an hour after it ends.' },
-    { q: 'Is it free?', a: 'Yes, same as CS2. Pro adds unlimited history and is free during early access.' },
-    { q: 'Which matches?', a: 'Any public match: log in with Steam for yours, or paste a match ID (in game: Match history).' },
-  ],
+  faq: DEADLOCK_FAQ,
+
   footer: 'Not affiliated with Valve. Deadlock and its logo belong to Valve.',
 };
 

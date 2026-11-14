@@ -28,7 +28,7 @@ const DL_CACHE = path.resolve(import.meta.dirname, '.cache/dl-matches');
 /** How far the best option is ahead of the next: the bigger, the clearer the puzzle. */
 const margin = (m: Moment) => { const v = m.options.map(o => o.value).sort((a, b) => b - a); return v[0] - v[1]; };
 /** Mistakes and good calls (about 7 to 3), the clearest first, at most `per` from one map or hero. */
-function pick(all: Moment[], want: number, min: number, per: number): Moment[] {
+function pick(all: Moment[], want: number, min: number, per: number, ctShare = 0): Moment[] {
   // one per moment of a match (in a fight, every player in it has the same one)
   const seen = new Set<string>();
   // the puzzle rules first (quality.ts): 3–4 different ideas, a clear best, no ties, no decided moments
@@ -44,7 +44,10 @@ function pick(all: Moment[], want: number, min: number, per: number): Moment[] {
     if ((count.get(k) ?? 0) >= per || (isPlant(m) && out.filter(isPlant).length >= maxPlants)) continue;
     count.set(k, (count.get(k) ?? 0) + 1); out.push(m); n--;
   } };
-  take(by(false), Math.round(want * 0.7)); take(by(true), want - out.length);
+  // CS2: at least `ctShare` of the set from the CT side (retakes, defuse or save, site holds), the rest by clarity
+  const ct = (m: Moment) => /You're CT\b/.test(m.setup), ctWant = Math.round(want * ctShare);
+  if (ctWant) { take(by(false).filter(ct), Math.round(ctWant * 0.7)); take(by(true).filter(ct), ctWant - out.length); }
+  take(by(false), Math.round(want * 0.7) - (ctWant ? out.filter(m => m.played !== 0).length : 0)); take(by(true), want - out.length);
   return shapeSet(out);
 }
 const slim = (m: Moment, who: string): Moment => ({ ...m, id: `p:${m.id}`, who, at: 0,
@@ -75,6 +78,10 @@ if (folder && fs.existsSync(folder)) {
         // site is close (within 12% of the map)
         const me = x.dots.find(p => p.me), to = x.options[0].to;
         if (/plant/i.test(x.options[0].label) && (!me || !to || Math.hypot(me.x - to.x, me.y - to.y) > 0.12)) continue;
+        // not a real decision: the first seconds of a full 5v5 (nothing has happened yet), or a plant with seconds left
+        const us = x.dots.filter(p => p.team).length, them = x.dots.length - us;
+        if (m.t < 20 && us >= 5 && them >= 5) continue;
+        if (/plant/i.test(x.options[0].label) && 115 - m.t <= 25) continue;
         cs2.push(x);
       }
     }
@@ -107,7 +114,7 @@ for (const [n, f] of dlChosen.entries()) {
 
 const out = {
   made: new Date().toISOString().slice(0, 10),
-  cs2: pick(cs2, WANT.cs2, 0.06, 30).map(m => slim(m, 'FACEIT level 10')),
+  cs2: pick(cs2, WANT.cs2, 0.06, 30, 0.4).map(m => slim(m, 'FACEIT level 10')),
   deadlock: pick(dl, WANT.dl, 0.015, 8).map(m => slim(m, 'Phantom+ match')),
 };
 fs.mkdirSync(path.dirname(OUT), { recursive: true });

@@ -4,7 +4,7 @@
 import type { SearchClass } from '../engine/search';
 
 export type MomentGame = 'cs2' | 'deadlock';
-export interface MomentDot { x: number; y: number; team: 0 | 1; me?: boolean }
+export interface MomentDot { x: number; y: number; team: 0 | 1; me?: boolean; /** Deadlock: the hero (for its icon on the map) */ hero?: number }
 /** `to`: where the move goes on the map (0–1; CS2's options have one). */
 /** `what`: what happens if you take it, from the engine's playouts ("You die 34% of the time · 0.8 kills"). */
 export interface MomentOption { label: string; value: number; to?: { x: number; y: number }; what?: string }
@@ -12,7 +12,7 @@ export interface MomentOption { label: string; value: number; to?: { x: number; 
  * The clip: everyone's positions once a second from `from` seconds (−10: before the moment) to the end (+5 after),
  * per player x, y, x, y… (−1 where they're dead or not there yet). Before an answer only up to the moment is shown.
  */
-export interface MomentClip { from: number; dots: { team: 0 | 1; me?: boolean; xy: number[] }[] }
+export interface MomentClip { from: number; dots: { team: 0 | 1; me?: boolean; hero?: number; xy: number[] }[] }
 export interface Moment {
   id: string; game: MomentGame; map: string;
   /** when the match was played (ms) and a short label for it ("Mirage", "Haze") */ at: number; match: string;
@@ -69,13 +69,15 @@ export function cleanMoment(raw: unknown): Moment | null {
   if (options.length < 2 || options.some(o => !o) || played >= options.length) return null;
   const dots = Array.isArray(r.dots) ? r.dots.slice(0, 12).map(d => {
     const x = d as Record<string, unknown>, px = num(x?.x, 0, 1), py = num(x?.y, 0, 1);
-    return px !== null && py !== null ? { x: px, y: py, team: (x.team === 1 ? 1 : 0) as 0 | 1, ...(x.me === true ? { me: true } : {}) } : null;
+    const hero = num(x?.hero, 0, 999);
+    return px !== null && py !== null ? { x: px, y: py, team: (x.team === 1 ? 1 : 0) as 0 | 1, ...(x.me === true ? { me: true } : {}), ...(hero !== null ? { hero: Math.round(hero) } : {}) } : null;
   }).filter((d): d is MomentDot => !!d) : [];
   const c = r.clip as Record<string, unknown> | undefined, from = num(c?.from, -20, 0);
   const clipDots = c && from !== null && Array.isArray(c.dots) ? c.dots.slice(0, 12).map(d => {
     const o = d as Record<string, unknown>;
     const xy = Array.isArray(o?.xy) ? o.xy.slice(0, 64).map(v => num(v, -1, 1) ?? -1) : [];
-    return xy.length >= 2 && xy.length % 2 === 0 ? { team: (o.team === 1 ? 1 : 0) as 0 | 1, ...(o.me === true ? { me: true } : {}), xy } : null;
+    const hero = num(o?.hero, 0, 999);
+    return xy.length >= 2 && xy.length % 2 === 0 ? { team: (o.team === 1 ? 1 : 0) as 0 | 1, ...(o.me === true ? { me: true } : {}), ...(hero !== null ? { hero: Math.round(hero) } : {}), xy } : null;
   }).filter((d): d is MomentClip['dots'][number] => !!d) : [];
   const clip = clipDots.length && from !== null ? { from: Math.round(from), dots: clipDots } : null;
   const info = Array.isArray(r.info) ? r.info.slice(0, 6).map(w => str(w, 40)).filter((w): w is string => !!w) : [];

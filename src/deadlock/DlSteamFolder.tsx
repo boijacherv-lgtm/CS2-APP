@@ -263,12 +263,12 @@ export function DlSteamFolder({ account, open, busy }: { account: string | null;
         <div className="dl-folder-intro">
           <p className="muted small">Pick it once: your matches and downloaded replays load here by themselves. Only match IDs leave your PC.</p>
           <div className="row">
-            {supported && <button className="cta primary" onClick={connect}>Choose your Steam folder</button>}
+            {supported && <button className="cta" onClick={connect}>Choose your Steam folder</button>}
             <span className="muted small" title="Usually C:\Program Files (x86)\Steam. Deadlock on another drive? Pick that drive's SteamLibrary too.">{supported ? 'or drop' : 'Drop'} it here</span>
           </div>
         </div>
       )}
-      {(dir || replays) && perm !== 'granted' && <div className="row"><button className="cta primary" onClick={reconnect}>Reconnect your folders</button><span className="muted small">the browser asks once per visit</span></div>}
+      {(dir || replays) && perm !== 'granted' && <div className="row"><button className="cta" onClick={reconnect}>Reconnect your folders</button><span className="muted small">the browser asks once per visit</span></div>}
       {msg && <p className="muted small">{msg}</p>}
       {scanning && !found.length && <Loading>Looking through Steam's cache…</Loading>}
       {found.length > 0 && <ul className="dl-rows">{found.slice(0, SHOW).map(row)}</ul>}

@@ -180,7 +180,7 @@ function DlStart() {
         )}
         {!account ? (
           STEAM_AVAILABLE
-            ? <div className="dl-login"><span className="muted">Log in with Steam to see your Deadlock matches here.</span><SteamLoginButton compact /></div>
+            ? <div className="dl-login"><span className="muted">Log in with Steam to see your Deadlock matches here.</span><SteamLoginButton compact outline /></div>
             : <p className="muted">Paste a match ID above.</p>
         ) : histErr ? <p className="warn-text small">{histErr}</p> : !rows ? <Loading>Loading your matches…</Loading> : !rows.length ? (
           <p className="empty-state">No matches found for your account on deadlock-api yet.</p>

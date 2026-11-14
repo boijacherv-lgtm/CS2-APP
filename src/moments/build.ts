@@ -11,28 +11,41 @@ import { heroOf } from '../deadlock/data';
 import { playerAt, statAt, type DlMatch } from '../deadlock/match';
 import type { EngineMove, EngineReview } from '../deadlock/engineReview';
 import type { Action } from '../deadlock/playNet';
+import type { DlOption } from '../deadlock/search';
 import { isMistake, type Moment, type MomentDot } from './moments';
+import { ideaLabel } from './quality';
+import { laneOfAssigned, LANES, toMap } from '../deadlock/data';
 
 const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const GUN: Record<string, string> = { ak47: 'AK-47', m4a1: 'M4A4', m4a1_silencer: 'M4A1-S', awp: 'AWP', deagle: 'Deagle', usp_silencer: 'USP-S', glock: 'Glock', galilar: 'Galil', famas: 'FAMAS', mac10: 'MAC-10', mp9: 'MP9', ssg08: 'Scout', p250: 'P250', tec9: 'Tec-9', fiveseven: 'Five-SeveN', knife: 'Knife', c4: 'Bomb', sg556: 'SG 553', aug: 'AUG', ump45: 'UMP-45', p90: 'P90', mp7: 'MP7', hkp2000: 'P2000', cz75a: 'CZ75' };
 const pc = (v: number) => `${Math.round(v * 100)}%`;
+/** One human line for an option, from what the search measured for it (no raw "0.0 kills" lines). */
+function humanWhat(o: SearchOption, v: number): string {
+  const where = placeOf(o.label), at = where && where !== o.label.toLowerCase() ? ` ${where}` : '';
+  const lead: Record<string, string> = {
+    hold: `You hold${at}: they have to come to you`, peek: `You take the fight yourself${at}`, move: `You change position first${at}`,
+    plant: 'The bomb goes down and the clock works for you', defuse: 'You start the defuse', flash: 'You flash first, then fight', smoke: 'You smoke it off',
+    molotov: 'You burn them out first', he: 'You throw the HE first', actual: 'The way you played it',
+  };
+  const risk = o.death <= 0.05 ? 'you are almost never killed' : o.death <= 0.25 ? `you are killed about ${Math.round(o.death * 100)}% of the time` : o.death >= 0.7 ? 'you almost always die' : `you die in about ${Math.round(o.death * 10)} of 10 tries`;
+  const gain = o.kills >= 1.3 ? ', taking more than one with you' : o.kills >= 0.6 ? ', often trading a kill' : '';
+  return `${lead[o.kind] ?? 'You go for it'}; ${risk}${gain}. The round is won ${pc(v)}.`;
+}
 /** Why the best move beats the one played, in one or two lines, from what the search measured for each. */
 function cs2Why(best: SearchOption, did: SearchOption, s: { planted: boolean; side: 'CT' | 'T'; us: number; them: number; left: number }): string[] {
   const out: string[] = [];
-  const b = asMove(best.label);
-  if (best.kind === 'plant') out.push('Planting puts the clock on them: they have to come to you.');
-  else if (best.kind === 'defuse') out.push(`The bomb is the round: ${s.left} s left, start the defuse.`);
-  else if (s.planted && s.side === 'T' && (best.kind === 'hold' || best.kind === 'actual')) out.push('The bomb is down, so time is on your side: let them come to you.');
-  else if (s.planted && s.side === 'CT') out.push(`The bomb is down: ${s.left} s to get there, go with your team.`);
+  const b = ideaLabel(asMove(best.label)), d = ideaLabel(asMove(did.label));
   const often = (v: number) => (v >= 0.9 ? 'almost always' : v <= 0.05 ? 'almost never' : `${pc(v)} of the time`);
-  if (did.death - best.death > 0.08) out.push(`"${asMove(did.label)}" gets you killed ${often(did.death)}; "${b}" ${often(best.death)}.`);
+  if (did.death - best.death > 0.08) out.push(`"${d}" gets you killed ${often(did.death)}; "${b}" ${often(best.death)}.`);
   else if (best.kills - did.kills > 0.15) out.push(`"${b}" wins more fights: about ${best.kills.toFixed(1)} kills against ${did.kills.toFixed(1)}.`);
-  const where = placeOf(best.label).replace(/^on /, '');
-  if (out.length < 2 && s.us > s.them && best.kind !== 'peek') out.push(`You have the numbers: "${b}" keeps you with your team, no solo fights.`);
-  if (out.length < 2 && s.us === 1 && s.them > 1) out.push(best.kind === 'hold' || best.kind === 'actual' ? `Alone against ${s.them}: holding ${where} makes them come one at a time.` : `Alone against ${s.them}: ${where} lets you take one fight at a time instead of all of them.`);
-  if (!out.length) out.push(`"${b}" keeps more of your round: the engine played both ahead and it comes out on top.`);
+  else if (best.death - did.death > 0.08) out.push(`"${b}" risks more (${often(best.death)} killed against ${often(did.death)}) but wins the round more often.`);
+  if (best.kind === 'defuse') out.push(`The bomb is the round: ${s.left} s left, start the defuse.`);
+  else if (s.us === 1 && s.them > 1) out.push(`Alone against ${s.them}: "${b}" takes them one at a time.`);
+  else if (s.us > s.them) out.push(`${s.us} of you against ${s.them}: "${b}" keeps you with your team.`);
+  else if (s.us < s.them) out.push(`${s.us} of you against ${s.them}: "${b}" is the best of a bad spot.`);
+  else out.push(`${s.planted ? `${s.left} s on the bomb, ` : ''}${s.us} against ${s.them}: "${b}" comes out ahead of "${d}".`);
   return out.slice(0, 2);
 }
 
@@ -110,7 +123,7 @@ export function cs2Moment(data: DemoData, i: number, m: SearchMoment): Moment | 
     setup: `Round ${i + 1}. ${planted ? `Bomb planted · ${left} s on the bomb. ` : `${clock(left)} left in the round. `}You're ${m.side}, ${us} alive against ${them}. Your side's win chance: ${pct(m.before)}.`,
     // one scale for every number: the best move keeps the win chance you have now, each other move loses its calibrated
     // cost (the engine's raw values exaggerate: search.ts COST_SCALE), so "gave up" is best minus played
-    options: opts.map(o => { const v = onScale(m.before, (best.win - o.win) * COST_SCALE); return { label: o.label, value: v, ...toMap(o), what: `You die ${pc(o.death)} of the time, about ${o.kills.toFixed(1)} kills; the round is won ${pc(v)}.` }; }), played, cls: m.cls, cost: (best.win - (opts[played]?.win ?? best.win)) * COST_SCALE,
+    options: opts.map(o => { const v = onScale(m.before, (best.win - o.win) * COST_SCALE); return { label: o.label, value: v, ...toMap(o), what: humanWhat(o, v).slice(0, 160) }; }), played, cls: m.cls, cost: (best.win - (opts[played]?.win ?? best.win)) * COST_SCALE,
     kind: kindLabel(`${cap(m.did.label.split(' ')[0])} instead of ${DOING[best.kind as OptionKind] ?? 'the best move'}`),
     info, tag, why: cs2Why(best, opts[played] ?? m.did, { planted, side: m.side, us, them, left }),
   };
@@ -123,7 +136,35 @@ export function cs2Moments(data: DemoData, rounds: (RoundSummary | null)[], play
   return out.sort((a, b) => b.cost - a.cost).slice(0, PER_MATCH);
 }
 
-const DO: Record<Action, string> = { fight: 'Take the fight', objective: 'Go for the objective', farm: 'Farm camps', lane: 'Stay in lane', base: 'Go back to base', move: 'Rotate to another lane' };
+/** An answer named by the thing it's about: "Take Blue Walker", "Fight 3v4 in their half", "Stay in Yellow lane", "Farm the Green camps". */
+function dlLabel(o: DlOption, me: { x: number; y: number } | null, lane: string | null): string {
+  const side = me ? LANES[me.x < 0.4 ? 0 : me.x > 0.6 ? 2 : 1].name : null;
+  switch (o.action) {
+    case 'objective': return `Take ${o.target ?? 'the objective'}`;
+    case 'fight': return o.sides ? `Fight ${o.sides[0]}v${o.sides[1]}${o.where === 'theirs' ? ' in their half' : o.where === 'ours' ? ' in your half' : ''}` : 'Take the fight';
+    case 'farm': return side ? `Farm the ${side} camps` : 'Farm the nearby camps';
+    case 'lane': return lane ? `Stay in ${lane} lane` : 'Stay in your lane';
+    case 'base': return 'Fall back to base';
+    case 'move': return 'Rotate to another lane';
+  }
+}
+/** One human line for an answer, from what the search assumed (who is in the fight, what they can do, the ultimates). */
+function dlWhat(o: DlOption, v: number): string {
+  const odds = o.fight !== undefined ? `${Math.round(o.fight * 100)}%` : '';
+  const who = o.sides ? `${o.sides[0]} of yours against ${o.sides[1]} of theirs` : 'the fight';
+  const ults = o.ults && (o.ults.ours.length || o.ults.theirs.length) ? ` Ultimates ready: ${o.ults.ours.length} yours, ${o.ults.theirs.length} theirs.` : '';
+  const end = ` Your team: ${pct(v)} to win.`;
+  if (o.reply === 'they jump you') return `${cap(who)}: if they jump you, you win it ${odds} of the time.${ults}${end}`;
+  if (o.action === 'fight' && o.fight !== undefined) return `${cap(who)}: you win the fight ${odds} of the time.${ults}${end}`;
+  if (o.action === 'fight') return `They can fall back instead${o.reply.includes('objective') ? ', and the objective falls' : ''}.${end}`;
+  if (o.action === 'objective' && o.reply === 'it falls') return `Nobody is there to stop it: ${o.target ?? 'the objective'} falls.${end}`;
+  if (o.action === 'objective' && o.reply === 'they defend it') return `${o.target ?? 'It'} is defended (${who}): you win that ${odds} of the time.${ults}${end}`;
+  if (o.action === 'objective') return `Not enough of your team is close to take ${o.target ?? 'it'} in time.${end}`;
+  if (o.action === 'base') return `Safe, but it earns next to nothing.${end}`;
+  if (o.action === 'farm') return `Camps pay souls and keep you out of the fight.${end}`;
+  if (o.action === 'lane') return `You keep the lane and its souls, away from the fight.${end}`;
+  return `You change position: souls come slower while you walk.${end}`;
+}
 
 /** Deadlock: one graded move as a snapshot. */
 export function dlMoment(match: DlMatch, x: EngineMove, slot: number): Moment | null {
@@ -133,17 +174,18 @@ export function dlMoment(match: DlMatch, x: EngineMove, slot: number): Moment | 
   const dots: MomentDot[] = [];
   for (const p of match.players) {
     const at = playerAt(match, p.slot, x.t);
-    if (at) dots.push({ x: at.x, y: at.y, team: p.team === me.team ? 1 : 0, ...(p.slot === slot ? { me: true } : {}) });
+    if (at) dots.push({ x: at.x, y: at.y, team: p.team === me.team ? 1 : 0, hero: p.hero, ...(p.slot === slot ? { me: true } : {}) });
   }
   const opts = x.options.slice(0, 6);
   let played = opts.findIndex(o => o.action === x.played.action);
   if (played < 0) { opts.push(x.played); played = opts.length - 1; }
   if (opts.length < 2) return null;
   const fight = x.options.find(o => o.sides);
+  const here = playerAt(match, slot, x.t), lane = laneOfAssigned(me.lane)?.name ?? null;
   const secs: number[] = [];
   for (let s = -CLIP_BEFORE; s <= CLIP_AFTER; s++) if (x.t + s >= 0 && x.t + s <= match.duration) secs.push(s);
   const clip = { from: secs[0], dots: match.players.map(p => ({
-    team: (p.team === me.team ? 1 : 0) as 0 | 1, ...(p.slot === slot ? { me: true } : {}),
+    team: (p.team === me.team ? 1 : 0) as 0 | 1, hero: p.hero, ...(p.slot === slot ? { me: true } : {}),
     xy: secs.flatMap(s => { const a = playerAt(match, p.slot, x.t + s); return a ? [+a.x.toFixed(3), +a.y.toFixed(3)] : [-1, -1]; }),
   })) };
   return {
@@ -151,7 +193,7 @@ export function dlMoment(match: DlMatch, x: EngineMove, slot: number): Moment | 
     id: `${match.id}#${slot}#${clock(x.t)}`, game: 'deadlock', map: 'deadlock', at: match.start * 1000, match: hero, when: clock(x.t), dots,
     setup: `${clock(x.t)} in, as ${hero}. Your team's win chance: ${pct(x.before)}.${fight?.sides ? ` A fight is close: ${fight.sides[0]} of your team against ${fight.sides[1]} of theirs.` : ''}`,
     // the same one scale: the best move keeps the team's win chance now, the others lose what the search says they cost
-    options: opts.map(o => { const v = onScale(x.before, opts[0].value - o.value); return { label: DO[o.action], value: v, what: `${o.sides ? `${o.sides[0]} of yours against ${o.sides[1]} of theirs. ` : ''}Your team wins ${pct(v)} of the playouts.` }; }), played, cls: x.cls, cost: Math.max(0, opts[0].value - opts[played].value),
+    options: opts.map(o => { const v = onScale(x.before, opts[0].value - o.value); return { label: dlLabel(o, here, lane), value: v, what: dlWhat(o, v).slice(0, 160) }; }), played, cls: x.cls, cost: Math.max(0, opts[0].value - opts[played].value),
     // the engine's reasons, without its own "gave up X%" line (on the raw scale; the puzzle shows its one scale)
     kind: cap(x.title.replace(/^[^:]+: /, '')), why: x.why.filter(w => !/gave up|was worth/i.test(w)).slice(0, 3),
     tag: fight ? 'Teamfight' : opts[0].action === 'objective' ? 'Objective' : x.t < 600 ? 'Laning' : 'Macro',

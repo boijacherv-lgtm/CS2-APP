@@ -8,7 +8,7 @@ const CHUNK = 2; // rounds per slice (~20–30 ms)
 export interface BatchStats {
   rounds: number;
   players: Record<string, { pKill: number; avgKills: number; survive: number; flashed: number; utilDamage: number }>;
-  /** Round result by who is left standing (no bomb modelled): elimination or more players alive. */
+  /** Round result: the bomb going off (T) or defused (CT) when it was planted, else who is left standing. */
   ctWin: number;
   tWin: number;
   draw: number;
@@ -44,7 +44,11 @@ function accumulate(engine: TacticalEngine, board: BoardState, end: number, from
       acc.alive.set(p.id, (acc.alive.get(p.id) ?? 0) + 1);
       if (p.side === 'CT') ctAlive++; else tAlive++;
     });
-    if (ctAlive > tAlive) acc.ct++; else if (tAlive > ctAlive) acc.t++; else acc.draw++;
+    // a planted bomb decides the round when it goes off (T) or is defused (CT); otherwise who is left standing
+    const bomb = sim.bomb;
+    if (bomb?.explodeT !== undefined) acc.t++;
+    else if (bomb?.defuseT !== undefined) acc.ct++;
+    else if (ctAlive > tAlive) acc.ct++; else if (tAlive > ctAlive) acc.t++; else acc.draw++;
     acc.done++;
   }
 }

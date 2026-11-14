@@ -251,7 +251,7 @@ export function DemoFolder() {
   if (!supported) {
     return (
       <section className="steam">
-        <div className="steam-head"><h2>Your CS2 demo folder</h2></div>
+        <div className="steam-head"><h2>Your Steam folder</h2></div>
         <p className="muted">Open this page in <b>Chrome</b> or <b>Edge</b> to connect CS2's demo folder (this browser can't). You can still drop demos into the box above.</p>
       </section>
     );
@@ -260,7 +260,7 @@ export function DemoFolder() {
   return (
     <section className="steam">
       <div className="steam-head">
-        <h2>Your CS2 demo folder</h2>
+        <h2>Your Steam folder</h2>
         {dir && perm === 'granted' && <button onClick={() => scan()}>Refresh</button>}
         {dir && <button onClick={disconnect} title="Forget the folder (the games already read stay)">Disconnect</button>}
       </div>
@@ -269,7 +269,7 @@ export function DemoFolder() {
         <div className="steam-profile">
           <p><b>Auto-find your demos.</b> Pick your Steam folder once.</p>
           <div className="row">
-            <button className="primary" onClick={connect}>Choose Steam folder</button>
+            <button className="cta" onClick={connect}>Choose your Steam folder</button>
             <details className="help-pop"><summary aria-label="Where is my Steam folder?">?</summary>
               <p>Windows: usually <code>C:\Program Files (x86)\Steam</code>. Mac: <code>~/Library/Application Support/Steam</code>.
                 Linux: <code>~/.steam/steam</code>. Anywhere else: Steam → CS2 → Properties → Installed Files → Browse.</p>
@@ -278,7 +278,7 @@ export function DemoFolder() {
         </div>
       )}
       {dir && perm !== 'granted' && (
-        <div className="row"><button className="primary" onClick={reconnect}>Reconnect "{dir.name}"</button><span className="muted">the browser asks once per visit</span></div>
+        <div className="row"><button className="cta" onClick={reconnect}>Reconnect "{dir.name}"</button><span className="muted">the browser asks once per visit</span></div>
       )}
       {msg && <p className="warn-text">{msg}</p>}
       {reading && <Loading>Reading {reading.name}… step {reading.pass} of ~{DEMO_PASSES}</Loading>}

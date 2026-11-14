@@ -1,3 +1,4 @@
+import { GUIDES } from '../site/guideList';
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { reportError, reportGradingTime } from '../ui/telemetry';
 import { useSiteConfig } from '../ui/siteConfig';
@@ -90,7 +91,7 @@ export function Shell() {
         <PageGuard key={routeHref(route)}><Suspense fallback={<div className="page" aria-busy="true" />}>
         {maintenance.includes(route.page) && !owner ? <BackSoon />
           : route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : route.mode === 'home' ? <Cs2Home /> : <Cs2App />)
-          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? (devOk ? <Dev /> : devOk === null ? <div className="page" aria-busy="true" /> : <NotFound />) : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'guides' ? <Guides /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
+          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? (devOk ? <Dev /> : devOk === null ? <div className="page" aria-busy="true" /> : <NotFound />) : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'guides' ? <Guides guide={'guide' in route ? route.guide : undefined} /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
         </Suspense></PageGuard>
       </main>
       <Hints />
@@ -133,6 +134,7 @@ export function pageTitle(r: Route): string {
   if (r.page === 'cs2') return r.mode === 'home' ? 'CS2 demo review: every round graded S+ to F · RageView' : r.mode === 'review' ? 'CS2 Demo Review · RageView' : `CS2 ${MODE_TITLE[r.mode]} · RageView`;
   if (r.page === 'deadlock') return r.mode === 'home' ? 'Deadlock match review by match ID: every fight graded · RageView' : r.mode === 'review' ? 'Deadlock Match Review · RageView'
     : r.mode === 'tactical' ? 'Deadlock meta & builds this patch, by position · RageView' : `Deadlock ${MODE_TITLE[r.mode]} · RageView`;
+  if (r.page === 'guides' && 'guide' in r) return GUIDES.find(g => g.slug === r.guide)?.title ?? 'Guides · RageView';
   if (r.page === 'puzzles') return 'CS2 & Deadlock puzzles: find the best play · RageView';
   if (r.page === 'pricing') return 'RageView pricing: free, Pro free in early access';
   return r.page === 'home' ? 'RageView — Free CS2 & Deadlock match review, every play graded' : `${PAGE_TITLE[r.page] ?? r.page} · RageView`;

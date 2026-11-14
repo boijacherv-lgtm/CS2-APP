@@ -21,6 +21,7 @@ import { AddMatches } from './AddMatches';
 import { StretchLine, TrendTile } from './charts';
 import { applyGame, gameOf, type GameId } from '../ui/tokens';
 import { DlProfile } from '../deadlock/DlProfile';
+import { BETTER, type FeatureId } from '../engine/coach';
 import { steamId3 } from '../deadlock/api';
 
 /** The first row: K/D, ADR, KAST, HS% and the Premier change, each the last value with a sparkline and ↑/↓ vs your average. */
@@ -70,7 +71,7 @@ function LeakCard({ matches }: { matches: ProfileMatch[] }) {
       <h2>{leak.title}</h2>
       <p className="leak-num">{leak.cost !== null && leak.cost > 0
         ? <>Costs you <b>~{Math.round(leak.cost * 100)}% win chance</b> a match</>
-        : <>You: <b>{leak.row.fmt(leak.row.you)}</b> · level 10: {leak.row.fmt(leak.row.lvl10)}</>}</p>
+        : <>{leak.row.label}: you <b>{leak.row.fmt(leak.row.you)}</b> · level 10 {leak.row.fmt(leak.row.lvl10)}</>}</p>
       {leak.clip && (
         <p className="leak-clips">
           {leak.clip.rounds.map(n => <RoundLink key={n} match={leak.clip!.match} n={n} />)}
@@ -94,8 +95,8 @@ function RoundLink({ match, n }: { match: ProfileMatch; n: number }) {
   const here = !!open && matchKey(open.data.map, open.data.rounds) === match.id;
   const i = here ? open!.data.rounds.findIndex(r => r.n === n) : -1;
   return here && i >= 0
-    ? <button className="chip" title={`Watch round ${n}`} onClick={() => { useStore.getState().setReviewRound(i); navigate({ page: 'cs2', mode: 'review' }); }}>R{n}</button>
-    : <a className="chip" href="/cs2/review" title={`Round ${n}: open this match (${mapName(match.map)}, ${fmtDate(match.at)}) in Review to watch it`}>R{n}</a>;
+    ? <button className="chip" title={`Watch round ${n}`} onClick={() => { useStore.getState().setReviewRound(i); navigate({ page: 'cs2', mode: 'review' }); }}>Watch R{n}</button>
+    : <a className="chip" href="/cs2/review" title={`Round ${n}: open this match (${mapName(match.map)}, ${fmtDate(match.at)}) in Review to watch it`}>Watch R{n}</a>;
 }
 
 /** Your best habit, and how many level-10 players you beat at it. */
@@ -106,8 +107,8 @@ function SuperCard({ matches }: { matches: ProfileMatch[] }) {
     <section className="site-card super-card">
       <span className="eyebrow">Your superpower</span>
       <h2>{sp.title}</h2>
-      <p className="muted">Better than <b>{sp.better}%</b> of level-10 players</p>
-      <p className="muted small">You: {sp.row.fmt(sp.row.you)} · level 10: {sp.row.fmt(sp.row.lvl10)}</p>
+      <p className="muted">Better than <b>{sp.better}%</b> of level-10 players at this</p>
+      <p className="muted small">{sp.row.label}: you {sp.row.fmt(sp.row.you)} · level 10 {sp.row.fmt(sp.row.lvl10)}{BETTER[sp.row.id as FeatureId] === 'low' ? ' (lower is better)' : ''}</p>
     </section>
   );
 }
@@ -213,7 +214,7 @@ export function Profile() {
           <div className="hero-cta"><button className="cta" onClick={() => void openCs2Sample()}>Watch a sample</button><a className="cta primary" href="/cs2/review">Review my match</a></div>
         </section>
       ) : null}
-      <AddMatches />
+      {!matches.length && <AddMatches />}
       {!matches.length ? null : (
         <>
           <StatStrip matches={matches} />
@@ -225,6 +226,7 @@ export function Profile() {
           <section className="site-card">
             <div className="card-head">
               <h2>{all && pro ? 'All matches' : 'Matches'}</h2>
+              <span className="muted small">Last {shown.length}</span>
               <span className="wl-row" aria-label="Results, oldest first">{[...shown].reverse().map(m => <i key={m.id} className={m.result} title={`${mapName(m.map)} ${m.score[0]}:${m.score[1]}`} />)}</span>
               {matches.length > FREE_HISTORY && (pro
                 ? <button className="ghost small-btn" onClick={() => setAll(!all)}>{all ? 'Show the last 5' : `Show all ${matches.length}`}</button>
@@ -234,6 +236,7 @@ export function Profile() {
               {shown.map(m => <MatchRow key={m.id} m={m} onShare={() => setShare(m)} />)}
             </div>
           </section>
+          <AddMatches />
           <div className="profile-grid">
             <Goals matches={matches} />
             <MapStats matches={matches} />
