@@ -1223,3 +1223,4 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .perf-letter.reveal.g-d { animation: grade-drop .38s cubic-bezier(.2, 1.2, .4, 1) both; }
 .perf-letter.reveal.g-f { animation: grade-drop .38s cubic-bezier(.2, 1.2, .4, 1) both, fx-soft-shake .3s ease-in-out .4s 1; filter: brightness(.85) saturate(.8); }
 @media (prefers-reduced-motion: reduce) { .perf-letter.reveal, .perf-letter.reveal::after { animation: none !important; } }
+.kill-log > summary { display: flex; align-items: baseline; gap: 10px; cursor: pointer; } .kill-log > summary h3 { margin: 0; }

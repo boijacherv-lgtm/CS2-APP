@@ -26,6 +26,7 @@ import { shownNow, useShown } from './shown';
 import { scoreBefore, sideSwitches } from './Playback';
 import { VerdictBar } from './Verdict';
 import { DemoReel } from './DemoReel';
+import { closeCs2Match } from './closeMatch';
 import { openCs2Sample } from './sample';
 
 const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
@@ -259,6 +260,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
         <button className="rp-save" onClick={() => exportJson(rv.data)} title="It opens instantly next time: drop the file on Review">
           <Icon name="save" size={13} /> Save this match as a file
         </button>
+        <button className="rp-save" onClick={closeCs2Match}><Icon name="close" size={13} /> Close match</button>
       </div>
       {control && (
         <details className="rp-how">

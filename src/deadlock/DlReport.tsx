@@ -38,7 +38,7 @@ const mins = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 type Tab = 'overview' | 'coach' | 'scoreboard' | 'objectives' | 'build';
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'overview', label: 'Overview', icon: 'star' }, { id: 'coach', label: 'Coach', icon: 'chat' }, { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
-  { id: 'objectives', label: 'Timeline', icon: 'grid' }, { id: 'build', label: 'Economy & items', icon: 'coins' },
+  { id: 'objectives', label: 'Timeline', icon: 'grid' }, { id: 'build', label: 'Economy', icon: 'coins' },
 ];
 /** What each kind of mistake means, and what to do instead (the coach's lessons). */
 const LESSON: Partial<Record<DlTag, { title: string; fix: string }>> = {
@@ -146,8 +146,8 @@ export function DlReport() {
       {tab === 'scoreboard' && <Scoreboard match={match} subject={subject} mine={coach.mine} nameOf={nameOf} pick={slot => setPick(slot)} />}
       {tab === 'build' && who && (
         <>
-          <Economy match={match} slot={who.slot} watch={watch} />
-          <Items match={match} slot={who.slot} />
+          <Economy match={match} slot={who.slot} watch={watch} slim />
+          <Items match={match} slot={who.slot} slim />
           <Abilities match={match} slot={who.slot} card={card} watch={watch} />
         </>
       )}
@@ -156,13 +156,17 @@ export function DlReport() {
           {review && who && <EngineCard review={review} watch={watch} who={nameOf(who.slot)} ult={subjectUlt} uses={ults?.uses ?? null} />}
           <Coach moves={myMoves} watch={watch} who={who ? nameOf(who.slot) : 'everyone'} />
           {who && <Positioning match={match} slot={who.slot} watch={watch} />}
-          <section className="recap-card">
-            <h3>Kills</h3>
-            <MoveList moves={myMoves.filter(m => m.kind !== 'laning')} watch={watch} compact />
-          </section>
         </>
       )}
-      {tab === 'objectives' && <Objectives match={match} team={who?.team ?? 0} watch={watch} />}
+      {tab === 'objectives' && (
+        <>
+          <Objectives match={match} team={who?.team ?? 0} watch={watch} />
+          {/* the kill log lives here now (it was the Coach tab's longest list) */}
+          <details className="recap-card kill-log"><summary><h3>Kill log</h3> <span className="muted">{myMoves.filter(m => m.kind !== 'laning').length} moments</span></summary>
+            <MoveList moves={myMoves.filter(m => m.kind !== 'laning')} watch={watch} compact />
+          </details>
+        </>
+      )}
     </div>
   );
 }

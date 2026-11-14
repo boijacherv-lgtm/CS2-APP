@@ -1,3 +1,4 @@
+import { closeDlMatch } from '../ui/closeMatch';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Arc, Circle, Group, Image as KImage, Layer, Line, Rect, RegularPolygon, Stage, Text } from 'react-konva';
 import { Icon } from '../ui/Icon';
@@ -125,6 +126,7 @@ export function DlBoard() {
           <span className="dl-clock num">{mins(time)}</span>
           <span className="dl-team-score" style={{ color: TEAM_COLOR[1] }}><b>{kills(1)}</b> {TEAM_NAME[1]}</span>
           {DEBUG && <DemoChip />}
+          <button className="ghost small-btn dl-close" onClick={closeDlMatch}>Close match</button>
         </div>
         <div className="dl-souls" title={`Team souls: ${TEAM_NAME[0]} ${s0.toLocaleString()} · ${TEAM_NAME[1]} ${s1.toLocaleString()}`}>
           <i style={{ width: `${p0 * 100}%`, background: TEAM_COLOR[0] }} /><i style={{ width: `${(1 - p0) * 100}%`, background: TEAM_COLOR[1] }} />
