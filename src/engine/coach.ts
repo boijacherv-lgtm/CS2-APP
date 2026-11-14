@@ -183,7 +183,7 @@ function words(id: FeatureId, v: number, n: number, role: Role): { improve: [str
     };
     case 'unusedUtil': return {
       improve: ['Use your grenades before you die', `${per(v, n)} you died holding two or more grenades. Throw them earlier: a flash for your peek, a molotov to delay, a smoke to cross. Grenades in the pocket of a dead player are wasted money.`],
-      strength: ['You used your utility', 'You rarely died with grenades left.'],
+      strength: ['You rarely died holding grenades', 'You rarely died with grenades left.'],
     };
     case 'wastedFlashes': return {
       improve: ['Make your flashes blind someone', `About ${per(v, n)} had a flash that blinded nobody. Learn 2–3 pop-flashes for the spots you play, and throw them where an enemy is likely to be looking, not just at the corner.`],
@@ -290,7 +290,10 @@ export function coach(p: PlayerReport, model: CoachModel = DEFAULT_MODEL): Coach
     });
   }
   const improve = notes.filter(x => x.kind === 'improve').sort((a, b) => b.score - a.score).slice(0, 4);
-  const strengths = notes.filter(x => x.kind === 'strength').sort((a, b) => b.score - a.score).slice(0, 3);
+  // a habit can't be praised while a stat of the same family is flagged (grenades kept vs flashes wasted: both "utility")
+  const family = (id: FeatureId) => (id === 'unusedUtil' || id === 'wastedFlashes' || id === 'teamHarm' ? 'utility' : id);
+  const flagged = new Set(notes.filter(x => x.kind === 'improve').map(x => family(x.feature as FeatureId)));
+  const strengths = notes.filter(x => x.kind === 'strength' && !flagged.has(family(x.feature as FeatureId))).sort((a, b) => b.score - a.score).slice(0, 3);
   const summary = n === 0 ? 'Not graded yet.'
     : improve.length === 0 ? `A solid game as ${role.toLowerCase()}: nothing stands out as a weakness.`
     : `Main thing to work on: ${lowerFirst(improve[0].title)}.${strengths.length ? ` Keep it up: ${lowerFirst(strengths[0].title)}.` : ''}`;

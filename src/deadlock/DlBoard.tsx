@@ -21,6 +21,7 @@ import { useCoach, useMySlot } from './useCoach';
 import type { DlMove } from './coach';
 import { MarkFace } from '../ui/MarkFace';
 import { NOTE_INFO } from '../engine/recap';
+import { swingNote } from '../engine/notes';
 import PLAY from './generated/playnet.json';
 import { ACTION_LABEL, playChances, WINDOW, type Action } from './playNet';
 import { searchAt, SEARCH_COLOR } from './search';
@@ -510,6 +511,11 @@ function betterBefore(match: DlMatch, demo: ReturnType<typeof useDl.getState>['d
  * One graded moment, five lines at most: the grade and who, what happened, the win chance as a bar with its change,
  * the better move (from the engine), and the tags. "Coach wrong?" only on a Mistake or a Blunder.
  */
+function SwingNote({ note, swing }: { note: string; swing: number }) {
+  const n = swingNote(note, swing);
+  return n ? <b className={n.tone}>{n.text}</b> : null;
+}
+
 function MoveCardDl({ m }: { m: DlMove }) {
   const match = useDl(s => s.match)!, demo = useDl(s => s.demo), names = useDl(s => s.names);
   const better = useMemo(() => betterBefore(match, demo, m), [match, demo, m]);
@@ -527,7 +533,7 @@ function MoveCardDl({ m }: { m: DlMove }) {
       {m.win && (
         <div className="dl-card-win" title="Your team's win chance just before and 30 s after">
           <span className="bar"><i style={{ '--from': `${Math.round(m.win.before * 100)}%`, width: `${Math.round(m.win.after * 100)}%`, background: m.win.swing >= 0 ? 'var(--good)' : 'var(--bad)' } as React.CSSProperties} /></span>
-          <span className="num">{Math.round(m.win.before * 100)}% → {Math.round(m.win.after * 100)}% <b className={m.win.swing >= 0 ? 'up' : 'down'}>({m.win.swing >= 0 ? '+' : '−'}{Math.abs(m.win.swing * 100).toFixed(1)} pts)</b></span>
+          <span className="num">{Math.round(m.win.before * 100)}% → {Math.round(m.win.after * 100)}% <SwingNote note={m.note} swing={m.win.swing} /></span>
         </div>
       )}
       {m.why.length > 0 && <ul>{m.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}

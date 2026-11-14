@@ -74,9 +74,9 @@ export function Home() {
               <p>{g.note}</p>
               {g.points && <ul className="game-card-points">{g.points.map(x => <li key={x}>{x}</li>)}</ul>}
               <div className="game-card-cta">
-                <a className="cta primary" href={g.review}>Review a {g.short} match</a>
+                <a className="cta primary" href={g.review}>Review a {g.id === 'deadlock' ? g.name : g.short} match</a>
                 {g.plan && <a className="cta" href={g.plan}>{g.planLabel ?? 'Tactical board'}</a>}
-                {g.page && <a className="cta ghost" href={g.page}>About {g.short}</a>}
+                {g.page && <a className="cta ghost" href={g.page}>About {g.id === 'deadlock' ? g.name : g.short}</a>}
               </div>
             </article>
           ) : (

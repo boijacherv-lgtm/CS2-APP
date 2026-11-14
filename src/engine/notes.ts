@@ -27,3 +27,14 @@ export const letterStyle = (l: Letter) => ({ background: LETTER_COLOR[l], color:
 /** A move mark's symbol on its round badge (Book is a tick). */
 export const NOTE_SYMBOL: Record<Annotation, string> = { '!!': '!!', '!': '!', book: '✓', '?!': '?!', '?': '?', '??': '??' };
 export const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'];
+
+/** The change in win chance next to a mark, never fighting it: a bad mark never shows a gain, a good one never a loss, and a
+ * change under half a point shows no number (never "+0.0" or "−0.0"). */
+export function swingNote(note: string, swing: number): { text: string; tone: 'up' | 'down' | 'muted' } | null {
+  const pts = Math.round(swing * 1000) / 10;
+  if (Math.abs(pts) < 0.5) return null;
+  const bad = note === '?!' || note === '?' || note === '??', good = note === '!' || note === '!!';
+  if (bad && pts > 0) return { text: 'Your team still won the fight', tone: 'muted' };
+  if (good && pts < 0) return { text: 'Your team still lost the fight', tone: 'muted' };
+  return { text: `(${pts > 0 ? '+' : '−'}${Math.abs(pts).toFixed(1)} pts)`, tone: pts > 0 ? 'up' : 'down' };
+}

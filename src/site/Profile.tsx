@@ -132,7 +132,7 @@ function SkillMapCard({ matches }: { matches: ProfileMatch[] }) {
               <b>{sk.name}</b>
               {sk.pct !== null
                 ? <span className="sk-track" aria-label={`${sk.pct} out of 100`}><i className="sk-mid" /><i className="sk-dot" style={{ left: `${sk.pct}%` }} /></span>
-                : <span className="sk-track none muted small">{sk.clutch ? (sk.clutch[0] ? `${sk.clutch[1]} of ${sk.clutch[0]} won · no level-10 number yet` : 'Not measured yet (newer matches only)') : 'Not measured yet'}</span>}
+                : <span className="sk-track none muted small">{sk.clutch ? (sk.clutch[0] ? `${sk.clutch[1]} of ${sk.clutch[0]} won · no level-10 number yet` : '') : ''}</span>}
               <span className="sk-pct num">{sk.pct ?? ''}</span>
               <span className={`sk-trend ${sk.trend ?? ''}`} title={sk.trend ? 'Your last 5 matches against the 5 before' : undefined}>
                 {sk.trend === 'up' ? <Icon name="trendUp" size={14} /> : sk.trend === 'down' ? <Icon name="trendDown" size={14} /> : sk.trend === 'flat' ? '–' : ''}</span>
