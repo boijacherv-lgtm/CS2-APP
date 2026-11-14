@@ -1151,18 +1151,18 @@ input.switch { min-height: 24px; height: 24px; }
 .scorebug .sb-bar { display: flex; align-items: stretch; height: 44px; transform: skewX(-10deg); background: color-mix(in srgb, var(--ink) 82%, transparent); backdrop-filter: blur(6px); border: 1px solid var(--border-strong); border-radius: 6px; overflow: hidden; }
 .scorebug .sb-bar > * { transform: skewX(10deg); }
 .sb-side { display: flex; align-items: center; gap: 8px; padding: 0 14px; position: relative; }
-.sb-side.ct { box-shadow: inset 3px 0 var(--ct); } .sb-side.t { box-shadow: inset -3px 0 var(--t); }
+.sb-side.ct { box-shadow: inset 3px 0 0 var(--ct); } .sb-side.t { box-shadow: inset -3px 0 0 var(--t); }
 .sb-side .sb-team { background: none; padding: 0; font-size: 14px; font-weight: 500; color: var(--text-2); }
 .sb-side .sb-score { background: none; min-width: 28px; font-size: 32px; font-weight: 800; line-height: 1; font-family: var(--font-num, var(--font-display)); font-variant-numeric: tabular-nums lining-nums; }
 .sb-side.ct .sb-score { color: var(--ct); } .sb-side.t .sb-score { color: var(--t); }
 .sb-dots { position: absolute; left: 14px; right: 14px; bottom: 3px; display: flex; gap: 3px; justify-content: center; }
-.sb-dots i { width: 6px; height: 3px; border-radius: 2px; background: var(--white-12); } .sb-dots.ct i.on { background: var(--ct); } .sb-dots.t i.on { background: var(--t); }
+.sb-dots i { width: 6px; height: 3px; border-radius: 999px; background: var(--white-12); } .sb-dots.ct i.on { background: var(--ct); } .sb-dots.t i.on { background: var(--t); }
 .sb-mid { display: grid; place-items: center; min-width: 92px; padding: 0 10px; background: color-mix(in srgb, var(--white) 6%, transparent); }
-.scorebug .sb-clock { background: none; min-width: 0; padding: 0; font-size: 28px; font-weight: 800; line-height: 1; font-family: var(--font-num, var(--font-display)); font-variant-numeric: tabular-nums lining-nums; display: inline-flex; align-items: center; gap: 6px; }
+.scorebug .sb-clock { background: none; min-width: 0; padding: 0; font-size: 32px; font-weight: 800; line-height: 1; font-family: var(--font-num, var(--font-display)); font-variant-numeric: tabular-nums lining-nums; display: inline-flex; align-items: center; gap: 6px; }
 .scorebug .sb-clock.bomb { color: var(--fuse); } .scorebug .sb-clock.bomb.amber { --fuse: var(--gold); } .scorebug .sb-clock.bomb.orange { --fuse: var(--letter-d); } .scorebug .sb-clock.bomb.red { --fuse: var(--bad); }
 .sb-flash { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 16px; letter-spacing: .04em; }
 .sb-mid.flash.defuse { color: var(--ct); background: color-mix(in srgb, var(--ct) 22%, transparent); } .sb-mid.flash.explode { color: var(--bad); background: color-mix(in srgb, var(--bad) 22%, transparent); }
-.sb-line { position: relative; height: 3px; margin-top: 2px; border-radius: 2px; background: var(--white-12); overflow: hidden; }
+.sb-line { position: relative; height: 3px; margin-top: 2px; border-radius: 999px; background: var(--white-12); overflow: hidden; }
 .sb-line i { position: absolute; inset: 0 auto 0 0; background: var(--t); } .sb-line.fuse.amber i { background: var(--gold); } .sb-line.fuse.orange i { background: var(--letter-d); } .sb-line.fuse.red i { background: var(--bad); }
 .sb-line b { position: absolute; inset: 0 auto 0 0; background: var(--ct); } .sb-line b.late { background: repeating-linear-gradient(45deg, var(--bad) 0 3px, var(--ink) 3px 5px); }
 .sb-note { margin-top: 3px; text-align: center; font-size: 12px; color: var(--text-2); } .sb-note.ok { color: var(--ct); } .sb-note.late { color: var(--bad); font-weight: 600; }
