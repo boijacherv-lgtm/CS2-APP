@@ -1,3 +1,4 @@
+import { Collapse } from '../ui/Collapse';
 import { closeDlMatch } from '../ui/closeMatch';
 import { CountUp } from '../ui/CountUp';
 import { useEffect, useMemo, useState } from 'react';
@@ -135,27 +136,27 @@ export function DlReport() {
         <>
           {/* the report card is the overview's top (it was its own tab) */}
           {card && who && <Grades card={card} match={match} name={nameOf(who.slot)} hero={heroOf(who.hero).name} moves={coach.all} watch={watch} level={level} pickLevel={pickLevel} />}
-          {card && subject !== null && <DlDuo match={match} a={subject} card={card} nameOf={nameOf} moves={coach.all} />}
+          {card && subject !== null && <Collapse title="Side by side" hint="you next to another player"><DlDuo match={match} a={subject} card={card} nameOf={nameOf} moves={coach.all} /></Collapse>}
           <div className="dl-ov-charts">
             <WinChance match={match} team={who?.team ?? 0} watch={watch} />
-            <TeamSouls match={match} team={who?.team ?? 0} />
+            <Collapse title="Souls" hint="the lead over the match"><TeamSouls match={match} team={who?.team ?? 0} /></Collapse>
           </div>
-          <Moments moves={[...myMoves, ...(review ? engineMoves(review, myMoves) : [])]} watch={watch} />
+          <Collapse title="Key moments" hint="the costliest and the best"><Moments moves={[...myMoves, ...(review ? engineMoves(review, myMoves) : [])]} watch={watch} /></Collapse>
         </>
       )}
       {tab === 'scoreboard' && <Scoreboard match={match} subject={subject} mine={coach.mine} nameOf={nameOf} pick={slot => setPick(slot)} />}
       {tab === 'build' && who && (
         <>
           <Economy match={match} slot={who.slot} watch={watch} slim />
-          <Items match={match} slot={who.slot} slim />
-          <Abilities match={match} slot={who.slot} card={card} watch={watch} />
+          <Collapse title="Your build" hint="the items, in order"><Items match={match} slot={who.slot} slim /></Collapse>
+          <Collapse title="Abilities" hint="how they were used"><Abilities match={match} slot={who.slot} card={card} watch={watch} /></Collapse>
         </>
       )}
       {tab === 'coach' && (
         <>
           {review && who && <EngineCard review={review} watch={watch} who={nameOf(who.slot)} ult={subjectUlt} uses={ults?.uses ?? null} />}
-          <Coach moves={myMoves} watch={watch} who={who ? nameOf(who.slot) : 'everyone'} />
-          {who && <Positioning match={match} slot={who.slot} watch={watch} />}
+          <Collapse title="What to change" hint="the lessons"><Coach moves={myMoves} watch={watch} who={who ? nameOf(who.slot) : 'everyone'} /></Collapse>
+          {who && <Collapse title="Where you played" hint="against Pos players"><Positioning match={match} slot={who.slot} watch={watch} /></Collapse>}
         </>
       )}
       {tab === 'objectives' && (
@@ -235,19 +236,19 @@ const ULT_VERDICT: Record<UltVerdict, { label: string; color: string }> = {
 function EngineCard({ review, watch, who, ult, uses }: { review: EngineReview; watch: (t: number) => void; who: string; ult: UltInfo | null; uses: UltUse[] | null }) {
   const demoRead = !!useDl(s => s.demo);
   const [all, setAll] = useState(false);
-  const shown = all ? review.worst : review.worst.slice(0, 4);
+  const shown = all ? review.worst : review.worst.slice(0, 3);
   const CLASSES: SearchClass[] = ['Best', 'Excellent', 'Good', 'Inaccuracy', 'Mistake', 'Blunder'];
   const row = (x: EngineMove) => (
     <li key={x.t} className="moment-card" style={{ '--cls': SEARCH_COLOR[x.cls] } as React.CSSProperties}>
       <span className="dl-engine-cls" style={{ background: SEARCH_COLOR[x.cls] }}>{x.cls}</span>
-      <span className="dl-move-text"><b>{x.title.replace(/^[^:]+: /, '')}</b>{x.why.map((w, i) => <span key={i} className="muted small">{w}</span>)}</span>
+      <span className="dl-move-text"><b>{x.title.replace(/^[^:]+: /, '')}</b>{x.why.slice(0, 1).map((w, i) => <span key={i} className="muted small">{w}</span>)}</span>
       <span className="num muted">{mins(x.t)}</span>
       <button className="chip" onClick={() => watch(x.t)}>Watch</button>
     </li>
   );
   return (
     <section className="recap-card dl-engine">
-      <h3>Engine ({who})</h3>
+      <h3>Key moments ({who})</h3>
       <div className="dl-engine-head">
         <div className="dl-engine-acc" title={`Accuracy: how close every move came to the coach's best, like chess.com's. A typical Phantom-and-up player's game is 90. ${review.moves.length} moves, one every 20 s alive.`}>
           <b className="num">{Math.round(review.accuracy)}</b><span className="muted small">accuracy</span>
@@ -260,18 +261,17 @@ function EngineCard({ review, watch, who, ult, uses }: { review: EngineReview; w
         <>
           <h4>Costliest moves</h4>
           <ul className="dl-engine-moves">{shown.map(row)}</ul>
-          {review.worst.length > 4 && <button className="link-btn small" onClick={() => setAll(!all)}>{all ? 'Fewer' : `All ${review.worst.length}`}</button>}
+          {review.worst.length > 3 && <button className="link-btn small" onClick={() => setAll(!all)}>{all ? 'Fewer' : `All ${review.worst.length}`}</button>}
         </>
       )}
       {review.best.length > 0 && (
         <>
           <h4>Best calls</h4>
-          <ul className="dl-engine-moves">{review.best.slice(0, 3).map(row)}</ul>
+          <ul className="dl-engine-moves">{review.best.slice(0, 2).map(row)}</ul>
         </>
       )}
       {ult && (
-        <>
-          <h4>Ultimate: {ult.name}</h4>
+        <details className="dl-ult-more"><summary><h4 style={{ display: 'inline' }}>Ultimate: {ult.name}</h4></summary>
           <p className="dl-engine-ult">{ult.does} <span className="muted">Worth using: {ult.use.charAt(0).toLowerCase() + ult.use.slice(1)}</span></p>
           {uses === null ? <p className="muted small">Each time it was used shows once the match's demo is read (Review reads it).</p>
             : !uses.length ? <p className="muted small">Not used this match{ult.effects.includes('revive') ? ' (it goes off on its own)' : ''}.</p> : (
@@ -286,7 +286,7 @@ function EngineCard({ review, watch, who, ult, uses }: { review: EngineReview; w
                 ))}
               </ul>
             )}
-        </>
+        </details>
       )}
       <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">The coach looks 20 s ahead: the best options good players take here, what the enemy would likely do, and the win chance after. {ULTS_IN ? (demoRead ? 'Ultimates ready count in its fights.' : 'Ultimates count once the demo is read.') : demoRead ? 'It names the ultimates ready in fights; being ready barely changed who won fights, so they don\'t change its odds.' : 'Read the demo for ultimates.'} It sees enemies you might not have.</p></details>
     </section>
@@ -356,7 +356,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
   const best = [...scored].sort((a, b) => b.score! - a.score!)[0], worst = [...scored].sort((a, b) => a.score! - b.score!)[0];
   const overallRank = rankOf(card.overall, c => c.overall);
   const verdict = cardVerdict(card);
-  const jump = (key: GradeKey) => document.getElementById(`grade-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const jump = (key: GradeKey) => { const el = document.getElementById(`grade-${key}`) as HTMLDetailsElement | null; if (el) el.open = true; el?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   return (
     <>
       <section className="recap-card dl-rc-head">
@@ -384,7 +384,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
             <button key={p.key} className="dl-rc-tile" onClick={() => jump(p.key)} title={p.summary}>
               <span className="dl-rc-tile-top"><ScoreRing score={p.score} note={p.note} size={44} /><b>{p.label}</b></span>
               <span className="dl-rc-bar"><i style={{ width: `${p.score ?? 0}%`, background: p.score === null ? 'transparent' : p.note === 'book' ? 'var(--text-2)' : NOTE_INFO[p.note].color }} /></span>
-              <span className="muted small">{p.score === null ? 'not graded' : r ? `${ORD(r.n)} of ${r.of} for ${p.label.toLowerCase()}` : ''}</span>
+              <span className="muted small">{p.score === null ? 'not graded' : r ? `${ORD(r.n)} of ${r.of}` : ''}</span>
             </button>
           );
         })}
@@ -415,13 +415,14 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
         const facts = p.lines.filter(l => l.t === undefined), moments = p.lines.filter(l => l.t !== undefined);
         const r = rankOf(p.score, c => c.parts.find(x => x.key === p.key)?.score ?? null);
         return (
-          <section key={p.key} id={`grade-${p.key}`} className="recap-card dl-grade">
-            <div className="dl-grade-head">
+          <details key={p.key} id={`grade-${p.key}`} className="recap-card dl-grade">
+            <summary className="dl-grade-head">
               <ScoreRing score={p.score} note={p.note} size={40} />
-              <span className="dl-grade-title"><h3>{p.label}</h3><span className="muted small">{p.summary}</span></span>
+              <span className="dl-grade-title"><h3>{p.label}</h3></span>
               {p.note !== 'book' && <MarkFace note={p.note} size={22} className="dl-card-mark" />}
               {r && <span className="dl-grade-rank muted small">{ORD(r.n)} of {r.of} in the match</span>}
-            </div>
+            </summary>
+            <p className="muted small dl-grade-sum">{p.summary}</p>
             {facts.length > 0 && (
               <ul className="dl-grade-facts">
                 {facts.map((l, i) => <li key={i} className={`t-${l.tone ?? 'flat'}`}>{l.text}</li>)}
@@ -441,7 +442,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
                 </ul>
               </>
             )}
-          </section>
+          </details>
         );
       })}
     </>

@@ -2,6 +2,7 @@
  * Match recap's bigger parts: the scoreboard, both teams' souls, economy, items (with what to buy against this enemy
  * team) and objectives.
  */
+import { Collapse } from '../ui/Collapse';
 import { useEffect, useMemo, useState } from 'react';
 import { Loading } from '../ui/Loading';
 import { matchPosition } from './bench';
@@ -347,6 +348,7 @@ export function Objectives({ match, team, watch }: { match: DlMatch; team: DlTea
           <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Guardian, Walker, Base Guardian from the middle out; hollow ones fell (click to watch).</p></details>
         </div>
       </section>
+      <Collapse title="Who took what" hint="every objective, by lane">
       <section className="recap-card">
         <h3>Who took what</h3>
         <ul className="dl-obj-list">
@@ -369,6 +371,7 @@ export function Objectives({ match, team, watch }: { match: DlMatch; team: DlTea
           })}
         </ul>
       </section>
+      </Collapse>
     </>
   );
 }
@@ -400,11 +403,6 @@ export function WinChance({ match, team, watch }: { match: DlMatch; team: DlTeam
         points={curve} fmt={v => `${Math.round(v)}%`} xfmt={mins} onPick={watch}
         label={(() => { const big = [...moves].sort((a, b) => Math.abs(b.d) - Math.abs(a.d))[0]; return big ? { t: big.t, text: `${mins(big.t)} ${big.d >= 0 ? '+' : '−'}${Math.abs(big.d).toFixed(0)}%` } : null; })()}
         dots={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], title: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />
-      {moves.length > 0 && (
-        <div className="dl-win-moves">
-          {moves.map(m => <button key={m.t} className={`chip ${m.d >= 0 ? 'up' : 'down'}`} onClick={() => watch(m.t)}>{mins(m.t)} · {m.d >= 0 ? '+' : '−'}{Math.abs(m.d).toFixed(0)} pts</button>)}
-        </div>
-      )}
     </section>
   );
 }

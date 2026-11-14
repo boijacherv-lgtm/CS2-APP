@@ -1225,3 +1225,15 @@ a.hero-games-live:hover b { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .perf-letter.reveal, .perf-letter.reveal::after { animation: none !important; } }
 .kill-log > summary { display: flex; align-items: baseline; gap: 10px; cursor: pointer; } .kill-log > summary h3 { margin: 0; }
 .home .shot img { aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; } .home .shot figcaption { margin-top: 8px; font-size: 14px; color: var(--text-2); }
+
+/* round 10 A5: collapsed sections (the text budget) */
+.collapse { margin: 0 0 14px; }
+.collapse > summary { display: flex; align-items: baseline; gap: 10px; cursor: pointer; padding: 12px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-1); list-style: none; }
+.collapse > summary::-webkit-details-marker { display: none; }
+.collapse > summary::after { content: '▾'; margin-left: auto; color: var(--text-2); }
+.collapse[open] > summary::after { content: '▴'; }
+.collapse > summary h3 { margin: 0; font-size: 16px; }
+.collapse[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.collapse > :not(summary) { margin-top: 0; }
+.rg .hc::after { content: attr(data-l); opacity: 0; } .rg .cell:hover .hc::after, .rg .cell:focus-within .hc::after { opacity: 1; }
+.dl-grade > summary { cursor: pointer; list-style: none; } .dl-grade > summary::-webkit-details-marker { display: none; } .dl-grade > summary::after { content: '▾'; margin-left: auto; color: var(--text-2); } .dl-grade[open] > summary::after { content: '▴'; }

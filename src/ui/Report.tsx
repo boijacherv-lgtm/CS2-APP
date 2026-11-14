@@ -4,6 +4,7 @@ import { CountUp } from './CountUp';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { SplitChart } from '../site/charts';
 import { closeCs2Match } from './closeMatch';
+import { Collapse } from './Collapse';
 import { matchCurve } from '../engine/matchChance';
 import { sideSwitches } from './Playback';
 import { coach, modelFor, type CoachNote, type Coaching, type Deviation, type FeatureId, type FeatureSet } from '../engine/coach';
@@ -104,11 +105,12 @@ export function MatchReportPage() {
           {report.done && <RoundCallouts p={focus} onRound={openRound} />}
           <MatchChance data={data} team={focus.team as 0 | 1} onRound={i => openRound(i)} />
           <div className="recap-two">
-          {report.done && <DuoCard a={focus} players={view.players} />}
+          {report.done && <Collapse title="Side by side" hint="you next to another player"><DuoCard a={focus} players={view.players} /></Collapse>}
           <section className="recap-card overview">
             {/* half-graded notes read like verdicts: wait for every round */}
             {!report.done && <p className="ov-summary muted">The coach's notes appear once every round is graded ({view.graded}/{view.total}).</p>}
             {/* the summary is the header's one line (recap-verdict): not repeated here */}
+            <Collapse title="More to work on and keep" hint="the other fixes and what you already do well">
             {/* the first fix is the header's line and the Fix next card: the list adds only what comes after it */}
             {report.done && overview.fix.length > 1 && (
               <>
@@ -129,6 +131,7 @@ export function MatchReportPage() {
                 <ul className="ov-list keep">{overview.keep.map(n => <li key={n.title}><b>{n.title}</b></li>)}</ul>
               </>
             )}
+            </Collapse>
           </section>
           </div>
         </>
@@ -203,7 +206,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
       <p className="muted">
         {data.rounds.length} rounds · {mine ? `you started ${mine.team === 0 ? 'CT' : 'T'}${result ? ` · ${result === 'Victory' ? 'won' : result === 'Defeat' ? 'lost' : 'drew'} ${a}–${b}` : ''}` : `Team A started CT · ${a}–${b} (pick yourself below for "you")`}
         {mine && mine.gameRating !== null && <> · you: game rating <b>{fmt(mine.gameRating)}</b>{delta !== null && <span className={delta >= 0 ? 'up' : 'down'}> ({delta >= 0 ? '+' : '−'}{fmt(Math.abs(delta))} vs your Premier)</span>}</>}
-        {!ranked && ' · No Premier ratings in this demo. Estimates use a 10,000 player as base.'}
+        {!ranked && <span title="No Premier ratings in this demo: estimates use a 10,000 player as base"> · No Premier ratings</span>}
         {!done && <> · <b>grading rounds {view.graded}/{view.total}…</b></>}
         {done && error && <> · <b className="down">grading stopped after {view.graded}/{view.total} rounds: {error}</b></>}
       </p>
@@ -810,7 +813,7 @@ function RoundGrid({ data, players, focus, hot, onPick, onRound }: {
                 {p.rounds.map((l, i) => (
                   <td key={i} onClick={() => onRound(i)} className={`cell ${swap[i] ? 'half' : ''} ${hot === i ? 'hot' : ''}`}
                     title={l ? `${l.side} · ${l.role} · ${l.kills}K ${l.deaths}D · ${Math.round(l.damage)} dmg · ${l.points >= 0 ? '+' : ''}${l.points.toFixed(0)} pts${l.tags.length ? ` · ${[...new Set(l.tags)].join(', ')}` : ''}` : 'not graded yet'}>
-                    {l ? <span className="hc" style={{ background: LETTER_COLOR[l.letter] }}><span className="hc-l">{l.letter}</span></span> : <span className="muted">·</span>}
+                    {l ? <span className="hc" data-l={l.letter} style={{ background: LETTER_COLOR[l.letter] }} /> : <span className="muted">·</span>}
                   </td>
                 ))}
               </tr>
