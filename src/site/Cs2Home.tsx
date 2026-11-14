@@ -2,6 +2,7 @@
  * CS2's page: the game kit's game page (GamePage) filled in for CS2. Reached at /cs2 (Review, Recap and Meta — the
  * Tactical board — are /cs2/review, /cs2/report and /cs2/tactical).
  */
+import { CS2_FAQ } from './gameFaq';
 import { MIRAGE_STRATS } from '../engine/strategies';
 import { openCs2Sample } from '../ui/sample';
 import { GamePage, type GamePageKit } from './GamePage';
@@ -29,11 +30,8 @@ const KIT: GamePageKit = {
     { title: 'Drop it in', text: 'It\'s read in your browser; nothing is uploaded.' },
     { title: 'Fix one thing', text: 'The coach picks it. You track it.' },
   ],
-  faq: [
-    { q: 'Where do demos come from?', a: 'CS2 → Watch → Your Matches → Download, or your Steam folder (the site finds them). FACEIT and HLTV demos work too, unzipped.' },
-    { q: 'Is my demo uploaded?', a: 'No. It\'s read in your browser. Logged in, only your match\'s numbers are saved to your profile.' },
-    { q: 'Is it free?', a: 'Yes. Pro adds unlimited history and is free during early access.' },
-  ],
+  faq: CS2_FAQ,
+
   footer: 'Not affiliated with Valve. Counter-Strike 2 and its logo belong to Valve.',
 };
 

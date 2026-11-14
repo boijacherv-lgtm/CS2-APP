@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>RageView type preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@600;700;800&family=Onest:wght@400;500;600&family=Unbounded:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+  :root { color-scheme: dark; --bg:#0A0C10; --card:#12161C; --line:#262D38; --text:#ECEFF4; --mute:#A3ACBA; --accent:#F2A23A; }
+  * { box-sizing: border-box; } body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.5 Onest, system-ui, sans-serif; padding: 24px 16px 64px; }
+  main { max-width: 1100px; margin: 0 auto; display: grid; gap: 24px; }
+  h1.page { font: 600 20px Onest; margin: 0; } p.note { color: var(--mute); margin: 4px 0 0; max-width: 68ch; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+  .opt { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: grid; gap: 14px; align-content: start; }
+  .tag { font: 500 12px Onest; color: var(--accent); letter-spacing: .02em; }
+  .h { margin: 0; color: var(--text); }
+  .a .h { font: 700 clamp(32px, 4vw, 56px)/1.05 Geologica, Onest, sans-serif; letter-spacing: -.015em; }
+  .b .h { font: 600 clamp(32px, 3.4vw, 44px)/1.1 Unbounded, Onest, sans-serif; }
+  .opt p { margin: 0; color: var(--mute); max-width: 68ch; }
+  .btn { display: inline-block; padding: 10px 16px; border-radius: 10px; background: var(--accent); color: #1A1206; font: 600 16px Onest; width: max-content; }
+  .names { display: grid; gap: 4px; font: 600 16px Onest; } .names span { color: var(--mute); font: 400 14px Onest; }
+  .names.a-n b { font: 700 20px Geologica; } .names.b-n b { font: 600 20px Unbounded; }
+  .phone { max-width: 375px; border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: var(--bg); }
+  .phone .h { font-size: 32px !important; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+</style>
+</head>
+<body>
+<main>
+  <div><h1 class="page">Headline fonts: two options, same copy</h1>
+    <p class="note">Body stays Onest 16 px. Only headlines change. Check the Cyrillic names, the long headline, and the phone width. Option A is Geologica 700 with −1.5% letter-spacing; option B is Unbounded 600 capped at 44 px (32 px on phones).</p></div>
+  <div class="grid">
+    <section class="opt a"><span class="tag">A · Geologica 700 (my pick)</span>
+      <h2 class="h">Every move you make, graded.</h2>
+      <p>Load a match. The coach marks every kill, death and grenade, right or wrong, and shows the better play.</p>
+      <span class="btn">Review my match</span>
+      <div class="names a-n"><b>Игрок КРЫСА убил ВАСЯ228</b><b>Дмитрий «Шмель» Кузнецов</b><b>Every CS2 round, graded.</b><span>Player names in the app stay in Onest.</span></div>
+      <div class="phone"><h2 class="h">Every move you make, graded.</h2></div>
+    </section>
+    <section class="opt b"><span class="tag">B · Unbounded 600, capped</span>
+      <h2 class="h">Every move you make, graded.</h2>
+      <p>Load a match. The coach marks every kill, death and grenade, right or wrong, and shows the better play.</p>
+      <span class="btn">Review my match</span>
+      <div class="names b-n"><b>Игрок КРЫСА убил ВАСЯ228</b><b>Дмитрий «Шмель» Кузнецов</b><b>Every CS2 round, graded.</b><span>Player names in the app stay in Onest.</span></div>
+      <div class="phone"><h2 class="h">Every move you make, graded.</h2></div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

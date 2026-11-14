@@ -306,11 +306,11 @@ export function TrendTile({ label, values, fmt, higherBetter = true, sub }: { la
   const good = Math.abs(d) < 1e-9 ? null : (d > 0) === higherBetter;
   return (
     <div className="trend-tile">
-      <span className="tt-label">{label}</span>
+      <span className="tt-label">{label} <span className="muted small tt-what">last match</span></span>
       <div className="tt-body">
         <b className="num">{fmt(last)}</b>
         <span className={`tt-delta ${good === null ? '' : good ? 'up' : 'down'}`} title={`Your last match against your average over these ${values.length}`}>
-          {good === null ? 'at your average' : <>{d > 0 ? '↑' : '↓'} {fmt(Math.abs(d))} vs average</>}</span>
+          {good === null ? `at your average of ${values.length}` : <>{d > 0 ? '↑' : '↓'} {fmt(Math.abs(d))} vs your average of {values.length}</>}</span>
       </div>
       <MiniLine values={values} good={good} />
       {sub && <span className="muted small">{sub}</span>}

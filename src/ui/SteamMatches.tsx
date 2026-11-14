@@ -125,7 +125,7 @@ export function SteamMatches() {
       {/* step 1: who you are */}
       {!loggedIn && (
         <form className="steam-profile" onSubmit={saveProfile}>
-          <div className="row"><SteamLoginButton /></div>
+          <div className="row"><SteamLoginButton outline /></div>
           <p className="muted">Log in with Steam and your recent matches show up here.</p>
           {/* desktop only: the website's match list is tied to a real Steam login */}
           {!ONLINE && <>

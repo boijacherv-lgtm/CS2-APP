@@ -488,6 +488,8 @@ a.btn:hover { border-color: var(--border-strong); }
   border-radius: 6px; padding: 10px 18px; font-weight: 700; text-decoration: none; min-width: 260px;
   transition: background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out); }
 .steam-login:hover { background: var(--ink); border-color: var(--border-strong); }
+.steam-login.outline { background: transparent; color: var(--text-1); border-color: var(--border-strong); }
+.steam-login.outline:hover { background: var(--surface-2); }
 .steam-login.compact { min-width: 0; padding: 6px 12px; font-size: 12px; }
 .steam-paste { display: flex; flex-direction: column; gap: 8px; }
 .steam-paste .step { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -1119,3 +1121,5 @@ input.switch { min-height: 24px; height: 24px; }
 .tl-btn.costliest > button { background: none; border: 0; color: inherit; font: inherit; padding: 7px 10px; min-height: 32px; cursor: pointer; }
 .tl-btn.costliest > button:hover { color: var(--white); }
 .tl-btn.costliest .costliest-x { padding: 7px 8px; min-width: 28px; color: var(--text-3); border-left: 1px solid var(--border); }
+
+.dz-cta { margin-top: 12px; pointer-events: none; }

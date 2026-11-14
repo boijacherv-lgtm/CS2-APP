@@ -4,7 +4,7 @@ import { shapeSet } from './quality';
 import { siteConfig, useSiteConfig } from '../ui/siteConfig';
 import { calloutsOf, MAPS, radarOf } from '../map/catalog';
 import { rageNow, useStore } from '../store';
-import { DL_MAP_IMAGE } from '../deadlock/data';
+import { DL_MAP, DL_MAP_IMAGE, heroOf, LANES } from '../deadlock/data';
 import { SEARCH_COLOR } from '../deadlock/search';
 import { applyGame } from '../ui/tokens';
 import { Icon } from '../ui/Icon';
@@ -19,6 +19,41 @@ const GAME_NAME: Record<MomentGame, string> = { cs2: 'CS2', deadlock: 'Deadlock'
 /** A board with fewer players than this looks empty: it says how many more it needs instead. */
 const BOARD_OPENS = 3;
 const imageOf = (m: Moment) => (m.game === 'deadlock' ? DL_MAP_IMAGE : MAPS.find(x => x.id === m.map)?.levels[0].image ?? null);
+
+/** A Deadlock hero's icon on the map: a round portrait with a ring in the team's colour (you: green, them: red). */
+function HeroDot({ id, x, y, r, hero, ring, z }: { id: string; x: number; y: number; r: number; hero: number; ring: string; z: number }) {
+  const cid = `hd-${id.replace(/[^a-z0-9]/gi, '')}`;
+  return (
+    <g>
+      <clipPath id={cid}><circle cx={x} cy={y} r={r} /></clipPath>
+      <image href={heroOf(hero).card ?? ''} x={x - r} y={y - r} width={2 * r} height={2 * r} clipPath={`url(#${cid})`} preserveAspectRatio="xMidYMid slice" />
+      <circle cx={x} cy={y} r={r} fill="none" stroke={ring} strokeWidth={0.9 * z} />
+    </g>
+  );
+}
+
+/** Deadlock's lanes on the puzzle map, as on the replay: each lane a chain from the patron out (base guardian, Walker,
+ * Guardian) in its zipline colour, the Walkers and Guardians as marks, the patrons as the bases. */
+function DlOverlay({ z }: { z: number }) {
+  const objs = DL_MAP.objectives;
+  const find = (team: number, key: string) => objs.find(o => o.id === `team${team}_${key}`);
+  return (
+    <g pointerEvents="none">
+      {([0, 1] as const).flatMap(team => LANES.map(l => {
+        const pts = ['titan', `base_${l.id}`, `tier2_${l.id}`, `tier1_${l.id}`].map(k => find(team, k)).filter((o): o is NonNullable<typeof o> => !!o);
+        return (
+          <g key={`${team}${l.id}`}>
+            <polyline points={pts.map(o => `${o.x * 100},${o.y * 100}`).join(' ')} fill="none" stroke={l.color} strokeOpacity={0.75} strokeWidth={0.9 * z} strokeLinejoin="round" />
+            {pts.slice(1).map(o => o.id.includes('tier2')
+              ? <rect key={o.id} x={o.x * 100 - 1.5 * z} y={o.y * 100 - 1.5 * z} width={3 * z} height={3 * z} transform={`rotate(45 ${o.x * 100} ${o.y * 100})`} fill={l.color} stroke="#0b0e12" strokeWidth={0.4 * z} />
+              : <circle key={o.id} cx={o.x * 100} cy={o.y * 100} r={1.3 * z} fill={l.color} stroke="#0b0e12" strokeWidth={0.4 * z} />)}
+          </g>
+        );
+      }))}
+      {([0, 1] as const).map(team => { const t = find(team, 'titan'); return t ? <circle key={team} cx={t.x * 100} cy={t.y * 100} r={2.6 * z} fill="#EFE3CC" stroke="#0b0e12" strokeWidth={0.5 * z} /> : null; })}
+    </g>
+  );
+}
 
 /** The moment on its map: your team's dots, theirs, you ringed. */
 export function MomentMap({ m, size = 260 }: { m: Moment; size?: number }) {
@@ -77,8 +112,8 @@ export function ClipMap({ m, revealed, hover = null }: { m: Moment; revealed: bo
     if (a[0] < 0) return null;
     return b[0] < 0 ? { x: a[0], y: a[1] } : { x: a[0] + (b[0] - a[0]) * k, y: a[1] + (b[1] - a[1]) * k };
   };
-  const dots = clip ? clip.dots.map(d => ({ ...d, p: at(d.xy) })).filter(d => d.p) as { team: 0 | 1; me?: boolean; p: { x: number; y: number } }[]
-    : m.dots.map(d => ({ team: d.team, me: d.me, p: { x: d.x, y: d.y } }));
+  const dots = clip ? clip.dots.map(d => ({ ...d, p: at(d.xy) })).filter(d => d.p) as { team: 0 | 1; me?: boolean; hero?: number; p: { x: number; y: number } }[]
+    : m.dots.map(d => ({ team: d.team, me: d.me, hero: d.hero, p: { x: d.x, y: d.y } }));
   const meAt = m.dots.find(d => d.me);
   const arrow = (o: Moment['options'][number] | undefined, color: string, dash?: string) => o?.to && meAt
     ? <line x1={meAt.x * 100} y1={meAt.y * 100} x2={o.to.x * 100} y2={o.to.y * 100} stroke={color} strokeWidth={0.9 * z} strokeDasharray={dash} markerEnd={`url(#ah-${color === 'var(--good)' ? 'g' : color === 'var(--bad)' ? 'r' : 'w'})`} /> : null;
@@ -110,11 +145,16 @@ export function ClipMap({ m, revealed, hover = null }: { m: Moment; revealed: bo
         {names && labels.filter(c => !meAt || Math.hypot(c.x - meAt.x * 100, c.y - meAt.y * 100) > 5).map(c => <text key={c.name} x={c.x} y={c.y} className="map-callout" textAnchor="middle" fontSize={2.1 * z}>{c.name}</text>)}
         {!revealed && hover !== null && Math.abs(f - zero) < 0.5 && arrow(m.options[hover], 'var(--text-1)', '1.5 1')}
         {revealed && Math.abs(f - zero) < 0.5 && <>{m.played !== 0 && arrow(m.options[m.played], 'var(--bad)', '2 1.5')}{arrow(m.options[0], 'var(--good)')}</>}
-        {dots.filter(d => !d.me).map((d, i) => <circle key={i} cx={d.p.x * 100} cy={d.p.y * 100} r={1.9 * z} fill={d.team ? 'var(--good)' : 'var(--bad)'} stroke="#000" strokeWidth={0.4} />)}
+        {m.game === 'deadlock' && <DlOverlay z={z} />}
+        {dots.filter(d => !d.me).map((d, i) => d.hero !== undefined && heroOf(d.hero).card
+          ? <HeroDot key={i} id={`${m.id}-${i}`} x={d.p.x * 100} y={d.p.y * 100} r={3 * z} hero={d.hero} ring={d.team ? 'var(--good)' : 'var(--bad)'} z={z} />
+          : <circle key={i} cx={d.p.x * 100} cy={d.p.y * 100} r={1.9 * z} fill={d.team ? 'var(--good)' : 'var(--bad)'} stroke="#000" strokeWidth={0.4} />)}
         {dots.filter(d => d.me).map((d, i) => (
           <g key={`me${i}`}>
-            <circle cx={d.p.x * 100} cy={d.p.y * 100} r={4.4 * z} fill="none" stroke="var(--theme)" strokeWidth={1 * z} />
-            <circle cx={d.p.x * 100} cy={d.p.y * 100} r={2.3 * z} fill="var(--theme)" stroke="#000" strokeWidth={0.4 * z} />
+            <circle cx={d.p.x * 100} cy={d.p.y * 100} r={4.8 * z} fill="none" stroke="var(--theme)" strokeWidth={1 * z} />
+            {d.hero !== undefined && heroOf(d.hero).card
+              ? <HeroDot id={`${m.id}-me`} x={d.p.x * 100} y={d.p.y * 100} r={3.4 * z} hero={d.hero} ring="var(--theme)" z={z} />
+              : <circle cx={d.p.x * 100} cy={d.p.y * 100} r={2.3 * z} fill="var(--theme)" stroke="#000" strokeWidth={0.4 * z} />}
           </g>
         ))}
       </svg>

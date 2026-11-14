@@ -111,6 +111,7 @@ export function ReviewStart() {
             <div className="dz-icon"><Icon name={busy ? 'hourglass' : 'upload'} size={34} /></div>
             <h2>{busy ? READING[Math.floor(elapsed / 4) % READING.length] : 'Drop a .dem file'}</h2>
             <p>{busy ? status : 'or click to choose'}</p>
+            {!busy && <span className="cta primary dz-cta" aria-hidden>Choose a demo</span>}
             {busy && progress !== null && (
               <div className="dz-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}>
                 {/* the demo as a strip of frames, lighting up as they're read; a scan line sweeps the one being read */}

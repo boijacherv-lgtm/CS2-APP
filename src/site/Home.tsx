@@ -6,10 +6,25 @@ import { Icon, type IconName } from '../ui/Icon';
 import { GAMES, PLAYABLE, STATUS_LABEL } from './games';
 import { SiteFooter } from './SiteFooter';
 import { GameMark } from './gameMarks';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
 import { openCs2Sample, openDlSample } from '../ui/sample';
 
+
+/** The hero's loop with a pause button (a moving picture that runs over 5 s needs one: WCAG 2.2.2). */
+function HeroLoop() {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(true);
+  const toggle = () => { const v = ref.current; if (!v) return; if (v.paused) { void v.play(); setPlaying(true); } else { v.pause(); setPlaying(false); } };
+  return (
+    <figure className="hero-loop">
+      <video ref={ref} src="/videos/hero-cs2.webm" poster="/videos/hero-cs2.jpg" autoPlay muted loop playsInline preload="metadata" aria-label="A graded round from the CS2 sample playing on the radar" />
+      <button className="hero-loop-btn" onClick={toggle} aria-label={playing ? 'Pause the video' : 'Play the video'}><Icon name={playing ? 'pause' : 'play'} size={14} /></button>
+    </figure>
+  );
+}
+
+const ROASTS = ['You killed your own teammate. The enemy says thanks.', 'Wrong team, genius.', 'Friendly fire isn\'t a strategy.'];
 
 const toGames = () => document.getElementById('games')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -59,9 +74,7 @@ export function Home() {
           </ul>
         </div>
         {/* the hero: a real graded round from the CS2 sample, playing (still frame with reduced motion) */}
-        <figure className="hero-loop">
-          <video src="/videos/hero-cs2.webm" poster="/videos/hero-cs2.jpg" autoPlay muted loop playsInline preload="metadata" aria-label="A graded round from the CS2 sample playing on the radar" />
-        </figure>
+        <HeroLoop />
       </section>
 
       <section className="site-section" id="games">
@@ -150,16 +163,21 @@ export function Home() {
         <p className="muted proof">Trained on {MATCHES} level-10 CS2 matches{PRO_MATCHES > 0 ? `, ${PRO_MATCHES} pro matches` : ''} and {DL_MATCHES.toLocaleString('en-US')} Phantom+ Deadlock matches.</p>
       </section>
 
-      <section className="site-section pricing-teaser rage-band">
-        <div>
+      <section className="site-section rage-band rage-loud">
+        <div className="rage-head">
           <h2 className="section-title">Rage mode.</h2>
-          <p className="muted">The coach roasts your worst plays. 18+.</p>
+          <span className="chip rage-18">18+</span>
         </div>
-        <a className="cta" href="/settings">Turn it on</a>
+        <p className="rage-lead">The coach roasts your worst plays. Loud. At the play, never at you.</p>
+        {/* real lines from the coach's list (src/engine/coach-remarks.json) */}
+        <ul className="rage-samples">
+          {ROASTS.map(t => <li key={t}>“{t}”</li>)}
+        </ul>
+        <a className="cta primary" href="/settings">Turn it on in Settings</a>
       </section>
 
       {/* the last word: back to the main job */}
-      <section className="site-section final-cta">
+      <section className="site-section final-cta" style={{ '--poster': 'url(/videos/hero-cs2.jpg)' } as React.CSSProperties}>
         <h2 className="section-title">Your last match is waiting.</h2>
         <div className="hero-cta">
           <a className="cta primary" href="/cs2/review">Review my match <Icon name="arrowRight" size={14} /></a>
@@ -198,7 +216,6 @@ const FEATURES: { icon: IconName; title: string; text: string }[] = [
   { icon: 'play', title: 'Graded replay', text: 'Every play scored, with a live win-chance bar.' },
   { icon: 'route', title: 'The better play', text: 'The better play, and how much it would have helped.' },
   { icon: 'star', title: 'Pro comparison', text: 'You next to the best players in your game.' },
-  { icon: 'bolt', title: 'Rage mode', text: 'The coach roasts your plays. Loud. 18+.' },
   { icon: 'goal', title: 'Goals', text: 'Pick 3 habits. Watch them get better.' },
   { icon: 'friends', title: 'Friends', text: 'Your stats next to theirs. Settle it.' },
   { icon: 'share', title: 'Share card', text: 'Your match as an image. Post it in Discord.' },

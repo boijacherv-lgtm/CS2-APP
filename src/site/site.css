@@ -781,7 +781,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .sk-rounds { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .sk-detail .up { color: var(--good); } .sk-detail .down { color: var(--bad); }
 @media (max-width: 560px) { .sk-row { grid-template-columns: 90px 1fr 30px 18px; } .sk-detail { padding-left: 0 !important; } }
-.profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 14px 0; align-items: start; }
+.profile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 14px 0; align-items: stretch; }
 .profile .card-head .wl-row { margin-left: auto; margin-right: 8px; }
 
 /* §7 charts: one look */
@@ -1050,8 +1050,11 @@ a.hero-games-live:hover b { text-decoration: underline; }
 @media (max-width: 1000px) { .round-strip { max-width: 52vw; } } @media (max-width: 640px) { .round-strip { display: none; } }
 /* C2: the hero is a real round playing */
 .hero-loop { margin: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--border-strong); box-shadow: var(--elev-3); background: var(--map-bg); align-self: center; }
-.hero-loop video { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 812; object-fit: cover; }
-@media (prefers-reduced-motion: reduce) { .hero-loop video { display: none; } .hero-loop { background: url(/videos/hero-cs2.jpg) center / cover; aspect-ratio: 1280 / 812; } }
+.hero-loop { position: relative; }
+.hero-loop video { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 800; object-fit: cover; }
+.hero-loop-btn { position: absolute; right: 10px; bottom: 10px; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--ink) 80%, transparent); border: 1px solid var(--border-strong); color: var(--white); }
+.hero-loop-btn:hover { background: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .hero-loop video { display: none; } .hero-loop { background: url(/videos/hero-cs2.jpg) center / cover; aspect-ratio: 1280 / 800; } .hero-loop-btn { display: none; } }
 /* B6 scenarios: the bar over the Tactical board, the list on Puzzles */
 .scenario-bar { position: absolute; z-index: calc(var(--z-sticky) + 5); left: 50%; top: 56px; transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
   max-width: min(760px, 92vw); padding: 10px 14px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border-strong); box-shadow: var(--elev-2); font-size: 14px; }
@@ -1066,3 +1069,47 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .numbers .numbers-part:first-of-type { margin-top: 8px; }
 .numbers .numbers-part > .coach-head h3, .numbers .numbers-part > h3 { font-size: 20px; margin: 0; }
 .numbers .numbers-part h4 { margin: 14px 0 6px; font-size: 16px; }
+
+.scenario-goal { display: inline-flex; gap: 4px; align-items: center; color: var(--text-2); }
+.scenario-goal .icon.on { color: var(--gold); }
+.scenario-map-name { display: flex; align-items: center; gap: 10px; }
+.scenario-map-name img { border-radius: 6px; object-fit: cover; }
+.scenario-map + .scenario-map { margin-top: 12px; }
+.profile-grid > .site-card { height: 100%; margin: 0; }
+
+/* the hero enters once: headline, then buttons, then the video (no motion when it's reduced) */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-text > h1 { animation: hero-in .4s ease-out both; }
+  .hero-text > .hero-cta, .hero-text > p { animation: hero-in .4s ease-out .12s both; }
+  .hero-loop { animation: hero-in .4s ease-out .24s both; }
+}
+@keyframes hero-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Rage mode: the loud part of the front page */
+.rage-loud { display: grid; gap: 14px; justify-items: start; padding: 28px; border: 1px solid color-mix(in srgb, var(--bad) 55%, var(--border)); border-radius: 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--bad) 16%, var(--surface-1)), var(--surface-1) 70%); }
+.rage-head { display: flex; align-items: center; gap: 12px; }
+.rage-head .section-title { margin: 0; font-size: 32px; }
+.rage-18 { color: var(--bad); border-color: var(--bad); }
+.rage-lead { margin: 0; font-size: 16px; color: var(--text-2); }
+.rage-samples { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; width: 100%; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.rage-samples li { padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 55%, transparent); border-left: 3px solid var(--bad); font-size: 16px; }
+/* the last call to action: the hero's frame behind it */
+.final-cta { position: relative; overflow: hidden; border-radius: 16px; padding: 48px 24px; text-align: center; isolation: isolate;
+  background: linear-gradient(color-mix(in srgb, var(--ink) 72%, transparent), color-mix(in srgb, var(--ink) 86%, transparent)), var(--poster) center / cover; }
+.final-cta .hero-cta { justify-content: center; }
+/* bold is for headings, numbers and buttons: words inside a sentence are medium */
+.page :is(p, li, td, label, dd) b:not(.num) { font-weight: 500; }
+
+/* phone: labelled tabs, 44 px targets, and a puzzle map that leaves room for the answers */
+@media (max-width: 640px) {
+  .navbar .modes a, .navbar .modes .mode-off { flex-direction: column; justify-content: center; gap: 1px; min-width: 44px; min-height: 44px; padding: 3px 6px; }
+  .navbar .modes .mode-label, .navbar .modes a.on .mode-label, .navbar .modes a:not(.on) .mode-label { display: block; font-size: 12px; line-height: 1.1; }
+  .navbar .brand { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; }
+  .navbar .nav-menu summary { width: 44px; height: 44px; }
+  .navbar .steam-login.compact { min-width: 44px; min-height: 44px; }
+  .clip-map:not(.big) .moment-map { width: auto; max-width: 100%; max-height: 45vh; aspect-ratio: 1; margin: 0 auto; display: block; }
+}
+
+/* guide links are 24 px tall or more (tap targets) */
+.guides p a, .guides li a, .guides dd a { display: inline-block; min-height: 24px; line-height: 24px; }

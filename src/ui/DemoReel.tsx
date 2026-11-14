@@ -22,7 +22,6 @@ export function DemoReel() {
   const dur = `${LOOP}s`;
   return (
     <div className="dz-reel" aria-hidden="true">
-    <div className="reel-hud"><b className="ct">8</b><span>Round 14</span><b className="t">5</b></div>
     <svg viewBox="20 14 560 246" preserveAspectRatio="xMidYMid meet">
       {/* the map: corridors and two sites */}
       <g className="reel-map">
@@ -37,8 +36,6 @@ export function DemoReel() {
         <rect x="92" y="62" width="14" height="14" /><rect x="106" y="62" width="14" height="14" /><rect x="160" y="108" width="16" height="16" />
         <rect x="490" y="62" width="16" height="16" /><rect x="424" y="110" width="14" height="14" /><rect x="438" y="110" width="14" height="14" />
       </g>
-      <text className="reel-site" x="130" y="98">B</text>
-      <text className="reel-site" x="470" y="98">A</text>
 
       {/* players: walk their lane in the first 60% of the loop, then hold; fade out at a death and at the loop's end */}
       {DOTS.map(([team, lane, dies], i) => {

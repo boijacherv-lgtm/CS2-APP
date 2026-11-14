@@ -14,6 +14,7 @@ const GAPS = { cs2: { margin: RULES.margin, apart: RULES.apart }, deadlock: { ma
 /** The idea behind an answer: plant, defuse, hold, reposition, peek, utility, fall back, wait, fight, farm … */
 export function ideaOf(label: string): string {
   const l = label.toLowerCase();
+  if (/^take .*(walker|guardian|patron|shrine|boss|urn)/.test(l)) return 'objective';
   if (/plant/.test(l)) return 'plant';
   if (/defus/.test(l)) return 'defuse';
   if (/^(flash|smoke|molotov|he |throw|incendiary)/.test(l)) return 'utility';
