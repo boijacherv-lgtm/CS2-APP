@@ -361,7 +361,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
           <div>
             <span className="muted small">{name}'s report card · {hero}{card.pos ? ` · Pos ${card.pos}` : ''}</span>
             <p className="dl-rc-verdict">{verdict}</p>
-            <span className="muted small">{overallRank ? `Overall ${ORD(overallRank.n)} of ${overallRank.of} in this match · ` : ''}50 is an average game for {hero} in this position {level === 'high' ? 'among Phantom+ players' : ''} ({src.matches.toLocaleString()} {level === 'high' ? 'high-rank' : 'public'} matches since the patch)</span>
+            <span className="muted small" title={`50 is an average game for ${hero} in this position ${level === 'high' ? 'among Phantom+ players' : ''} (${src.matches.toLocaleString()} ${level === 'high' ? 'high-rank' : 'public'} matches since the patch)`}>{overallRank ? `Overall ${ORD(overallRank.n)} of ${overallRank.of}` : '50 = average'}</span>
             {HAS_HIGH && (
               <span className="dl-level" role="group" aria-label="Compare with">
                 <span className="muted small">Compare with</span>
@@ -371,7 +371,6 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
             )}
           </div>
         </div>
-        <TrackRows refLabel="the average for the position" rows={card.parts.map(p => ({ label: p.label, pct: p.score, tip: `${p.label}: ${p.score ?? 'not graded'} (50 is average)`, onClick: () => jump(p.key) }))} />
       </section>
 
       <div className="dl-rc-tiles">

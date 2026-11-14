@@ -364,7 +364,8 @@ function DlPlaybar({ match, time, playing, speed, graded, full, onFull, canMine,
           const big = m.note === '!!' || m.note === '?' || m.note === '??';
           return (
             <button key={`m${i}`} tabIndex={-1} className={big ? 'tl-mark' : 'tl-dot'} style={{ left: pct(m.t), background: big ? 'none' : NOTE_INFO[m.note].color }} title={`${NOTE_INFO[m.note].label} · ${m.title}`}
-              onPointerDown={e => { e.stopPropagation(); s.setPlaying(false); s.setTime(Math.max(0, m.t - LEAD)); }}>{big && <MarkFace note={m.note} size={15} title={`${NOTE_INFO[m.note].label} · ${m.title}`} />}</button>
+              aria-label={`${NOTE_INFO[m.note].label} · ${m.title}`}
+              onPointerDown={e => { e.stopPropagation(); s.setPlaying(false); s.setTime(Math.max(0, m.t - LEAD)); }}>{big && <span aria-hidden="true"><MarkFace note={m.note} size={15} /></span>}</button>
           );
         })}
         <i className="tl-head" style={{ left: pct(time) }} />

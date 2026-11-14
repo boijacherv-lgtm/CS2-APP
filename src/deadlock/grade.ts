@@ -116,7 +116,7 @@ export function reportCard(m: DlMatch, slot: number, demo: DlDemo | null, moves:
     const avgVal = kills.length ? mean(kills.map(x => x.value)) : 1;
     const z = bk && bd ? (zOf(k, bk.mean, bk.sd) - zOf(dd, bd.mean, bd.sd)) / 2 + clamp(avgVal - 1.1, -0.5, 0.5) : null;
     const best = [...kills].sort((a, b) => b.value - a.value).slice(0, 3), worst = [...deaths].sort((a, b) => b.value - a.value).slice(0, 2);
-    part('kills', 'Kills', z, `${me.kills} kills, ${me.deaths} deaths, ${me.assists} assists${bk && mark ? ` · by ${mark} min the average ${who(bk)} has ${bk.mean.toFixed(1)} kills and ${bd!.mean.toFixed(1)} deaths, you ${k} and ${dd}` : ''}`, [
+    part('kills', 'Kills', z, `${me.kills} ${me.kills === 1 ? 'kill' : 'kills'} · ${me.deaths} ${me.deaths === 1 ? 'death' : 'deaths'} · ${me.assists} ${me.assists === 1 ? 'assist' : 'assists'}${bk && mark ? ` (avg ${bk.mean.toFixed(1)} · ${bd!.mean.toFixed(1)} by ${mark} min)` : ''}`, [
       ...best.map(x => ({ t: x.d.t, tone: 'up' as const, text: `${mins(x.d.t)} killed ${heroOf(m.players.find(p => p.slot === x.d.slot)!.hero).name}: worth ${x.value.toFixed(1)} (${x.why.join(', ')})` })),
       ...worst.map(x => ({ t: x.d.t, tone: 'down' as const, text: `${mins(x.d.t)} your death cost ${x.value.toFixed(1)}${x.lost ? ` (your ${x.lost} fell ${x.lostIn} s later)` : x.boss ? ' (they took the Mid Boss after)' : ''}` })),
       ...(kills.length ? [{ text: `Average kill worth ${avgVal.toFixed(2)} (1.0 is a typical kill on a mid-farm hero; carries and kills that open objectives count more).` }] : []),
