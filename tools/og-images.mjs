@@ -14,16 +14,16 @@ const CARDS = [
   { file: 'og-deadlock.png', accent: '#4fd1a5', glow: '#0f2f26', line1: 'Every Deadlock fight,', line2: 'graded.', sub: 'Paste a Deadlock match ID: every fight graded, and what top players do instead.', shot: 'shots/replay.jpg', tag: 'DEADLOCK' },
 ];
 const html = c => `<!doctype html><html><head><meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Unbounded:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=Sofia+Sans+Extra+Condensed:wght@800&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0}
   body{width:1200px;height:630px;overflow:hidden;font-family:Onest,sans-serif;color:#e8ecf2;
     background:radial-gradient(900px 600px at 0% 0%, ${c.glow}, transparent 60%), radial-gradient(700px 500px at 100% 100%, #10161f, transparent 70%), #0b0e12}
   .left{position:absolute;left:64px;top:56px;width:560px}
-  .brand{display:flex;align-items:center;gap:14px;font:700 30px Unbounded,sans-serif;letter-spacing:.02em}
+  .brand{display:flex;align-items:center;gap:14px;font:800 36px 'Sofia Sans Extra Condensed',Oswald,sans-serif;letter-spacing:.02em}
   .brand img{width:56px;height:56px;border-radius:12px}
   .tag{margin-top:34px;font:600 16px Onest;letter-spacing:.14em;color:${c.accent}}
-  h1{margin-top:12px;font:700 62px/1.02 Unbounded,sans-serif;letter-spacing:-.02em;letter-spacing:.01em}
+  h1{margin-top:12px;font:800 76px/1 'Sofia Sans Extra Condensed',Oswald,sans-serif;letter-spacing:-.02em;letter-spacing:.01em}
   h1 span{display:block;color:${c.accent}}
   p{margin-top:24px;font:400 25px/1.4 Onest;color:#aeb7c4}
   .url{position:absolute;left:64px;bottom:44px;font:500 22px Onest;color:#8792a2}

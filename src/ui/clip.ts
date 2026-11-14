@@ -32,7 +32,7 @@ export async function recordClip(board: HTMLElement, at: number, lines: { title:
     while (title.length > 8 && g.measureText(title).width > room) title = title.slice(0, -2).trimEnd() + '…';
     g.fillText(title, pad + mw + 12 * scale, H - pad - (lines.rage ? 1.8 * fs : 0));
     if (lines.rage) { g.fillStyle = '#FF4D3D'; g.font = `700 ${fs}px Onest, system-ui, sans-serif`; g.fillText(lines.rage.slice(0, 100), pad, H - pad); }
-    g.fillStyle = 'rgba(236,239,244,0.7)'; g.font = `700 ${Math.round(font * 0.78 * scale)}px Unbounded, system-ui, sans-serif`; g.textAlign = 'right';
+    g.fillStyle = 'rgba(236,239,244,0.7)'; g.font = `700 ${Math.round(font * 0.78 * scale)}px 'Sofia Sans Extra Condensed', Oswald, system-ui, sans-serif`; g.textAlign = 'right';
     g.fillText('RageView', W - pad, pad + font * 0.78 * scale); g.textAlign = 'left';
   };
   const st = useStore.getState();
