@@ -12,7 +12,9 @@ import { resetHints } from './Hints';
 let config: SiteConfig = DEFAULT_CONFIG;
 const subs = new Set<() => void>();
 export const siteConfig = () => config;
-export function setSiteConfig(c: SiteConfig) {
+export function setSiteConfig(raw: SiteConfig) {
+  // an older Worker lacks the newest fields: the defaults fill them, so no page reads an undefined
+  const c: SiteConfig = { ...DEFAULT_CONFIG, ...raw, flags: { ...DEFAULT_CONFIG.flags, ...raw.flags }, games: { ...DEFAULT_CONFIG.games, ...raw.games }, footer: { ...DEFAULT_CONFIG.footer, ...raw.footer }, pricing: { ...DEFAULT_CONFIG.pricing, ...raw.pricing }, hero: { ...DEFAULT_CONFIG.hero, ...raw.hero } };
   config = c;
   setRageOverride(c.rage);
   // a new hints version from the dev page: everyone sees the hints once more
@@ -31,7 +33,7 @@ export function loadSiteConfig() {
   if (!API_URL) return;
   const once = () => fetch(`${API_URL}/config`, { signal: AbortSignal.timeout(6000) })
     .then(r => (r.ok ? (r.json() as Promise<SiteConfig>) : Promise.reject(new Error(`The Worker answered ${r.status}.`))))
-    .then(c => { configError = null; setSiteConfig({ ...DEFAULT_CONFIG, ...c, flags: { ...DEFAULT_CONFIG.flags, ...c.flags } }); })
+    .then(c => { configError = null; setSiteConfig({ ...DEFAULT_CONFIG, ...c, flags: { ...DEFAULT_CONFIG.flags, ...c.flags }, games: { ...DEFAULT_CONFIG.games, ...c.games }, footer: { ...DEFAULT_CONFIG.footer, ...c.footer }, pricing: { ...DEFAULT_CONFIG.pricing, ...c.pricing }, hero: { ...DEFAULT_CONFIG.hero, ...c.hero } }); })
     .catch(e => { configError = e instanceof Error ? e.message : String(e); subs.forEach(f => f()); /* the defaults stay */ });
   void once();
   // edits from the dev page show without a reload: look again every minute while the tab is open

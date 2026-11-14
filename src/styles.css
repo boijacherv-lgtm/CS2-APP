@@ -1173,3 +1173,44 @@ input.switch { min-height: 24px; height: 24px; }
 .tb-bomb-hp.lethal { height: 100%; opacity: .25; }
 @keyframes bomb-blink { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .tb-bomb-hp { animation: none; } }
+
+/* round 11: the score bar is one skewed piece: the team edges are part of it (so they slant with the border), no dots, the
+   plant / fuse / defuse line sits under the clock */
+.scorebug .sb-bar { position: relative; }
+.scorebug .sb-bar::before, .scorebug .sb-bar::after { content: ''; position: absolute; top: 0; bottom: 0; width: 4px; }
+.scorebug .sb-bar::before { left: 0; background: var(--ct); } .scorebug .sb-bar::after { right: 0; background: var(--t); }
+.sb-side.ct, .sb-side.t { box-shadow: none; }
+.sb-side { padding: 0 18px; }
+.sb-mid { position: relative; min-width: 104px; padding: 0 14px 5px; }
+.sb-timer { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: var(--white-12); overflow: hidden; }
+.sb-timer i { position: absolute; inset: 0 auto 0 0; background: var(--t); }
+.sb-timer.fuse.amber i { background: var(--gold); } .sb-timer.fuse.orange i { background: var(--letter-d); } .sb-timer.fuse.red i { background: var(--bad); }
+.sb-timer b { position: absolute; inset: 0 auto 0 0; background: var(--ct); } .sb-timer b.late { background: repeating-linear-gradient(45deg, var(--bad) 0 3px, var(--ink) 3px 5px); }
+.sb-note { margin-top: 4px; text-align: center; font: 700 12px var(--font-ui); letter-spacing: .06em; color: var(--text-2); }
+.sb-note.plant { color: var(--t); } .sb-note.ok { color: var(--ct); } .sb-note.late { color: var(--bad); }
+
+/* round 11: the round grades as a clean heat grid: full-colour cells with the letter in them, names in plain text with a team dot,
+   a header with every 3rd round and the winner's colour under it, your row on a band */
+.rg { border-collapse: separate; border-spacing: 3px; width: auto; }
+.rg tbody tr:not(.focus) td, .rg tbody tr:not(.focus):hover td { opacity: 1; }
+.rg td.name { font: 500 14px var(--font-ui); color: var(--text-1); padding-right: 14px; min-width: 150px; }
+.rg td.name .rg-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; margin-right: 8px; } .rg-dot.ct { background: var(--ct); } .rg-dot.t { background: var(--t); }
+.rg tbody tr.focus td { background: color-mix(in srgb, var(--text-1) 6%, transparent); } .rg tbody tr.focus td.name { box-shadow: none; font-weight: 700; }
+.rg thead th { font: 500 12px var(--font-ui); color: var(--text-2); border-bottom: 3px solid var(--surface-3); height: 22px; }
+.rg td.cell { padding: 0; }
+.rg .hc { width: 26px; height: 26px; border-radius: 6px; }
+.rg .hc::after { opacity: 1 !important; font: 800 14px var(--font-num); color: var(--ink); }
+.rg .cell:hover .hc { outline: 2px solid var(--text-1); }
+
+/* round 11: the match list in Onest: a clean score, the date whole (it wraps, never cut), the map name in the text face */
+.steam-list td:nth-child(1) { white-space: normal; overflow: visible; text-overflow: clip; font: 500 14px var(--font-ui); color: var(--text-2); }
+.steam-list td:nth-child(2) { font: 600 20px var(--font-ui); letter-spacing: 0; }
+.steam-list td:nth-child(3) { font: 700 20px var(--font-ui); letter-spacing: 0; font-variant-numeric: tabular-nums; min-width: 12ch; }
+.steam-list td:nth-child(4) { font: 500 14px var(--font-ui); letter-spacing: 0; }
+
+/* round 11: nothing runs out of the review panel at any width: headers wrap, names shorten, the panel never scrolls sideways */
+.review-panel { overflow-x: hidden; min-width: 0; }
+.review-panel .rp-head, .review-panel .rp-match { min-width: 0; max-width: 100%; }
+.review-panel .rp-match { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.review-panel .rp-map { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-panel li, .review-panel .feed-row, .review-panel .mv { min-width: 0; }

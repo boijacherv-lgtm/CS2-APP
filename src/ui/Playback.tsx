@@ -116,26 +116,29 @@ export function ScoreBug({ score, round, roundNo, time, switched }: {
   }
   // the end flashes in the centre for 1.5 s: DEFUSED (CT blue) or EXPLODED
   const flash = bomb?.kind === 'defuse' || bomb?.kind === 'explode' ? (time - bomb.since < 1.5 ? bomb.kind : null) : null;
-  const dots = (n: number, side: 'ct' | 't') => <span className={`sb-dots ${side}`} aria-label={`${n} ${side.toUpperCase()} alive`}>{Array.from({ length: 5 }, (_, k) => <i key={k} className={k < n ? 'on' : ''} />)}</span>;
   const clockText = fuse !== null && !ended ? String(Math.ceil(fuse)) : ended ? clock(ROUND_SECONDS - time) : clock(left);
+  // the timer line sits under the clock (broadcast style): planting fills it amber, the fuse drains it, a defuse fills CT blue over it
+  const line = planting !== null ? { share: planting, cls: 'plant' } : fuse !== null && !ended ? { share: fuse / BOMB_SECONDS, cls: `fuse ${tone}` } : null;
+  const tag = planting !== null ? 'PLANTING' : defuse ? (defuse.ok ? `DEFUSING ${defuse.need.toFixed(1)}` : 'TOO LATE') : null;
   return (
     <div className="scorebug">
       <div className="sb-bar" title={`Round ${roundNo}`}>
-        <div className="sb-side ct"><span className="sb-team">CT</span><span className="sb-score num">{score[0]}</span>{dots(al.ct, 'ct')}</div>
+        <div className="sb-side ct"><span className="sb-team">CT</span><span className="sb-score num">{score[0]}</span></div>
         <div className={`sb-mid ${flash ? `flash ${flash}` : ''}`}>
           {flash ? <span className="sb-flash"><Icon name={flash === 'defuse' ? 'scissors' : 'bomb'} size={14} />{flash === 'defuse' ? 'DEFUSED' : 'EXPLODED'}</span>
             : <span className={`sb-clock num ${fuse !== null && !ended ? `bomb ${tone}` : left <= 10 && !ended ? 'low' : ''}`}>
-              {(planting !== null || (fuse !== null && !ended)) && <Icon name="bomb" size={16} />}{planting !== null ? '' : clockText}
+              {(planting !== null || (fuse !== null && !ended)) && <Icon name="bomb" size={16} />}{clockText}
             </span>}
+          {(line || defuse) && !flash && (
+            <span className={`sb-timer ${line?.cls ?? ''}`} aria-hidden="true">
+              {line && <i style={{ width: `${Math.round(line.share * 100)}%` }} />}
+              {defuse && <b className={defuse.ok ? 'ok' : 'late'} style={{ width: `${Math.round(defuse.share * 100)}%` }} />}
+            </span>
+          )}
         </div>
-        <div className="sb-side t">{dots(al.t, 't')}<span className="sb-score num">{score[1]}</span><span className="sb-team">T</span></div>
+        <div className="sb-side t"><span className="sb-score num">{score[1]}</span><span className="sb-team">T</span></div>
       </div>
-      <div className={`sb-line ${planting !== null ? 'planting' : fuse !== null && !ended ? `fuse ${tone}` : ''}`} aria-hidden="true">
-        {planting !== null && <i style={{ width: `${Math.round(planting * 100)}%` }} />}
-        {fuse !== null && !ended && <i style={{ width: `${Math.round((fuse / BOMB_SECONDS) * 100)}%` }} />}
-        {defuse && <b className={defuse.ok ? 'ok' : 'late'} style={{ width: `${Math.round(defuse.share * 100)}%` }} />}
-      </div>
-      {defuse ? <div className={`sb-note ${defuse.ok ? 'ok' : 'late'}`}>{defuse.ok ? `Defusing · ${defuse.need.toFixed(1)} s` : 'Too late'}</div>
+      {tag ? <div className={`sb-note ${defuse ? (defuse.ok ? 'ok' : 'late') : 'plant'}`}>{tag}</div>
         : fuse !== null && !ended && fuse > 0 && al.ct > 0 && al.kit ? <div className="sb-note">Kit defuse needs 5 s</div> : null}
       {switched && time < SWITCH_BANNER && (
         <div className="sb-switch" role="status"><Icon name="swap" size={13} /> Sides switched · {switched}'s team is CT now</div>

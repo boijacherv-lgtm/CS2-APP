@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import REMARKS from '../engine/coach-remarks.json';
 import { rageLine, setRageOverride } from '../engine/rage';
 import type { Move } from '../engine/recap';
-import { type CoachEval, type LogEntry, type SiteConfig } from '../../worker/src/site';
+import { DEFAULT_CONFIG, type CoachEval, type LogEntry, type SiteConfig } from '../../worker/src/site';
 import { Icon } from '../ui/Icon';
 import { Loading } from '../ui/Loading';
 import { setSiteConfig } from '../ui/siteConfig';
@@ -76,7 +76,8 @@ export function DevContent() {
   const { data, err, setData } = useLoad<{ config: SiteConfig }>('/admin/config');
   const [draft, setDraft] = useState<SiteConfig | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
-  useEffect(() => { if (data) setDraft(data.config); }, [data]);
+  // an older Worker answers without the newest fields: fill them with the defaults so the page never breaks
+  useEffect(() => { if (data) setDraft({ ...DEFAULT_CONFIG, ...data.config, flags: { ...DEFAULT_CONFIG.flags, ...data.config.flags }, banner: { ...DEFAULT_CONFIG.banner, ...data.config.banner }, games: { ...DEFAULT_CONFIG.games, ...data.config.games }, footer: { ...DEFAULT_CONFIG.footer, ...data.config.footer }, pricing: { ...DEFAULT_CONFIG.pricing, ...data.config.pricing }, hero: { ...DEFAULT_CONFIG.hero, ...data.config.hero } }); }, [data]);
   if (err) return <section className="site-card"><p className="warn-text small">{err}</p></section>;
   if (!draft) return <Loading>Loading the site's config…</Loading>;
   const c = draft, set = (p: Partial<SiteConfig>) => setDraft({ ...c, ...p });

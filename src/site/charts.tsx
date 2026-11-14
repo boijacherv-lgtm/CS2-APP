@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 /**
  * Small hand-drawn SVG charts for the site's dashboards (profile, dev page), in the Tactical night colours: a mini
@@ -9,8 +9,8 @@ import { useId, useMemo, useState } from 'react';
  * A line that fills whatever width it gets: the line stretches, the dots are placed on top so they stay round.
  * `invert`: for numbers where lower is better, so up always means better. `target`: a dashed reference line.
  */
-export function StretchLine({ values, target = null, invert = false, height = 30, dots = 'last', tone = () => 'flat', className = '' }: {
-  values: (number | null)[]; target?: number | null; invert?: boolean; height?: number; dots?: 'last' | 'all';
+export function StretchLine({ values, target = null, invert = false, height = 30, dots = 'last', tone = () => 'flat', className = '', area = false }: {
+  values: (number | null)[]; target?: number | null; invert?: boolean; height?: number; dots?: 'last' | 'all'; area?: boolean;
   tone?: (v: number, i: number) => 'up' | 'down' | 'flat'; className?: string;
 }) {
   const pts = values.map((v, i) => ({ v, i })).filter((p): p is { v: number; i: number } => p.v !== null);
@@ -28,6 +28,7 @@ export function StretchLine({ values, target = null, invert = false, height = 30
     <div className={`stretch-line ${className}`} style={{ height }} aria-hidden="true">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none">
         {target !== null && <line x1={0} x2={100} y1={y(target)} y2={y(target)} className="sl-target" vectorEffect="non-scaling-stroke" />}
+        {area && <polygon points={`${line} ${x(pts[pts.length - 1].i).toFixed(2)},100 ${x(pts[0].i).toFixed(2)},100`} className="sl-area" />}
         <polyline points={line} className="sl-line" vectorEffect="non-scaling-stroke" />
       </svg>
       {shown.map((p, k) => (
@@ -39,7 +40,7 @@ export function StretchLine({ values, target = null, invert = false, height = 30
 
 /** A tiny line for a KPI tile: the shape of the last few values, the newest dot coloured. */
 export function MiniLine({ values, good = true, avg = null }: { values: number[]; good?: boolean | null; avg?: number | null }) {
-  return <StretchLine values={values} target={avg} className="mini-line" tone={() => (good === null ? 'flat' : good ? 'up' : 'down')} />;
+  return <StretchLine values={values} target={avg} height={52} area className="mini-line" tone={() => (good === null ? 'flat' : good ? 'up' : 'down')} />;
 }
 
 /** A half-ring gauge with a value in the middle (a model's accuracy, a share). `value` is 0–1. */
@@ -245,7 +246,11 @@ export function SplitChart({ points, base, top, bottom, colors, fmt, axis = fmt,
 }) {
   const id = useId().replace(/:/g, '');
   const [hover, setHover] = useState<number | null>(null);
-  const W = 640, H = height, L = 50, R = 12, T = 18, B = 22;
+  // the chart is drawn at the width it's shown at, so its text stays 12 px whatever the card's width
+  const box = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(640);
+  useEffect(() => { const el = box.current; if (!el) return; const f = () => setW(Math.max(280, Math.round(el.clientWidth))); f(); const ro = new ResizeObserver(f); ro.observe(el); return () => ro.disconnect(); }, []);
+  const H = height, L = 44, R = 12, T = 16, B = 22;
   const geo = useMemo(() => {
     const t0 = points[0]?.t ?? 0, t1 = Math.max(t0 + 1, points.at(-1)?.t ?? 1);
     const far = Math.max(1e-9, ...points.map(p => Math.abs(p.v - base)));
@@ -262,8 +267,8 @@ export function SplitChart({ points, base, top, bottom, colors, fmt, axis = fmt,
   const h = hover !== null ? at(hover) : null;
   const dotAt = (t: number) => dots.find(d => Math.abs(d.t - t) < 1e-6);
   return (
-    <div className="split-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${caption}: from ${fmt(points[0].v)} to ${fmt(points.at(-1)!.v)}, highest ${fmt(Math.max(...points.map(p => p.v)))}, lowest ${fmt(Math.min(...points.map(p => p.v)))}`}
+    <div className="split-chart" ref={box}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={`${caption}: from ${fmt(points[0].v)} to ${fmt(points.at(-1)!.v)}, highest ${fmt(Math.max(...points.map(p => p.v)))}, lowest ${fmt(Math.min(...points.map(p => p.v)))}`}
         tabIndex={0} onBlur={() => setHover(null)}
         onKeyDown={e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); const i = Math.max(0, points.findIndex(p => p.t === (h?.t ?? points[0].t))); setHover(points[Math.max(0, Math.min(points.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)))].t); }}
         onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(), px = ((e.clientX - r.left) / r.width) * W; setHover(px < L || px > W - R ? null : points[0].t + ((px - L) / (W - L - R)) * (points.at(-1)!.t - points[0].t)); }}
@@ -312,7 +317,7 @@ export function TrendTile({ label, values, fmt, higherBetter = true, sub }: { la
       <span className="tt-label">{label}</span>
       <b className="num tt-value">{fmt(last)}</b>
       <span className={`tt-delta chip ${good === null ? '' : good ? 'up' : 'down'}`} title={`Your last match against your average over these ${values.length}`}>
-        {good === null ? '≈' : d > 0 ? '▲' : '▼'} {fmt(last)} vs {fmt(avg)} avg</span>
+        {good === null ? '≈ avg' : `${d > 0 ? '▲ +' : '▼ −'}${fmt(Math.abs(d))} vs avg`}</span>
       <MiniLine values={values} good={good} avg={avg} />
       <span className="muted small tt-sub">{sub ?? ' '}</span>
       <ChartTable caption={label} head={['Match', label]} rows={values.map((v, i) => [i + 1, fmt(v)])} />

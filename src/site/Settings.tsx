@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { PRO_MODEL } from '../engine/coachModels';
 import { useStore } from '../store';
@@ -18,6 +18,14 @@ export function Settings() {
   const { me, data, remote } = useProfile();
   const s = useStore();
   const [confirm, setConfirm] = useState(false);
+  const [at, setAt] = useState('look');
+  // the menu follows where you are on the page
+  useEffect(() => {
+    const ids = ['look', 'account', 'coach', 'review', 'games', 'data'], els = ids.map(id => document.getElementById(id)).filter((e): e is HTMLElement => !!e);
+    const io = new IntersectionObserver(es => { const v = es.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]; if (v) setAt(v.target.id); }, { rootMargin: '-80px 0px -60% 0px' });
+    els.forEach(e => io.observe(e));
+    return () => io.disconnect();
+  }, []);
   const dlScope = useDl(x => x.scope), dlDanger = useDl(x => x.danger);
   // Rage mode asks first: turning it on is a choice to be sworn at
   const [askRage, setAskRage] = useState(false);
@@ -34,7 +42,7 @@ export function Settings() {
       <header className="page-head"><h1>Settings</h1></header>
       <div className="settings-layout">
       <nav className="settings-menu" aria-label="Settings sections">
-        {[['look', 'Look'], ['account', 'Account & privacy'], ['coach', 'Coach & Rage'], ['review', 'Review'], ['games', 'Games'], ['data', 'Tips & data']].map(([id, l]) => <a key={id} href={`#${id}`}>{l}</a>)}
+        {[['look', 'Look'], ['account', 'Account & privacy'], ['coach', 'Coach & Rage'], ['review', 'Review'], ['games', 'Games'], ['data', 'Tips & data']].map(([id, l]) => <a key={id} href={`#${id}`} className={at === id ? 'on' : ''} aria-current={at === id ? 'true' : undefined} onClick={() => setAt(id)}>{l}</a>)}
       </nav>
       <div className="settings-body">
 
