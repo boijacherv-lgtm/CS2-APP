@@ -971,8 +971,11 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .playbar { position: relative; }
 
 /* round 8 fonts: Unbounded only for page headlines (28px and up) and the grade letters; numbers tabular in Onest */
-.page h1, .review-start h1, .rs-head h1, .dl-hero h1, .hero h1, .section-title, .recap-map, .recap-score, .not-found h1, .dev-head h1 {
+/* Geologica on the site's headlines (home, game pages, guides, pricing); the app's own screens (review start, the recap's map
+   name and score, dev, not found) keep Unbounded: big numbers and short titles read better in it */
+.page h1, .dl-hero h1, .hero h1, .section-title {
   font-family: var(--font-title); font-weight: 700; letter-spacing: -.015em; line-height: 1.05; }
+.review-start h1, .rs-head h1, .recap-map, .recap-score, .not-found h1, .dev-head h1 { font-family: var(--font-headline); }
 .perf-letter, .letter-chip, .letter, .feed-grade-letter, .profile-strip .letter-chip, .top3-card .letter-chip { font-family: var(--font-headline); }
 .dl-hero h1, .game-page .dl-hero h1 { font-size: clamp(34px, 5vw, 56px); line-height: 1.05; letter-spacing: -.02em; }
 .hero h1 { line-height: 1.05; letter-spacing: -.02em; }
