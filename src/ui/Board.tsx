@@ -397,6 +397,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   // the planted bomb's blast over the walkable grid (an estimate): each player's expected damage, for the roster's blinking slice
   const plantedAt = (() => { const b = s.review ? bombAt(s.review.data.rounds[s.review.round], s.time) : null; return b && b.kind === 'plant' ? worldToRadar(b, engine.map.radar) : null; })();
   const blastF = useMemo(() => (plantedAt ? blastField(engine.grid, plantedAt, UNITS_PER_PX) : null), [plantedAt?.x, plantedAt?.y, engine]); // eslint-disable-line react-hooks/exhaustive-deps
+  const blastImg = useMemo(() => (blastF ? blastCanvas(blastF) : null), [blastF]);
   const roster = (side: 'CT' | 'T') => rosterRound && (
     <TeamRoster side={side} round={rosterRound} time={s.time}
       players={s.board.players.filter(p => p.side === side).slice(0, 5).map(p => {
@@ -525,6 +526,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         </Layer>
 
         <Layer listening={false}>
+          {/* the bomb's blast reaches, UNDER the players and everything else (an estimate: blast.ts) */}
+          {blastImg && <KImage image={blastImg} x={0} y={0} width={blastF!.w * CELL} height={blastF!.h * CELL} listening={false} opacity={0.5} />}
           {/* where FACEIT level-10 players stand at this point of the round: a circle per callout, sized by their share
               of the time there (CT left, T right), with the share */}
           {engineNow && (() => {
@@ -1055,8 +1058,6 @@ function C4({ x, y, k, light }: { x: number; y: number; k: number; light?: strin
 
 /** Dropped (waiting to be picked up), planted (blinking faster as the fuse runs out), defused or exploded. */
 function BombOnMap({ at, k, state, age, planted, unitsPerPx, grid }: { at: Vec2; k: number; state: 'drop' | 'plant' | 'defuse' | 'explode'; age: number; planted: number | null; unitsPerPx?: number; grid?: MapGrid }) {
-  // where the blast reaches: a shockwave along open paths (blast.ts), an estimate; walls stop it
-  const blast = useMemo(() => (state === 'plant' && grid && unitsPerPx ? blastCanvas(blastField(grid, at, unitsPerPx)) : null), [state === 'plant', grid, at.x, at.y, unitsPerPx]); // eslint-disable-line react-hooks/exhaustive-deps
   if (state === 'explode') {
     const a = Math.min(1, age / 0.6);
     return (
@@ -1083,7 +1084,6 @@ function BombOnMap({ at, k, state, age, planted, unitsPerPx, grid }: { at: Vec2;
     return (
       <Group listening={false}>
         {/* how far it reaches (estimate): the cells the shockwave gets to, redder where it hurts more; never through a wall */}
-        {blast && grid && <KImage image={blast} x={0} y={0} width={grid.w * CELL} height={grid.h * CELL} listening={false} opacity={0.55} />}
         <Circle x={at.x} y={at.y} radius={(16 + 20 * pulse) * k} stroke="#ff3b30" strokeWidth={2.5 * k} opacity={0.8 * (1 - pulse)} />
         <C4 x={at.x} y={at.y} k={k * 1.35} light={on ? '#ff3b30' : '#5a1a14'} />
       </Group>

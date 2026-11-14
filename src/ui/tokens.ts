@@ -79,18 +79,20 @@ export function gameOf(page: string): GameId {
  * colour. */
 const NEUTRAL = { accent: T.text1, ink: T.bg0 };
 /** The accents on the light theme: darker, so they read on white. */
-const LIGHT_ACCENT: Record<GameId | 'neutral', { accent: string; ink: string }> = {
-  cs2: { accent: '#B7791F', ink: '#1A1206' }, deadlock: { accent: '#0F8F72', ink: '#06170F' }, neutral: { accent: '#0F141A', ink: '#F6F7F9' },
+const LIGHT_ACCENT: Record<GameId | 'neutral' | 'settings', { accent: string; ink: string }> = {
+  cs2: { accent: '#B7791F', ink: '#1A1206' }, deadlock: { accent: '#0F8F72', ink: '#06170F' }, neutral: { accent: '#0F141A', ink: '#F6F7F9' }, settings: { accent: '#1D7FA8', ink: '#F6F7F9' },
 };
+/** Settings has a colour of its own (sky), so it never looks like the game you were last in. */
+const SETTINGS = { accent: '#6EC1E4', ink: '#06141A' };
 const NEUTRAL_PAGES = new Set(['home', 'pricing', 'dev', 'missing', 'privacy', 'changelog']);
 /** What a page is dressed in: neutral for the site's own pages, else its game (gameOf). */
-export function themeOf(page: string): GameId | 'neutral' {
-  return NEUTRAL_PAGES.has(page) || page === '' ? 'neutral' : gameOf(page);
+export function themeOf(page: string): GameId | 'neutral' | 'settings' {
+  return page === 'settings' ? 'settings' : NEUTRAL_PAGES.has(page) || page === '' ? 'neutral' : gameOf(page);
 }
 /** Dresses the page in a game's colours, or neutral (CSS --theme / --theme-ink, html[data-game]); the stylesheet fades
  * between them. */
-export function applyGame(game: GameId | 'neutral', root: HTMLElement = document.documentElement) {
-  const c = isLight() ? LIGHT_ACCENT[game] : game === 'neutral' ? NEUTRAL : GAME_THEME[game];
+export function applyGame(game: GameId | 'neutral' | 'settings', root: HTMLElement = document.documentElement) {
+  const c = isLight() ? LIGHT_ACCENT[game] : game === 'neutral' ? NEUTRAL : game === 'settings' ? SETTINGS : GAME_THEME[game];
   root.dataset.game = game;
   root.style.setProperty('--theme', c.accent);
   root.style.setProperty('--theme-ink', c.ink);

@@ -1237,3 +1237,44 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .collapse > :not(summary) { margin-top: 0; }
 .rg .hc::after { content: attr(data-l); opacity: 0; } .rg .cell:hover .hc::after, .rg .cell:focus-within .hc::after { opacity: 1; }
 .dl-grade > summary { cursor: pointer; list-style: none; } .dl-grade > summary::-webkit-details-marker { display: none; } .dl-grade > summary::after { content: '▾'; margin-left: auto; color: var(--text-2); } .dl-grade[open] > summary::after { content: '▴'; }
+
+/* round 11: the Numbers card: a track per skill (50 = a typical level-10 player), the value, the trend; a row opens to what to work on */
+.num-rows { list-style: none; margin: 8px 0 0; padding: 0; max-width: 760px; display: grid; gap: 2px; }
+.num-head, .num-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 44px 24px; align-items: center; gap: 16px; }
+.num-head { padding: 0 12px 6px; font: 500 12px var(--font-ui); color: var(--text-3); }
+.num-axis { display: flex; justify-content: space-between; }
+.num-row { width: 100%; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; text-align: left; font: inherit; color: var(--text-1); cursor: pointer; }
+.num-row:hover { background: var(--surface-2); } .num-row[aria-expanded="true"] { background: var(--surface-2); border-color: var(--border); }
+.num-row b { font: 600 16px var(--font-ui); }
+.num-val { text-align: right; font-size: 24px; font-weight: 700; line-height: 1; }
+.num-trend { color: var(--text-2); display: grid; place-items: center; }
+.num-more { padding: 10px 14px 14px; margin: 0 0 6px; background: var(--surface-2); border-radius: 0 0 10px 10px; display: grid; gap: 6px; }
+.num-more p { margin: 0; }
+@media (max-width: 560px) { .num-head, .num-row { grid-template-columns: 96px minmax(0, 1fr) 40px 20px; gap: 10px; } }
+
+/* round 11: the stat strip: five equal tiles, a taller sparkline with a soft area under it and the dashed average */
+.stat-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; background: none; border: 0; }
+@media (max-width: 1100px) { .stat-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.trend-tile { grid-template-rows: auto auto auto 52px auto; min-height: 0; border-radius: 16px; padding: 16px; }
+.tt-delta.chip { background: transparent; }
+.stretch-line .sl-area { fill: var(--text-3); opacity: .14; stroke: none; }
+.stretch-line .sl-line { stroke-width: 2; }
+.stat-strip > .stat-strip-head { grid-column: 1 / -1; }
+
+/* round 11: menus and text buttons that look like buttons: pills with a clear current one, a focus ring, no bare underlines */
+.settings-menu { gap: 4px; }
+.settings-menu a { display: flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid transparent; color: var(--text-2); font: 500 16px var(--font-ui); transition: background .12s ease, color .12s ease, border-color .12s ease; }
+.settings-menu a:hover { background: var(--surface-2); color: var(--text-1); }
+.settings-menu a.on { background: color-mix(in srgb, var(--theme) 14%, var(--surface-2)); border-color: color-mix(in srgb, var(--theme) 45%, var(--border)); color: var(--text-1); box-shadow: inset 3px 0 0 var(--theme); }
+.settings-menu a:focus-visible, .link-btn:focus-visible { outline: 2px solid var(--theme); outline-offset: 2px; }
+.link-btn { text-decoration: none; font-weight: 600; padding: 4px 8px; margin: -4px -8px; border-radius: 6px; min-height: 24px; transition: background .12s ease; }
+.link-btn:hover { background: color-mix(in srgb, var(--theme) 12%, transparent); text-decoration: none; }
+
+/* round 11 fixes from the screenshots: the settings menu text is plain until current; the heat grid fits its card; the player line is text */
+.page .settings-menu a { color: var(--text-2); }
+.page .settings-menu a:hover, .page .settings-menu a.on { color: var(--text-1); }
+.rg { border-spacing: 2px; }
+.rg .hc { width: 24px; height: 24px; } .rg .hc::after { font-size: 12px; }
+.rg td.name { min-width: 130px; }
+.perf-line, .perf-line.num { font-family: var(--font-ui); font-size: 14px; font-weight: 400; letter-spacing: 0; }

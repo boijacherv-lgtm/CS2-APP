@@ -1,7 +1,7 @@
 import { letterStyle } from '../engine/notes';
 import { useSiteConfig } from './siteConfig';
 import { CountUp } from './CountUp';
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { SplitChart } from '../site/charts';
 import { closeCs2Match } from './closeMatch';
 import { Collapse } from './Collapse';
@@ -238,7 +238,7 @@ function MatchChance({ data, team, onRound }: { data: DemoData; team: 0 | 1; onR
     <section className="recap-card match-chance">
       <div className="coach-head"><h2 className="display">Chance to win</h2><span className="chip takeaway">{story}</span></div>
       <SplitChart caption="Your team's chance to win the match, round by round" base={50} top={100} bottom={0} colors={['var(--good)', 'var(--bad)']}
-        points={curve} fmt={v => `${Math.round(v)}%`} xfmt={t => (t === 0 ? 'Start' : `R${t}`)} xticks={Array.from({ length: Math.floor(last / 3) + 1 }, (_, k) => k * 3)} divider={first ? { t: first, label: 'Sides switched' } : null}
+        height={132} points={curve} fmt={v => `${Math.round(v)}%`} xfmt={t => (t === 0 ? 'Start' : `R${t}`)} xticks={Array.from({ length: Math.floor(last / 3) + 1 }, (_, k) => k * 3)} divider={first ? { t: first, label: 'Sides switched' } : null}
         onPick={t => onRound(Math.max(0, Math.min(data.rounds.length - 1, t - 1)))} />
     </section>
   );
@@ -358,26 +358,25 @@ function NumbersTable({ p, level, onRound }: { p: PlayerReport; level: Level; on
     return { name: sk.name, pct: z === null ? null : percentile(z), notes, trend, worst: [...rows].sort((a, b) => a.z - b.z)[0] };
   });
   return (
-    <table className="numbers-table">
-      <thead><tr><th>Skill</th><th>You</th><th title="50 is a typical level-10 player">Level 10</th><th>Pros</th><th>Trend</th></tr></thead>
-      <tbody>
-        {skills.map(k => (
-          <Fragment key={k.name}>
-            <tr className={open === k.name ? 'open' : ''}>
-              <td><button className="link-btn" onClick={() => setOpen(open === k.name ? null : k.name)} aria-expanded={open === k.name}>{k.name}</button></td>
-              <td className="num"><b>{k.pct ?? '–'}</b></td><td className="num muted">50</td><td className="num muted">–</td>
-              <td>{k.trend === 'up' ? <Icon name="trendUp" size={14} /> : k.trend === 'down' ? <Icon name="trendDown" size={14} /> : <span className="muted">–</span>}</td>
-            </tr>
-            {open === k.name && (
-              <tr className="numbers-more"><td colSpan={5}>
-                {k.notes.length ? k.notes.slice(0, 2).map(n => <p key={n.title}><b>{n.title}.</b> <span className="muted">{n.detail}</span></p>) : <p className="muted">{k.worst ? `${k.worst.label}: ${k.worst.value} (level 10: ${k.worst.normal}). Nothing to work on here.` : 'Nothing measured.'}</p>}
-                {k.notes[0] && k.notes[0].rounds.length > 0 && <div className="coach-rounds"><span className="muted">Watch:</span>{k.notes[0].rounds.slice(0, 3).map(i => <button key={i} className="round-link" onClick={() => onRound(i)}>R{i + 1}</button>)}</div>}
-              </td></tr>
-            )}
-          </Fragment>
-        ))}
-      </tbody>
-    </table>
+    <ul className="num-rows" aria-label="Six skills against FACEIT level 10, 50 is a typical level-10 player">
+      <li className="num-head" aria-hidden="true"><span>Skill</span><span className="num-axis"><span>worse</span><span>level 10</span><span>better</span></span><span>You</span><span /></li>
+      {skills.map(k => (
+        <li key={k.name} className={open === k.name ? 'open' : ''}>
+          <button className="num-row" onClick={() => setOpen(open === k.name ? null : k.name)} aria-expanded={open === k.name}>
+            <b>{k.name}</b>
+            <span className="sk-track" aria-hidden="true"><i className="sk-mid" />{k.pct !== null && <i className="sk-dot" style={{ left: `${Math.max(0, Math.min(100, k.pct))}%` }} />}</span>
+            <span className="num-val num">{k.pct ?? '–'}</span>
+            <span className="num-trend">{k.trend === 'up' ? <Icon name="trendUp" size={14} /> : k.trend === 'down' ? <Icon name="trendDown" size={14} /> : null}</span>
+          </button>
+          {open === k.name && (
+            <div className="num-more">
+              {k.notes.length ? k.notes.slice(0, 2).map(n => <p key={n.title}><b>{n.title}.</b> <span className="muted">{n.detail}</span></p>) : <p className="muted">{k.worst ? `${k.worst.label}: ${k.worst.value} (level 10: ${k.worst.normal}). Nothing to work on here.` : 'Nothing measured.'}</p>}
+              {k.notes[0] && k.notes[0].rounds.length > 0 && <div className="coach-rounds"><span className="muted">Watch:</span>{k.notes[0].rounds.slice(0, 3).map(i => <button key={i} className="round-link" onClick={() => onRound(i)}>R{i + 1}</button>)}</div>}
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -801,7 +800,7 @@ function RoundGrid({ data, players, focus, hot, onPick, onRound }: {
               {data.rounds.map((r, i) => (
                 <th key={i} className={`${r.winner === 'CT' ? 'ctw' : r.winner === 'T' ? 'tw' : ''} ${swap[i] ? 'half' : ''} ${hot === i ? 'hot' : ''}`}
                   title={`Round ${r.n} · ${r.winner ?? '?'} won${r.reason ? ` (${r.reason.replace(/_/g, ' ')})` : ''}`}>
-                  <span>{r.n}</span><i>{REASON_ICON[r.reason] && <Icon name={REASON_ICON[r.reason]} size={10} />}</i>
+                  <span>{r.n === 1 || r.n % 3 === 0 ? r.n : ''}</span>
                 </th>
               ))}
             </tr>
@@ -809,7 +808,7 @@ function RoundGrid({ data, players, focus, hot, onPick, onRound }: {
           <tbody>
             {[...players].sort((a, b) => Number(b.id === focus) - Number(a.id === focus)).map(p => (
               <tr key={p.id} className={p.id === focus ? 'focus' : ''}>
-                <td className="name" onClick={() => onPick(p.id)}><span className={p.team === 0 ? 'ct' : 't'}>{p.name}</span></td>
+                <td className="name" onClick={() => onPick(p.id)}><i className={`rg-dot ${p.team === 0 ? 'ct' : 't'}`} />{p.name}</td>
                 {p.rounds.map((l, i) => (
                   <td key={i} onClick={() => onRound(i)} className={`cell ${swap[i] ? 'half' : ''} ${hot === i ? 'hot' : ''}`}
                     title={l ? `${l.side} · ${l.role} · ${l.kills}K ${l.deaths}D · ${Math.round(l.damage)} dmg · ${l.points >= 0 ? '+' : ''}${l.points.toFixed(0)} pts${l.tags.length ? ` · ${[...new Set(l.tags)].join(', ')}` : ''}` : 'not graded yet'}>
