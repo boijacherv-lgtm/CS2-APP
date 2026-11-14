@@ -2,12 +2,13 @@ import Konva from 'konva';
 import { MAPS } from '../map/catalog';
 import { useCanvasLabel } from './canvasLabel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { blastCanvas, blastField } from '../engine/blast';
 import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import { KonvaFace } from './KonvaFace';
 import { JudgePanel } from './JudgePanel';
 import type { ControlMap } from '../engine/control';
 import { FOV, type Analysis, type TacticalEngine } from '../engine/predict';
-import { activeSmokes, distToSegment, smokeOpenAt, SMOKE_RADIUS_UNITS } from '../engine/grid';
+import { activeSmokes, CELL, distToSegment, smokeOpenAt, SMOKE_RADIUS_UNITS, type MapGrid } from '../engine/grid';
 import { radarToWorld, worldToRadar } from '../engine/coords';
 import { SIM_FUSE, simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
@@ -785,7 +786,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           })}
           {/* a simulated play's bomb, once planted (ticking, then defused or gone off) */}
           {!recap && sim?.bomb && s.time >= sim.bomb.plantT && (
-            <BombOnMap at={sim.bomb.pos} k={k} state={sim.bomb.explodeT !== undefined && s.time >= sim.bomb.explodeT ? 'explode' : sim.bomb.defuseT !== undefined && s.time >= sim.bomb.defuseT ? 'defuse' : 'plant'} age={s.time - (sim.bomb.explodeT !== undefined && s.time >= sim.bomb.explodeT ? sim.bomb.explodeT : sim.bomb.plantT)} planted={s.time - sim.bomb.plantT} />
+            <BombOnMap at={sim.bomb.pos} k={k} state={sim.bomb.explodeT !== undefined && s.time >= sim.bomb.explodeT ? 'explode' : sim.bomb.defuseT !== undefined && s.time >= sim.bomb.defuseT ? 'defuse' : 'plant'} age={s.time - (sim.bomb.explodeT !== undefined && s.time >= sim.bomb.explodeT ? sim.bomb.explodeT : sim.bomb.plantT)} planted={s.time - sim.bomb.plantT}  grid={engine.grid} />
           )}
           {recap && s.review && (() => {
             const b = bombAt(s.review.data.rounds[s.review.round], s.time);
@@ -807,7 +808,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               );
             }
             const at = worldToRadar(b, engine.map.radar);
-            return <BombOnMap at={at} k={k} state={b.kind} age={s.time - b.since} planted={b.plantedAt === null ? null : s.time - b.plantedAt} unitsPerPx={UNITS_PER_PX} />;
+            return <BombOnMap at={at} k={k} state={b.kind} age={s.time - b.since} planted={b.plantedAt === null ? null : s.time - b.plantedAt} unitsPerPx={UNITS_PER_PX} grid={engine.grid} />;
           })()}
           {recap && sim && s.review && (
             <Gunfire round={s.review.data.rounds[s.review.round]} sim={sim} engine={engine} t={s.time} k={k}
@@ -1048,9 +1049,9 @@ function C4({ x, y, k, light }: { x: number; y: number; k: number; light?: strin
 }
 
 /** Dropped (waiting to be picked up), planted (blinking faster as the fuse runs out), defused or exploded. */
-/** The C4's blast (world units): 500 damage falling off to nothing at 1750; about 1050 kills a full-HP player without armour. */
-const BLAST_DAMAGE_U = 1750, BLAST_LETHAL_U = 1050;
-function BombOnMap({ at, k, state, age, planted, unitsPerPx }: { at: Vec2; k: number; state: 'drop' | 'plant' | 'defuse' | 'explode'; age: number; planted: number | null; unitsPerPx?: number }) {
+function BombOnMap({ at, k, state, age, planted, unitsPerPx, grid }: { at: Vec2; k: number; state: 'drop' | 'plant' | 'defuse' | 'explode'; age: number; planted: number | null; unitsPerPx?: number; grid?: MapGrid }) {
+  // where the blast reaches: a shockwave along open paths (blast.ts), an estimate; walls stop it
+  const blast = useMemo(() => (state === 'plant' && grid && unitsPerPx ? blastCanvas(blastField(grid, at, unitsPerPx)) : null), [state === 'plant', grid, at.x, at.y, unitsPerPx]); // eslint-disable-line react-hooks/exhaustive-deps
   if (state === 'explode') {
     const a = Math.min(1, age / 0.6);
     return (
@@ -1076,9 +1077,8 @@ function BombOnMap({ at, k, state, age, planted, unitsPerPx }: { at: Vec2; k: nu
     const pulse = ((planted ?? 0) * rate) % 1;
     return (
       <Group listening={false}>
-        {/* how far it reaches: the lethal ring and the damage ring, faint */}
-        {unitsPerPx && <Circle x={at.x} y={at.y} radius={BLAST_DAMAGE_U / unitsPerPx} stroke="#ff3b30" strokeWidth={1 * k} opacity={0.25} dash={[6 * k, 5 * k]} fill="rgba(255,59,48,0.03)" />}
-        {unitsPerPx && <Circle x={at.x} y={at.y} radius={BLAST_LETHAL_U / unitsPerPx} stroke="#ff3b30" strokeWidth={1.2 * k} opacity={0.35} fill="rgba(255,59,48,0.05)" />}
+        {/* how far it reaches (estimate): the cells the shockwave gets to, redder where it hurts more; never through a wall */}
+        {blast && grid && <KImage image={blast} x={0} y={0} width={grid.w * CELL} height={grid.h * CELL} listening={false} opacity={0.55} />}
         <Circle x={at.x} y={at.y} radius={(16 + 20 * pulse) * k} stroke="#ff3b30" strokeWidth={2.5 * k} opacity={0.8 * (1 - pulse)} />
         <C4 x={at.x} y={at.y} k={k * 1.35} light={on ? '#ff3b30' : '#5a1a14'} />
       </Group>
