@@ -76,7 +76,7 @@ export function coachMatch(m: DlMatch, bench: Benchmarks = {}, names: Record<num
     // a spot where high-rank players die a lot at this stage (the death map): a known trap, worth a second look
     const heat = heatAt(d.at.x, d.at.y, d.t, team);
     // a tag, not a line (it was on most cards); the share stays in the tag's tip
-    if (heat !== null && heat >= 85) tags.push('HOT SPOT');
+    if (heat !== null && heat >= 95) tags.push('HOT SPOT'); // the top 5% of spots (85 tagged most deaths)
     // from the demo: died with the ultimate ready (last used longer ago than its full cooldown, so surely back:
     // cooldown items only make it shorter)
     const ult = heroOf(m.players.find(p => p.slot === d.slot)?.hero ?? 0).abilities?.find(a => a.ult);

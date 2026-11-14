@@ -385,12 +385,26 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
         })}
       </div>
 
-      {worst && (
-        <section className="recap-card dl-rc-focus">
-          <div><span className="muted small">Focus next game</span><b>{worst.label}</b><p>{FOCUS[worst.key]}</p></div>
-          {best && best.key !== worst.key && <div><span className="muted small">Keep doing</span><b>{best.label}</b><p>{PRAISE[best.key][0].toUpperCase() + PRAISE[best.key].slice(1)}: {best.score} against an average of 50.</p></div>}
-        </section>
-      )}
+      {/* the same top row as the CS2 recap: the costliest moment, the best play, what to fix next (each one leads somewhere) */}
+      {(() => {
+        const mine = moves.filter(m => m.slot === card.slot && m.win && m.kind !== 'laning');
+        const costly = [...mine].filter(m => m.win!.swing < -0.01).sort((x, y) => x.win!.swing - y.win!.swing)[0];
+        const top = [...mine].filter(m => m.win!.swing > 0.01).sort((x, y) => y.win!.swing - x.win!.swing)[0];
+        const pts = (m: DlMove) => `${m.win!.swing >= 0 ? '+' : '−'}${Math.abs(Math.round(m.win!.swing * 100))}% win chance`;
+        return (
+          <section className="top3">
+            <div className="top3-card leak"><span className="eyebrow">Costliest moment</span>
+              {costly ? <><b>{costly.title.replace(/^[^:]+: /, '')}</b><span className="muted small">{mins(costly.t)} · {pts(costly)}</span><button className="cta small-btn" onClick={() => watch(costly.t)}><Icon name="play" size={12} /> Watch</button></> : <span className="muted">No costly moment. Clean game.</span>}
+            </div>
+            <div className="top3-card best"><span className="eyebrow">Best play</span>
+              {top ? <><b>{top.title.replace(/^[^:]+: /, '')}</b><span className="muted small">{mins(top.t)} · {pts(top)}</span><button className="cta small-btn" onClick={() => watch(top.t)}><Icon name="play" size={12} /> Watch</button></> : <span className="muted">No big swing in your favour this time.</span>}
+            </div>
+            <div className="top3-card fix"><span className="eyebrow">Fix next</span>
+              {worst ? <><b>{worst.label}</b><span className="muted small">{FOCUS[worst.key]}</span><button className="cta small-btn" onClick={() => jump(worst.key)}>See why</button></> : <span className="muted">Nothing stands out.</span>}
+            </div>
+          </section>
+        );
+      })()}
 
       {card.parts.map(p => {
         const facts = p.lines.filter(l => l.t === undefined), moments = p.lines.filter(l => l.t !== undefined);
