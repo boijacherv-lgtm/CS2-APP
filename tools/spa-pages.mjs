@@ -42,7 +42,7 @@ const META = {
   guides: { title: 'Guides: download your CS2 demo, find a Deadlock match ID, ADR and KAST · RageView', h1: 'Guides', desc: 'How to download your CS2 demo, find a Deadlock match ID, what ADR and KAST mean, and where FACEIT level-10 players die on each map.', text: ['Download your CS2 demo, find a Deadlock match ID, ADR and KAST explained, and where FACEIT level-10 players die on each map.'] },
   changelog: { title: 'What\'s new · RageView', h1: 'What\'s new', desc: 'What changed on RageView, newest first.', text: ['What changed on RageView, newest first.'] },
 };
-for (const g of GUIDE_LIST) META[`guides/${g.slug}`] = { title: g.title, h1: g.h1, desc: g.desc, text: [g.desc, 'A RageView guide: free, nothing uploaded.'] };
+for (const g of GUIDE_LIST) META[`guides/${g.slug}`] = { title: g.title, h1: g.h1, desc: g.desc, text: [g.desc, ...g.body, 'A RageView guide: free, nothing uploaded.'] };
 const esc = t => t.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 /** The page's own head and crawler text (pages without an entry keep the home ones). */
 function withMeta(page, p) {
@@ -75,6 +75,7 @@ for (const p of PAGES) {
   page = withMeta(page, p);
   // the game pages' own questions as FAQPage data, and in the static text (crawlers that don't run the app)
   const gf = p === 'cs2' ? CS2_FAQ : p === 'deadlock' ? DEADLOCK_FAQ : null;
+  if (p === 'pricing' || p === 'puzzles') page = page.replace('</noscript></div>', `${FAQ.slice(0, 4).map(f => `<h2>${esc(f.q)}</h2><p>${esc(f.a)}</p>`).join('')}</noscript></div>`);
   if (gf) page = page.replace('</head>', `    <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: gf.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }).replace(/</g, '\\u003c')}</script>\n  </head>`)
     .replace('</noscript></div>', `${gf.map(f => `<h2>${esc(f.q)}</h2><p>${esc(f.a)}</p>`).join('')}</noscript></div>`);
   // the owner's page: never in search results

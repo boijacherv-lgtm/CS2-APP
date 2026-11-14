@@ -21,7 +21,7 @@ const KIT: GamePageKit = {
     { icon: 'shield', title: 'Survival', text: 'Deaths you could have avoided.' },
     { icon: 'trendUp', title: 'Laning', text: 'Souls and last hits vs your role.' },
   ],
-  moment: { src: '/images/shots/coach.jpg', alt: 'The Deadlock sample\'s costliest moves and best calls, each explained', caption: 'From the sample: a public Phantom+ match, names hidden.' },
+  moment: { src: '/images/shots/dl-moment.jpg', alt: 'One graded Deadlock moment: a death marked Mistake with the better play, next to the map at that moment', caption: 'From the sample: a public Phantom+ match, names hidden.' },
   meta: {
     title: 'Top heroes this patch', href: '/deadlock/meta', cta: 'Meta & builds',
     // the meta table's numbers (deadlock-api, every rank, since the patch): the 3 best win rates with enough games

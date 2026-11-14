@@ -101,6 +101,7 @@ export function ScenarioBar({ batch, sim }: { batch: { stats: BatchStats; done: 
         {win === null ? 'Simulating…' : <>Win {Math.round(win * 100)}%{sc.baseline !== null && <> (started at {Math.round(sc.baseline * 100)}%)</>}{surv !== null && <> · your players survive {Math.round(surv * 100)}%</>}</>}
         {stars !== null && <span className="scenario-stars" aria-label={`${stars} of 3 stars`}>{[0, 1, 2].map(i => <Icon key={i} name="star" size={14} className={i < stars ? 'on' : ''} />)}</span>}
       </span>
+      {sc.you === 'T' && sc.baseline !== null && sc.baseline < 0.3 && <span className="muted small">The simulator is tough on attackers (a stock play starts low). The stars measure how much you improve it.</span>}
       {lost && <span className="muted small">In this run: {label(lost.victim)} goes down{lost.killer ? ` to ${label(lost.killer)}` : ''} at {Math.round(lost.t)} s.</span>}
       <button className="cta small-btn" onClick={check}>Check my plan</button>
       <button className="ghost small-btn" onClick={() => { active = null; changed(); }}>Leave the scenario</button>
