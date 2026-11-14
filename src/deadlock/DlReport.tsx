@@ -1,3 +1,4 @@
+import { closeDlMatch } from '../ui/closeMatch';
 import { CountUp } from '../ui/CountUp';
 import { useEffect, useMemo, useState } from 'react';
 import { saveMoments } from '../moments/moments';
@@ -97,6 +98,7 @@ export function DlReport() {
           </span>
           <span className="muted">kills</span>
           {me && <span className={`recap-result ${match.winner === me.team ? 'victory' : 'defeat'}`}>{match.winner === me.team ? 'Victory' : 'Defeat'}</span>}
+          <button className="ghost small-btn recap-close" onClick={closeDlMatch}><Icon name="close" size={13} /> Close match</button>
         </div>
         <p className="muted">Match {match.id} · {mins(match.duration)} · {TEAM_NAME[match.winner]} won{me ? ` · you: ${heroOf(me.hero).name}` : ''}</p>
         {who && (

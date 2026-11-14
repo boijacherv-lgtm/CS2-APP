@@ -1,6 +1,7 @@
 import { GUIDES } from '../site/guideList';
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { reportError, reportGradingTime } from '../ui/telemetry';
+import { ToastHost } from '../ui/closeMatch';
 import { useSiteConfig } from '../ui/siteConfig';
 import type { RoundSummary } from '../engine/match';
 import { finishSteamLogin } from '../ui/steamApi';
@@ -95,6 +96,7 @@ export function Shell() {
         </Suspense></PageGuard>
       </main>
       <Hints />
+      <ToastHost />
     </div>
   );
 }

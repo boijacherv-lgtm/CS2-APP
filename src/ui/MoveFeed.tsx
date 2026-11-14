@@ -233,6 +233,9 @@ export function cardFacts(m: Move): { swing: { side: 'CT' | 'T'; before: number;
     // the engine's verdict is the card's grade already: keep what it adds (accuracy, cost)
     // a line the card's tag already says is dropped (the tag stays)
     if (m.tags.some(t => SAID_BY_TAG[t]?.test(w))) continue;
+    // "Duel odds: 58% …" says nothing when it's close to a coin flip: only shown below 40% or above 60%
+    const odds = w.match(/^Duel odds: (\d+)%/);
+    if (odds && +odds[1] >= 40 && +odds[1] <= 60) continue;
     reasons.push(brief(w).replace(/^Engine: [A-Za-z]+, a/, 'A'));
   }
   return { swing, better, reasons };
@@ -247,7 +250,7 @@ function WinMeter({ m, swing }: { m: Move; swing: { side: 'CT' | 'T'; before: nu
   return (
     <div className="feed-win" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
       <span className="bar"><i style={{ '--from': `${swing.before}%`, width: `${swing.after}%`, background: swing.after >= swing.before ? 'var(--good)' : 'var(--bad)' } as React.CSSProperties} /></span>
-      <span className="num">{swing.side} {swing.before}% → {swing.after}% {(() => { const n = swingNote(m.note, (swing.after - swing.before) / 100); return n ? <b className={n.tone}>{n.text}</b> : null; })()}</span>
+      <span className="num"><b className={`side-${swing.side.toLowerCase()}`}>{swing.side}</b> {swing.before}% → {swing.after}% {(() => { const n = swingNote(m.note, (swing.after - swing.before) / 100); return n ? <b className={n.tone}>{n.text}</b> : null; })()}</span>
     </div>
   );
 }

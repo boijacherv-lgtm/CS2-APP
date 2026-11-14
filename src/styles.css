@@ -1123,3 +1123,9 @@ input.switch { min-height: 24px; height: 24px; }
 .tl-btn.costliest .costliest-x { padding: 7px 8px; min-width: 28px; color: var(--text-3); border-left: 1px solid var(--border); }
 
 .dz-cta { margin-top: 12px; pointer-events: none; }
+
+/* round 10 C9: match list columns: the score in a fixed cell, secondary text medium */
+.steam-list td:nth-child(1) { font-size: 14px; font-weight: 500; }
+.steam-list td:nth-child(3) { min-width: 11ch; text-align: right; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.steam-list td:nth-child(3).win { color: var(--good); } .steam-list td:nth-child(3).loss { color: var(--bad); }
+.steam-list td:nth-child(4) { min-width: 5ch; text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }

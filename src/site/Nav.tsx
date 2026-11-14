@@ -9,10 +9,13 @@ import { GameMark } from './gameMarks';
 import { useStore } from '../store';
 import { MAPS } from '../map/catalog';
 import { Icon } from '../ui/Icon';
+import { heroOf } from '../deadlock/data';
+import { steamId3 } from '../deadlock/api';
 import { refreshProfile, useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { steamSignOut } from '../ui/steamApi';
 import { useDl } from '../deadlock/store';
+import { closeCs2Match, closeDlMatch } from '../ui/closeMatch';
 import { gameOf } from '../ui/tokens';
 
 type KitGame = 'cs2' | 'deadlock';
@@ -85,13 +88,13 @@ export function NavBar({ route }: { route: Route }) {
       {loaded && (
         <span className={`match-tab ${cs2 ? '' : 'away'}`} title={`Open CS2 match: ${MAPS.find(m => m.id === loaded.data.map)?.name ?? loaded.data.map}, ${loaded.data.rounds.length} rounds`}>
           <a href="/cs2/review"><Icon name="map" size={14} /><b>{MAPS.find(m => m.id === loaded.data.map)?.name ?? loaded.data.map}</b></a>
-          <button className="match-tab-x" onClick={exitReview} aria-label="Close the CS2 match" title="Close this match"><Icon name="close" size={13} /></button>
+          <button className="match-tab-x" onClick={closeCs2Match} aria-label="Close the CS2 match" title="Close this match"><Icon name="close" size={13} /></button>
         </span>
       )}
       {dlMatch && (
         <span className={`match-tab ${route.page === 'deadlock' ? '' : 'away'}`} title={`Open Deadlock match ${dlMatch.id}`}>
-          <a href="/deadlock/review"><Icon name="map" size={14} /><b>Match {dlMatch.id}</b></a>
-          <button className="match-tab-x" onClick={dlClose} aria-label="Close the Deadlock match" title="Close this match"><Icon name="close" size={13} /></button>
+          <a href="/deadlock/review"><Icon name="map" size={14} /><b>{dlChip(dlMatch)}</b></a>
+          <button className="match-tab-x" onClick={closeDlMatch} aria-label="Close the Deadlock match" title="Close this match"><Icon name="close" size={13} /></button>
         </span>
       )}
       <div className="nav-right">
@@ -193,4 +196,10 @@ function AccountMenu({ route }: { route: Route }) {
       </div>
     </details>
   );
+}
+
+/** The open Deadlock match's tab: the hero you played and whether you won (the ID is in its tooltip). */
+function dlChip(m: NonNullable<ReturnType<typeof useDl.getState>['match']>): string {
+  const mine = useProfile.getState().me?.steamId ? m.players.find(p => String(p.account) === steamId3(useProfile.getState().me!.steamId)) : null;
+  return mine ? `${heroOf(mine.hero).name} · ${m.winner === mine.team ? 'Won' : 'Lost'}` : `Match ${m.id}`;
 }

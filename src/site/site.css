@@ -1138,3 +1138,16 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .tt-delta.chip.down { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, var(--border)); }
 .stat-strip-head { margin: 0 0 6px; }
 .stat-strip .stretch-line .sl-target { stroke: var(--text-3); stroke-dasharray: 3 3; }
+.recap-close { margin-left: auto; }
+.rv-toast { bottom: 24px; }
+.round-strip li.half { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
+.rs-divider { display: inline-grid; place-items: center; min-width: 16px; height: 24px; color: var(--text-2); font-size: 12px; font-weight: 600; }
+.side-ct { color: var(--ct); } .side-t { color: var(--t); }
+
+/* round 10 C7: both teams' tables share one column grid (fixed layout), the name column wide enough, a sticky header */
+.report .sb { table-layout: fixed; width: 100%; }
+.report .sb .sb-name { width: 22%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.report .sb th, .report .sb td { text-align: right; }
+.report .sb th.sb-name, .report .sb td.sb-name { text-align: left; }
+.report .sb thead th { position: sticky; top: 0; background: var(--surface-1); z-index: var(--z-base); }
+.report .sb tr.focus td { background: color-mix(in srgb, var(--theme) 10%, transparent); }

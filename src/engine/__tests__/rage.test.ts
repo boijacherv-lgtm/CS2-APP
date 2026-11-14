@@ -39,7 +39,8 @@ describe('rage mode', () => {
 
   it('leaves plain, expected moves alone', () => {
     expect(rageLine(move({ kind: 'utility', note: 'book', gain: 0 }))).toBeNull();
-    expect(rageSummary('unusedUtil')).toBe(REMARKS.rage.summary.unusedUtil);
+    expect(rageSummary('unusedUtil', false, 'full', '4 of 20 rounds')).toBe(REMARKS.rage.summary.unusedUtil.replace('{stat}', '4 of 20 rounds'));
+    expect(rageSummary('openingDeaths', false, 'full', '17% (level 10: 11%)')).toContain('17% (level 10: 11%)');
     expect(rageSummary(null)).toBeTruthy();
     expect(rageSummary(null, false, 'off')).toBeNull();
   });
