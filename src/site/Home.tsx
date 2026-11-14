@@ -132,11 +132,12 @@ export function Home() {
       </section>
 
       <section className="site-section">
-        <h2 className="section-title">See it: a graded kill, a graded fight, a puzzle</h2>
+        <h2 className="section-title">See it</h2>
         <div className="shots">
           {SHOTS.map(x => (
             <figure key={x.src} className="shot">
               <img src={x.src} alt={x.alt} width={x.w} height={x.h} loading="lazy" />
+              <figcaption>{x.cap}</figcaption>
             </figure>
           ))}
         </div>
@@ -206,9 +207,9 @@ export function Home() {
 /** Real screens (a public Deadlock match with the players' names hidden, a top players' CS2 puzzle). */
 /** Real screens from both games (sample matches, players' names hidden). */
 const SHOTS = [
-  { src: '/images/shots/cs2-moment.jpg', w: 1819, h: 700, alt: 'CS2: the map at the moment of an opening kill, and its coach card: the kill, the win chance 88% to 92%, the tags and the duel odds' },
-  { src: '/images/shots/dl-moment.jpg', w: 1206, h: 706, alt: 'Deadlock: the map at a death marked Mistake, and its card: Player 7 died alone against 2, the win chance, and the better play: farm camps instead of fighting' },
-  { src: '/images/shots/puzzle.jpg', w: 1067, h: 505, alt: 'A CS2 puzzle on Nuke: the map with both teams and three moves to choose from' },
+  { src: '/images/shots/cs2-moment.jpg', w: 1280, h: 800, cap: 'A graded kill, with the better play.', alt: 'CS2: the map at the moment of an opening kill, and its coach card: the kill, the win chance 88% to 92%, the tags and the duel odds' },
+  { src: '/images/shots/dl-moment.jpg', w: 1280, h: 800, cap: 'A graded fight, with the better play.', alt: 'Deadlock: the map at a death marked Mistake, and its card: Player 7 died alone against 2, the win chance, and the better play: farm camps instead of fighting' },
+  { src: '/images/shots/puzzle.jpg', w: 1280, h: 800, cap: 'A puzzle: find the best move.', alt: 'A CS2 puzzle on Nuke: the map with both teams and three moves to choose from' },
 ];
 
 const WHY: { icon: IconName; title: string; text: string }[] = [

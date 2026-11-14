@@ -1117,7 +1117,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .guides p a, .guides li a, .guides dd a { display: inline-block; min-height: 24px; line-height: 24px; }
 
 /* Home "See it": three big close-ups, one under the other */
-.home .shots { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 960px; }
+.home .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
 .home .shot { margin: 0; } .home .shot img { display: block; width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--border); }
 
 /* round 10 A4 widths: reading cards 1120, tables 880, charts 960 (the scoreboard 980) */
@@ -1224,3 +1224,4 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .perf-letter.reveal.g-f { animation: grade-drop .38s cubic-bezier(.2, 1.2, .4, 1) both, fx-soft-shake .3s ease-in-out .4s 1; filter: brightness(.85) saturate(.8); }
 @media (prefers-reduced-motion: reduce) { .perf-letter.reveal, .perf-letter.reveal::after { animation: none !important; } }
 .kill-log > summary { display: flex; align-items: baseline; gap: 10px; cursor: pointer; } .kill-log > summary h3 { margin: 0; }
+.home .shot img { aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; } .home .shot figcaption { margin-top: 8px; font-size: 14px; color: var(--text-2); }

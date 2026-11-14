@@ -144,6 +144,17 @@ export function DevContent() {
       </section>
 
       <section className="site-card">
+        <div className="card-head"><h2>Guides (headline and opening line)</h2><ShowsOn pages={['/guides/download-cs2-demo', '/guides/deadlock-match-id', '/guides/adr-and-kast', '/guides/where-players-die']} /></div>
+        {['download-cs2-demo', 'deadlock-match-id', 'adr-and-kast', 'where-players-die'].map(slug => (
+          <div key={slug}><b>{slug}</b>
+            <label className="dev-field"><span>Headline (empty: the built-in one)</span><input value={c.guides[slug]?.h1 ?? ''} maxLength={80} onChange={e => set({ guides: { ...c.guides, [slug]: { h1: e.target.value, desc: c.guides[slug]?.desc ?? '' } } })} /></label>
+            <label className="dev-field"><span>Opening line</span><textarea rows={2} maxLength={300} value={c.guides[slug]?.desc ?? ''} onChange={e => set({ guides: { ...c.guides, [slug]: { h1: c.guides[slug]?.h1 ?? '', desc: e.target.value } } })} /></label>
+          </div>
+        ))}
+        <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Guides text', { guides: c.guides })}>Save</button></div>
+      </section>
+
+      <section className="site-card">
         <div className="card-head"><h2>Pricing</h2><ShowsOn pages={['/pricing']} /></div>
         <label className="dev-field"><span>Price a month (empty: $5)</span><input value={c.pricing.price} maxLength={20} placeholder="$5" onChange={e => set({ pricing: { ...c.pricing, price: e.target.value } })} /></label>
         <label className="dev-field"><span>Early access ends (a date in words, empty: not announced)</span><input value={c.pricing.earlyEnds} maxLength={40} placeholder="Dec 31, 2026" onChange={e => set({ pricing: { ...c.pricing, earlyEnds: e.target.value } })} /></label>
