@@ -1312,8 +1312,9 @@ a.hero-games-live:hover b { text-decoration: underline; }
 /* round 12: the grade tile: the label, then the 56 px badge and its word on one row at the same left edge; no slash through the D;
    a small down triangle in the badge corner for C, D and F so the grade does not rely on colour alone */
 .perf-grade-tile { align-items: start; justify-items: start; }
-.pg-row { display: flex; align-items: center; gap: 12px; }
-.pg-word { font: 700 20px/1 var(--font-num); color: var(--text); }
+.pg-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: 100%; }
+/* .perf-tiles .kpi b (32px) is more specific than .pg-word, so name the tile too; the word wraps under the badge when it does not fit */
+.perf-tiles .perf-grade-tile b.pg-word { font: 700 20px/1 var(--font-num); color: var(--text); min-width: 0; overflow-wrap: anywhere; }
 .perf-letter.reveal.g-c::before, .perf-letter.reveal.g-d::before, .perf-letter.reveal.g-f::before { content: '▼'; position: absolute; top: 3px; right: 5px; font: 700 12px/1 var(--font-ui); color: var(--ink); opacity: .75; }
 
 /* round 12: Side by side, Fix next and Keep doing are ONE card with a segmented control; no card inside a card */
