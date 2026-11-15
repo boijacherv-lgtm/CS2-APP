@@ -81,6 +81,8 @@ export function Hints() {
     const t = setInterval(() => { if (!target.isConnected || !onScreen(hint.ready)) setHint(null); }, 800);
     return () => { clearInterval(t); el.remove(); };
   }, [hint]);
+  // the welcome card shows once and goes by itself after 5 s
+  useEffect(() => { if (!welcome) return; const t = setTimeout(() => { read(() => localStorage.setItem(WELCOMED, '1'), undefined); setWelcome(false); }, 5000); return () => clearTimeout(t); }, [welcome]); // eslint-disable-line react-hooks/exhaustive-deps
   // the welcome card goes with the first page change (they've found their way)
   const firstWhere = useRef(where);
   useEffect(() => { if (where !== firstWhere.current && welcome) done(); }, [where]); // eslint-disable-line react-hooks/exhaustive-deps

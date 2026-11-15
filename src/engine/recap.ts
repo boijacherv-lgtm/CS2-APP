@@ -142,6 +142,11 @@ export function withBlastTail(data: DemoData): DemoData {
   if (!data.rounds.some(ends)) return data;
   return { ...data, rounds: data.rounds.map(r => (ends(r) ? { ...r, duration: r.duration + BLAST_TAIL_SECONDS } : r)) };
 }
+/** A move's time as the HUD shows it: time left on the round clock, or on the bomb's fuse once the bomb is down. */
+export function moveClock(plant: number | null, t: number): { text: string; bomb: boolean } {
+  const bomb = plant !== null && t >= plant, left = Math.max(0, bomb ? BOMB_FUSE_SECONDS - (t - plant!) : ROUND_TIME - t);
+  return { text: `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`, bomb };
+}
 export type BombState =
   | { kind: 'carry'; id: string }
   | { kind: 'drop' | 'plant' | 'defuse' | 'explode'; x: number; y: number; since: number; plantedAt: number | null };

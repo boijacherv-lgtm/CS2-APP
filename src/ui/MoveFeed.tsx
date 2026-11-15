@@ -3,7 +3,7 @@ import { useSiteConfig } from './siteConfig';
 import { simStateAt, type Simulation } from '../engine/combat';
 import { moveLook, NoteMark } from './NoteMark';
 import { gunFromName } from '../engine/guns';
-import { calloutAt, NOTE_INFO, moveKey, QUIET_TAGS, readMs, TAG_INFO, type DemoRound, type Move, type Review, type Tag } from '../engine/recap';
+import { calloutAt, moveClock, NOTE_INFO, moveKey, QUIET_TAGS, readMs, TAG_INFO, type DemoRound, type Move, type Review, type Tag } from '../engine/recap';
 import { swingNote } from '../engine/notes';
 import { rageNow, useStore, whoAmI } from '../store';
 import { rageLines } from '../engine/rage';
@@ -59,8 +59,8 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   // cards for graded moves; a Book move (the expected play) stays in the killfeed, except a death of yours: you always
   // see why you died (a lost duel you were the favourite in has no mark now, but it still pops up)
   const me = useStore(whoAmI);
-  // a plant is book too, but it is the moment people come to watch, so it gets its card
-  const carded = (m: Move) => shown(m) && (m.note !== 'book' || (m.kind === 'death' && !!me && m.player === me) || (m.kind === 'objective' && m.tags.includes('PLANT')));
+  // a plant is book too: it only gets a card when it moved the round (3%+), otherwise it is the plain row
+  const carded = (m: Move) => shown(m) && (m.note !== 'book' || (m.kind === 'death' && !!me && m.player === me) || (m.kind === 'objective' && m.tags.includes('PLANT') && Math.abs(m.gain) >= 0.03));
   useSiteConfig();
   const rageLevel = useStore(rageNow);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,7 +168,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
         {/* the same card as Deadlock's: the grade as a coloured pill, then who and when */}
         <div className="feed-card-head">
           <span className="feed-grade" style={{ background: g.color }}>{g.label}</span>
-          <span className="feed-who"><i className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</i> · <em className="num">{fmtT(card.t)}</em></span>
+          <span className="feed-who"><i className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</i> · <em className="num">{moveClock(round.plant, card.t).text}</em></span>
           {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close"><Icon name="close" /></button>}
         </div>
         {/* 2. what happened */}

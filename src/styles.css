@@ -60,8 +60,8 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 
 /* everything over the map: fixed slots around its edges */
 .board-ui { position: absolute; inset: 0; display: grid; gap: 8px; padding: 8px; pointer-events: none; z-index: calc(var(--z-base) + 4);
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto auto;
-  grid-template-areas: "tl top tr" "left . right" "bl . br" "eval eval eval" "dock dock dock"; }
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-areas: "tl top tr" "left . right" "bl . br" "card card card" "eval eval eval" "dock dock dock"; }
 .slot { display: flex; gap: 6px; min-width: 0; min-height: 0; }
 .slot > * { pointer-events: auto; }
 .slot.tl { grid-area: tl; align-items: flex-start; }
@@ -790,7 +790,7 @@ a.btn:hover { border-color: var(--border-strong); }
 
 /* Review, broadcast layout: score bug top centre, killfeed top right, team panels in the bottom corners, the move card
    between them (like a tournament stream's lower third) */
-.board-ui.broadcast { grid-template-areas: "tl top tr" "left . right" "team-ct bl team-t" "eval eval eval" "dock dock dock"; }
+.board-ui.broadcast { grid-template-areas: "tl top tr" "left . right" "team-ct bl team-t" "card card card" "eval eval eval" "dock dock dock"; }
 .slot.card-slot { align-items: flex-start; min-height: 0; overflow: hidden; }
 .board-ui.broadcast .slot.bl { justify-content: center; align-items: flex-end; }
 .board-ui.broadcast .slot.br { display: none; }
