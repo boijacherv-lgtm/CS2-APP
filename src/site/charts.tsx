@@ -72,6 +72,22 @@ export function axisLabels(labels: string[], step: number): Set<number> {
   return out;
 }
 
+/** A smooth line through the points that never overshoots them (a monotone cubic), as an SVG path. */
+function smoothPath(xs: number[], ys: number[]): string {
+  const n = xs.length;
+  if (n < 3) return xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
+  const dx = xs.slice(1).map((x, i) => x - xs[i]), m = ys.slice(1).map((y, i) => (y - ys[i]) / dx[i]), t = new Array<number>(n);
+  t[0] = m[0]; t[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; }
+    const a = t[i] / m[i], b = t[i + 1] / m[i], q = a * a + b * b;
+    if (q > 9) { const k = 3 / Math.sqrt(q); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
+  }
+  let d = `M${xs[0].toFixed(1)} ${ys[0].toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) d += ` C${(xs[i] + dx[i] / 3).toFixed(1)} ${(ys[i] + (t[i] * dx[i]) / 3).toFixed(1)} ${(xs[i + 1] - dx[i] / 3).toFixed(1)} ${(ys[i + 1] - (t[i + 1] * dx[i]) / 3).toFixed(1)} ${xs[i + 1].toFixed(1)} ${ys[i + 1].toFixed(1)}`;
+  return d;
+}
 export interface AreaPoint { label: string; value: number; note?: string }
 /** A line with a soft area under it, gridlines, and a readout of the point under the pointer. */
 export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }: { points: AreaPoint[]; fmt: (v: number) => string; height?: number; color?: string }) {
@@ -90,8 +106,9 @@ export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }:
     return { x, y, ticks };
   }, [points, H]);
   if (!points.length) return null;
-  const line = points.map((p, i) => `${i ? 'L' : 'M'}${geo.x(i).toFixed(1)} ${geo.y(p.value).toFixed(1)}`).join(' ');
+  const line = smoothPath(points.map((_, i) => geo.x(i)), points.map(p => geo.y(p.value)));
   const area = `${line} L${geo.x(points.length - 1).toFixed(1)} ${H - B} L${geo.x(0).toFixed(1)} ${H - B} Z`;
+  const avg = points.reduce((a, p) => a + p.value, 0) / points.length, few = points.length <= 12;
   const step = Math.max(1, Math.ceil(points.length / 8));
   const labelled = axisLabels(points.map(p => p.label), step);
   const h = hover !== null ? points[hover] : null;
@@ -119,7 +136,11 @@ export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }:
           ? <text key={i} x={geo.x(i)} y={H - 8} className="axis" textAnchor={i === points.length - 1 && i > 0 ? 'end' : i === 0 && points.length > 1 ? 'start' : 'middle'}>{p.label}</text> : null)}
         <path d={area} fill={`url(#g${id})`} />
         <path d={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        {points.map((p, i) => <circle key={i} cx={geo.x(i)} cy={geo.y(p.value)} r={hover === i ? 5 : 2.6} fill={color} stroke="var(--bg-0)" strokeWidth={hover === i ? 2 : 0} />)}
+        {/* the average, dashed; dots only when there are few matches (and the newest, ringed, always) */}
+        <line x1={L} x2={W - R} y1={geo.y(avg)} y2={geo.y(avg)} className="avg-line" />
+        <text x={W - R} y={geo.y(avg) - 5} className="axis" textAnchor="end">avg {fmt(avg)}</text>
+        {points.map((p, i) => (few || i === points.length - 1 || hover === i)
+          ? <circle key={i} cx={geo.x(i)} cy={geo.y(p.value)} r={hover === i ? 5 : i === points.length - 1 ? 4.5 : 2.6} fill={color} stroke="var(--bg-0)" strokeWidth={hover === i || i === points.length - 1 ? 2 : 0} /> : null)}
         {hover !== null && <line x1={geo.x(hover)} x2={geo.x(hover)} y1={T} y2={H - B} className="cursor" />}
       </svg>
       {h && (
