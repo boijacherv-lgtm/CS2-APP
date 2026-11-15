@@ -1321,3 +1321,9 @@ a.hero-games-live:hover b { text-decoration: underline; }
 
 .more-card .duo { display: grid; gap: 10px; } .more-card .duo-head { display: flex; justify-content: flex-end; }
 .more-card .duo-table { width: 100%; max-width: 880px; }
+
+/* round 12: the scoreboard: K / D in one cell, a thin ADR bar under the number, a YOU chip, the grade badge at 28 px */
+.sb .you-chip { margin-left: 8px; padding: 1px 6px; border-radius: 6px; background: var(--theme); color: var(--ink); font: 700 12px/1.4 var(--font-ui); }
+.sb .sb-adr { position: relative; } .sb .sb-adr i { position: absolute; left: 8px; bottom: 3px; height: 2px; max-width: calc(100% - 16px); border-radius: 2px; background: var(--text-3); }
+.sb .letter-chip { min-width: 28px; height: 28px; font-size: 16px; border-radius: 6px; }
+.sb td.sb-name { position: sticky; left: 0; background: var(--surface-1); z-index: var(--z-base); }

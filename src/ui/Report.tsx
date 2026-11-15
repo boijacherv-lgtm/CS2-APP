@@ -155,7 +155,7 @@ export function MatchReportPage() {
             <button className="ghost sb-more" onClick={() => setFullBoard(!fullBoard)} aria-expanded={fullBoard}>{fullBoard ? 'Fewer columns' : 'More columns'}</button>
           </div>
           {([0, 1] as const).map(t => (
-            <Scoreboard key={t} team={t} players={view.players.filter(p => p.team === t)} score={view.score[t]} focus={focusId} onPick={setPicked} full={fullBoard} />
+            <Scoreboard key={t} team={t} players={view.players.filter(p => p.team === t)} score={view.score[t]} focus={focusId} me={me} onPick={setPicked} full={fullBoard} />
           ))}
         </section>
       )}
@@ -675,7 +675,7 @@ function tone(id: FeatureId, v: number) {
 }
 
 /** The players' numbers: the main ones, or every column with `full`. */
-function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1; players: PlayerReport[]; score: number; focus: string; onPick: (id: string) => void; full: boolean }) {
+function Scoreboard({ team, players, score, focus, me, onPick, full }: { team: 0 | 1; players: PlayerReport[]; score: number; focus: string; me?: string | null; onPick: (id: string) => void; full: boolean }) {
   const hasEngine = full && players.some(p => p.engineAccuracy !== null);
   // no column of dashes: Premier ratings and the game rating show only when the demo has them
   const hasRank = players.some(p => p.rank !== null), hasGame = players.some(p => p.gameRating !== null), hasDelta = hasRank && hasGame;
@@ -685,7 +685,7 @@ function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1
         <thead>
           {full && <tr className="sb-groups">
             <th className={team === 0 ? 'ct' : 't'}>{team === 0 ? 'Team A' : 'Team B'} <span className="num">{score}</span></th>
-            <th colSpan={1 + (hasRank ? 1 : 0) + (hasGame ? 1 : 0) + (full && hasDelta ? 1 : 0) + (hasEngine ? 1 : 0)}>Rating</th><th colSpan={5}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
+            <th colSpan={1 + (hasRank ? 1 : 0) + (hasGame ? 1 : 0) + (full && hasDelta ? 1 : 0) + (hasEngine ? 1 : 0)}>Rating</th><th colSpan={4}>Fights</th><th colSpan={3}>Openings & clutches</th><th colSpan={2}>Utility</th><th colSpan={3}>Impact</th><th />
           </tr>}
           <tr>
             <th className="sb-name muted">{full ? (team === 0 ? 'started CT' : 'started T') : <span className={team === 0 ? 'ct' : 't'}>{team === 0 ? 'Team A' : 'Team B'} <span className="num">{score}</span></span>}</th>
@@ -694,7 +694,7 @@ function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1
             {full && hasDelta && <th title="Game rating minus their real rating">±</th>}
             <th title="The match grade, the same one as in the header and Side by side: duel and round performance, plus mechanics when the demo has them">Grade</th>
             {hasEngine && <th title="Accuracy: every 2 s, what they did against the best option the coach found (100 = always the best; level-10 players average about 88)">Acc</th>}
-            <th>K</th><th>D</th><th title="Average damage a round">ADR</th><th title="Rounds with a kill, assist, survival or trade">KAST</th>
+            <th title="Kills / deaths">K / D</th><th title="Average damage a round">ADR</th><th title="Rounds with a kill, assist, survival or trade">KAST</th>
             {full && <><th>HS%</th>
               <th title="Opening kills – opening deaths">Open</th><th title="Clutch kills (last alive vs 2+)">Clutch</th><th title="Rounds with 3+ kills">3K+</th>
               <th title="HE + fire damage">Dmg</th><th title="Kills on enemies they flashed">Flash</th></>}
@@ -709,7 +709,7 @@ function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1
             const n = Math.max(1, p.played);
             return (
               <tr key={p.id} className={p.id === focus ? 'focus' : ''} onClick={() => onPick(p.id)} title="Show their game in the cards above">
-                <td className="sb-name"><b className={team === 0 ? 'ct' : 't'}>{p.name}</b></td>
+                <td className="sb-name"><b className={team === 0 ? 'ct' : 't'}>{p.name}</b>{p.id === me && <span className="you-chip">YOU</span>}</td>
                 {hasRank && <td>{p.rank !== null ? fmt(p.rank) : <span className="muted" title="No Premier rating in the demo (unranked, or not played this season)">–</span>}</td>}
                 {hasGame && <td title={p.duelRating !== null ? `Duels ${p.duelsWon}–${p.duelsLost} vs avg ${fmt(p.avgOpponent ?? 0)} → ${fmt(p.duelRating)}; impact ${p.pointsPerRound >= 0 ? '+' : ''}${p.pointsPerRound.toFixed(1)} pts/round` : 'No duels yet'}>
                   <b>{p.gameRating !== null ? fmt(p.gameRating) : '–'}</b>
@@ -717,8 +717,8 @@ function Scoreboard({ team, players, score, focus, onPick, full }: { team: 0 | 1
                 {full && hasDelta && <td className={delta === null ? '' : delta >= 1000 ? 'hi' : delta <= -1000 ? 'lo' : ''}>{delta === null ? '' : `${delta >= 0 ? '+' : '−'}${fmt(Math.abs(delta))}`}</td>}
                 <td title={whyTitle(p)}><LetterChip letter={matchGrade(p)} /></td>
                 {hasEngine && <td className={p.engineAccuracy === null ? '' : p.engineAccuracy >= 90 ? 'hi' : p.engineAccuracy < 82 ? 'lo' : ''} title={`${p.engineMoments} moments`}>{p.engineAccuracy !== null ? p.engineAccuracy.toFixed(0) : ''}</td>}
-                <td className="sep">{p.kills}</td><td>{p.deaths}</td>
-                <td className={tone('adr', p.adr)}>{p.adr.toFixed(0)}</td>
+                <td className="sep num">{p.kills} / {p.deaths}</td>
+                <td className={`sb-adr ${tone('adr', p.adr)}`}><span className="num">{p.adr.toFixed(0)}</span><i style={{ width: `${Math.min(100, (p.adr / 140) * 100)}%` }} aria-hidden="true" /></td>
                 <td className={tone('kast', p.kast)}>{p.kast.toFixed(0)}%</td>
                 {full && <><td className={tone('hs', p.hs)}>{p.hs.toFixed(0)}%</td>
                   <td className="sep">{p.openingKills}–{p.openingDeaths}</td><td>{p.clutches || ''}</td><td>{p.multiKills || ''}</td>
