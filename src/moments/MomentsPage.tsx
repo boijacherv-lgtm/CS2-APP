@@ -60,8 +60,9 @@ export function MomentMap({ m, size = 260 }: { m: Moment; size?: number }) {
   const img = imageOf(m);
   return (
     <svg className="moment-map" viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={`${m.match}, ${m.when}: ${m.dots.length} players on the map`}>
-      <rect width="100" height="100" rx="4" fill="var(--bg-1)" />
-      {img && <image href={img} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" opacity={0.85} />}
+      <rect width="100" height="100" rx="4" fill="var(--bg-0)" />
+      {/* the radar as the replay draws it: dark, not pastel */}
+      {img && <image href={img} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" opacity={0.9} style={{ filter: 'brightness(.55) saturate(.8) contrast(1.08)' }} />}
       {m.dots.filter(d => !d.me).map((d, i) => <circle key={i} cx={d.x * 100} cy={d.y * 100} r={1.9} fill={d.team ? 'var(--good)' : 'var(--bad)'} stroke="#000" strokeWidth={0.5} />)}
       {m.dots.filter(d => d.me).map((d, i) => (
         <g key={`me${i}`}>
@@ -140,7 +141,8 @@ export function ClipMap({ m, revealed, hover = null }: { m: Moment; revealed: bo
         </defs>
         {/* Deadlock's map image is dark buildings over clear streets: a light floor under it makes the streets readable */}
         <rect width="100" height="100" rx="4" fill={m.game === 'deadlock' ? '#6b7686' : 'var(--bg-1)'} />
-        {img && <image href={img} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" opacity={m.game === 'deadlock' ? 1 : 0.85} />}
+        {/* CS2's radar as the replay draws it: dark and toned down, not pastel */}
+        {img && <image href={img} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" opacity={m.game === 'deadlock' ? 1 : 0.9} style={m.game === 'deadlock' ? undefined : { filter: 'brightness(.55) saturate(.8) contrast(1.08)' }} />}
         {/* small labels, and none under the player you are (it would hide both) */}
         {names && labels.filter(c => !meAt || Math.hypot(c.x - meAt.x * 100, c.y - meAt.y * 100) > 5).map(c => <text key={c.name} x={c.x} y={c.y} className="map-callout" textAnchor="middle" fontSize={2.1 * z}>{c.name}</text>)}
         {!revealed && hover !== null && Math.abs(f - zero) < 0.5 && arrow(m.options[hover], 'var(--text-1)', '1.5 1')}
@@ -324,6 +326,12 @@ export function MomentsPage() {
   const focus = source === 'top' ? [] : (['cs2', 'deadlock'] as MomentGame[]).filter(g => g === game).map(g => ({ g, f: focusOf(mine, g) })).filter(x => x.f);
   // the leaderboard can be switched off from the dev page (Content → flags)
   const boardOn = useSiteConfig().flags.puzzlesBoard;
+  const switcher = (
+    <div className="seg-mini" role="group" aria-label="Whose puzzles">
+      <button className={source === 'mine' ? 'on' : ''} onClick={() => setSource('mine')}>From your games</button>
+      <button className={source === 'top' ? 'on' : ''} onClick={() => setSource('top')}>Top players</button>
+    </div>
+  );
   const header = (
     <header className="moments-head">
       <h1>Puzzles</h1>
@@ -335,6 +343,7 @@ export function MomentsPage() {
       <div className="seg-mini puzzle-game" role="group" aria-label="Game">
         {(['cs2', 'deadlock'] as const).map(g => <button key={g} className={game === g ? 'on' : ''} aria-pressed={game === g} onClick={() => setGame(g)}>{GAME_NAME[g]}</button>)}
       </div>
+      {mode === 'practice' && switcher}
       <span className="puzzle-rating" title={`Your ${GAME_NAME[game]} puzzle rating (each game has its own): it goes up more for harder puzzles`}>{GAME_NAME[game]} rating <b className="num">{score.rating}</b></span>
       <button className="chip" onClick={toggleSound} aria-pressed={sound} aria-label={sound ? 'Sound off' : 'Sound on'}>{sound ? 'Sound on' : 'Sound off'}</button>
     </header>
@@ -363,15 +372,8 @@ export function MomentsPage() {
     );
   }
 
-  const switcher = (
-    <div className="seg-mini" role="group" aria-label="Whose puzzles">
-      <button className={source === 'mine' ? 'on' : ''} onClick={() => setSource('mine')}>From your games</button>
-      <button className={source === 'top' ? 'on' : ''} onClick={() => setSource('top')}>Top players</button>
-    </div>
-  );
   const filters = (
     <div className="moments-filters">
-      {switcher}
       {tag && <button className="chip on" onClick={() => setTag(null)}>{tag} <Icon name="close" size={11} /></button>}
     </div>
   );

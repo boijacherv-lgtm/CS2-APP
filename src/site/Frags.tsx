@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { LETTER_COLOR, LETTERS } from '../engine/recap';
 
 /**
@@ -57,6 +58,32 @@ export function PosFrag() {
     <div className="frag frag-pos" role="img" aria-label="Where level-10 players hold a spot">
       <div className="feed-tags"><span className="feed-tag">B DOORS</span><span className="feed-tag">ROUND 12 · 0:40</span></div>
       <p className="muted small">Level-10 players hold this spot 55% of the time. Alone here they die 52%.</p>
+    </div>
+  );
+}
+
+/**
+ * The page's one dealt moment: the win-chance bar scrubs from 50% to 97% as you scroll the section into view, like a replay
+ * running (static at the end with reduced motion).
+ */
+export function ScrollWin() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [v, setV] = useState(50);
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setV(97); return; }
+    const on = () => {
+      const r = ref.current?.getBoundingClientRect(); if (!r) return;
+      const p = Math.max(0, Math.min(1, (innerHeight - r.top) / (innerHeight * 0.75)));
+      setV(Math.round(50 + p * 47));
+    };
+    on(); addEventListener('scroll', on, { passive: true, capture: true }); addEventListener('resize', on);
+    return () => { removeEventListener('scroll', on, true); removeEventListener('resize', on); };
+  }, []);
+  return (
+    <div className="frag frag-win" ref={ref} role="img" aria-label="The win chance rising from 50% to 97% as a round plays">
+      <div className="feed-win"><span className="bar"><i style={{ width: `${v}%`, background: 'var(--good)' }} /></span>
+        <span className="num"><b className="side-ct">CT</b> {v}% <b className="up">+{v - 50}%</b></span></div>
+      <p className="muted small">Every kill, grenade and rotation moves the bar.</p>
     </div>
   );
 }

@@ -1536,3 +1536,22 @@ body { font-weight: 500; }
 /* puzzles: the controls are one row on a wide screen (the subtitle goes), the tactical hint is 13px */
 @media (min-width: 1100px) { .moments-head { flex-wrap: nowrap; } .moments-head .moments-sub { display: none; } .moments-head h1 { margin: 0; white-space: nowrap; } }
 .hint { font-size: 13px; }
+
+/* round 13, the rest */
+/* prose on the site's pages is 14px at least (12 stays for chart axes); pills and chips keep 13 */
+.page .muted, .page .small { font-size: 14px; }
+.page .chip.small, .page .games-status, .page .eyebrow { font-size: 13px; }
+/* the move card in two tight lines: its buttons share the title's row */
+.board-ui .feed-card { grid-template-areas: "head title meter foot" "why why why more"; row-gap: 0; padding: 5px 14px; }
+.board-ui .feed-card .feed-card-foot { margin: 0; }
+/* the panel under 1280 (and over 900) pushes the map instead of covering it */
+@media (min-width: 900px) and (max-width: 1279px) {
+  .app:not(.drawer-closed) { grid-template-columns: var(--rail-w) minmax(0, 1fr) 320px; }
+  .app.no-rail:not(.drawer-closed) { grid-template-columns: minmax(0, 1fr) 320px; }
+  .app:not(.drawer-closed) .drawer { position: static; width: auto; box-shadow: none; }
+}
+/* puzzles: the one row has room for its chips without wrapping */
+.moments-head .seg-mini button, .moments-head .chip { white-space: nowrap; padding-left: 10px; padding-right: 10px; }
+.moments-head h1 { font-size: 36px; }
+.release-shot { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); margin: 0 0 12px; }
+.moments-head .puzzle-rating { white-space: nowrap; display: inline-flex; align-items: baseline; gap: 6px; }

@@ -1041,7 +1041,8 @@ function fitView(w: number, h: number, rosters = false) {
   const narrow = w < 600;
   const fit = (side: number, bottom: number) => {
     const aw = Math.max(200, w * 0.5, w - (narrow ? 6 : side) * 2), ah = Math.max(200, h - FIT_PAD.top - bottom);
-    const scale = (Math.min(aw, ah) / 1024) * (narrow ? 1.12 : 1);
+    // the radar picture has empty borders: the Tactical board (no rosters) zooms past them a little, the phones more
+    const scale = (Math.min(aw, ah) / 1024) * (narrow ? 1.12 : rosters ? 1 : 1.15);
     return { scale, x: (w - 1024 * scale) / 2, y: FIT_PAD.top + (ah - 1024 * scale) / 2 };
   };
   const plain = fit(FIT_PAD.side, FIT_PAD.bottom);

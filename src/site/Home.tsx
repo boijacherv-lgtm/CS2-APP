@@ -6,7 +6,7 @@ import { Icon, type IconName } from '../ui/Icon';
 import { GAMES, PLAYABLE, STATUS_LABEL } from './games';
 import { SiteFooter } from './SiteFooter';
 import { GameMark } from './gameMarks';
-import { CardFrag, GradeFrag, WinFrag } from './Frags';
+import { CardFrag, GradeFrag, ScrollWin } from './Frags';
 import { useEffect, useRef, useState } from 'react';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
 import { openCs2Sample, openDlSample } from '../ui/sample';
@@ -150,7 +150,7 @@ export function Home() {
       <section className="site-section">
         <h2 className="section-title">What you get</h2>
         <div className="frag-row">
-          <figure className="frag-fig"><WinFrag /><figcaption><b>Graded replay</b><span>Every play scored, with a live win-chance bar.</span></figcaption></figure>
+          <figure className="frag-fig"><ScrollWin /><figcaption><b>Graded replay</b><span>Every play scored, with a live win-chance bar.</span></figcaption></figure>
           <figure className="frag-fig"><CardFrag /><figcaption><b>The better play</b><span>What you did, what to do instead, and how much it would have helped.</span></figcaption></figure>
           <figure className="frag-fig"><GradeFrag /><figcaption><b>A grade for every round</b><span>S+ to F, for you and everyone in the match.</span></figcaption></figure>
         </div>
