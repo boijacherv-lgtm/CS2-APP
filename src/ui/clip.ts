@@ -27,32 +27,32 @@ export async function recordClip(board: HTMLElement, at: number, lines: { title:
       const m = Math.max(16, 16 * scale), bw = Math.min(W * 0.62, 30 * fs), ch = 4 * fs, x = m, y = H - m - ch;
       g.fillStyle = 'rgba(18,22,28,0.92)'; g.beginPath(); g.roundRect(x, y, bw, ch, 10 * scale); g.fill();
       g.strokeStyle = lines.color; g.lineWidth = 2 * scale; g.stroke();
-      g.font = `700 ${fs}px Onest, system-ui, sans-serif`; const bwid = g.measureText(lines.mark).width + fs;
+      g.font = `700 ${fs}px 'Golos Text', system-ui, sans-serif`; const bwid = g.measureText(lines.mark).width + fs;
       g.fillStyle = lines.color; g.beginPath(); g.roundRect(x + fs * 0.5, y + fs * 0.5, bwid, fs * 1.4, 6 * scale); g.fill();
       g.fillStyle = '#0A0C10'; g.textBaseline = 'middle'; g.fillText(lines.mark, x + fs, y + fs * 1.2);
-      g.fillStyle = '#ECEFF4'; g.font = `600 ${fs}px Onest, system-ui, sans-serif`;
+      g.fillStyle = '#ECEFF4'; g.font = `600 ${fs}px 'Golos Text', system-ui, sans-serif`;
       let t = lines.title; const room = bw - bwid - fs * 2.2; while (t.length > 8 && g.measureText(t).width > room) t = t.slice(0, -2).trimEnd() + '…';
       g.fillText(t, x + fs * 1.2 + bwid, y + fs * 1.2);
       const by = y + fs * 2.4, bl = bw - fs, fill = Math.max(0, Math.min(1, lines.win.after / 100));
       g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(x + fs * 0.5, by, bl, fs * 0.3);
       g.fillStyle = lines.win.after >= lines.win.before ? '#2DD4BF' : '#FF6B3D'; g.fillRect(x + fs * 0.5, by, bl * fill, fs * 0.3);
-      g.fillStyle = '#A3ACBA'; g.font = `500 ${Math.round(fs * 0.78)}px Onest, system-ui, sans-serif`; g.fillText(`${lines.win.side} ${lines.win.before}% → ${lines.win.after}%`, x + fs * 0.5, by + fs * 0.85);
+      g.fillStyle = '#A3ACBA'; g.font = `500 ${Math.round(fs * 0.78)}px 'Golos Text', system-ui, sans-serif`; g.fillText(`${lines.win.side} ${lines.win.before}% → ${lines.win.after}%`, x + fs * 0.5, by + fs * 0.85);
       g.textBaseline = 'alphabetic';
-      g.fillStyle = 'rgba(236,239,244,0.7)'; g.font = `800 ${Math.round(font * 0.9 * scale)}px 'Sofia Sans Extra Condensed', Oswald, system-ui, sans-serif`; g.textAlign = 'right';
+      g.fillStyle = 'rgba(236,239,244,0.7)'; g.font = `800 ${Math.round(font * 0.9 * scale)}px Oswald, 'Roboto Condensed', system-ui, sans-serif`; g.textAlign = 'right';
       g.fillText('RageView', W - m, m + font * 0.9 * scale); g.textAlign = 'left';
       return;
     }
     g.fillStyle = 'rgba(10,12,16,0.82)'; g.fillRect(0, H - (lines.rage ? 4.4 : 2.6) * fs - pad, W, (lines.rage ? 4.4 : 2.6) * fs + pad);
-    g.font = `700 ${fs}px Onest, system-ui, sans-serif`; g.textBaseline = 'alphabetic';
+    g.font = `700 ${fs}px 'Golos Text', system-ui, sans-serif`; g.textBaseline = 'alphabetic';
     g.fillStyle = lines.color; g.fillText(lines.mark, pad, H - pad - (lines.rage ? 1.8 * fs : 0));
     const mw = g.measureText(lines.mark).width;
-    g.fillStyle = '#ECEFF4'; g.font = `600 ${fs}px Onest, system-ui, sans-serif`;
+    g.fillStyle = '#ECEFF4'; g.font = `600 ${fs}px 'Golos Text', system-ui, sans-serif`;
     // the line has to fit the picture: cut it with an ellipsis rather than run off the edge
     let title = lines.title.slice(0, 90); const room = W - pad * 2 - mw - 12 * scale;
     while (title.length > 8 && g.measureText(title).width > room) title = title.slice(0, -2).trimEnd() + '…';
     g.fillText(title, pad + mw + 12 * scale, H - pad - (lines.rage ? 1.8 * fs : 0));
-    if (lines.rage) { g.fillStyle = '#FF4D3D'; g.font = `700 ${fs}px Onest, system-ui, sans-serif`; g.fillText(lines.rage.slice(0, 100), pad, H - pad); }
-    g.fillStyle = 'rgba(236,239,244,0.7)'; g.font = `700 ${Math.round(font * 0.78 * scale)}px 'Sofia Sans Extra Condensed', Oswald, system-ui, sans-serif`; g.textAlign = 'right';
+    if (lines.rage) { g.fillStyle = '#FF4D3D'; g.font = `700 ${fs}px 'Golos Text', system-ui, sans-serif`; g.fillText(lines.rage.slice(0, 100), pad, H - pad); }
+    g.fillStyle = 'rgba(236,239,244,0.7)'; g.font = `700 ${Math.round(font * 0.78 * scale)}px Oswald, 'Roboto Condensed', system-ui, sans-serif`; g.textAlign = 'right';
     g.fillText('RageView', W - pad, pad + font * 0.78 * scale); g.textAlign = 'left';
   };
   const st = useStore.getState();

@@ -24,8 +24,8 @@ export async function drawShareCard(canvas: HTMLCanvasElement, m: ProfileMatch, 
   canvas.width = SHARE_W; canvas.height = SHARE_H;
   const g = canvas.getContext('2d')!;
   await document.fonts?.ready;
-  const display = (px: number) => `700 ${px}px 'Sofia Sans Extra Condensed', Oswald, system-ui, sans-serif`;
-  const ui = (px: number, w = 500) => `${w} ${px}px Onest, system-ui, sans-serif`;
+  const display = (px: number) => `700 ${px}px Oswald, 'Roboto Condensed', system-ui, sans-serif`;
+  const ui = (px: number, w = 500) => `${w} ${px}px 'Golos Text', system-ui, sans-serif`;
 
   g.fillStyle = T.bg0; g.fillRect(0, 0, SHARE_W, SHARE_H);
   // the map's radar, faint, on the right
@@ -76,8 +76,8 @@ async function drawTall(canvas: HTMLCanvasElement, m: ProfileMatch, player: stri
   canvas.width = W; canvas.height = H;
   const g = canvas.getContext('2d')!;
   await document.fonts?.ready;
-  const display = (px: number) => `700 ${px}px 'Sofia Sans Extra Condensed', Oswald, system-ui, sans-serif`;
-  const ui = (px: number, w = 500) => `${w} ${px}px Onest, system-ui, sans-serif`;
+  const display = (px: number) => `700 ${px}px Oswald, 'Roboto Condensed', system-ui, sans-serif`;
+  const ui = (px: number, w = 500) => `${w} ${px}px 'Golos Text', system-ui, sans-serif`;
   g.fillStyle = T.bg0; g.fillRect(0, 0, W, H);
   const radar = await loadImage(`/images/maps/${m.map}.png`);
   if (radar) { g.globalAlpha = 0.3; g.drawImage(radar, 140, 40, 800, 800); g.globalAlpha = 1; }

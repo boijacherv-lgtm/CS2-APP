@@ -981,7 +981,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .recap-next { position: absolute; right: 14px; bottom: calc(100% + 10px); z-index: calc(var(--z-base) + 5); box-shadow: var(--elev-2); }
 .playbar { position: relative; }
 
-/* round 10 fonts: two families. Onest for text; Sofia Sans Extra Condensed for headlines, numbers, scores and grade letters */
+/* round 10 fonts: two families. 'Golos Text' for text; Sofia Sans Extra Condensed for headlines, numbers, scores and grade letters */
 .page h1, .dl-hero h1, .hero h1, .section-title {
   font-family: var(--font-title); font-weight: 700; letter-spacing: -.015em; line-height: 1.05; }
 .review-start h1, .rs-head h1, .recap-map, .recap-score, .not-found h1, .dev-head h1 { font-family: var(--font-headline); font-weight: 800; }

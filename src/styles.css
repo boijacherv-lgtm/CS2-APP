@@ -1202,7 +1202,7 @@ input.switch { min-height: 24px; height: 24px; }
 .rg .hc::after { opacity: 1 !important; font: 800 14px var(--font-num); color: var(--ink); }
 .rg .cell:hover .hc { outline: 2px solid var(--text-1); }
 
-/* round 11: the match list in Onest: a clean score, the date whole (it wraps, never cut), the map name in the text face */
+/* round 11: the match list in 'Golos Text': a clean score, the date whole (it wraps, never cut), the map name in the text face */
 .steam-list td:nth-child(1) { white-space: normal; overflow: visible; text-overflow: clip; font: 500 14px var(--font-ui); color: var(--text-2); }
 .steam-list td:nth-child(2) { font: 600 20px var(--font-ui); letter-spacing: 0; }
 .steam-list td:nth-child(3) { font: 700 20px var(--font-ui); letter-spacing: 0; font-variant-numeric: tabular-nums; min-width: 12ch; }
