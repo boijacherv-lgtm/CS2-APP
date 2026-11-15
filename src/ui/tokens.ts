@@ -18,8 +18,8 @@ export const T = {
   border: '#262D38',
   borderStrong: '#343C48',
   text1: '#ECEFF4',
-  text2: '#A3ACBA',
-  text3: '#7D889A', // 4.5:1 on the cards (was #687384, under AA)
+  text2: '#B6BECA',
+  text3: '#9AA5B5', // 7:1 on the cards: lighter, not thinner
   ct: '#5B9BFF', ctDim: '#1F3558',
   t: '#F2B13C', tDim: '#5A4317',
   smoke: '#C9D1D9', flash: '#FFF6A8', molly: '#FF6B2C', mollyCore: '#FFB020', he: '#7BD88F',
