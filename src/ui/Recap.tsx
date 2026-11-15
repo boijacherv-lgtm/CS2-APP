@@ -11,7 +11,7 @@ import { OPENING, SEARCH_COLOR, type RoundSearch } from '../engine/search';
 import { moveLook, NoteMark } from './NoteMark';
 import { brief } from './MoveFeed';
 import type { TacticalEngine } from '../engine/predict';
-import { equipValue, QUIET_TAGS, LETTER_COLOR, LETTER_INFO, moments, type Moment, movesUntil, NOTE_INFO, NOTES, roundFacts, roundGrade, TAG_INFO, teamEconomy, type Annotation, type DemoData, type DemoRound, type Move, type Replay, type Review, type Tag } from '../engine/recap';
+import { DEFUSE_SECONDS, PLANT_SECONDS, equipValue, QUIET_TAGS, LETTER_COLOR, LETTER_INFO, moments, type Moment, movesUntil, NOTE_INFO, NOTES, roundFacts, roundGrade, TAG_INFO, teamEconomy, type Annotation, type DemoData, type DemoRound, type Move, type Replay, type Review, type Tag } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { gunFromName, primaryGun } from '../engine/guns';
 import { useStore, whoAmI } from '../store';
@@ -169,6 +169,11 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
   const finished = all || s.time >= r.duration - 0.3;
   const moves = seen.filter(m => filter === 'all' ? true : filter === 'key' ? shown(m) : filter === 'util' ? !!m.util : m.player === filter);
   const jump = (t: number) => { s.setPlaying(false); s.setTime(Math.max(0, t - 1.5)); };
+  // Watch plays the move from its lead-up (3 s); a plant or defuse from before it began, so the whole thing is seen, not its last second
+  const watch = (m: Move) => {
+    const lead = m.kind === 'objective' ? (m.tags.includes('PLANT') ? PLANT_SECONDS : m.tags.includes('DEFUSE') ? DEFUSE_SECONDS : 0) + 1.5 : 3;
+    s.setTime(Math.max(0, m.t - lead)); s.setPlaying(true);
+  };
   const players = scoreboard(recap, seen);
   const tp = recap.turningPoint && (all || recap.turningPoint.t <= s.time) ? recap.turningPoint : null;
   const [tab, setTab] = useState<'moves' | 'players' | 'economy' | 'engine'>('moves');
@@ -245,12 +250,12 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
         {tp && finished && filter === 'key' && (
           <div className="rp-turning">
             <span className="rp-label">Turning point</span>
-            <MoveItem m={tp} open={open === `tp-${moveId(tp)}`} onToggle={() => setOpen(o => (o === `tp-${moveId(tp)}` ? null : `tp-${moveId(tp)}`))} onWatch={jump} />
+            <MoveItem m={tp} open={open === `tp-${moveId(tp)}`} onToggle={() => setOpen(o => (o === `tp-${moveId(tp)}` ? null : `tp-${moveId(tp)}`))} onWatch={watch} />
           </div>
         )}
         <div className="move-list">
           {[...moves].reverse().map(m => (
-            <MoveItem key={moveId(m)} m={m} open={open === moveId(m)} onToggle={() => setOpen(o => (o === moveId(m) ? null : moveId(m)))} onWatch={jump} />
+            <MoveItem key={moveId(m)} m={m} open={open === moveId(m)} onToggle={() => setOpen(o => (o === moveId(m) ? null : moveId(m)))} onWatch={watch} />
           ))}
           {!moves.length && <p className="muted rp-empty">{all ? 'No moves for this filter.' : 'Nothing yet.'}</p>}
         </div>
@@ -311,7 +316,7 @@ function reasonText(reason: string) {
 }
 
 /** One move, folded: time, grade, short title, win-chance change, tags. Open: the full title and the reasons, one per line. */
-function MoveItem({ m, open, onToggle, onWatch }: { m: Move; open: boolean; onToggle: () => void; onWatch: (t: number) => void }) {
+function MoveItem({ m, open, onToggle, onWatch }: { m: Move; open: boolean; onToggle: () => void; onWatch: (m: Move) => void }) {
   const g = moveLook(m);
   return (
     <div className={`mv ${open ? 'open' : ''}`}>
@@ -330,7 +335,7 @@ function MoveItem({ m, open, onToggle, onWatch }: { m: Move; open: boolean; onTo
             <li className="mv-grade" style={{ color: g.color }}>{g.label}</li>
             {m.why.map((w, i) => <li key={i}>{w}</li>)}
           </ul>
-          <button className="mini mv-watch" onClick={() => onWatch(m.t)}><Icon name="play" size={11} /> Watch</button>
+          <button className="mini mv-watch" onClick={() => onWatch(m)}><Icon name="play" size={11} /> Watch</button>
           <VerdictBar m={m} />
         </div>
       )}

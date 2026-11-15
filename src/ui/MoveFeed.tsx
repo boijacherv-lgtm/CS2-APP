@@ -59,7 +59,8 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   // cards for graded moves; a Book move (the expected play) stays in the killfeed, except a death of yours: you always
   // see why you died (a lost duel you were the favourite in has no mark now, but it still pops up)
   const me = useStore(whoAmI);
-  const carded = (m: Move) => shown(m) && (m.note !== 'book' || (m.kind === 'death' && !!me && m.player === me));
+  // a plant is book too, but it is the moment people come to watch, so it gets its card
+  const carded = (m: Move) => shown(m) && (m.note !== 'book' || (m.kind === 'death' && !!me && m.player === me) || (m.kind === 'objective' && m.tags.includes('PLANT')));
   useSiteConfig();
   const rageLevel = useStore(rageNow);
   // eslint-disable-next-line react-hooks/exhaustive-deps

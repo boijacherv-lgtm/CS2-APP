@@ -3,7 +3,7 @@ import { siteConfig } from './ui/siteConfig';
 import { create } from 'zustand';
 import { UTIL_FLIGHT } from './engine/grid';
 import type { RoundSummary } from './engine/match';
-import type { DemoData, EvalScope } from './engine/recap';
+import { withPlants, type DemoData, type EvalScope } from './engine/recap';
 import { withoutKnifeRound } from './engine/knife';
 import type { Clip } from './ui/disputesApi';
 import { presetsFor, tPlaysFor } from './map/catalog';
@@ -391,7 +391,7 @@ export const useStore = create<Store>((set, get) => {
         return { ...common, parked: null, time: 10, boardFromReplay: false, ...restored };
       }),
     startReview: raw => {
-      const data = withoutKnifeRound(raw);
+      const data = withoutKnifeRound(withPlants(raw));
       return set(s => ({
         mode: 'review',
         parked: s.mode === 'review' || s.boardFromReplay ? s.parked : { board: s.board, mapId: s.mapId, level: s.level },
