@@ -164,6 +164,8 @@ const commit = (() => { try { return execSync('git rev-parse --short HEAD', { en
 export default defineConfig({
   plugins: [react(), demoApi(), steamApi(), securityHeaders(), dotaReplayProxy()],
   define: { __BUILD__: JSON.stringify({ commit, time: new Date().toISOString() }) },
+  // the workers are module workers already; ES output lets them load data per map with import() instead of carrying it all
+  worker: { format: 'es' },
   // the Steam cache (match list, downloaded demos) changes while the server runs; don't watch it
   server: { port: 5173, open: false, watch: { ignored: ['**/.steam-cache/**'] } },
   // engine tests load the coach's models (several MB) and replay rounds through the two-move search: GitHub's

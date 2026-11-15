@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { LETTER_COLOR, LETTERS } from '../engine/recap';
+import { LETTER_COLOR, LETTERS } from '../engine/notes';
 
 /**
  * Real pieces of the product at true size, for the home and game pages instead of icon-in-a-box cards: a grade scale,

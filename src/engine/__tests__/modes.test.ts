@@ -39,7 +39,7 @@ describe('switching between Tactical and Review', () => {
 
 describe('older parses without bomb events', () => {
   it('withPlants gives the plant a planter (the stillest living T) and a spot, and leaves complete rounds alone', async () => {
-    const { withPlants } = await import('../recap');
+    const { withPlants } = await import('../demoFix');
     const t = Array.from({ length: 41 }, (_, i) => i * 0.25);
     const track = (side: 'CT' | 'T', x0: number, step: number) => ({
       side, x: t.map((_, i) => x0 + i * step), y: t.map(() => 100), z: t.map(() => 0), yaw: t.map(() => 0), hp: t.map(() => 100), alive: t.map(() => 1),
@@ -59,7 +59,7 @@ describe('older parses without bomb events', () => {
 
 describe('a round that ends in an explosion', () => {
   it('plays on for the blast, once', async () => {
-    const { withBlastTail, BLAST_TAIL_SECONDS } = await import('../recap');
+    const { withBlastTail, BLAST_TAIL_SECONDS } = await import('../demoFix');
     const r: any = { n: 1, duration: 93.69, plant: 52, reason: 'bomb_exploded', bomb: [{ t: 93.69, kind: 'explode', id: 'a', x: 0, y: 0 }] };
     const other: any = { n: 2, duration: 50, plant: null, reason: 't_killed', bomb: [] };
     const once = withBlastTail({ map: 'de_dust2', tickrate: 64, names: {}, rounds: [r, other] } as any);

@@ -1,4 +1,5 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { onPositions, positionsVersion } from './map/positions';
 import { ScenarioBar } from './moments/scenarios';
 import { runBatch, runUtilityImpact, type BatchStats, type UtilityImpact } from './engine/batch';
 import { simulate } from './engine/combat';
@@ -44,13 +45,15 @@ export function App() {
   const reviewData = useStore(s => s.review?.data), reviewRoundNo = useStore(s => (s.review ? s.review.round + 1 : 0));
   const reviewMatch = useMemo(() => (reviewData ? matchFingerprint(reviewData) : null), [reviewData]);
   const reviewAt = useMemo(() => (reviewMatch ? { match: reviewMatch, round: reviewRoundNo } : null), [reviewMatch, reviewRoundNo]);
+  // the level-10 positions load per map after a match opens: grade the round again once they are here
+  const posVersion = useSyncExternalStore(onPositions, positionsVersion);
   const recap = useMemo(() => {
     if (!replay) return null;
     const r = reviewRound(engine, replay);
     if (!corrections) return r;
     const moves = applyCorrections(r.moves, corrections.table);
     return { ...r, moves: reviewAt ? removeMarks(moves, corrections.removed, reviewAt) : moves };
-  }, [engine, replay, corrections, reviewAt]);
+  }, [engine, replay, corrections, reviewAt, posVersion]);
   // Analysis runs on a deferred copy so dragging stays smooth.
   const deferred = useDeferredValue(board);
   const analysis = useMemo(() => engine.analyze(deferred), [engine, deferred]);
