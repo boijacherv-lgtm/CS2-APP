@@ -1707,3 +1707,8 @@ body { font-weight: 500; }
   .board-ui .slot.team-ct, .board-ui .slot.team-t, .board-ui .slot.br { display: none; }
   .app .board-ui .slot.tl { min-width: 0; }
 }
+
+/* the match tab's close: a plain cross, no filled circle; it gets a soft square only on hover or focus */
+.match-tab-x { width: 24px; height: 24px; border-radius: 6px; background: transparent; color: var(--text-3); margin-left: 4px; }
+.match-tab-x:hover:not(:disabled), .match-tab-x:focus-visible { background: var(--surface-3); color: var(--text-1); }
+.match-tab-x:active { background: var(--border-strong); }
