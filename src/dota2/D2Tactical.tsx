@@ -156,7 +156,7 @@ function Draft() {
             <h3>Pick into the enemy</h3>
             <div className="d2-ward-tools" role="group" aria-label="Your side">
               <span className="muted small">We are</span>
-              {([0, 1] as D2Team[]).map(team => <button key={team} className={`chip ${us === team ? 'on' : ''}`} aria-pressed={us === team} style={{ color: TEAM_COLOR[team] }} onClick={() => setUs(team)}>{TEAM_NAME[team]}</button>)}
+              {([0, 1] as D2Team[]).map(team => <button key={team} className={`chip team ${us === team ? 'on' : ''}`} aria-pressed={us === team} style={{ '--team': TEAM_COLOR[team] } as CSSProperties} onClick={() => setUs(team)}>{TEAM_NAME[team]}</button>)}
             </div>
           </div>
           <div className="d2-pick-rows">
@@ -299,6 +299,7 @@ export function D2Tactical() {
   const pick = (t: Tab) => { setTab(t); try { localStorage.setItem('stratboard.d2.tab', t); } catch { /* private mode */ } };
   return (
     <div className="dl-tac">
+      <h1 className="sr-only">Dota 2 tactical board</h1>
       <nav className="recap-tabs dl-tac-tabs" aria-label="Planner">
         <div className="recap-tabs-list" role="tablist">
           {TABS.map(t => <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => pick(t.id)} title={t.tip}><Icon name={t.icon} size={14} /> {t.label}</button>)}

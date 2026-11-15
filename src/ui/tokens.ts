@@ -56,7 +56,7 @@ export const isLight = () => { const p = lookPref(); return p === 'light' || (p 
 export function setLook(l: Look) {
   try { l === 'system' ? localStorage.removeItem(LOOK_KEY) : localStorage.setItem(LOOK_KEY, l); } catch { /* private mode */ }
   applyTokens();
-  applyGame((document.documentElement.dataset.game as GameId | 'neutral' | undefined) ?? 'neutral');
+  applyGame((document.documentElement.dataset.game as ThemeGame | 'neutral' | undefined) ?? 'neutral');
 }
 
 /**
@@ -64,9 +64,12 @@ export function setLook(l: Look) {
  * and a faint tint in backgrounds and cards. Team, grenade and mark colours don't change. `ink` is text on the accent.
  */
 export type GameId = 'cs2' | 'deadlock';
-export const GAME_THEME: Record<GameId, { accent: string; ink: string; name: string }> = {
+/** A page's dress: the two games with a saved "last game" plus Dota 2, which only dresses its own pages. */
+export type ThemeGame = GameId | 'dota2';
+export const GAME_THEME: Record<ThemeGame, { accent: string; ink: string; name: string }> = {
   cs2: { accent: '#F2A23A', ink: '#1A1206', name: 'Counter-Strike 2' }, // CS2's menus: warm amber
   deadlock: { accent: '#3FC9A3', ink: '#06170F', name: 'Deadlock' }, // Deadlock's art deco: jade
+  dota2: { accent: '#E5533D', ink: '#1C0804', name: 'Dota 2' }, // Dota's red
 };
 const GAME_KEY = 'stratboard.game';
 /** The game the site is dressed in: the page's game, else the last one you were in (CS2 at first). */
@@ -79,19 +82,20 @@ export function gameOf(page: string): GameId {
  * colour. */
 const NEUTRAL = { accent: T.text1, ink: T.bg0 };
 /** The accents on the light theme: darker, so they read on white. */
-const LIGHT_ACCENT: Record<GameId | 'neutral' | 'settings', { accent: string; ink: string }> = {
-  cs2: { accent: '#B7791F', ink: '#1A1206' }, deadlock: { accent: '#0F8F72', ink: '#06170F' }, neutral: { accent: '#0F141A', ink: '#F6F7F9' }, settings: { accent: '#1D7FA8', ink: '#F6F7F9' },
+const LIGHT_ACCENT: Record<ThemeGame | 'neutral' | 'settings', { accent: string; ink: string }> = {
+  cs2: { accent: '#B7791F', ink: '#1A1206' }, deadlock: { accent: '#0F8F72', ink: '#06170F' }, dota2: { accent: '#B3361F', ink: '#FFF6F4' }, neutral: { accent: '#0F141A', ink: '#F6F7F9' }, settings: { accent: '#1D7FA8', ink: '#F6F7F9' },
 };
 /** Settings has a colour of its own (sky), so it never looks like the game you were last in. */
 const SETTINGS = { accent: '#6EC1E4', ink: '#06141A' };
 const NEUTRAL_PAGES = new Set(['home', 'pricing', 'dev', 'missing', 'privacy', 'changelog']);
 /** What a page is dressed in: neutral for the site's own pages, else its game (gameOf). */
-export function themeOf(page: string): GameId | 'neutral' | 'settings' {
+export function themeOf(page: string): ThemeGame | 'neutral' | 'settings' {
+  if (page === 'dota2') return 'dota2';
   return page === 'settings' ? 'settings' : NEUTRAL_PAGES.has(page) || page === '' ? 'neutral' : gameOf(page);
 }
 /** Dresses the page in a game's colours, or neutral (CSS --theme / --theme-ink, html[data-game]); the stylesheet fades
  * between them. */
-export function applyGame(game: GameId | 'neutral' | 'settings', root: HTMLElement = document.documentElement) {
+export function applyGame(game: ThemeGame | 'neutral' | 'settings', root: HTMLElement = document.documentElement) {
   const c = isLight() ? LIGHT_ACCENT[game] : game === 'neutral' ? NEUTRAL : game === 'settings' ? SETTINGS : GAME_THEME[game];
   root.dataset.game = game;
   root.style.setProperty('--theme', c.accent);
