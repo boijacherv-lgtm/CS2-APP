@@ -1573,3 +1573,16 @@ body { font-weight: 500; }
 .tt small { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .tt b { font-size: 26px; line-height: 1; font-weight: 800; }
 .sb-tcell.split .tt b { font-size: 16px; } .sb-tcell.split .tt small { font-size: 11px; }
+
+/* round 14, the panel's tables fit the panel: fixed layout, names cut with an ellipsis, loadout under the name */
+.drawer table.kills { width: 100%; table-layout: fixed; }
+.drawer table.kills td, .drawer table.kills th { padding-left: 4px; padding-right: 4px; overflow: hidden; text-overflow: ellipsis; }
+.drawer table.kills th:first-child, .drawer table.kills td:first-child { width: 36%; text-align: left; white-space: normal; }
+.drawer table.kills .role { display: block; margin: 2px 0 0; width: fit-content; }
+.drawer table.kills td b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drawer table.kills th { font-size: 12px; white-space: normal; line-height: 1.15; }
+.drawer table.kills.econ th:first-child, .drawer table.kills.econ td:first-child { width: 42%; }
+.drawer .eco-who .loadout { display: flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; }
+.drawer table.kills.econ td:not(:first-child) { font-size: 13px; white-space: nowrap; }
+.drawer table.kills th:nth-child(n+4) { font-size: 15px; font-weight: 800; text-align: center; }
+.drawer table.kills th:nth-child(3) { text-align: right; }

@@ -216,7 +216,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
       {tab === 'players' && <section>
         <table className="kills">
           <thead><tr><th /><th title="Round grade, S+ (dominated the round) … F (a game-losing mistake). Hover a grade for why">Grade</th><th title="Total change in their team's win chance">Impact</th>
-            <th title="Brilliant and great moves">Great+</th><th title="Inaccuracies and mistakes">Slips</th><th title="Blunders: the costliest kind">Blunders</th>
+            <th title="Brilliant and great moves (!! and !)">!</th><th title="Inaccuracies and mistakes (?! and ?)">?</th><th title="Blunders: the costliest kind (??)">??</th>
           </tr></thead>
           <tbody>
             {Object.entries(players).sort(([a], [b]) => sideOf(a).localeCompare(sideOf(b)) || players[b].impact - players[a].impact).map(([id, p]) => (
@@ -461,15 +461,14 @@ function Economy({ replay, totalRounds }: { replay: Replay; totalRounds: number 
         ))}
       </div>
       <table className="kills econ">
-        <thead><tr><th /><th>Loadout</th><th title="S smoke · F flash · H HE · M molotov">Nades</th><th title="Value of what they carry">Gear</th><th title="Cash left after buying">Bank</th></tr></thead>
+        <thead><tr><th>Player · loadout</th><th title="S smoke · F flash · H HE · M molotov">Nades</th><th title="Value of what they carry">Gear</th><th title="Cash left after buying">Bank</th></tr></thead>
         <tbody>
           {ids.sort((a, b) => r.frames.players[a].side.localeCompare(r.frames.players[b].side) || (equipValue(r.econ?.[b]) ?? 0) - (equipValue(r.econ?.[a]) ?? 0)).map(id => {
             const e = r.econ?.[id];
             const side = r.frames.players[id].side;
             return (
               <tr key={id}>
-                <td><b className={side.toLowerCase()}>{replay.names[id] ?? id}</b></td>
-                <td title={e?.weapons.join(', ')} className="loadout">{e ? loadout(e.weapons) : '–'}{e?.helmet ? <Icon name="helmet" size={13} title="Kevlar + helmet" className="inline" /> : e && e.armor > 0 ? <Icon name="vest" size={13} title="Kevlar" className="inline" /> : null}{e?.defuser ? <Icon name="scissors" size={13} title="Defuse kit" className="inline" /> : null}</td>
+                <td className="eco-who"><b className={side.toLowerCase()}>{replay.names[id] ?? id}</b><span className="loadout muted" title={e?.weapons.join(', ')}>{e ? loadout(e.weapons) : '–'}{e?.helmet ? <Icon name="helmet" size={13} title="Kevlar + helmet" className="inline" /> : e && e.armor > 0 ? <Icon name="vest" size={13} title="Kevlar" className="inline" /> : null}{e?.defuser ? <Icon name="scissors" size={13} title="Defuse kit" className="inline" /> : null}</span></td>
                 <td>{e ? <NadeIcons weapons={e.weapons} /> : ''}</td>
                 <td>{e ? usd(equipValue(e) ?? 0) : '–'}</td>
                 <td>{e?.money != null ? usd(e.money) : '–'}</td>
