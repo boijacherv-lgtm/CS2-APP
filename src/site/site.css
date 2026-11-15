@@ -1555,3 +1555,21 @@ body { font-weight: 500; }
 .moments-head h1 { font-size: 36px; }
 .release-shot { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); margin: 0 0 12px; }
 .moments-head .puzzle-rating { white-space: nowrap; display: inline-flex; align-items: baseline; gap: 6px; }
+
+/* round 14, the bomb timer: the cell itself is the timer. Its colour fills it and drains with the fuse; the number is dark on the fill and
+   light on the rest; at 0 it turns red; a defuse splits the cell, the bottom half is the defuse timer */
+.sb-mid:has(.sb-tcell) { padding: 0; min-width: 136px; overflow: hidden; }
+.sb-tcell { display: grid; grid-template-rows: 1fr; width: 100%; height: 100%; }
+.sb-tcell.split { grid-template-rows: 1fr 1fr; gap: 1px; background: var(--white-12); }
+.tt { --tc: var(--gold); position: relative; display: grid; align-items: center; justify-items: center; overflow: hidden; background: color-mix(in srgb, var(--tc) 12%, var(--ink)); min-height: 0; }
+.tt.tone-amber { --tc: var(--gold); } .tt.tone-orange { --tc: var(--letter-d); } .tt.tone-red { --tc: var(--bad); } .tt.tone-ct { --tc: var(--ct); } .tt.tone-late { --tc: var(--bad); }
+.tt-fill { position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--tc); transition: width .12s linear; }
+.tt.tone-late .tt-fill { background: repeating-linear-gradient(45deg, var(--bad) 0 4px, color-mix(in srgb, var(--bad) 55%, var(--ink)) 4px 8px); }
+.tt-text { grid-area: 1 / 1; position: relative; display: flex; width: 100%; height: 100%; justify-content: center; align-items: center; gap: 6px; white-space: nowrap; }
+.tt-text.light { color: var(--text-1); }
+.tt-text.dark { color: var(--ink); clip-path: inset(0 calc(100% - var(--p)) 0 0); }
+.tt.tone-red .tt-text.dark, .tt.tone-late .tt-text.dark { color: #fff; }
+.tt.zero .tt-text.light { color: var(--bad); }
+.tt small { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.tt b { font-size: 26px; line-height: 1; font-weight: 800; }
+.sb-tcell.split .tt b { font-size: 16px; } .sb-tcell.split .tt small { font-size: 11px; }
