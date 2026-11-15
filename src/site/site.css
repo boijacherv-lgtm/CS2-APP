@@ -1649,3 +1649,8 @@ body { font-weight: 500; }
 .reel-group > summary .num { text-align: right; font-size: 16px; }
 .reel-more { margin: 8px 0 0; }
 @media (max-width: 700px) { .reel-group > summary { grid-template-columns: minmax(0, 1fr) 48px 80px; } .reel-group > summary .reel-bar { display: none; } .skill-row { grid-template-columns: minmax(90px, 1fr) minmax(0, 1fr) 52px 20px; gap: 10px; } }
+
+/* round 14: the match tab's close button is a quiet round button (it was a red square on hover) */
+.match-tab { padding: 0 5px 0 12px; }
+.match-tab-x { width: 26px; height: 26px; border-radius: 50%; margin-left: 2px; color: var(--text-2); background: var(--white-8); }
+.match-tab-x:hover:not(:disabled), .match-tab-x:focus-visible { background: var(--white-16, var(--surface-3)); color: var(--text-1); }
