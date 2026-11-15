@@ -43,7 +43,8 @@
     "puzzles": "vite-node tools/puzzles.ts",
     "dl:ults": "vite-node tools/dl-ults.ts",
     "dl:ultkinds": "vite-node tools/dl-ultkinds.ts",
-    "dl:abilities": "vite-node tools/dl-abilities.ts"
+    "dl:abilities": "vite-node tools/dl-abilities.ts",
+    "dota:assets": "vite-node tools/dota-assets.ts"
   },
   "dependencies": {
     "@laihoe/demoparser2": "^0.42.0",
