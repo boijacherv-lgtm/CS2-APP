@@ -16,7 +16,7 @@ const FREE = [
 ];
 const PRO = [
   'Everything in Free',
-  `Unlimited history (your last ${MAX_HISTORY} matches, trends over all of them)`,
+  `Your last ${MAX_HISTORY} matches kept, with trends over all of them`,
   'Engine deep dive: the best line for every moment, not just the worst',
   'Compare with pro players, not just level 10',
   'Deadlock: instant match lookup',
@@ -25,7 +25,7 @@ const PRO = [
 ];
 
 /** A small picture per feature (instead of a tick on every row). */
-const iconFor = (f: string): IconName => /replay/i.test(f) ? 'play' : /coach|level 10/i.test(f) ? 'chat' : /engine/i.test(f) ? 'route' : /profile|history/i.test(f) ? 'stats'
+const iconFor = (f: string): IconName => /replay/i.test(f) ? 'play' : /coach|level 10/i.test(f) ? 'chat' : /engine/i.test(f) ? 'route' : /profile|history|matches kept/i.test(f) ? 'stats'
   : /goals/i.test(f) ? 'goal' : /friend|pro players/i.test(f) ? 'friends' : /deadlock/i.test(f) ? 'bolt' : /badge/i.test(f) ? 'trophy' : /new features/i.test(f) ? 'star' : 'check';
 
 /** Plans. There are no payments yet: during early access everyone has Pro. */

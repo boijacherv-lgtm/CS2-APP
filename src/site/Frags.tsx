@@ -14,12 +14,23 @@ export function GradeFrag() {
   );
 }
 
-export function WinFrag({ from = 52, to = 31 }: { from?: number; to?: number }) {
+export function WinFrag({ from = 52, to = 31, side = 'CT' }: { from?: number; to?: number; side?: string }) {
+  const d = to - from;
   return (
     <div className="frag frag-win" role="img" aria-label={`Win chance from ${from}% to ${to}%`}>
-      <div className="feed-win"><span className="bar"><i style={{ width: `${to}%`, background: to >= from ? 'var(--good)' : 'var(--bad)' }} /></span>
-        <span className="num"><b className="side-ct">CT</b> {from}% → {to}% <b className="down">−{from - to}%</b></span></div>
+      <div className="feed-win"><span className="bar"><i style={{ width: `${to}%`, background: d >= 0 ? 'var(--good)' : 'var(--bad)' }} /></span>
+        <span className="num"><b className={side === 'CT' ? 'side-ct' : undefined}>{side}</b> {from}% → {to}% <b className={d >= 0 ? 'up' : 'down'}>{d >= 0 ? '+' : '−'}{Math.abs(d)}%</b></span></div>
       <p className="muted small">Every kill, grenade and rotation moves the bar.</p>
+    </div>
+  );
+}
+
+/** A part of the report card as the Deadlock recap shows it: its score out of 100, a bar, and the rank in the match. */
+export function ScoreFrag({ score, rank }: { score: number; rank: string }) {
+  return (
+    <div className="frag frag-score" role="img" aria-label={`Score ${score} out of 100, ${rank} in the match`}>
+      <div className="frag-score-top"><b className="num">{score}</b><span className="muted small">{rank} in the match</span></div>
+      <span className="dl-rc-bar"><i style={{ width: `${score}%`, background: score >= 62 ? 'var(--good)' : score >= 50 ? 'var(--text-2)' : 'var(--bad)' }} /></span>
     </div>
   );
 }

@@ -6,7 +6,7 @@
 }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
-body { background: var(--bg-0); color: var(--text-1); font: 14px/1.45 var(--font-ui); -webkit-font-smoothing: antialiased; }
+body { background: var(--bg-0); color: var(--text-1); font: 500 14px/1.45 var(--font-ui); -webkit-font-smoothing: antialiased; }
 .num, table, .hud, .timeline { font-variant-numeric: tabular-nums; }
 .display { font-family: var(--font-display); letter-spacing: -.01em; }
 .icon { display: inline-block; vertical-align: -0.18em; flex: none; }

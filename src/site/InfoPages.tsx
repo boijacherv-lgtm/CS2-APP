@@ -78,7 +78,7 @@ export function Changelog() {
           <h2>{c.date}</h2>
           {shotOf(c) && <img className="release-shot" src={shotOf(c)!.src} alt={shotOf(c)!.alt} width={1280} height={800} loading="lazy" />}
           <ul>{c.items.slice(0, 3).map(i => <li key={i}>{i}</li>)}</ul>
-          {c.items.length > 3 && <details><summary className="muted">{c.items.length - 3} more</summary><ul>{c.items.slice(3).map(i => <li key={i}>{i}</li>)}</ul></details>}
+          {c.items.length > 3 && <details><summary className="muted">{c.items.length - 3} more {c.items.length - 3 === 1 ? 'change' : 'changes'}</summary><ul>{c.items.slice(3).map(i => <li key={i}>{i}</li>)}</ul></details>}
         </section>
       ))}
     </div>

@@ -857,7 +857,7 @@ function DuoCard({ a, players }: { a: PlayerReport; players: PlayerReport[] }) {
   return (
     <div className="duo">
       <div className="duo-head">
-        <label className="muted small">with <select value={b.id} onChange={e => setB(e.target.value)}>{mates.map(p => <option key={p.id} value={p.id}>{p.name}{p.team === a.team ? ' (teammate)' : ' (enemy)'}</option>)}</select></label>
+        <label className="muted small">with <select aria-label="Compare with another player" value={b.id} onChange={e => setB(e.target.value)}>{mates.map(p => <option key={p.id} value={p.id}>{p.name}{p.team === a.team ? ' (teammate)' : ' (enemy)'}</option>)}</select></label>
       </div>
       <table className="duo-table">
         <thead><tr><th /><th>{a.name}</th><th>{b.name}</th></tr></thead>

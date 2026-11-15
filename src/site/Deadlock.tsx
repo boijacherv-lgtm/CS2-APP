@@ -14,12 +14,12 @@ const KIT: GamePageKit = {
   review: '/deadlock/review', reviewLabel: 'Review a Deadlock match', sample: openDlSample,
   shot: { src: '/images/shots/replay.jpg', alt: 'A Deadlock replay: both teams on the map and a graded death explained' },
   grades: [
-    { icon: 'swords', title: 'Kills', text: 'What each kill was worth.' },
-    { icon: 'map', title: 'Map activity', text: 'Camps, Urn, bosses, objectives.' },
-    { icon: 'bolt', title: 'Abilities', text: 'Damage by ability, ult usage.' },
-    { icon: 'route', title: 'Rotations', text: 'Ganks that paid off, and ones that didn\'t.' },
-    { icon: 'shield', title: 'Survival', text: 'Deaths you could have avoided.' },
-    { icon: 'trendUp', title: 'Laning', text: 'Souls and last hits vs your role.' },
+    { icon: 'swords', title: 'Kills', text: 'What each kill was worth.', score: [74, '2nd of 12'] },
+    { icon: 'map', title: 'Map activity', text: 'Camps, Urn, bosses, objectives.', score: [62, '3rd of 12'] },
+    { icon: 'bolt', title: 'Abilities', text: 'Damage by ability, ult usage.', score: [67, '4th of 12'] },
+    { icon: 'route', title: 'Rotations', text: 'Ganks that paid off, and ones that didn\'t.', score: [44, '7th of 12'] },
+    { icon: 'shield', title: 'Survival', text: 'Deaths you could have avoided.', score: [62, '2nd of 12'] },
+    { icon: 'trendUp', title: 'Laning', text: 'Souls and last hits vs your role.', score: [56, '5th of 12'] },
   ],
   moment: { src: '/images/shots/dl-moment.jpg', alt: 'One graded Deadlock moment: a death marked Mistake with the better play, next to the map at that moment', caption: 'From the sample: a public Phantom+ match, names hidden.' },
   meta: {
