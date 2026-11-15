@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Icon, type IconName } from '../ui/Icon';
 import { GameMark } from './gameMarks';
 import { GAMES, STATUS_LABEL } from './games';
-import { CardFrag, DuelFrag, PosFrag, UtilFrag, WinFrag } from './Frags';
+import { CardFrag, DuelFrag, PosFrag, ScoreFrag, UtilFrag, WinFrag } from './Frags';
 
 /**
  * A game's page (/cs2, /deadlock …), the same structure for every game (spec §2): the hero with Review and a sample,
@@ -16,7 +16,7 @@ export interface GamePageKit {
   review: string; reviewLabel: string;
   sample: () => Promise<void>;
   shot: { src: string; alt: string };
-  grades: { icon: IconName; title: string; text: string }[];
+  grades: { icon: IconName; title: string; text: string; /** A score out of 100 and its rank, for games whose recap grades parts of the match that way. */ score?: [number, string] }[];
   moment: { src: string; alt: string; caption: string };
   meta: { title: string; href: string; cta: string; load: () => Promise<{ title: string; sub: string; img?: string | null }[]> };
   steps: { title: string; text: string }[];
@@ -53,7 +53,7 @@ export function GamePage({ kit }: { kit: GamePageKit }) {
         <div className="frag-grid">
           {kit.grades.map(f => (
             <figure key={f.title} className="frag-fig">
-              {/aim|duel|fight/i.test(f.title) ? <DuelFrag /> : /trade/i.test(f.title) ? <CardFrag tags={['TRADE', 'FAST']} /> : /util|flash|abilit/i.test(f.title) ? <UtilFrag /> : /position|map|rotation|where/i.test(f.title) ? <PosFrag /> : <WinFrag from={48} to={61} />}
+              {f.score ? <ScoreFrag score={f.score[0]} rank={f.score[1]} /> : /aim|duel|fight/i.test(f.title) ? <DuelFrag /> : /trade/i.test(f.title) ? <CardFrag tags={['TRADE', 'FAST']} /> : /util|flash|abilit/i.test(f.title) ? <UtilFrag /> : /position|map|rotation|where/i.test(f.title) ? <PosFrag /> : <WinFrag from={48} to={61} side={kit.game === 'cs2' ? 'CT' : 'Your team'} />}
               <figcaption><b>{f.title}</b><span>{f.text}</span></figcaption>
             </figure>
           ))}

@@ -1654,3 +1654,9 @@ body { font-weight: 500; }
 .match-tab { padding: 0 5px 0 12px; }
 .match-tab-x { width: 26px; height: 26px; border-radius: 50%; margin-left: 2px; color: var(--text-2); background: var(--white-8); }
 .match-tab-x:hover:not(:disabled), .match-tab-x:focus-visible { background: var(--white-16, var(--surface-3)); color: var(--text-1); }
+.frag-score-top { display: flex; align-items: baseline; gap: 10px; }
+.frag-score-top b { font-size: 32px; line-height: 1; }
+.site-footer .foot-groups { display: flex; flex-wrap: wrap; gap: 14px 40px; }
+.foot-group { display: grid; gap: 6px; align-content: start; }
+.foot-group b { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-1); }
+.foot-group a { font-size: 14px; }

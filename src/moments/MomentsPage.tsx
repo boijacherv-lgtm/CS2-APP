@@ -405,7 +405,9 @@ export function MomentsPage() {
         <div className="card-head"><h2><Icon name="target" size={16} /> Puzzle{cur ? <span className="muted small"> · difficulty {puzzleRating(cur)}</span> : null}</h2>
           <span className="muted small">{score.solved}/{score.tried} right · streak {score.streak} · best {score.best}</span></div>
         {cur ? <><Puzzle m={cur} onAnswer={answer(cur)} /><div className="puzzle-next"><ShareMoment m={cur} /><button className="primary" onClick={next}>Next puzzle <Icon name="arrowRight" size={13} /></button></div></>
-          : <p className="muted">{source === 'top' && !top ? 'Loading puzzles…' : 'No puzzles here yet.'}</p>}
+          : source === 'top' && !top ? <p className="muted">Loading puzzles…</p>
+          : source === 'mine' ? <p className="muted">Your own puzzles come from the matches you review: the mistakes the coach finds become puzzles. <a className="cta small-btn" href={game === 'deadlock' ? '/deadlock/review' : '/cs2/review'}>Review a {GAME_NAME[game]} match</a></p>
+          : <p className="muted">No puzzles here yet. Try Top players.</p>}
       </section>
 
       {source === 'mine' && <section className="site-card">
