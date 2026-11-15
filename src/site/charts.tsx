@@ -297,7 +297,7 @@ export function SplitChart({ points, base, top, bottom, colors, fmt, axis = fmt,
         {h && <line x1={geo.x(h.t)} x2={geo.x(h.t)} y1={T} y2={H - B} className="sc-cursor" />}
       </svg>
       {h && (
-        <div className="area-tip" style={{ left: `${(geo.x(h.t) / W) * 100}%` }}>
+        <div className={`area-tip ${geo.x(h.t) > W * 0.6 ? 'flip' : ''}`} style={{ left: `${(geo.x(h.t) / W) * 100}%` }}>
           <b className="num">{fmt(h.v)}</b><span>{xfmt(h.t)}{dotAt(h.t) ? ` · ${dotAt(h.t)!.title}` : ''}</span>
         </div>
       )}
