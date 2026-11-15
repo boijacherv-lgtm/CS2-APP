@@ -181,7 +181,7 @@ trained it uses hand-set Premier numbers. To train it:
    team had seen) and every move to another spot with what had just happened (a teammate died there, an enemy was
    seen, the bomb went down). It learns, per map, side and phase (0–25 s, 25–60 s, 60 s+, after the plant), where
    level-10 players stand, their share of the time there and how often that side won, plus their common moves and
-   triggers, into `src/map/generated/positions.json`. The **Pro positions** layer (layers menu) shows it on the map
+   triggers, into `src/map/generated/positions/<map>.json (one file per map, loaded when a match on that map opens)`. The **Pro positions** layer (layers menu) shows it on the map
    for the current moment of the round.
    Step 2: the **Positions** tab in Review lists a player's decisions in the round (where they held, where they moved
    and right after what) and compares each one with level-10 players in the same situation: the same part of the
@@ -390,7 +390,7 @@ tools/
   steam.mjs          desktop Steam backend: OpenID, Valve match-history API, replays-folder auto-import, parsed demos (.steam-cache/)
   train-coach.ts     trains the coach on a folder of demos → src/engine/models/<name>.json (npm run train:coach)
   learn-spots.ts     standard smoke / molotov spots from a folder of demos → src/map/generated/util-spots.json
-  learn-positions.ts where level-10 players stand and why they move → src/map/generated/positions.json
+  learn-positions.ts where level-10 players stand and why they move → src/map/generated/positions/<map>.json (one file per map, loaded when a match on that map opens)
   learn-analyst.ts   trades, duels, control, rotations, plans, utility, economy, post-plant benchmarks → src/engine/models/analyst.json
   build-maps.mjs     radar PNG → grid (alpha = floor; small grey shapes = props/walls; dark lines = walls on Nuke/Vertigo)
   overviews/         Valve's overview .txt per map (pos_x/pos_y/scale, spawns, bomb markers), read by build-maps
