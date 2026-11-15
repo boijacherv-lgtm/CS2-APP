@@ -104,16 +104,16 @@ export const OVERLAY = 'rgba(10, 12, 16, 0.88)';
 export const SIDE_COLOR = { CT: T.ct, T: T.t } as const;
 export const UTIL_COLOR = { smoke: T.smoke, flash: T.flash, molotov: T.molly, he: T.he } as const;
 
-// Both have Cyrillic (player names like КРЫСА): Sofia Sans Extra Condensed for headlines, grade letters and numbers; Onest for the UI
-// --font-display is for short labels in the app (Onest); the condensed face is for numbers and headlines
+// Both have Cyrillic (player names like КРЫСА): Sofia Sans Extra Condensed for headlines, grade letters and numbers; 'Golos Text' for the UI
+// --font-display is for short labels in the app ('Golos Text'); the condensed face is for numbers and headlines
 // (28px and up) and the grade letters (--font-headline)
-export const FONT_DISPLAY = "Onest, system-ui, -apple-system, 'Segoe UI', sans-serif";
+export const FONT_DISPLAY = "'Golos Text', system-ui, -apple-system, 'Segoe UI', sans-serif";
 /** Numbers, scores, grade letters and headlines (round 10): Sofia Sans Extra Condensed 700–800 (Cyrillic); Oswald 600 and Roboto Condensed 700 as fallbacks that also have Cyrillic. */
-export const FONT_NUM = "'Sofia Sans Extra Condensed', Oswald, 'Roboto Condensed', system-ui, sans-serif";
+export const FONT_NUM = "Oswald, 'Roboto Condensed', system-ui, sans-serif";
 export const FONT_HEADLINE = FONT_NUM;
 /** Headlines use the same face as numbers (one display family, round 10). */
 export const FONT_TITLE = FONT_NUM;
-export const FONT_UI = "Onest, system-ui, -apple-system, 'Segoe UI', sans-serif";
+export const FONT_UI = "'Golos Text', system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 const kebab = (k: string) => k.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`).replace(/(\d)/, '-$1');
 
