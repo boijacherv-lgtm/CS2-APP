@@ -135,6 +135,13 @@ export function withPlants(data: DemoData): DemoData {
     }),
   };
 }
+/** How long a round that ends in an explosion keeps playing after it, so the blast is seen (the demo's round ends at the bang). */
+export const BLAST_TAIL_SECONDS = 2.5;
+export function withBlastTail(data: DemoData): DemoData {
+  const ends = (r: DemoRound) => (r.bomb ?? []).some(b => b.kind === 'explode' && r.duration - b.t < 1);
+  if (!data.rounds.some(ends)) return data;
+  return { ...data, rounds: data.rounds.map(r => (ends(r) ? { ...r, duration: r.duration + BLAST_TAIL_SECONDS } : r)) };
+}
 export type BombState =
   | { kind: 'carry'; id: string }
   | { kind: 'drop' | 'plant' | 'defuse' | 'explode'; x: number; y: number; since: number; plantedAt: number | null };

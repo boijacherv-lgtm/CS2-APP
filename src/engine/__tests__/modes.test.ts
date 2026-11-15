@@ -56,3 +56,15 @@ describe('older parses without bomb events', () => {
     expect(withPlants(out)).toBe(out); // already has the events
   });
 });
+
+describe('a round that ends in an explosion', () => {
+  it('plays on for the blast, once', async () => {
+    const { withBlastTail, BLAST_TAIL_SECONDS } = await import('../recap');
+    const r: any = { n: 1, duration: 93.69, plant: 52, reason: 'bomb_exploded', bomb: [{ t: 93.69, kind: 'explode', id: 'a', x: 0, y: 0 }] };
+    const other: any = { n: 2, duration: 50, plant: null, reason: 't_killed', bomb: [] };
+    const once = withBlastTail({ map: 'de_dust2', tickrate: 64, names: {}, rounds: [r, other] } as any);
+    expect(once.rounds[0].duration).toBeCloseTo(93.69 + BLAST_TAIL_SECONDS);
+    expect(once.rounds[1].duration).toBe(50);
+    expect(withBlastTail(once)).toBe(once);
+  });
+});
