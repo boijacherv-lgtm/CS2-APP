@@ -409,7 +409,7 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
       )}
       {(() => { const top = c.improve[0], dev = top && c.profile.find(d => d.feature === top.feature), stat = dev ? `${dev.value} (level 10: ${dev.normal})` : '', t = rageSummary(top?.feature ?? null, !!top?.title.startsWith('Your '), rage, stat); return t ? <p className="coach-rage">{t}</p> : null; })()}
       {c.improve[0] && (() => { const dev = c.profile.find(d => d.feature === c.improve[0].feature); return dev ? <p className="coach-top"><b>{c.improve[0].title}</b>: {dev.label.toLowerCase()} {dev.value} (level 10: {dev.normal})</p> : null; })()}
-      <div className="dev-axis muted"><span>worse</span><span>← level 10 →</span><span>better</span></div>
+      <div className="dev-axis muted" aria-hidden="true"><span>worse</span><span>level 10</span><span>better</span></div>
       <div className="dev-list">
         {rows.map(d => <DevRow key={d.feature} d={d} open={open === d.feature} onToggle={() => setOpen(open === d.feature ? null : d.feature)}
           onRound={onRound} onHotRound={onHotRound} />)}

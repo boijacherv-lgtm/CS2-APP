@@ -1385,3 +1385,14 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .rg tr.focus .hc, .rg .cell:hover .hc { opacity: 1; }
 .rg tr.focus td.name { box-shadow: inset 3px 0 0 var(--theme); }
 .rg thead th { border-bottom-width: 3px; font-weight: 500; }
+
+/* round 13: the coach card's one legend: worse | level 10 | better on a single line above the bars */
+.dev-axis { grid-template-columns: 200px 1fr 120px; }
+.dev-axis span { grid-column: 2 !important; grid-row: 1 !important; }
+.dev-axis span:nth-child(1) { justify-self: start; } .dev-axis span:nth-child(2) { justify-self: center; text-align: center; } .dev-axis span:nth-child(3) { justify-self: end; }
+.dev-row { grid-template-columns: 200px 1fr 120px; }
+
+/* round 13: the date in the match list stays on one line */
+.rs-right td, .steam td { white-space: nowrap; }
+.rs-right td .muted, .steam td .muted { white-space: nowrap; }
+.rs-right td > .muted.small { display: none; }
