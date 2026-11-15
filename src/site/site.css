@@ -1633,7 +1633,7 @@ body { font-weight: 500; }
 .skill-rows .sk-detail { margin-top: 4px; }
 .goals-page { display: grid; gap: 14px; }
 .goals-page > .site-card { margin: 0; }
-.goals .goal-list { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.goals .goal-list { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .goals-page .site-table { width: 100%; }
 /* charts: a quiet dashed average, no heavy well behind the bars */
 .avg-line { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 4; opacity: .7; }
