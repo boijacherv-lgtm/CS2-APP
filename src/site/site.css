@@ -1000,7 +1000,6 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .perf-letter.reveal.g-a { animation: grade-flip .2s ease-out both, fx-glow-green .4s ease-out .2s 1; }
 .perf-letter.reveal.g-c { animation: grade-flip .2s ease-out both, fx-flicker .35s steps(2) .2s 1; }
 .perf-letter.reveal.g-d { animation: grade-flip .2s ease-out both; }
-.perf-letter.reveal.g-d::before { content: ''; position: absolute; left: 18%; right: 22%; top: 48%; height: 2px; background: var(--ink); transform: rotate(-24deg); clip-path: inset(0 100% 0 0); animation: fx-crack .3s ease-out .2s forwards; }
 .perf-letter.reveal.g-f { animation: grade-flip .2s ease-out both, fx-shake .2s ease-in-out .2s 2; filter: brightness(.82); }
 @keyframes fx-glow-teal { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--letter-s) 45%, transparent); } }
 @keyframes fx-glow-green { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--letter-a) 35%, transparent); } }
@@ -1020,7 +1019,6 @@ a.hero-games-live:hover b { text-decoration: underline; }
 @keyframes fx-dot { 0%, 100% { transform: translate(-50%, -50%) scale(1); } 40% { transform: translate(-50%, -50%) scale(1.5); } }
 @media (prefers-reduced-motion: reduce) {
   .perf-letter.reveal, .perf-letter.reveal::before, .feed-card[class*='fx-'], .feed-card[class*='fx-'] .feed-grade, .timeline .tl-hit { animation: none !important; }
-  .perf-letter.reveal.g-d::before { clip-path: none; }
 }
 .top3.skel .skel-line { display: block; width: 100%; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2)); background-size: 200% 100%; animation: skel 1.2s linear infinite; }
 .top3.skel .skel-line.short { width: 60%; }
@@ -1299,3 +1297,27 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .tt-bars li:nth-child(-n+3):hover::after, .tt-bars li:nth-child(-n+3):focus-visible::after { left: 0; transform: none; }
 .tt-bars li:nth-last-child(-n+3):hover::after, .tt-bars li:nth-last-child(-n+3):focus-visible::after { left: auto; right: 0; transform: none; }
 .tt-bars li:focus-visible b { outline: 2px solid var(--theme); }
+
+/* round 12: the grade tile: the label, then the 56 px badge and its word on one row at the same left edge; no slash through the D;
+   a small down triangle in the badge corner for C, D and F so the grade does not rely on colour alone */
+.perf-grade-tile { align-items: start; justify-items: start; }
+.pg-row { display: flex; align-items: center; gap: 12px; }
+.pg-word { font: 700 20px/1 var(--font-num); color: var(--text); }
+.perf-letter.reveal.g-c::before, .perf-letter.reveal.g-d::before, .perf-letter.reveal.g-f::before { content: '▼'; position: absolute; top: 3px; right: 5px; font: 700 12px/1 var(--font-ui); color: var(--ink); opacity: .75; }
+
+/* round 12: Side by side, Fix next and Keep doing are ONE card with a segmented control; no card inside a card */
+.more-card { display: grid; gap: 14px; }
+.more-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.more-head h2 { margin: 0; font-size: 20px; }
+.more-seg button { font-size: 14px; padding: 6px 12px; }
+
+.split-chart .sc-chip { fill: var(--surface-2); stroke: var(--border); }
+
+/* round 12: the marks table: three mark columns, a dot for zero, the impact in teal / orange with an arrow, the name column sticks */
+.kills { width: 100%; table-layout: auto; }
+.kills td:first-child, .kills th:first-child { position: sticky; left: 0; background: var(--surface-1); z-index: var(--z-base); }
+.kills .mk-impact.up { color: var(--good); } .kills .mk-impact.down { color: var(--bad); }
+.kills .mk-n { text-align: center; } .kills .mk-n.down { color: var(--bad); }
+
+.more-card .duo { display: grid; gap: 10px; } .more-card .duo-head { display: flex; justify-content: flex-end; }
+.more-card .duo-table { width: 100%; max-width: 880px; }
