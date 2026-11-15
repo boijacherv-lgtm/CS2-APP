@@ -1278,3 +1278,24 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .rg .hc { width: 24px; height: 24px; } .rg .hc::after { font-size: 12px; }
 .rg td.name { min-width: 130px; }
 .perf-line, .perf-line.num { font-family: var(--font-ui); font-size: 14px; font-weight: 400; letter-spacing: 0; }
+
+/* round 12: the stat strip: five equal boxes in the game's colour; 11 thin bars, a dashed average, a result dot under each bar */
+.trend-tile { background: color-mix(in srgb, var(--theme) 11%, var(--surface-1)); border: 1px solid color-mix(in srgb, var(--theme) 38%, transparent); grid-template-rows: auto auto auto 84px; gap: 8px; padding: 16px; position: relative; }
+.tt-label { font-size: 14px; font-weight: 500; color: var(--text-2); }
+.tt-chart { position: relative; height: 84px; }
+.tt-well { position: absolute; inset: 0 0 14px; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; background: var(--bg-0); }
+.tt-well i { display: block; } .tt-well .above { background: color-mix(in srgb, var(--good) 8%, transparent); } .tt-well .below { background: color-mix(in srgb, var(--bad) 8%, transparent); }
+.tt-avg { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--text-2); bottom: calc(14px + (100% - 14px) * var(--ay) / 100); }
+.tt-bars { position: absolute; inset: 0; margin: 0; padding: 0 4px; list-style: none; display: flex; gap: 3px; justify-content: space-between; }
+.tt-bars li { position: relative; flex: 1 1 0; max-width: 14px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; outline: none; }
+.tt-bars li b { display: block; width: 100%; min-height: 3px; border-radius: 2px; margin-bottom: 4px; box-sizing: border-box; }
+.tt-bars li { height: 100%; box-sizing: border-box; padding-bottom: 14px; justify-content: flex-end; } .tt-bars li b { margin-bottom: 0; }
+.tt-bars li.good b { background: var(--good); } .tt-bars li.bad b { background: var(--bad); }
+.tt-bars li.mid b { background: transparent; border: 1.5px solid var(--text-2); }
+.tt-bars li.now b { outline: 2px solid var(--text); outline-offset: 1px; }
+.tt-bars li u { position: absolute; bottom: 2px; left: 50%; margin-left: -3px; width: 6px; height: 6px; border-radius: 999px; box-sizing: border-box; flex: none; margin-bottom: 0; text-decoration: none; }
+.tt-bars li u.win { background: var(--text-2); } .tt-bars li u.loss, .tt-bars li u.tie { border: 1.5px solid var(--text-2); }
+.tt-bars li:hover::after, .tt-bars li:focus-visible::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); width: max-content; max-width: 220px; padding: 6px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font: 500 14px/1.3 var(--font-ui); z-index: var(--z-pop, 40); pointer-events: none; }
+.tt-bars li:nth-child(-n+3):hover::after, .tt-bars li:nth-child(-n+3):focus-visible::after { left: 0; transform: none; }
+.tt-bars li:nth-last-child(-n+3):hover::after, .tt-bars li:nth-last-child(-n+3):focus-visible::after { left: auto; right: 0; transform: none; }
+.tt-bars li:focus-visible b { outline: 2px solid var(--theme); }
