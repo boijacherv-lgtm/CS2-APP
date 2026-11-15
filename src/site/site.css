@@ -1418,32 +1418,6 @@ body { font-weight: 500; }
 .round-strip.two-rows .rs-divider { display: none; }
 .board-ui.broadcast .slot.top .round-strip.two-rows { justify-content: center; }
 
-/* round 13, the move card: docked above the timeline, full width, two lines; it never sits over the players. "+N more" opens the rest upwards. */
-.board-ui .slot.left.card-slot { grid-area: card; justify-content: center; align-items: flex-end; overflow: visible; }
-.board-ui .feed-card { width: min(920px, 100%); max-height: none; overflow: visible; display: grid; align-items: center; column-gap: 14px; row-gap: 2px; padding: 8px 14px;
-  grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "head title title meter" "why why more foot"; background-image: linear-gradient(90deg, color-mix(in srgb, var(--grade) 14%, transparent), transparent 40%); }
-.board-ui .feed-card-head { grid-area: head; flex-direction: row; align-items: center; gap: 10px; min-width: 0; }
-.board-ui .feed-card .feed-title { grid-area: title; margin: 0; font-size: 16px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.board-ui .feed-card .feed-win, .board-ui .feed-card .feed-meter { grid-area: meter; justify-self: end; margin: 0; }
-.board-ui .feed-card ul.feed-why { grid-area: why; margin: 0; padding: 0; border: 0; list-style: none; font-size: 14px; min-width: 0; }
-.board-ui .feed-card ul.feed-why li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.board-ui .feed-card ul.feed-why li:nth-child(n+2) { display: none; }
-.board-ui .feed-card.open ul.feed-why li:nth-child(n+2) { display: list-item; white-space: normal; }
-.board-ui .feed-card .feed-more { grid-area: more; justify-self: end; }
-.board-ui .feed-card .feed-card-foot { grid-area: foot; margin: 0; justify-self: end; }
-.board-ui .feed-card .feed-better, .board-ui .feed-card .feed-rage, .board-ui .feed-card .feed-tags, .board-ui .feed-card > div:last-child:not(.feed-card-foot) { grid-column: 1 / -1; }
-.board-ui .feed-card:not(.open) .feed-tags, .board-ui .feed-card:not(.open) .feed-better { display: none; }
-.board-ui .feed-card .feed-rage { margin: 4px 0 0; }
-@media (max-width: 760px) {
-  .board-ui .feed-card { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "head title" "why why" "meter meter" "more foot"; }
-}
-
-/* round 13, toasts: once, 5 s, top-right under the bar: the bottom has the controls and the rosters */
-.hint-card.welcome, .hint-card.recap-toast { left: auto; right: 16px; transform: none; top: 60px; bottom: auto; max-width: min(420px, calc(100vw - 32px)); }
-/* the panel under 1280 px is a drawer: it pushes nothing, so give it a scrim-free shadow and keep the tab labels on one line */
-.tabs button { white-space: nowrap; }
-.board-ui .feed-card { padding: 6px 14px; }
-.board-ui .feed-card .feed-card-foot button { padding: 2px 9px; font-size: 12px; }
 
 /* Dota 2: the real map instead of a logo disc; the headline never leaves "2" alone on a line */
 .d2-hero-map { display: grid; place-items: center; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-1); aspect-ratio: 1; max-width: 420px; justify-self: end; }
@@ -1542,8 +1516,6 @@ body { font-weight: 500; }
 .page .muted, .page .small { font-size: 14px; }
 .page .chip.small, .page .games-status, .page .eyebrow { font-size: 14px; }
 /* the move card in two tight lines: its buttons share the title's row */
-.board-ui .feed-card { grid-template-areas: "head title meter foot" "why why why more"; row-gap: 0; padding: 5px 14px; }
-.board-ui .feed-card .feed-card-foot { margin: 0; }
 /* the panel under 1280 (and over 900) pushes the map instead of covering it */
 @media (min-width: 900px) and (max-width: 1279px) {
   .app:not(.drawer-closed) { grid-template-columns: var(--rail-w) minmax(0, 1fr) 320px; }
@@ -1697,13 +1669,10 @@ body { font-weight: 500; }
 @media (max-width: 640px) { .round-strip.two-rows { display: none; } }
 @container board (max-width: 560px) {
   .app .board-ui.broadcast .slot.tr { display: none; }
-  .board-ui .feed-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "head foot" "title title" "meter meter" "why why" "more more"; row-gap: 4px; padding: 8px 12px; }
-  .board-ui .feed-card .feed-title { white-space: normal; }
-  .board-ui .feed-card .feed-win, .board-ui .feed-card .feed-meter { justify-self: start; }
 }
 @container board (max-width: 560px) {
-  .app .board-ui, .app .board-ui.broadcast { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto minmax(0, 1fr) auto auto auto auto;
-    grid-template-areas: "tl tl" "top top" "left right" "bl bl" "card card" "eval eval" "dock dock"; }
+  .app .board-ui, .app .board-ui.broadcast { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "tl tl" "top top" "left right" "bl bl" "eval eval" "dock dock"; }
   .board-ui .slot.team-ct, .board-ui .slot.team-t, .board-ui .slot.br { display: none; }
   .app .board-ui .slot.tl { min-width: 0; }
 }
