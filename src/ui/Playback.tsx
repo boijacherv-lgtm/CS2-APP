@@ -125,9 +125,11 @@ export function ScoreBug({ score, round, roundNo, time, switched, names }: {
         <div className="sb-side ct"><span className="sb-team">CT</span><span className="sb-score num">{score[0]}</span></div>
         <div className={`sb-mid ${flash ? `flash ${flash}` : ''}`}>
           {flash ? <span className="sb-flash"><Icon name={flash === 'defuse' ? 'scissors' : 'bomb'} size={14} />{flash === 'defuse' ? 'DEFUSED' : 'EXPLODED'}</span>
-            : <span className={`sb-clock num ${fuse !== null && !ended ? `bomb ${tone}` : left <= 10 && !ended ? 'low' : ''}`}>
-              {(planting !== null || (fuse !== null && !ended)) && <Icon name="bomb" size={16} />}{clockText}
-            </span>}
+            : ended ? <span className={`sb-result ${bomb?.kind === 'explode' ? 't' : 'ct'}`}>{bomb?.kind === 'explode' ? 'T won' : 'CT won'}</span>
+            : planting !== null || fuse !== null
+              // the bomb has its own amber capsule (C4, "Bomb", seconds) and the round clock is hidden while it runs
+              ? <span className={`sb-bombcap ${tone || 'amber'}`}><Icon name="bomb" size={16} /><small>{fuse === null ? 'Planting' : 'Bomb'}</small>{fuse !== null && <b className="num">{clockText}</b>}</span>
+              : <span className={`sb-clock num ${left <= 10 ? 'low' : ''}`}>{clockText}</span>}
           {line && !flash && (
             <span className={`sb-timer ${line.cls}`} aria-hidden="true">
               <i style={{ width: `${Math.round(line.share * 100)}%` }} />
@@ -219,7 +221,7 @@ export function RoundStrip({ data, at, spoilers, onPick }: { data: DemoData; at:
     return r.winner === 'CT' && r.duration >= 110 ? 'timer' : 'skull';
   };
   return (
-    <ol className="round-strip" aria-label="Rounds">
+    <ol className={`round-strip ${data.rounds.length > 16 ? 'two-rows' : ''}`} style={{ '--cols': Math.ceil(data.rounds.length / 2) } as React.CSSProperties} aria-label="Rounds">
       {data.rounds.map((r, i) => {
         const shown = spoilers || i < at;
         // dividers in the strip itself: sides switched at half-time, and where overtime starts

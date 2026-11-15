@@ -532,7 +532,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           {/* the bomb's blast reaches, UNDER the players and everything else (an estimate: blast.ts) */}
           {blastImg && plantedAt && blastAge >= 0 && blastAge < 1.2 && (
             <Group listening={false} clipFunc={ctx => { ctx.arc(plantedAt.x, plantedAt.y, (Math.min(1, blastAge / 0.5) * BLAST_REACH_U) / UNITS_PER_PX, 0, Math.PI * 2); }}>
-              <KImage image={blastImg} x={0} y={0} width={blastF!.w * CELL} height={blastF!.h * CELL} listening={false} opacity={0.75 * (1 - blastAge / 1.2)} />
+              <KImage image={blastImg} x={0} y={0} width={blastF!.w * CELL} height={blastF!.h * CELL} listening={false} opacity={0.55 * Math.min(1, blastAge / 0.3) * (1 - blastAge / 1.2)} />
             </Group>
           )}
           {/* where FACEIT level-10 players stand at this point of the round: a circle per callout, sized by their share

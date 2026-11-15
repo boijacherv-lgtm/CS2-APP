@@ -105,4 +105,4 @@ export function TeamRoster({ side, players, round, time }: { side: 'CT' | 'T'; p
 }
 
 /** Two letters for a player with no avatar: "Player 4" → "P4", "s1mple" → "S1". */
-const initials = (n: string) => { const m = /^(\S)\S*\s+(\d+)$/.exec(n.trim()); return (m ? m[1] + m[2] : n.trim().slice(0, 2)).toUpperCase(); };
+const initials = (n: string) => { const m = /^(\S)\S*\s+(\d+)$/.exec(n.trim()); return (m ? m[2] : n.trim().slice(0, 2)).toUpperCase(); };

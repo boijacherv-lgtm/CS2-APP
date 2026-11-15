@@ -11,7 +11,7 @@ import { OPENING, SEARCH_COLOR, type RoundSearch } from '../engine/search';
 import { moveLook, NoteMark } from './NoteMark';
 import { brief } from './MoveFeed';
 import type { TacticalEngine } from '../engine/predict';
-import { DEFUSE_SECONDS, PLANT_SECONDS, equipValue, QUIET_TAGS, LETTER_COLOR, LETTER_INFO, moments, type Moment, movesUntil, NOTE_INFO, NOTES, roundFacts, roundGrade, TAG_INFO, teamEconomy, type Annotation, type DemoData, type DemoRound, type Move, type Replay, type Review, type Tag } from '../engine/recap';
+import { moveClock, DEFUSE_SECONDS, PLANT_SECONDS, equipValue, QUIET_TAGS, LETTER_COLOR, LETTER_INFO, moments, type Moment, movesUntil, NOTE_INFO, NOTES, roundFacts, roundGrade, TAG_INFO, teamEconomy, type Annotation, type DemoData, type DemoRound, type Move, type Replay, type Review, type Tag } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { gunFromName, primaryGun } from '../engine/guns';
 import { useStore, whoAmI } from '../store';
@@ -204,8 +204,8 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
       </header>
 
       <div className="tabs" role="tablist">
-        {([['moves', 'Moves', 'list'], ['players', 'Players', 'friends'], ['economy', 'Economy', 'coins'], ['engine', 'Best options', 'route']] as const).map(([id, label, icon]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}><Icon name={icon} size={14} /> {label}</button>
+        {([['moves', 'Moves', 'list'], ['players', 'Players', 'friends'], ['economy', 'Economy', 'coins'], ['engine', 'Best', 'route']] as const).map(([id, label, icon]) => (
+          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)} title={id === 'engine' ? 'Best options: what level-10 players would have done' : undefined}><Icon name={icon} size={14} /> {label}</button>
         ))}
       </div>
 
@@ -250,12 +250,12 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
         {tp && finished && filter === 'key' && (
           <div className="rp-turning">
             <span className="rp-label">Turning point</span>
-            <MoveItem m={tp} open={open === `tp-${moveId(tp)}`} onToggle={() => setOpen(o => (o === `tp-${moveId(tp)}` ? null : `tp-${moveId(tp)}`))} onWatch={watch} />
+            <MoveItem m={tp} open={open === `tp-${moveId(tp)}`} onToggle={() => setOpen(o => (o === `tp-${moveId(tp)}` ? null : `tp-${moveId(tp)}`))} onWatch={watch} plant={r.plant} />
           </div>
         )}
         <div className="move-list">
           {[...moves].reverse().map(m => (
-            <MoveItem key={moveId(m)} m={m} open={open === moveId(m)} onToggle={() => setOpen(o => (o === moveId(m) ? null : moveId(m)))} onWatch={watch} />
+            <MoveItem key={moveId(m)} m={m} open={open === moveId(m)} onToggle={() => setOpen(o => (o === moveId(m) ? null : moveId(m)))} onWatch={watch} plant={r.plant} />
           ))}
           {!moves.length && <p className="muted rp-empty">{all ? 'No moves for this filter.' : 'Nothing yet.'}</p>}
         </div>
@@ -316,12 +316,13 @@ function reasonText(reason: string) {
 }
 
 /** One move, folded: time, grade, short title, win-chance change, tags. Open: the full title and the reasons, one per line. */
-function MoveItem({ m, open, onToggle, onWatch }: { m: Move; open: boolean; onToggle: () => void; onWatch: (m: Move) => void }) {
+function MoveItem({ m, open, onToggle, onWatch, plant }: { m: Move; open: boolean; onToggle: () => void; onWatch: (m: Move) => void; plant: number | null }) {
   const g = moveLook(m);
+  const clk = moveClock(plant, m.t);
   return (
     <div className={`mv ${open ? 'open' : ''}`}>
       <button className="mv-row" onClick={onToggle} aria-expanded={open} title={open ? 'Fold' : 'Why?'}>
-        <span className="mv-t muted num">{fmt(m.t)}</span>
+        <span className="mv-t muted num" title={clk.bomb ? 'Time left on the bomb' : 'Time left in the round'}>{clk.bomb && <Icon name="bomb" size={11} />}{clk.text}</span>
         <NoteMark m={m} />
         <span className={`mv-title ${m.side.toLowerCase()}`}>{brief(m.title)}</span>
         <span className="mv-gain num" style={{ color: m.gain > 0.02 ? '#7fbf4d' : m.gain < -0.02 ? '#e5483a' : 'var(--muted)' }}>{signed(m.gain)}</span>
@@ -336,7 +337,7 @@ function MoveItem({ m, open, onToggle, onWatch }: { m: Move; open: boolean; onTo
             {m.why.map((w, i) => <li key={i}>{w}</li>)}
           </ul>
           <button className="mini mv-watch" onClick={() => onWatch(m)}><Icon name="play" size={11} /> Watch</button>
-          <VerdictBar m={m} />
+          {m.note !== 'book' && <VerdictBar m={m} />}
         </div>
       )}
     </div>

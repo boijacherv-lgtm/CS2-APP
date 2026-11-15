@@ -1402,3 +1402,45 @@ a.hero-games-live:hover b { text-decoration: underline; }
    bold (700) only for headings, numbers and buttons; Oswald for digits, grade letters and the score, not for running text */
 body { font-weight: 500; }
 .muted, .small, .meta, p.foot, .counter, .hint, .fold-title, .eyebrow, .games-status, .chip, .chips-count { font-size: 13px; }
+
+/* round 13, the score bug: the bomb is an amber capsule (C4, "Bomb", seconds) and the round clock is hidden while it runs; after the
+   flash the result stands in for the stale clock */
+.sb-bombcap { --fuse: var(--gold); display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 96px; padding: 0 12px; border-radius: 999px; color: var(--fuse);
+  background: color-mix(in srgb, var(--fuse) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fuse) 55%, transparent); }
+.sb-bombcap.amber { --fuse: var(--gold); } .sb-bombcap.orange { --fuse: var(--letter-d); } .sb-bombcap.red { --fuse: var(--bad); }
+.sb-bombcap small { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.sb-bombcap b { font-size: 24px; line-height: 1; }
+.sb-result { display: inline-flex; align-items: center; min-width: 76px; justify-content: center; padding: 0 10px; font-weight: 800; font-size: 16px; letter-spacing: .04em; text-transform: uppercase; }
+.sb-result.ct { color: var(--ct); } .sb-result.t { color: var(--t); }
+/* the round strip: two rows of 15 (a row per half) instead of wrapping to a lone 30 */
+.round-strip.two-rows { display: grid; grid-template-columns: repeat(var(--cols), 24px); gap: 3px 2px; overflow: visible; max-width: none; }
+.round-strip.two-rows li.half { margin-left: 0; }
+.round-strip.two-rows .rs-divider { display: none; }
+.board-ui.broadcast .slot.top .round-strip.two-rows { justify-content: center; }
+
+/* round 13, the move card: docked above the timeline, full width, two lines; it never sits over the players. "+N more" opens the rest upwards. */
+.board-ui .slot.left.card-slot { grid-area: card; justify-content: center; align-items: flex-end; overflow: visible; }
+.board-ui .feed-card { width: min(920px, 100%); max-height: none; overflow: visible; display: grid; align-items: center; column-gap: 14px; row-gap: 2px; padding: 8px 14px;
+  grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "head title title meter" "why why more foot"; background-image: linear-gradient(90deg, color-mix(in srgb, var(--grade) 14%, transparent), transparent 40%); }
+.board-ui .feed-card-head { grid-area: head; flex-direction: row; align-items: center; gap: 10px; min-width: 0; }
+.board-ui .feed-card .feed-title { grid-area: title; margin: 0; font-size: 15px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-ui .feed-card .feed-win, .board-ui .feed-card .feed-meter { grid-area: meter; justify-self: end; margin: 0; }
+.board-ui .feed-card ul.feed-why { grid-area: why; margin: 0; padding: 0; border: 0; list-style: none; font-size: 13px; min-width: 0; }
+.board-ui .feed-card ul.feed-why li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-ui .feed-card ul.feed-why li:nth-child(n+2) { display: none; }
+.board-ui .feed-card.open ul.feed-why li:nth-child(n+2) { display: list-item; white-space: normal; }
+.board-ui .feed-card .feed-more { grid-area: more; justify-self: end; }
+.board-ui .feed-card .feed-card-foot { grid-area: foot; margin: 0; justify-self: end; }
+.board-ui .feed-card .feed-better, .board-ui .feed-card .feed-rage, .board-ui .feed-card .feed-tags, .board-ui .feed-card > div:last-child:not(.feed-card-foot) { grid-column: 1 / -1; }
+.board-ui .feed-card:not(.open) .feed-tags, .board-ui .feed-card:not(.open) .feed-better { display: none; }
+.board-ui .feed-card .feed-rage { margin: 4px 0 0; }
+@media (max-width: 760px) {
+  .board-ui .feed-card { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "head title" "why why" "meter meter" "more foot"; }
+}
+
+/* round 13, toasts: once, 5 s, top-right under the bar: the bottom has the controls and the rosters */
+.hint-card.welcome, .hint-card.recap-toast { left: auto; right: 16px; transform: none; top: 60px; bottom: auto; max-width: min(420px, calc(100vw - 32px)); }
+/* the panel under 1280 px is a drawer: it pushes nothing, so give it a scrim-free shadow and keep the tab labels on one line */
+.tabs button { white-space: nowrap; }
+.board-ui .feed-card { padding: 6px 14px; }
+.board-ui .feed-card .feed-card-foot button { padding: 2px 9px; font-size: 12px; }

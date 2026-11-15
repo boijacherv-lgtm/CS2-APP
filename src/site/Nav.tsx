@@ -152,7 +152,7 @@ function useRecapReady(done: boolean, onRecap: boolean) {
     setWas(done);
   }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (onRecap) setToast(false); }, [onRecap]);
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(false), 12000); return () => clearTimeout(t); }, [toast]);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(false), 6000); return () => clearTimeout(t); }, [toast]);
   return { toast, pulse, close: () => setToast(false) };
 }
 

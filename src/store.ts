@@ -231,7 +231,8 @@ export const useStore = create<Store>((set, get) => {
     // the arrows (engine lines, and the card's line to its player): a debugging view, off unless turned on
     engineLines: loadJson<{ on: boolean }>('stratboard.arrows', { on: false }).on,
     autoCam: loadJson<{ on: boolean }>('stratboard.autoCam', { on: true }).on,
-    drawerOpen: loadJson<{ on: boolean }>(LS_DRAWER, { on: typeof window === 'undefined' || window.innerWidth >= 1600 }).on,
+    // under 1280 px the panel is a drawer over the map: it starts closed there whatever was saved on a wider screen
+    drawerOpen: typeof window !== 'undefined' && window.innerWidth < 1280 ? false : loadJson<{ on: boolean }>(LS_DRAWER, { on: typeof window === 'undefined' || window.innerWidth >= 1600 }).on,
     slowUntil: 0,
     slowSpeed: 0.3,
     readHold: false,
