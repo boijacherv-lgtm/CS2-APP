@@ -47,7 +47,7 @@
     "dota:assets": "vite-node tools/dota-assets.ts"
   },
   "dependencies": {
-    "@laihoe/demoparser2": "^0.42.0",
+    "@laihoe/demoparser2": "^0.42.3",
     "@phosphor-icons/react": "^2.1.10",
     "deadem": "^4.0.2",
     "fzstd": "0.1.1",
