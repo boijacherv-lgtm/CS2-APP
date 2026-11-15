@@ -24,3 +24,18 @@ describe('blast model', () => {
     expect(straight).toBeGreaterThan(0);
   });
 });
+
+describe('blast on the real maps', () => {
+  it('finishes fast from any plant spot on every map (the old queue grew without end on Dust II, Anubis, Overpass, Inferno)', async () => {
+    const { MAPS, getEngine } = await import('../../map/catalog');
+    const t0 = performance.now();
+    for (const m of MAPS) {
+      const e = getEngine(m.id);
+      for (let x = 20; x < 1024; x += 96) for (let y = 20; y < 1024; y += 96) {
+        const f = blastField(e.grid, { x, y }, e.map.radar.scale);
+        expect(f.dmg.every(v => v >= 0 && v <= 500)).toBe(true);
+      }
+    }
+    expect(performance.now() - t0).toBeLessThan(15000);
+  });
+});
