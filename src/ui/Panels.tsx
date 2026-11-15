@@ -343,8 +343,8 @@ function KillChances({ batch }: { batch: { stats: BatchStats; done: boolean } | 
         </div>
       )}
       {batch && <div className="stack-labels"><span className="ct">CT win {pct(batch.stats.ctWin)}</span><span>Even {pct(batch.stats.draw)}</span><span className="t">T win {pct(batch.stats.tWin)}</span></div>}
-      <table className="kills">
-        <thead><tr><th /><th title="Chance to get at least one kill">Kill</th><th title="Average kills per round">Avg K</th><th title="Chance to survive the round">Alive</th><th title="Rounds in which this player gets blinded for 1 s or more">Flashed</th></tr></thead>
+      <table className="kills kc">
+        <thead><tr><th /><th title="Chance to get at least one kill">Kill</th><th title="Average kills per round">Avg K</th><th title="Chance to survive the round">Alive</th><th title="Rounds in which this player gets blinded for 1 s or more">Blind</th></tr></thead>
         <tbody>{cts.map(row)}{ts.map(row)}</tbody>
       </table>
     </Fold>

@@ -1674,3 +1674,12 @@ body { font-weight: 500; }
 @media (max-width: 1279px) { .menu-mode { display: flex; } }
 /* the panel's tabs fit its 320px: tighter padding, one line */
 .drawer .tabs button { padding-inline: 6px; gap: 4px; white-space: nowrap; }
+/* round 15: tactical's Kill chances: the player column is narrow, the four numbers share the rest */
+.drawer table.kills.kc th:first-child, .drawer table.kills.kc td:first-child { width: 22%; }
+.drawer table.kills.kc th, .drawer table.kills.kc td { text-align: right; }
+.drawer table.kills.kc th:first-child, .drawer table.kills.kc td:first-child { text-align: left; }
+/* every floating hint sits top right under the bar, like the other toasts, not on the map's bottom edge */
+.hint-card:not(.inline) { left: auto; right: 16px; top: 60px; bottom: auto; transform: none; max-width: min(420px, calc(100vw - 32px)); }
+/* round 15, charts: axis words in the UI font (Oswald is for numbers), Side by side keeps its labels and values together */
+.sc-axis, .axis { font-family: var(--font-ui); }
+.report .recap-card .duo-table, .report .recap-card .more-card .duo-table, .report .more-card .duo-table { max-width: 640px; }

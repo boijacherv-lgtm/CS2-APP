@@ -22,6 +22,7 @@ export const HINTS: Hint[] = [
     text: 'A coach card: what happened, the grade, the better play. → for the next one.' },
   { id: 'recap', when: r => (r.page === 'cs2' || r.page === 'deadlock') && r.mode === 'report', ready: '.top3, .dl-rc-head', inline: true,
     text: 'Start with your Costliest moment. Each Watch button jumps to that moment.' },
+  // in the panel when it is open (never on the map's edge); else the floating card, top right
   { id: 'tactical', when: r => r.page === 'cs2' && r.mode === 'tactical', ready: '.rail',
     text: 'Drag players, drop grenades, then press Play.' },
 ];
