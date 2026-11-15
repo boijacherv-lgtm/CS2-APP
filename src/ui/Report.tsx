@@ -138,7 +138,7 @@ export function MatchReportPage() {
           <DecisionsCard rounds={report.rounds} player={focus.id} onRound={openRound} onHotRound={setHotRound} />
           {/* the numbers behind the notes: three parts in one card (round analysis, where you stood, your habits) */}
           <section className="recap-card numbers">
-            <div className="coach-head"><h2 className="display">Numbers</h2><span className="muted" title={`vs FACEIT level 10, from the coach's model (${modelOf(level).trainedOn} player-games)`}>6 skills</span></div>
+            <div className="coach-head"><h2 className="display">Numbers</h2><span className="muted" title={`vs FACEIT level 10, from the coach's model (${modelOf(level).trainedOn} player-games)`}>{SKILLS.filter(sk => sk.ids.length).length} skills</span></div>
             <NumbersTable p={focus} level={level} onRound={openRound} />
             <details className="all-numbers"><summary className="muted">Full analysis</summary>
             <AnalystCard data={data} rounds={report.rounds} player={focus.id} level={level} done={report.done} onRound={openRound} onHotRound={setHotRound} />
@@ -186,6 +186,9 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
   const saved = useProfile(s => s.data.matches.find(m => m.id === key)), profileName = useProfile(s => s.me?.name ?? null);
   const [share, setShare] = useState(false);
   return (
+    <>
+    {/* the close button sits above the header, not over its faded map image */}
+    <div className="recap-bar"><button className="ghost small-btn recap-close" onClick={closeCs2Match}><Icon name="close" size={13} /> Close match</button></div>
     <header className="recap-head" style={{ '--map-art': map ? `url(${map.levels[0].image})` : 'none' } as React.CSSProperties}>
       <div className="recap-head-main">
         <h1 className="recap-map display">{map?.name ?? data.map} <span className="sr-only">{a}–{b}</span></h1>{data.sample && <span className="chip">Sample match · names replaced</span>}
@@ -195,7 +198,6 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
         {result && <span className={`recap-result ${result.toLowerCase()}`}>{result}</span>}
         {mine && done && <span className="recap-grade" title="Your grade for this match: how it compares with a typical FACEIT level-10 game"><span className="perf-letter display reveal" style={letterStyle(matchGrade(mine))}>{matchGrade(mine)}</span><span className="muted small">your grade</span></span>}
         {saved && <button className="recap-share" onClick={() => setShare(true)}><Icon name="share" size={14} /> Share</button>}
-        <button className="ghost small-btn recap-close" onClick={closeCs2Match}><Icon name="close" size={13} /> Close match</button>
       </div>
       {share && saved && <ShareDialog m={saved} player={profileName ?? saved.name ?? 'Me'} onClose={() => setShare(false)} />}
       <p className="muted">
@@ -208,6 +210,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
       {!done && <div className="report-progress"><i style={{ width: `${(view.graded / view.total) * 100}%` }} /></div>}
       {verdict && <p className="recap-verdict">{verdict}</p>}
     </header>
+    </>
   );
 }
 
@@ -232,15 +235,16 @@ function MatchChance({ data, team, onRound }: { data: DemoData; team: 0 | 1; onR
   while (k > 0 && (vs[k - 1] > 50) === won && vs[k - 1] !== 50) k--;
   const decided = k > 0 ? curve[k] : null;
   const ledFrom = vs.findIndex((_, i) => vs.slice(i).every(v => v > 50));
+  const firstBehind = vs.findIndex(v => v < 50); // the first round the chance was under 50%
   const story = won
     ? (low >= 50 ? 'Never below 50%' : low < 35 ? `Comeback from ${Math.round(low)}%` : ledFrom > 0 ? `Led from R${curve[ledFrom].t}` : 'Won as expected')
-    : (peak > 65 ? `Lost from ahead ${Math.round(peak)}% → ${Math.round(end)}%` : peak <= 50 ? 'Never above 50%' : `Behind from R${curve[Math.max(0, vs.findIndex((_, i) => vs.slice(i).every(v => v < 50)))].t}`);
+    : (peak > 65 ? (firstBehind > 0 && peakAt > curve[firstBehind].t ? `Behind from R${curve[firstBehind].t} · one late push to ${Math.round(peak)}% (R${peakAt})` : `Lost from ahead ${Math.round(peak)}% → ${Math.round(end)}%`) : peak <= 50 ? 'Never above 50%' : `Behind from R${curve[Math.max(0, vs.findIndex((_, i) => vs.slice(i).every(v => v < 50)))].t}`);
   const first = [...swaps].find(i => i > 0);
   return (
     <section className="recap-card match-chance">
       <div className="coach-head"><h2 className="display">Chance to win</h2><span className="chip takeaway">{story}</span></div>
       <SplitChart caption="Your team's chance to win the match, round by round" base={50} top={100} bottom={0} colors={['var(--good)', 'var(--bad)']}
-        height={132} points={curve} fmt={v => `${Math.round(v)}%`} xfmt={t => (t === 0 ? 'Start' : `R${t}`)} xticks={Array.from({ length: Math.floor(last / 3) + 1 }, (_, k) => k * 3)} divider={first ? { t: first, label: 'Sides switched' } : null}
+        height={210} points={curve} fmt={v => `${Math.round(v)}%`} xfmt={t => `R${t}`} xticks={Array.from({ length: Math.floor(last / 3) + 1 }, (_, k) => k * 3)} divider={first ? { t: first, label: 'Sides switched' } : null}
         dots={decided ? [{ t: decided.t, color: won ? 'var(--good)' : 'var(--bad)', title: `Decided in R${decided.t}` }] : []}
         onPick={t => onRound(Math.max(0, Math.min(data.rounds.length - 1, t - 1)))} />
     </section>
@@ -361,7 +365,7 @@ function NumbersTable({ p, level, onRound }: { p: PlayerReport; level: Level; on
     return { name: sk.name, pct: z === null ? null : percentile(z), notes, trend, worst: [...rows].sort((a, b) => a.z - b.z)[0] };
   });
   return (
-    <ul className="num-rows" aria-label="Six skills against FACEIT level 10, 50 is a typical level-10 player">
+    <ul className="num-rows" aria-label="Skills against FACEIT level 10, 50 is a typical level-10 player">
       <li className="num-head" aria-hidden="true"><span>Skill</span><span className="num-axis"><span>worse</span><span>level 10</span><span>better</span></span><span>You</span><span /></li>
       {skills.map(k => (
         <li key={k.name} className={open === k.name ? 'open' : ''}>
@@ -408,7 +412,7 @@ function CoachCard({ p, level, done, onRound, onHotRound }: { p: PlayerReport; l
         </p>
       )}
       {(() => { const top = c.improve[0], dev = top && c.profile.find(d => d.feature === top.feature), stat = dev ? `${dev.value} (level 10: ${dev.normal})` : '', t = rageSummary(top?.feature ?? null, !!top?.title.startsWith('Your '), rage, stat); return t ? <p className="coach-rage">{t}</p> : null; })()}
-      {c.improve[0] && (() => { const dev = c.profile.find(d => d.feature === c.improve[0].feature); return dev ? <p className="coach-top"><b>{c.improve[0].title}</b>: {dev.label.toLowerCase()} {dev.value} (level 10: {dev.normal})</p> : null; })()}
+      {c.improve[0] && (() => { const dev = c.profile.find(d => d.feature === c.improve[0].feature); return c.improve[0].headline ? <p className="coach-top"><b>{c.improve[0].headline}</b></p> : dev ? <p className="coach-top"><b>{c.improve[0].title}</b>: {dev.label.toLowerCase()} {dev.value} (level 10: {dev.normal})</p> : null; })()}
       <div className="dev-axis muted" aria-hidden="true"><span>worse</span><span>level 10</span><span>better</span></div>
       <div className="dev-list">
         {rows.map(d => <DevRow key={d.feature} d={d} open={open === d.feature} onToggle={() => setOpen(open === d.feature ? null : d.feature)}
@@ -609,12 +613,12 @@ function DecisionsCard({ rounds, player, onRound, onHotRound }: {
         const mm = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
         const rows = [
           ...(a.engine?.key ?? []).map(m => ({ round: m.round, t: m.t, did: m.did.label, better: m.options[0].label, cost: m.cost, rare: false })),
-          ...a.key.map(k => ({ round: k.round, t: k.t, did: `Chose to ${ACTION_TEXT[k.did]}`, better: `level 10: ${ACTION_TEXT[k.best]} (${Math.round(k.agree * 100)}%)`, cost: k.agree - k.share, rare: true })),
+          ...a.key.map(k => ({ round: k.round, t: k.t, did: `Chose to ${ACTION_TEXT[k.did]}`, better: `level 10 players ${ACTION_TEXT[k.best]} here (${Math.round(k.agree * 100)}%)`, cost: k.agree - k.share, rare: k.share < 0.15 })),
         ].sort((x, y) => y.cost - x.cost).slice(0, 5);
         return rows.length ? (
           <ul className="km-list">
             {rows.map((m, i) => {
-              const pctc = Math.round(Math.abs(m.cost) * 100), tone = pctc >= 12 ? 'bad' : pctc >= 5 ? 'warn' : 'flat';
+              const pctc = Math.round(Math.abs(m.cost) * 100), tone = pctc >= 50 ? 'bad' : pctc >= 20 ? 'warn' : 'flat'; // by size: orange from −50, plain under −20
               return (
                 <li key={i}>
                   <button className="ghost km-row" onClick={() => onRound(m.round)} onMouseEnter={() => onHotRound(m.round)} onMouseLeave={() => onHotRound(null)} title="Open this round in Review">
