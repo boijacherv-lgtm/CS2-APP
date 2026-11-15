@@ -224,15 +224,8 @@ function BombDial({ fuse, defuse }: { fuse: number; defuse: { share: number; ok:
  * defuse, the clock), a gap at half-time; rounds ahead stay blank until Reveal all. Click one to go there. */
 export function RoundStrip({ data, at, spoilers, onPick }: { data: DemoData; at: number; spoilers: boolean; onPick: (i: number) => void }) {
   const swaps = new Set(sideSwitches(data));
-  // how the round ended: from the demo's reason when it has one, else from the plant (bomb down: exploded or defused) and the clock
-  const how = (r: { reason: string; winner: string | null; plant: number | null; duration: number }): 'skull' | 'bomb' | 'scissors' | 'timer' => {
-    const x = r.reason.toLowerCase().replace(/[^a-z]/g, '');
-    if (x) return x.includes('defus') ? 'scissors' : x.includes('exploded') || x.includes('targetbombed') ? 'bomb' : x.includes('saved') || x.includes('time') ? 'timer' : 'skull';
-    if (r.plant !== null) return r.winner === 'CT' ? 'scissors' : 'bomb';
-    return r.winner === 'CT' && r.duration >= 110 ? 'timer' : 'skull';
-  };
   return (
-    <ol className={`round-strip ${data.rounds.length > 16 ? 'two-rows' : ''}`} style={{ '--cols': Math.ceil(data.rounds.length / 2) } as React.CSSProperties} aria-label="Rounds">
+    <ol className="round-strip" aria-label="Rounds">
       {data.rounds.map((r, i) => {
         const shown = spoilers || i < at;
         // dividers in the strip itself: sides switched at half-time, and where overtime starts
@@ -244,7 +237,7 @@ export function RoundStrip({ data, at, spoilers, onPick }: { data: DemoData; at:
             <button className={`rs-chip ${i === at ? 'on' : ''} ${shown && r.winner ? r.winner.toLowerCase() : ''}`} onClick={() => onPick(i)}
               title={`R${r.n}${shown && r.winner ? ` · ${r.winner} won${r.reason ? ` · ${r.reason.replace(/_/g, ' ')}` : ''}` : ''}`}
               aria-label={`Round ${r.n}${shown && r.winner ? `, ${r.winner} won` : ''}`}>
-              {shown && r.winner ? <Icon name={how(r)} size={14} /> : <span className="num">{r.n}</span>}
+              <span className="num">{r.n}</span>
             </button>
           </li>
         );

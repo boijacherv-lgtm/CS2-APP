@@ -1707,3 +1707,29 @@ body { font-weight: 500; }
   .board-ui .slot.team-ct, .board-ui .slot.team-t, .board-ui .slot.br { display: none; }
   .app .board-ui .slot.tl { min-width: 0; }
 }
+
+/* the match tab's close: a plain cross, no filled circle; it gets a soft square only on hover or focus */
+.match-tab-x { width: 24px; height: 24px; border-radius: 6px; background: transparent; color: var(--text-3); margin-left: 4px; }
+.match-tab-x:hover:not(:disabled), .match-tab-x:focus-visible { background: var(--surface-3); color: var(--text-1); }
+.match-tab-x:active { background: var(--border-strong); }
+
+/* round 16, the round strip: ONE row of small numbered chips, the winner's colour, nothing else (it was two rows of icons) */
+.round-strip, .round-strip.two-rows { display: flex; flex-wrap: nowrap; gap: 2px; max-width: min(100%, 760px); overflow: visible; }
+.round-strip li { flex: 1 1 22px; min-width: 0; max-width: 24px; }
+.round-strip li.half { margin-left: 8px; }
+.round-strip .rs-chip { width: 100%; min-width: 14px; height: 22px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+.round-strip .rs-chip .num { font-size: 12px; line-height: 1; }
+.board-ui .rs-chip { height: 22px; }
+@container board (max-width: 940px) { .board-ui .round-strip .rs-chip { width: 100%; height: 22px; } }
+.app .board-ui.broadcast .slot.top .round-strip { flex-wrap: nowrap; justify-content: center; max-width: 100%; row-gap: 0; }
+.board-ui .round-strip li { display: block; }
+.board-ui .round-strip li.half { margin-left: 6px; }
+.board-ui .round-strip .rs-divider { display: none; }
+.board-ui .round-strip .rs-chip { min-width: 0; }
+/* the strip runs along the top beside the buttons (the middle column is too narrow for 30 chips); the score bar sits under it */
+.app .board-ui .slot.top { padding-top: 34px; }
+.app .board-ui .slot.top .round-strip { position: absolute; top: 8px; left: 300px; right: 8px; max-width: none; justify-content: flex-start; flex-wrap: nowrap; }
+.app .board-ui .round-strip li { flex: 1 1 14px; max-width: 28px; }
+.app .board-ui .round-strip .rs-chip { min-width: 14px; font-size: 12px; }
+@container board (max-width: 940px) { .app .board-ui .slot.top .round-strip { left: 232px; } }
+@container board (max-width: 560px) { .app .board-ui .slot.top { padding-top: 0; } }
