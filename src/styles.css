@@ -1224,3 +1224,13 @@ input.switch { min-height: 24px; height: 24px; }
   .recap-head-main .recap-close { position: static; margin: 4px 0 0; flex: 1 1 100%; justify-content: flex-start; }
 }
 @media (max-width: 640px) { .recap-tabs-list button { padding: 7px 8px; gap: 0; } .recap-tabs-list button .icon, .recap-tabs-list button svg { display: none; } }
+
+/* round 12: one line per phase. The defuse is a blue line under the CT half; a tick on the fuse line shows where it would end */
+.sb-timer u { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); }
+.sb-timer u.late { background: var(--bad); }
+.scorebug { position: relative; }
+.sb-defuse { position: absolute; top: 100%; left: 0; width: 50%; display: flex; flex-direction: column; gap: 3px; padding-right: 8px; }
+.sb-defuse-bar { display: block; height: 5px; background: var(--white-12); overflow: hidden; }
+.sb-defuse-bar b { display: block; height: 100%; background: var(--ct); }
+.sb-defuse.late .sb-defuse-bar b { background: repeating-linear-gradient(45deg, var(--bad) 0 3px, var(--ink) 3px 5px); }
+.sb-defuse-who { font: 700 12px var(--font-ui); color: var(--ct); } .sb-defuse.late .sb-defuse-who { color: var(--bad); }
