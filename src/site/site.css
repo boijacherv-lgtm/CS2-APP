@@ -1658,3 +1658,19 @@ body { font-weight: 500; }
 .foot-group { display: grid; gap: 6px; align-content: start; }
 .foot-group b { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-1); }
 .foot-group a { font-size: 14px; }
+
+/* round 15, the replay's top bar sizes itself by the board's own width (the panel takes 320px when it is open): under 940px the three top
+   slots stop competing for one row — buttons keep one line, the strip gets the middle, chips shrink, the kill feed drops under the strip */
+.board-ui { container: board / inline-size; }
+@container board (max-width: 940px) {
+  .app .board-ui.broadcast { grid-template-columns: max-content minmax(0, 1fr) auto; }
+  .app .board-ui .slot.tl { flex-wrap: nowrap; min-width: max-content; }
+  .board-ui .slot.tl .tl-btn { white-space: nowrap; padding-inline: 8px; }
+  .board-ui .round-strip.two-rows { grid-template-columns: repeat(var(--cols), 20px); }
+  .board-ui .rs-chip { width: 20px; height: 20px; }
+  .board-ui.broadcast .slot.tr { position: absolute; right: 8px; top: 108px; max-width: 190px; }
+}
+.menu-mode { display: none; }
+@media (max-width: 1279px) { .menu-mode { display: flex; } }
+/* the panel's tabs fit its 320px: tighter padding, one line */
+.drawer .tabs button { padding-inline: 6px; gap: 4px; white-space: nowrap; }

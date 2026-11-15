@@ -112,6 +112,8 @@ export function NavBar({ route }: { route: Route }) {
         <details className={`nav-menu ${me ? '' : 'always'}`} key={routeHref(route)}>
           <summary aria-label="Menu"><Icon name="menu" size={18} /></summary>
           <div className="account-pop" role="menu">
+            {/* the game's own places, for widths where the bar has no room for them (they show here under 1280 px) */}
+            {here !== null && places.map(p => <a key={p} role="menuitem" className="menu-mode" href={HREF[game][p]}><Icon name={icon[p]} size={16} /> {label[p]}</a>)}
             <a role="menuitem" href="/profile"><Icon name="user" size={16} /> Profile</a>
             <a role="menuitem" href="/pricing"><Icon name="coins" size={16} /> Pricing</a>
             <a role="menuitem" href="/settings"><Icon name="gear" size={16} /> Settings</a>
