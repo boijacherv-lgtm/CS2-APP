@@ -44,7 +44,7 @@ Both read demos with the same parser (LaihoE/demoparser); the website uses a Web
 
 | Mark | Means | For example |
 |---|---|---|
-| **!!** Brilliant | exceptional, statistically unlikely | winning a 1v3+ clutch, a ninja defuse (enemies alive or under 1 s left), holding a site alone (3+ kills against a push), a pistol with no armour beating full gear, an HE for 150+ damage, a flash that sets up two kills |
+| **!!** Brilliant | exceptional, statistically unlikely | winning a 1v3+ clutch, a ninja defuse (an enemy alive near the bomb, or under 1 s left), holding a site alone (3+ kills against a push), a pistol with no armour beating full gear, an HE for 150+ damage, a flash that sets up two kills |
 | **!** Good move | swung the round | a trade within 3 s, a double or triple kill, the opening kill in a fair fight, a kill from behind, a 1v2 clutch, a flash that won a duel, an HE for 70+, a defuse |
 | book | the expected, sound play (plain dot) | a standard smoke or molotov (a spot FACEIT level-10 players use), a plant; ordinary kills and deaths show as plain "Kill" / "Death" |
 | **?** Mistake | cost the team | an untraded opening or isolated death, dying with two grenades, losing the AWP, flashing only your own team, an HE that hit nobody, a smoke that missed every standard spot and blocked nothing, a molotov on empty ground |
