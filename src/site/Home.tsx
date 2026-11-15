@@ -6,6 +6,7 @@ import { Icon, type IconName } from '../ui/Icon';
 import { GAMES, PLAYABLE, STATUS_LABEL } from './games';
 import { SiteFooter } from './SiteFooter';
 import { GameMark } from './gameMarks';
+import { CardFrag, GradeFrag, WinFrag } from './Frags';
 import { useEffect, useRef, useState } from 'react';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
 import { openCs2Sample, openDlSample } from '../ui/sample';
@@ -82,7 +83,11 @@ export function Home() {
           </ul>
         </div>
         {/* the hero: a real graded round from the CS2 sample, playing (still frame with reduced motion) */}
-        <HeroLoop />
+        <div className="hero-side">
+          <HeroLoop />
+          {/* the product's voice, with its grade: one real line */}
+          <p className="hero-quote"><b className="letter-chip" style={{ background: 'var(--letter-f)' }}>F</b><span><i>Round 29</i> We need to talk.</span></p>
+        </div>
       </section>
 
       <section className="site-section" id="games">
@@ -97,8 +102,7 @@ export function Home() {
               {g.points && <ul className="game-card-points">{g.points.map(x => <li key={x}>{x}</li>)}</ul>}
               <div className="game-card-cta">
                 <a className="cta primary" href={g.review}>Review a {g.id === 'deadlock' ? g.name : g.short} match</a>
-                {g.plan && <a className="cta" href={g.plan}>{g.planLabel ?? 'Tactical board'}</a>}
-                {g.page && <a className="cta ghost" href={g.page}>About {g.id === 'deadlock' ? g.name : g.short}</a>}
+                {g.page && <a className="cta ghost" href={g.page}>About {g.id === 'deadlock' ? g.name : g.short} <Icon name="arrowRight" size={14} /></a>}
               </div>
             </article>
           ) : (
@@ -145,15 +149,14 @@ export function Home() {
 
       <section className="site-section">
         <h2 className="section-title">What you get</h2>
-        <div className="feature-grid">
-          {FEATURES.map(f => (
-            <div key={f.title} className="feature">
-              <span className="feature-ico"><Icon name={f.icon} size={18} /></span>
-              <b>{f.title}</b>
-              <p>{f.text}</p>
-            </div>
-          ))}
+        <div className="frag-row">
+          <figure className="frag-fig"><WinFrag /><figcaption><b>Graded replay</b><span>Every play scored, with a live win-chance bar.</span></figcaption></figure>
+          <figure className="frag-fig"><CardFrag /><figcaption><b>The better play</b><span>What you did, what to do instead, and how much it would have helped.</span></figcaption></figure>
+          <figure className="frag-fig"><GradeFrag /><figcaption><b>A grade for every round</b><span>S+ to F, for you and everyone in the match.</span></figcaption></figure>
         </div>
+        <ul className="also">
+          {FEATURES.slice(2).map(f => <li key={f.title}><b>{f.title}</b> {f.text}</li>)}
+        </ul>
       </section>
 
       <section className="site-section">

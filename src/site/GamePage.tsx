@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Icon, type IconName } from '../ui/Icon';
 import { GameMark } from './gameMarks';
 import { GAMES, STATUS_LABEL } from './games';
+import { CardFrag, DuelFrag, PosFrag, UtilFrag, WinFrag } from './Frags';
 
 /**
  * A game's page (/cs2, /deadlock …), the same structure for every game (spec §2): the hero with Review and a sample,
@@ -48,13 +49,13 @@ export function GamePage({ kit }: { kit: GamePageKit }) {
 
       <section className="site-section">
         <h2 className="section-title">What the coach grades</h2>
-        <div className="feature-grid">
+        {/* a real piece of the product above each line, not an icon in a box; 2 × 2 */}
+        <div className="frag-grid">
           {kit.grades.map(f => (
-            <div key={f.title} className="feature">
-              <span className="feature-ico"><Icon name={f.icon} size={18} /></span>
-              <b>{f.title}</b>
-              <p>{f.text}</p>
-            </div>
+            <figure key={f.title} className="frag-fig">
+              {/aim|duel|fight/i.test(f.title) ? <DuelFrag /> : /trade/i.test(f.title) ? <CardFrag tags={['TRADE', 'FAST']} /> : /util|flash|abilit/i.test(f.title) ? <UtilFrag /> : /position|map|rotation|where/i.test(f.title) ? <PosFrag /> : <WinFrag from={48} to={61} />}
+              <figcaption><b>{f.title}</b><span>{f.text}</span></figcaption>
+            </figure>
           ))}
         </div>
       </section>

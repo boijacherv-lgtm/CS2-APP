@@ -1483,6 +1483,47 @@ body { font-weight: 500; }
 .dl-abil-info summary { font-size: 13px; min-height: 32px; display: inline-flex; align-items: center; }
 .sc-leader { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 2 3; }
 
+/* round 13, home and game pages: real fragments of the product instead of icon-in-a-box cards, one footer on every game card,
+   bigger screenshots, a lift on linked cards */
+.frag-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.frag-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.frag-fig { margin: 0; display: grid; gap: 12px; align-content: start; padding: 16px; border-radius: 16px; background: var(--surface-1); border: 1px solid var(--border); }
+.frag-fig figcaption { display: grid; gap: 2px; }
+.frag-fig figcaption b { font-size: 16px; font-weight: 700; color: var(--text-1); }
+.frag-fig figcaption span { font-size: 14px; color: var(--text-2); line-height: 1.5; }
+.frag { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--bg-0); border: 1px solid var(--border); min-height: 132px; align-content: center; }
+.frag p { margin: 0; }
+.frag-grades { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+.frag-grade { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.frag-grade i { font-style: normal; }
+.frag .letter-chip { display: grid; place-items: center; min-width: 30px; height: 26px; padding: 0 6px; border-radius: 6px; color: var(--ink); font-weight: 800; font-size: 14px; }
+.frag-card b { font-size: 15px; line-height: 1.35; color: var(--text-1); }
+.frag-card-head { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.frag-card .feed-grade, .frag .feed-tag { position: static; }
+.frag .feed-win { display: grid; gap: 6px; }
+.also { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 24px; font-size: 14px; color: var(--text-2); }
+.also b { color: var(--text-1); font-weight: 700; margin-right: 4px; }
+@media (max-width: 960px) { .frag-row { grid-template-columns: 1fr; } .frag-grid { grid-template-columns: 1fr; } }
+/* the hero's one real line, with its grade */
+.hero-side { display: grid; gap: 12px; align-content: center; min-width: 0; }
+.hero-quote { margin: 0; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border); font-size: 16px; font-weight: 700; color: var(--text-1); }
+.hero-quote .letter-chip { display: grid; place-items: center; min-width: 36px; height: 32px; border-radius: 8px; color: var(--ink); font-size: 18px; font-weight: 800; font-family: var(--font-headline); }
+.hero-quote i { font-style: normal; font-weight: 500; color: var(--text-2); margin-right: 8px; }
+/* game cards: one footer (a primary and one link), no stretching to the tallest */
+.game-cards { align-items: start; }
+.game-card { grid-template-rows: none; }
+.game-card.live .game-card-cta { justify-content: flex-start; }
+.game-card.live, .feature, .frag-fig a, .shot { transition: transform .15s var(--ease-out), border-color .15s; }
+.game-card.live:hover { transform: translateY(-2px); border-color: var(--border-strong); }
+/* screenshots big enough to read (a graded fight is the card and the map together) */
+.home .shots { grid-template-columns: repeat(auto-fit, minmax(min(560px, 100%), 1fr)); }
+.shot img { aspect-ratio: 16 / 10; object-fit: cover; object-position: 0 0; }
+@media (prefers-reduced-motion: reduce) { .game-card.live:hover { transform: none; } }
+.game-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.game-card.live .game-card-cta { flex-direction: column; align-items: stretch; }
+.game-card.live .game-card-cta .cta { justify-content: center; }
+@media (max-width: 900px) { .game-cards { grid-template-columns: 1fr; } }
+
 /* round 13, other pages */
 .settings-menu a { gap: 10px; }
 .rs-nodemo { display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap; }
