@@ -47,6 +47,10 @@ const DlReview = named(() => import('../deadlock/DlReview'), 'DlReview');
 const DlReport = named(() => import('../deadlock/DlReport'), 'DlReport');
 const DlTactical = named(() => import('../deadlock/DlTactical'), 'DlTactical');
 const MomentsPage = named(() => import('../moments/MomentsPage'), 'MomentsPage');
+const Dota2 = named(() => import('../site/Dota2'), 'Dota2');
+const D2Review = named(() => import('../dota2/D2Review'), 'D2Review');
+const D2Report = named(() => import('../dota2/D2Report'), 'D2Report');
+const D2Tactical = named(() => import('../dota2/D2Tactical'), 'D2Tactical');
 const SharedMoment = named(() => import('../moments/MomentsPage'), 'SharedMoment');
 const Profile = named(() => import('../site/Profile'), 'Profile');
 const Settings = named(() => import('../site/Settings'), 'Settings');
@@ -93,7 +97,7 @@ export function Shell() {
         <PageGuard key={routeHref(route)}><Suspense fallback={<div className="page" aria-busy="true" />}>
         {maintenance.includes(route.page) && !owner ? <BackSoon />
           : route.page === 'cs2' ? (route.mode === 'report' ? <MatchReportPage /> : route.mode === 'home' ? <Cs2Home /> : <Cs2App />)
-          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? (devOk ? <Dev /> : devOk === null ? <div className="page" aria-busy="true" /> : <NotFound />) : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'guides' ? <Guides guide={'guide' in route ? route.guide : undefined} /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : <Home />}
+          : route.page === 'profile' ? <Profile /> : route.page === 'pricing' ? <Pricing /> : route.page === 'settings' ? <Settings /> : route.page === 'dev' ? (devOk ? <Dev /> : devOk === null ? <div className="page" aria-busy="true" /> : <NotFound />) : route.page === 'puzzles' ? <MomentsPage /> : route.page === 'missing' ? <NotFound /> : route.page === 'privacy' ? <Privacy /> : route.page === 'changelog' ? <Changelog /> : route.page === 'guides' ? <Guides guide={'guide' in route ? route.guide : undefined} /> : route.page === 'moment' ? <SharedMoment code={route.code} /> : route.page === 'deadlock' ? (route.mode === 'review' ? <DlReview /> : route.mode === 'report' ? <DlReport /> : route.mode === 'tactical' ? <DlTactical /> : <Deadlock />) : route.page === 'dota2' ? (route.mode === 'review' ? <D2Review /> : route.mode === 'report' ? <D2Report /> : route.mode === 'tactical' ? <D2Tactical /> : <Dota2 />) : <Home />}
         </Suspense></PageGuard>
       </main>
       <Hints />

@@ -27,7 +27,7 @@ export const GAMES: Game[] = [
     page: '/cs2', review: '/cs2/review', plan: '/cs2/tactical', points: ['Graded replay', 'Engine', 'Coach', 'Tactical board'] },
   { id: 'deadlock', short: 'DL', name: 'Deadlock', status: 'beta', mark: 'lock', color: '#E8E0D2', source: 'a match ID', note: 'Any match by ID. Every fight graded.',
     page: '/deadlock', review: '/deadlock/review', plan: '/deadlock/meta', planLabel: 'Meta & builds', points: ['Replay', 'Coach', 'Where you played', 'Meta & builds'] },
-  { id: 'dota2', short: 'D2', name: 'Dota 2', status: 'planned', mark: 'tower', color: '#BF2E1A', source: 'a replay or match ID', note: 'Coming next. Want a ping?' },
+    { id: 'dota2', short: 'D2', name: 'Dota 2', status: 'beta', mark: 'tower', color: '#BF2E1A', source: 'a match ID', note: 'Matches from an ID with the coach, and two planners.', page: '/dota2', review: '/dota2/review', plan: '/dota2/tactical', points: ['Replay', 'Coach', 'Positions', 'Tactical'] },
   { id: 'r6', short: 'R6', name: 'Rainbow Six Siege', status: 'planned', mark: 'shield', color: '#E9563D', source: 'a match replay', note: 'Round by round, like CS.' },
   { id: 'pubg', short: 'PUBG', name: 'PUBG', status: 'planned', mark: 'parachute', color: '#F4B942', source: 'a match ID', note: 'Rotations, zones, fights.' },
   { id: 'rl', short: 'RL', name: 'Rocket League', status: 'planned', mark: 'ball', color: '#3D8BFF', source: 'a .replay file', note: 'Rotations and positioning.' },

@@ -9,7 +9,7 @@ import { CS2_FAQ, DEADLOCK_FAQ } from '../src/site/gameFaq.ts';
 const DIST = path.resolve(import.meta.dirname, '../dist');
 const SITE = 'https://tsakhstvo.xyz';
 // the pages (src/shell/router.ts); /m is a shared moment (its code in the query)
-const PAGES = ['cs2', 'cs2/review', 'cs2/tactical', 'cs2/report', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'deadlock/meta', 'deadlock/report',
+const PAGES = ['cs2', 'cs2/review', 'cs2/tactical', 'cs2/report', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'deadlock/meta', 'deadlock/report', 'dota2', 'dota2/review', 'dota2/tactical', 'dota2/report',
   'puzzles', 'profile', 'pricing', 'settings', 'privacy', 'changelog', 'guides', ...GUIDE_LIST.map(g => `guides/${g.slug}`), 'dev', 'm'];
 const PUBLIC = ['', 'cs2', 'cs2/review', 'cs2/tactical', 'deadlock', 'deadlock/review', 'deadlock/meta', 'puzzles', 'pricing', 'privacy', 'changelog', 'guides', ...GUIDE_LIST.map(g => `guides/${g.slug}`)];
 

@@ -466,6 +466,17 @@ a.hero-games-live:hover b { text-decoration: underline; }
   .modes .mode-label { display: none; }
 }
 @media (max-width: 1180px) { .navbar:has(.match-tab) .with-steam { display: none; } }
+/* with a match open the bar is full: give up the extras step by step rather than scroll the whole page sideways */
+@media (max-width: 1500px) { .navbar:has(.match-tab) .account-name, .navbar:has(.match-tab) .account-menu .pro-badge { display: none; } }
+@media (max-width: 1300px) { .navbar:has(.match-tab) a[href="#/pricing"], .navbar .match-tab-n { display: none; } }
+@media (max-width: 1170px) { .navbar:has(.match-tab) .modes button:not(.on) .mode-label { display: none; } .navbar:has(.match-tab) .modes button { padding: 5px 8px; } }
+/* a phone: only the game you're in, and the modes as icons */
+@media (max-width: 520px) {
+  .navbar:has(.match-tab) { gap: 6px; padding: 0 8px; }
+  .navbar:has(.match-tab) .game-btn:not(.on), .navbar:has(.match-tab) .modes .mode-label { display: none; }
+  .navbar:has(.match-tab) .match-tab { margin-left: 0; }
+  .navbar:has(.match-tab) .modes + .match-tab + .nav-right, .navbar:has(.match-tab) .modes + .nav-right { margin-left: auto; }
+}
 
 /* Dev page: a health line, the key numbers, categories */
 .dev-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
