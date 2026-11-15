@@ -1241,3 +1241,7 @@ input.switch { min-height: 24px; height: 24px; }
 .board-ui.broadcast { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); }
 .board-ui.broadcast .slot.top { min-width: 0; max-width: 100%; }
 .board-ui.broadcast .slot.top .round-strip { flex-wrap: wrap; justify-content: center; max-width: 100%; row-gap: 4px; }
+
+/* round 13: the defuse line sits right under the bomb timer, centred under the clock */
+.sb-defuse { left: 50%; transform: translateX(-50%); width: 150px; padding-right: 0; margin-top: 4px; align-items: center; text-align: center; }
+.sb-defuse-bar { width: 100%; }
