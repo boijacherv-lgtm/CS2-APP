@@ -109,7 +109,6 @@ export function DlReport() {
               <b>{nameOf(who.slot)}{who.slot === coach.mine ? ' (you)' : ''}</b>
               <span className="muted small">{heroOf(who.hero).name}{card?.pos ? <span className={`dl-pos p${card.pos}`}>Pos {card.pos}</span> : null}</span>
             </div>
-            {card && card.overall !== null && <span className="dl-subject-grade"><ScoreRing score={card.overall} note={card.note} size={56} /><b title="The match grade: 50 is average for the hero and position">{letterOf(card.overall)}</b></span>}
             <div className="dl-subject-stats">
               <span><b className="num">{who.kills}/{who.deaths}/{who.assists}</b><i>K/D/A</i></span>
               <span><b className="num"><CountUp text={`${(who.netWorth / 1000).toFixed(1)}k`} id={`${match.id}:${who.slot}:nw`} /></b><i>souls</i></span>
@@ -137,10 +136,8 @@ export function DlReport() {
           {/* the report card is the overview's top (it was its own tab) */}
           {card && who && <Grades card={card} match={match} name={nameOf(who.slot)} hero={heroOf(who.hero).name} moves={coach.all} watch={watch} level={level} pickLevel={pickLevel} />}
           {card && subject !== null && <Collapse title="Side by side" hint="you next to another player"><DlDuo match={match} a={subject} card={card} nameOf={nameOf} moves={coach.all} /></Collapse>}
-          <div className="dl-ov-charts">
-            <WinChance match={match} team={who?.team ?? 0} watch={watch} />
-            <Collapse title="Souls" hint="the lead over the match"><TeamSouls match={match} team={who?.team ?? 0} /></Collapse>
-          </div>
+          <WinChance match={match} team={who?.team ?? 0} watch={watch} />
+          <Collapse title="Souls" hint="the lead over the match"><TeamSouls match={match} team={who?.team ?? 0} /></Collapse>
           <Collapse title="Key moments" hint="the costliest and the best"><Moments moves={[...myMoves, ...(review ? engineMoves(review, myMoves) : [])]} watch={watch} /></Collapse>
         </>
       )}
@@ -163,7 +160,7 @@ export function DlReport() {
         <>
           <Objectives match={match} team={who?.team ?? 0} watch={watch} />
           {/* the kill log lives here now (it was the Coach tab's longest list) */}
-          <details className="recap-card kill-log"><summary><h3>Kill log</h3> <span className="muted">{myMoves.filter(m => m.kind !== 'laning').length} moments</span></summary>
+          <details className="recap-card kill-log"><summary><h3 aria-level={2}>Kill log</h3> <span className="muted">{myMoves.filter(m => m.kind !== 'laning').length} moments</span></summary>
             <MoveList moves={myMoves.filter(m => m.kind !== 'laning')} watch={watch} compact />
           </details>
         </>
@@ -182,11 +179,11 @@ function Moments({ moves, watch }: { moves: DlMove[]; watch: (t: number) => void
   return (
     <div className="dl-moments">
       <section className="recap-card">
-        <h3>Worst moments</h3>
+        <h3 aria-level={2}>Worst moments</h3>
         {bad.length ? <MoveList moves={bad.slice(0, 3)} watch={watch} compact /> : <p className="empty-state">No real mistakes marked.</p>}
       </section>
       <section className="recap-card">
-        <h3>Best moments</h3>
+        <h3 aria-level={2}>Best moments</h3>
         {good.length ? <MoveList moves={good.slice(0, 3)} watch={watch} compact /> : <p className="empty-state">No standout plays marked.</p>}
       </section>
     </div>
@@ -199,7 +196,7 @@ function Coach({ moves, watch, who }: { moves: DlMove[]; watch: (t: number) => v
     .filter(l => l.hits.length).sort((a, b) => b.hits.length - a.hits.length);
   return (
     <section className="recap-card">
-      <h3>What to work on ({who})</h3>
+      <h3 aria-level={2}>What to work on ({who})</h3>
       {!lessons.length ? <p className="empty-state">Nothing that comes back: no repeated mistakes in this match.</p> : (
         <ol className="ov-list">
           {lessons.map(l => (
@@ -248,7 +245,7 @@ function EngineCard({ review, watch, who, ult, uses }: { review: EngineReview; w
   );
   return (
     <section className="recap-card dl-engine">
-      <h3>Key moments ({who})</h3>
+      <h3 aria-level={2}>Key moments ({who})</h3>
       <div className="dl-engine-head">
         <div className="dl-engine-acc" title={`Accuracy: how close every move came to the coach's best, like chess.com's. A typical Phantom-and-up player's game is 90. ${review.moves.length} moves, one every 20 s alive.`}>
           <b className="num">{Math.round(review.accuracy)}</b><span className="muted small">accuracy</span>
@@ -259,19 +256,19 @@ function EngineCard({ review, watch, who, ult, uses }: { review: EngineReview; w
       </div>
       {review.worst.length > 0 && (
         <>
-          <h4>Costliest moves</h4>
+          <h4 aria-level={3}>Costliest moves</h4>
           <ul className="dl-engine-moves">{shown.map(row)}</ul>
           {review.worst.length > 3 && <button className="link-btn small" onClick={() => setAll(!all)}>{all ? 'Fewer' : `All ${review.worst.length}`}</button>}
         </>
       )}
       {review.best.length > 0 && (
         <>
-          <h4>Best calls</h4>
+          <h4 aria-level={3}>Best calls</h4>
           <ul className="dl-engine-moves">{review.best.slice(0, 2).map(row)}</ul>
         </>
       )}
       {ult && (
-        <details className="dl-ult-more"><summary><h4 style={{ display: 'inline' }}>Ultimate: {ult.name}</h4></summary>
+        <details className="dl-ult-more"><summary><h4 aria-level={3} style={{ display: 'inline' }}>Ultimate: {ult.name}</h4></summary>
           <p className="dl-engine-ult">{ult.does} <span className="muted">Worth using: {ult.use.charAt(0).toLowerCase() + ult.use.slice(1)}</span></p>
           {uses === null ? <p className="muted small">Each time it was used shows once the match's demo is read (Review reads it).</p>
             : !uses.length ? <p className="muted small">Not used this match{ult.effects.includes('revive') ? ' (it goes off on its own)' : ''}.</p> : (
@@ -356,7 +353,9 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
   const best = [...scored].sort((a, b) => b.score! - a.score!)[0], worst = [...scored].sort((a, b) => a.score! - b.score!)[0];
   const overallRank = rankOf(card.overall, c => c.overall);
   const verdict = cardVerdict(card);
-  const jump = (key: GradeKey) => { const el = document.getElementById(`grade-${key}`) as HTMLDetailsElement | null; if (el) el.open = true; el?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  // a tile opens its detail right below the tiles (one at a time); "See why" and the grade links open it too
+  const [openKey, setOpenKey] = useState<GradeKey | null>(null);
+  const jump = (key: GradeKey) => { setOpenKey(key); setTimeout(() => document.getElementById(`grade-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30); };
   return (
     <>
       <section className="recap-card dl-rc-head">
@@ -381,7 +380,7 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
         {card.parts.map(p => {
           const r = rankOf(p.score, c => c.parts.find(x => x.key === p.key)?.score ?? null);
           return (
-            <button key={p.key} className="dl-rc-tile" onClick={() => jump(p.key)} title={p.summary}>
+            <button key={p.key} className={`dl-rc-tile ${openKey === p.key ? 'on' : ''}`} onClick={() => (openKey === p.key ? setOpenKey(null) : jump(p.key))} aria-expanded={openKey === p.key} title={p.summary}>
               <span className="dl-rc-tile-top"><ScoreRing score={p.score} note={p.note} size={44} /><b>{p.label}</b></span>
               <span className="dl-rc-bar"><i style={{ width: `${p.score ?? 0}%`, background: p.score === null ? 'transparent' : p.note === 'book' ? 'var(--text-2)' : NOTE_INFO[p.note].color }} /></span>
               <span className="muted small">{p.score === null ? 'not graded' : r ? `${ORD(r.n)} of ${r.of}` : ''}</span>
@@ -389,6 +388,42 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
           );
         })}
       </div>
+
+      {card.parts.filter(p => p.key === openKey).map(p => {
+        const facts = p.lines.filter(l => l.t === undefined), moments = p.lines.filter(l => l.t !== undefined);
+        const r = rankOf(p.score, c => c.parts.find(x => x.key === p.key)?.score ?? null);
+        return (
+          <section key={p.key} id={`grade-${p.key}`} className="recap-card dl-grade">
+            <div className="dl-grade-head">
+              <ScoreRing score={p.score} note={p.note} size={40} />
+              <span className="dl-grade-title"><h3 aria-level={2}>{p.label}</h3></span>
+              {p.note !== 'book' && <MarkFace note={p.note} size={22} className="dl-card-mark" />}
+              {r && <span className="dl-grade-rank muted small">{ORD(r.n)} of {r.of} in the match</span>}
+              <button className="ghost small-btn" onClick={() => setOpenKey(null)} aria-label={`Close ${p.label}`}><Icon name="close" size={14} /></button>
+            </div>
+            <p className="muted small dl-grade-sum">{p.summary}</p>
+            {facts.length > 0 && (
+              <ul className="dl-grade-facts">
+                {facts.map((l, i) => <li key={i} className={`t-${l.tone ?? 'flat'}`}>{l.text}</li>)}
+              </ul>
+            )}
+            {moments.length > 0 && (
+              <>
+                <h4 aria-level={3}>Moments</h4>
+                <ul className="dl-grade-lines">
+                  {moments.map((l, i) => (
+                    <li key={i}>
+                      <i style={{ background: TONE_COLOR[l.tone ?? 'flat'] }} />
+                      <span>{l.text}</span>
+                      <button className="chip" onClick={() => watch(l.t!)}>Watch</button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        );
+      })}
 
       {/* the same top row as the CS2 recap: the costliest moment, the best play, what to fix next (each one leads somewhere) */}
       {(() => {
@@ -411,40 +446,6 @@ function Grades({ card, match, name, hero, moves, watch, level, pickLevel }: { c
         );
       })()}
 
-      {card.parts.map(p => {
-        const facts = p.lines.filter(l => l.t === undefined), moments = p.lines.filter(l => l.t !== undefined);
-        const r = rankOf(p.score, c => c.parts.find(x => x.key === p.key)?.score ?? null);
-        return (
-          <details key={p.key} id={`grade-${p.key}`} className="recap-card dl-grade">
-            <summary className="dl-grade-head">
-              <ScoreRing score={p.score} note={p.note} size={40} />
-              <span className="dl-grade-title"><h3>{p.label}</h3></span>
-              {p.note !== 'book' && <MarkFace note={p.note} size={22} className="dl-card-mark" />}
-              {r && <span className="dl-grade-rank muted small">{ORD(r.n)} of {r.of} in the match</span>}
-            </summary>
-            <p className="muted small dl-grade-sum">{p.summary}</p>
-            {facts.length > 0 && (
-              <ul className="dl-grade-facts">
-                {facts.map((l, i) => <li key={i} className={`t-${l.tone ?? 'flat'}`}>{l.text}</li>)}
-              </ul>
-            )}
-            {moments.length > 0 && (
-              <>
-                <h4>Moments</h4>
-                <ul className="dl-grade-lines">
-                  {moments.map((l, i) => (
-                    <li key={i}>
-                      <i style={{ background: TONE_COLOR[l.tone ?? 'flat'] }} />
-                      <span>{l.text}</span>
-                      <button className="chip" onClick={() => watch(l.t!)}>Watch</button>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </details>
-        );
-      })}
     </>
   );
 }
@@ -462,7 +463,7 @@ function Abilities({ match, slot, card, watch }: { match: DlMatch; slot: number;
   return (
     <>
       <section className="recap-card">
-        <h3>Abilities</h3>
+        <h3 aria-level={2}>Abilities</h3>
         <ul className="dl-itemrows">
           {rows.map(r => (
             <li key={r.a.cls}>
@@ -494,7 +495,7 @@ function Abilities({ match, slot, card, watch }: { match: DlMatch; slot: number;
       </section>
       {part && (
         <section className="recap-card">
-          <h3>How they were used</h3>
+          <h3 aria-level={2}>How they were used</h3>
           <ul className="dl-grade-lines">
             {part.lines.map((l, i) => <li key={i}><i style={{ background: TONE_COLOR[l.tone ?? 'flat'] }} /><span>{l.text}</span>{l.t !== undefined && <button className="chip" onClick={() => watch(l.t!)}>Watch</button>}</li>)}
           </ul>
@@ -520,7 +521,7 @@ function DlDuo({ match, a, card, nameOf, moves }: { match: DlMatch; a: number; c
   return (
     <section className="recap-card duo">
       <div className="duo-head">
-        <h3>Side by side</h3>
+        <h3 aria-level={2}>Side by side</h3>
         <label className="muted small">with <select value={b.slot} onChange={e => setB(Number(e.target.value))}>{others.map(p => <option key={p.slot} value={p.slot}>{nameOf(p.slot)} · {heroOf(p.hero).name}{p.team === me.team ? ' (teammate)' : ' (enemy)'}</option>)}</select></label>
       </div>
       <table className="duo-table">

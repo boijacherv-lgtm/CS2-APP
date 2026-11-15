@@ -1465,3 +1465,20 @@ body { font-weight: 500; }
 .sb .sb-groups th:first-child { font-size: 14px; font-weight: 700; }
 /* the round-grade timeline: colour tells the grade, the letter only on hover and on the extremes */
 .rg .hc[data-l="S+"]::after, .rg .hc[data-l="F"]::after { opacity: 1; }
+
+/* round 13, Deadlock recap */
+/* accordions read as cards you can open: white title, a 16px chevron at the end, the content right under it */
+.collapse > summary { align-items: center; gap: 12px; padding: 14px 18px; min-height: 48px; }
+.collapse > summary h3 { color: var(--text-1); font-size: 16px; font-weight: 700; }
+.collapse > summary .muted { font-size: 13px; }
+.collapse > summary::after { content: ''; width: 16px; height: 16px; flex: none; background: currentColor; color: var(--text-1);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3 6l5 5 5-5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>") center / contain no-repeat;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3 6l5 5 5-5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>") center / contain no-repeat; transition: transform .15s; }
+.collapse[open] > summary::after { content: ''; transform: rotate(180deg); }
+.collapse > summary:hover { border-color: var(--border-strong); }
+.dl-rc-tile.on { border-color: var(--theme); box-shadow: 0 0 0 1px var(--theme); }
+.dl-grade-head .small-btn { margin-left: 8px; }
+/* tap targets: the "?" and the small disclosure links */
+.help-pop > summary { min-width: 32px; height: 32px; }
+.dl-abil-info summary { font-size: 13px; min-height: 32px; display: inline-flex; align-items: center; }
+.sc-leader { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 2 3; }
