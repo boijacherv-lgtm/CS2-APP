@@ -144,7 +144,7 @@ export function ClipMap({ m, revealed, hover = null }: { m: Moment; revealed: bo
         {/* CS2's radar as the replay draws it: dark and toned down, not pastel */}
         {img && <image href={img} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet" opacity={m.game === 'deadlock' ? 1 : 0.9} style={m.game === 'deadlock' ? undefined : { filter: 'brightness(.55) saturate(.8) contrast(1.08)' }} />}
         {/* small labels, and none under the player you are (it would hide both) */}
-        {names && labels.filter(c => !meAt || Math.hypot(c.x - meAt.x * 100, c.y - meAt.y * 100) > 5).map(c => <text key={c.name} x={c.x} y={c.y} className="map-callout" textAnchor="middle" fontSize={2.1 * z}>{c.name}</text>)}
+        {names && labels.filter(c => !meAt || Math.hypot(c.x - meAt.x * 100, c.y - meAt.y * 100) > 5).map(c => <text key={c.name} x={c.x} y={c.y} className="map-callout" textAnchor="middle" fontSize={2.7 * z}>{c.name}</text>)}
         {!revealed && hover !== null && Math.abs(f - zero) < 0.5 && arrow(m.options[hover], 'var(--text-1)', '1.5 1')}
         {revealed && Math.abs(f - zero) < 0.5 && <>{m.played !== 0 && arrow(m.options[m.played], 'var(--bad)', '2 1.5')}{arrow(m.options[0], 'var(--good)')}</>}
         {m.game === 'deadlock' && <DlOverlay z={z} />}

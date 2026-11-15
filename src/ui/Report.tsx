@@ -243,7 +243,7 @@ function MatchChance({ data, team, onRound }: { data: DemoData; team: 0 | 1; onR
     <section className="recap-card match-chance">
       <div className="coach-head"><h2 className="display">Chance to win</h2><span className="chip takeaway">{story}</span></div>
       <SplitChart caption="Your team's chance to win the match, round by round" base={50} top={100} bottom={0} colors={['var(--good)', 'var(--bad)']}
-        height={210} points={curve} fmt={v => `${Math.round(v)}%`} xfmt={t => `R${t}`} xticks={Array.from({ length: Math.floor(last / 3) + 1 }, (_, k) => k * 3)} divider={first ? { t: first, label: 'Sides switched' } : null}
+        height={210} points={curve} fmt={v => `${Math.round(v)}%`} xfmt={t => (t === 0 ? 'Start' : `R${t}`)} xticks={Array.from({ length: Math.floor(last / 3) + 1 }, (_, k) => k * 3)} divider={first ? { t: first, label: 'Sides switched' } : null}
         dots={decided ? [{ t: decided.t, color: won ? 'var(--good)' : 'var(--bad)', title: `Decided in R${decided.t}` }] : []}
         onPick={t => onRound(Math.max(0, Math.min(data.rounds.length - 1, t - 1)))} />
     </section>

@@ -1062,10 +1062,10 @@ a.hero-games-live:hover b { text-decoration: underline; }
 /* C2: the hero is a real round playing */
 .hero-loop { margin: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--border-strong); box-shadow: var(--elev-3); background: var(--map-bg); align-self: center; }
 .hero-loop { position: relative; }
-.hero-loop video { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 800; object-fit: cover; }
+.hero-loop video { display: block; width: 100%; height: auto; aspect-ratio: 1280 / 752; object-fit: cover; }
 .hero-loop-btn { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--ink) 80%, transparent); border: 1px solid var(--border-strong); color: var(--white); }
 .hero-loop-btn:hover { background: var(--ink); }
-@media (prefers-reduced-motion: reduce) { .hero-loop video { display: none; } .hero-loop { background: url(/videos/hero-cs2.jpg) center / cover; aspect-ratio: 1280 / 800; } .hero-loop-btn { display: none; } }
+@media (prefers-reduced-motion: reduce) { .hero-loop video { display: none; } .hero-loop { background: url(/videos/hero-cs2.jpg) center / cover; aspect-ratio: 1280 / 752; } .hero-loop-btn { display: none; } }
 /* B6 scenarios: the bar over the Tactical board, the list on Puzzles */
 .scenario-bar { position: absolute; z-index: calc(var(--z-sticky) + 5); left: 50%; top: 56px; transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
   max-width: min(760px, 92vw); padding: 10px 14px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border-strong); box-shadow: var(--elev-2); font-size: 14px; }
@@ -1556,23 +1556,21 @@ body { font-weight: 500; }
 .release-shot { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); margin: 0 0 12px; }
 .moments-head .puzzle-rating { white-space: nowrap; display: inline-flex; align-items: baseline; gap: 6px; }
 
-/* round 14, the bomb timer: the cell itself is the timer. Its colour fills it and drains with the fuse; the number is dark on the fill and
-   light on the rest; at 0 it turns red; a defuse splits the cell, the bottom half is the defuse timer */
-.sb-mid:has(.sb-tcell) { padding: 0; min-width: 136px; overflow: hidden; }
+/* round 15, the bomb cell: each row's colour fills it and drains with the time; the number stays on a fixed dark plate (one colour, no letter ever
+   crosses the fill's edge); at 0 it turns red; a defuse splits the cell in two rows of ~21px, the bottom one the defuse timer */
+.sb-mid:has(.sb-tcell) { padding: 0; min-width: 104px; overflow: hidden; }
 .sb-tcell { display: grid; grid-template-rows: 1fr; width: 100%; height: 100%; }
-.sb-tcell.split { grid-template-rows: 1fr 1fr; gap: 1px; background: var(--white-12); }
-.tt { --tc: var(--gold); position: relative; display: grid; align-items: center; justify-items: center; overflow: hidden; background: color-mix(in srgb, var(--tc) 12%, var(--ink)); min-height: 0; }
-.tt.tone-amber { --tc: var(--gold); } .tt.tone-orange { --tc: var(--letter-d); } .tt.tone-red { --tc: var(--bad); } .tt.tone-ct { --tc: var(--ct); } .tt.tone-late { --tc: var(--bad); }
-.tt-fill { position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--tc); transition: width .12s linear; }
-.tt.tone-late .tt-fill { background: repeating-linear-gradient(45deg, var(--bad) 0 4px, color-mix(in srgb, var(--bad) 55%, var(--ink)) 4px 8px); }
-.tt-text { grid-area: 1 / 1; position: relative; display: flex; width: 100%; height: 100%; justify-content: center; align-items: center; gap: 6px; white-space: nowrap; }
-.tt-text.light { color: var(--text-1); }
-.tt-text.dark { color: var(--ink); clip-path: inset(0 calc(100% - var(--p)) 0 0); }
-.tt.tone-red .tt-text.dark, .tt.tone-late .tt-text.dark { color: var(--white); }
-.tt.zero .tt-text.light { color: var(--bad); }
-.tt small { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.tt b { font-size: 24px; line-height: 1; font-weight: 800; }
-.sb-tcell.split .tt b { font-size: 16px; } .sb-tcell.split .tt small { font-size: 12px; }
+.sb-tcell.split { grid-template-rows: 1fr 1fr; gap: 2px; background: var(--ink); }
+.bt { --tc: var(--gold); position: relative; display: grid; place-items: center; overflow: hidden; min-height: 0; background: color-mix(in srgb, var(--tc) 22%, var(--ink)); }
+.bt.tone-amber { --tc: var(--gold); } .bt.tone-orange { --tc: var(--letter-d); } .bt.tone-red { --tc: var(--bad); } .bt.tone-ct { --tc: var(--ct); } .bt.tone-late { --tc: var(--bad); }
+.bt-fill { position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--tc); transition: width .12s linear; }
+.bt.tone-late .bt-fill { background: repeating-linear-gradient(45deg, var(--bad) 0 4px, color-mix(in srgb, var(--bad) 55%, var(--ink)) 4px 8px); }
+.bt-plate { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; min-width: 64px; height: 80%; max-height: 32px; border-radius: 6px; background: var(--ink); color: var(--white); white-space: nowrap; }
+.bt.zero .bt-plate b { color: var(--bad); }
+.bt small { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.bt b { font-size: 20px; line-height: 1; font-weight: 800; }
+.sb-tcell.split .bt-plate { min-width: 56px; padding: 0 8px; height: 86%; gap: 5px; }
+.sb-tcell.split .bt b { font-size: 14px; } .sb-tcell.split .bt small { font-size: 12px; letter-spacing: 0; }
 
 /* round 14, the panel's tables fit the panel: fixed layout, names cut with an ellipsis, loadout under the name */
 .drawer table.kills { width: 100%; table-layout: fixed; }
@@ -1660,3 +1658,52 @@ body { font-weight: 500; }
 .foot-group { display: grid; gap: 6px; align-content: start; }
 .foot-group b { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-1); }
 .foot-group a { font-size: 14px; }
+
+/* round 15, the replay's top bar sizes itself by the board's own width (the panel takes 320px when it is open): under 940px the three top
+   slots stop competing for one row — buttons keep one line, the strip gets the middle, chips shrink, the kill feed drops under the strip */
+*:has(> .board-ui) { container: board / inline-size; }
+@container board (max-width: 940px) {
+  /* the three buttons keep to one row as icons (their names are in the tooltips) so the strip has its middle column */
+  .app .board-ui .slot.tl { flex-wrap: nowrap; }
+  .board-ui .slot.tl .tl-btn { font-size: 0; gap: 0; padding-inline: 10px; min-width: 40px; justify-content: center; }
+  .board-ui .round-strip.two-rows { grid-template-columns: repeat(var(--cols), 20px); }
+  .board-ui .rs-chip { width: 20px; height: 20px; }
+  .board-ui.broadcast .slot.tr { position: absolute; right: 8px; top: 108px; max-width: 190px; }
+}
+.menu-mode { display: none; }
+@media (max-width: 1279px) { .menu-mode { display: flex; } }
+/* the panel's tabs fit its 320px: tighter padding, one line */
+.drawer .tabs button { padding-inline: 6px; gap: 4px; white-space: nowrap; }
+/* round 15: tactical's Kill chances: the player column is narrow, the four numbers share the rest */
+.drawer table.kills.kc th:first-child, .drawer table.kills.kc td:first-child { width: 22%; }
+.drawer table.kills.kc th, .drawer table.kills.kc td { text-align: right; }
+.drawer table.kills.kc th:first-child, .drawer table.kills.kc td:first-child { text-align: left; }
+/* every floating hint sits top right under the bar, like the other toasts, not on the map's bottom edge */
+.hint-card:not(.inline) { left: auto; right: 16px; top: 60px; bottom: auto; transform: none; max-width: min(420px, calc(100vw - 32px)); }
+/* round 15, charts: axis words in the UI font (Oswald is for numbers), Side by side keeps its labels and values together */
+.sc-axis, .axis { font-family: var(--font-ui); }
+.report .recap-card .duo-table, .report .recap-card .more-card .duo-table, .report .more-card .duo-table { max-width: 640px; }
+
+/* round 15, sizes: what a person has to read is 14px (the 12px steps stay for chart axes and the board's overlays); the densest tables lose their bold */
+.report .muted, .report .small, .report td.num, .report th, .report caption, .report select, .report option, .report button.ghost, .report .chip, .report .sb td, .report i.up { font-size: 14px; }
+.dl-meta .muted, .dl-meta td, .dl-meta th, .dl-meta button, .dl-meta .dl-trend, .dl-meta .dl-patch, .dl-meta .dl-pos, .dl-meta .chip { font-size: 14px; }
+.dl-meta td, .dl-meta td.num, .dl-meta .dl-rate, .dl-meta .dl-trend, .dl-meta .dl-patch { font-weight: 500; }
+.moments .chip, .moments button, .moments .puzzle-tag, .moments .muted, .moments .puzzle-info span { font-size: 14px; }
+/* the coach card's values are words and numbers ("in 47% of rounds", "7.8 / round"): the UI font, Oswald stays on pure numbers */
+.dev-row .dev-val.num { font-family: var(--font-ui); font-weight: 700; }
+
+/* round 15, phones: the strip and the kill feed give way (the strip's two-row grid had overridden the rule that hid it), and the docked
+   card stacks: who and the buttons on top, then the line, the win bar, the reason */
+@media (max-width: 640px) { .round-strip.two-rows { display: none; } }
+@container board (max-width: 560px) {
+  .app .board-ui.broadcast .slot.tr { display: none; }
+  .board-ui .feed-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "head foot" "title title" "meter meter" "why why" "more more"; row-gap: 4px; padding: 8px 12px; }
+  .board-ui .feed-card .feed-title { white-space: normal; }
+  .board-ui .feed-card .feed-win, .board-ui .feed-card .feed-meter { justify-self: start; }
+}
+@container board (max-width: 560px) {
+  .app .board-ui, .app .board-ui.broadcast { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto minmax(0, 1fr) auto auto auto auto;
+    grid-template-areas: "tl tl" "top top" "left right" "bl bl" "card card" "eval eval" "dock dock"; }
+  .board-ui .slot.team-ct, .board-ui .slot.team-t, .board-ui .slot.br { display: none; }
+  .app .board-ui .slot.tl { min-width: 0; }
+}
