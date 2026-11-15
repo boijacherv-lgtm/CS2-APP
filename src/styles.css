@@ -1169,9 +1169,10 @@ input.switch { min-height: 24px; height: 24px; }
 
 /* round 10 B3: the roster's expected bomb damage, a blinking red slice at the end of the health bar */
 .tb-row { position: relative; }
-.tb-bomb-hp { position: absolute; bottom: 0; height: 4px; background: var(--bad); animation: bomb-blink .7s steps(2) infinite; pointer-events: auto; }
-.tb-bomb-hp.lethal { height: 100%; opacity: .25; }
-@keyframes bomb-blink { 50% { opacity: .25; } }
+.tb-bomb-hp { position: absolute; bottom: 0; height: 3px; background: var(--bad); opacity: .9; animation: bomb-blink 1.6s ease-in-out infinite; pointer-events: auto; }
+.tb-bomb-hp.lethal { height: 3px; animation-duration: 1s; }
+.tb-row:has(.tb-bomb-hp.lethal) .tb-hp { color: var(--bad); }
+@keyframes bomb-blink { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .tb-bomb-hp { animation: none; } }
 
 /* round 11: the score bar is one skewed piece: the team edges are part of it (so they slant with the border), no dots, the
@@ -1234,3 +1235,9 @@ input.switch { min-height: 24px; height: 24px; }
 .sb-defuse-bar b { display: block; height: 100%; background: var(--ct); }
 .sb-defuse.late .sb-defuse-bar b { background: repeating-linear-gradient(45deg, var(--bad) 0 3px, var(--ink) 3px 5px); }
 .sb-defuse-who { font: 700 12px var(--font-ui); color: var(--ct); } .sb-defuse.late .sb-defuse-who { color: var(--bad); }
+
+/* round 13: the review board's columns never depend on how wide the round strip is: the strip wraps inside the middle column, so
+   the team bars keep their width when the panel narrows the stage */
+.board-ui.broadcast { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); }
+.board-ui.broadcast .slot.top { min-width: 0; max-width: 100%; }
+.board-ui.broadcast .slot.top .round-strip { flex-wrap: wrap; justify-content: center; max-width: 100%; row-gap: 4px; }

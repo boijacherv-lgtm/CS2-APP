@@ -18,7 +18,9 @@ import { SteamLoginButton } from '../ui/SteamLogin';
 import { plural, fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
 import { copyCard, drawShareCard, shareFileName, type ShareFormat } from './shareCard';
 import { AddMatches } from './AddMatches';
-import { ResultStrip, StretchLine, TrendTile, type TileMeta } from './charts';
+import { AreaChart, ResultStrip, StretchLine, TrendTile, type TileMeta } from './charts';
+import { ScoreRing } from '../ui/ScoreRing';
+import { noteOf } from '../deadlock/grade';
 import { applyGame, gameOf, type GameId } from '../ui/tokens';
 import { DlProfile } from '../deadlock/DlProfile';
 import { BETTER, type FeatureId } from '../engine/coach';
@@ -112,9 +114,36 @@ function SuperCard({ matches }: { matches: ProfileMatch[] }) {
   return (
     <section className="site-card super-card">
       <span className="eyebrow">Your superpower</span>
-      <h2>{sp.title}</h2>
-      <p className="muted">Better than <b>{sp.better}%</b> of level-10 players at this</p>
-      <p className="muted small">{sp.row.label}: you {sp.row.fmt(sp.row.you)} · level 10 {sp.row.fmt(sp.row.lvl10)}{BETTER[sp.row.id as FeatureId] === 'low' ? ' (lower is better)' : ''}</p>
+      <div className="super-body">
+        <ScoreRing score={sp.better} note={noteOf((sp.better - 50) / 20)} size={84} />
+        <div>
+          <h2>{sp.title}</h2>
+          <p className="muted">Better than <b>{sp.better}%</b> of level-10 players</p>
+          <p className="muted small">{sp.row.label}: you {sp.row.fmt(sp.row.you)} · level 10 {sp.row.fmt(sp.row.lvl10)}{BETTER[sp.row.id as FeatureId] === 'low' ? ' (lower is better)' : ''}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** The same Trends card Deadlock has: one metric over your matches, switch with the buttons. */
+function TrendsCard({ matches }: { matches: ProfileMatch[] }) {
+  const [metric, setMetric] = useState<'kd' | 'adr' | 'kast' | 'premier'>('kd');
+  const chrono = [...matches].sort((x, y) => x.at - y.at);
+  const M = {
+    kd: { label: 'K/D', f: (m: ProfileMatch) => (m.deaths ? m.kills / m.deaths : m.kills), fmt: (v: number) => v.toFixed(2), rows: chrono },
+    adr: { label: 'ADR', f: (m: ProfileMatch) => m.adr, fmt: (v: number) => v.toFixed(0), rows: chrono },
+    kast: { label: 'KAST', f: (m: ProfileMatch) => m.kast, fmt: (v: number) => `${v.toFixed(0)}%`, rows: chrono },
+    premier: { label: 'Premier', f: (m: ProfileMatch) => premierOf(m) ?? 0, fmt: (v: number) => fmtInt(v), rows: chrono.filter(m => premierOf(m) !== null) },
+  }[metric];
+  if (chrono.length < 3) return null;
+  return (
+    <section className="site-card trends-card">
+      <div className="card-head"><h2>Trends</h2>
+        <div className="seg-mini" role="group" aria-label="Metric">{(['kd', 'adr', 'kast', 'premier'] as const).map(k => <button key={k} className={metric === k ? 'on' : ''} onClick={() => setMetric(k)}>{k === 'kd' ? 'K/D' : k === 'adr' ? 'ADR' : k === 'kast' ? 'KAST' : 'Premier'}</button>)}</div></div>
+      {M.rows.length >= 3
+        ? <AreaChart points={M.rows.map((m, i) => ({ label: `#${i + 1} ${mapName(m.map)}`, value: M.f(m) }))} fmt={M.fmt} />
+        : <p className="muted small">Premier shows once 3 of your matches carry a rating.</p>}
     </section>
   );
 }
@@ -132,33 +161,27 @@ function SkillMapCard({ matches }: { matches: ProfileMatch[] }) {
   return (
     <section className="site-card skill-map">
       <div className="card-head"><h2>Skill map</h2><span className="muted small">against FACEIT level 10 · 50 = typical level 10</span></div>
-      <ul>
+      <div className="dl-pf-parts">
         {map.map(sk => (
-          <li key={sk.name} className={open === sk.name ? 'open' : ''}>
-            <button className="sk-row" onClick={() => setOpen(open === sk.name ? null : sk.name)} aria-expanded={open === sk.name} disabled={!sk.rows.length}>
-              <b>{sk.name}</b>
-              {sk.pct !== null
-                ? <span className="sk-track" aria-label={`${sk.pct} out of 100`}><i className="sk-mid" /><i className="sk-dot" style={{ left: `${sk.pct}%` }} /></span>
-                : <span className="sk-track none muted small">{sk.clutch ? (sk.clutch[0] ? `${sk.clutch[1]} of ${sk.clutch[0]} won · no level-10 number yet` : '') : ''}</span>}
-              <span className="sk-pct num">{sk.pct ?? ''}</span>
-              <span className={`sk-trend ${sk.trend ?? ''}`} title={sk.trend ? 'Your last 5 matches against the 5 before' : undefined}>
-                {sk.trend === 'up' ? <Icon name="trendUp" size={14} /> : sk.trend === 'down' ? <Icon name="trendDown" size={14} /> : sk.trend === 'flat' ? '–' : ''}</span>
-            </button>
-            {open === sk.name && (
-              <ul className="sk-detail">
-                {sk.rows.map(r => {
-                  // the habit's costliest rounds in your newest match that has them
-                  const m = matches.find(x => (x.leaks?.[r.id as GoalId]?.[1].length ?? 0) > 0);
-                  return (
-                    <li key={r.id}><span>{r.label}</span><span className={`num ${r.z >= 0 ? 'up' : 'down'}`}>{r.fmt(r.you)}</span><span className="muted small">level 10: {r.fmt(r.lvl10)}</span>
-                      {m && r.z < 0 && <span className="sk-rounds">{m.leaks![r.id as GoalId]![1].map(n => <RoundLink key={n} match={m} n={n} />)}<span className="muted small">{mapName(m.map)}</span></span>}</li>
-                  );
-                })}
-              </ul>
-            )}
-          </li>
+          <button key={sk.name} className={`dl-pf-part sk-part ${open === sk.name ? 'open' : ''}`} onClick={() => setOpen(open === sk.name ? null : sk.name)} aria-expanded={open === sk.name} disabled={!sk.rows.length}>
+            <ScoreRing score={sk.pct} note={sk.pct === null ? 'book' : noteOf((sk.pct - 50) / 20)} size={64} />
+            <b>{sk.name}</b>
+            <span className={`sk-trend ${sk.trend ?? ''}`} title={sk.trend ? 'Your last 5 matches against the 5 before' : undefined}>
+              {sk.trend === 'up' ? <Icon name="trendUp" size={14} /> : sk.trend === 'down' ? <Icon name="trendDown" size={14} /> : sk.trend === 'flat' ? '–' : ''}</span>
+          </button>
         ))}
-      </ul>
+      </div>
+      {map.filter(sk => sk.name === open).map(sk => (
+        <ul key={sk.name} className="sk-detail">
+          {sk.rows.map(r => {
+            const m = matches.find(x => (x.leaks?.[r.id as GoalId]?.[1].length ?? 0) > 0);
+            return (
+              <li key={r.id}><span>{r.label}</span><span className={`num ${r.z >= 0 ? 'up' : 'down'}`}>{r.fmt(r.you)}</span><span className="muted small">level 10: {r.fmt(r.lvl10)}</span>
+                {m && r.z < 0 && <span className="sk-rounds">{m.leaks![r.id as GoalId]![1].map(n => <RoundLink key={n} match={m} n={n} />)}<span className="muted small">{mapName(m.map)}</span></span>}</li>
+            );
+          })}
+        </ul>
+      ))}
     </section>
   );
 }
@@ -231,7 +254,7 @@ export function Profile() {
               <ResultStrip results={[...matches].slice(0, 20).reverse().map(m => ({ win: m.result === 'win' ? true : m.result === 'loss' ? false : null, title: `${mapName(m.map)} ${m.score[0]}:${m.score[1]}` }))} />
             </section>
             <AddMatches />
-            <section className="site-card profile-side-links"><a className="cta" href="/settings"><Icon name="gear" size={14} /> Settings</a>
+            <section className="site-card profile-side-links">
               {matches[0] && <button className="cta" onClick={() => setShare(matches[0])}><Icon name="share" size={14} /> Share card</button>}</section>
           </aside>
           <div className="profile-main">
@@ -245,9 +268,7 @@ export function Profile() {
             {ptab === 'overview' && <>
               <StatStrip matches={matches} />
               <div className="leak-row"><LeakCard matches={matches} /><SuperCard matches={matches} /></div>
-              <SkillMapCard matches={matches.slice(0, pro ? matches.length : FREE_HISTORY * 2)} />
-              <section className="site-card"><div className="card-head"><h2>Last 5 matches</h2><button className="ghost small-btn" onClick={() => setPtab('matches')}>All matches</button></div>
-                <div className="match-list">{matches.slice(0, 5).map(m => <MatchRow key={m.id} m={m} onShare={() => setShare(m)} />)}</div></section>
+              <TrendsCard matches={matches.slice(0, pro ? matches.length : FREE_HISTORY * 2)} />
             </>}
             {ptab === 'matches' && (
               <section className="site-card">

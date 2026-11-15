@@ -1353,3 +1353,35 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .split-chart, .stretch-line { max-width: 960px; }
 .area-tip { max-width: 280px; }
 .area-tip.flip { transform: translateX(calc(-100% - 12px)); }
+
+/* round 13: the profile's cards in one language: rings for scores (the same one Deadlock uses), the Trends card, a ring on the superpower */
+.super-body { display: flex; align-items: center; gap: 18px; }
+.super-body h2 { margin: 0 0 4px; }
+.leak-row { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: stretch; }
+.leak-row > .site-card { display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
+.skill-map .dl-pf-parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.skill-map .sk-part { background: var(--surface-2); border: 1px solid var(--border); border-radius: 16px; padding: 14px 10px; color: var(--text); display: grid; justify-items: center; gap: 6px; cursor: pointer; }
+.skill-map .sk-part.open, .skill-map .sk-part:hover:not(:disabled) { border-color: var(--theme); }
+.skill-map .sk-detail { margin: 14px 0 0; }
+
+/* round 13: every button in Settings is the same button: one size, one shape, centred text; danger is orange; disabled is dimmed */
+.settings-body button.cta, .settings-body button.ghost, .settings-body .small-btn, .settings-body .steam-login, .settings-body .steam-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box; min-width: 168px; max-width: 100%; height: 40px; padding: 0 16px;
+  border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); font: 600 14px var(--font-ui); text-align: center; white-space: nowrap; cursor: pointer;
+}
+.settings-body button.cta:hover:not(:disabled), .settings-body button.ghost:hover:not(:disabled) { border-color: var(--theme); }
+.settings-body button.cta.danger, .settings-body .danger-zone button.cta { border-color: var(--bad); color: var(--bad); }
+.settings-body button:disabled { opacity: .5; cursor: default; }
+.settings-body .confirm-row { display: inline-flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.settings-body .seg-mini button, .settings-body .seg button { min-width: 64px; height: 32px; padding: 0 12px; font-size: 14px; }
+.settings-menu a { font-weight: 500; }
+.leak-row .eyebrow, .site-card > .eyebrow { align-self: flex-start; width: max-content; }
+
+/* round 13: the round-grades grid: it fits, rows breathe, the focused player's row is the bright one */
+.recap-card:has(.rg) .sb-wrap { max-width: none; overflow: visible; }
+.rg { max-width: none; width: 100%; border-spacing: 0 3px; border-collapse: separate; }
+.rg td.cell { padding: 0 1.5px; }
+.rg .hc { width: 100%; max-width: 26px; height: 26px; border-radius: 6px; opacity: .72; transition: opacity .12s ease; }
+.rg tr.focus .hc, .rg .cell:hover .hc { opacity: 1; }
+.rg tr.focus td.name { box-shadow: inset 3px 0 0 var(--theme); }
+.rg thead th { border-bottom-width: 3px; font-weight: 500; }
