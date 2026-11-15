@@ -2,7 +2,7 @@ import Konva from 'konva';
 import { MAPS } from '../map/catalog';
 import { useCanvasLabel } from './canvasLabel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { blastDamageAt, blastField } from '../engine/blast';
+import { BLAST_REACH_U, blastDamageAt, blastField } from '../engine/blast';
 import { blastCanvas } from './blastCanvas';
 import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
 import { KonvaFace } from './KonvaFace';
@@ -395,7 +395,10 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     return out;
   }, [s.review?.data, s.review?.round]);
   // the planted bomb's blast over the walkable grid (an estimate): each player's expected damage, for the roster's blinking slice
-  const plantedAt = (() => { const b = s.review ? bombAt(s.review.data.rounds[s.review.round], s.time) : null; return b && b.kind === 'plant' ? worldToRadar(b, engine.map.radar) : null; })();
+  const bombNow = s.review ? bombAt(s.review.data.rounds[s.review.round], s.time) : null;
+  // the blast field is worked out once planted (for the roster's slice); it is DRAWN only when the bomb goes off: a wave along the paths, once (~1.2 s)
+  const plantedAt = bombNow && (bombNow.kind === 'plant' || bombNow.kind === 'explode') ? worldToRadar(bombNow, engine.map.radar) : null;
+  const blastAge = bombNow?.kind === 'explode' ? s.time - bombNow.since : -1;
   const blastF = useMemo(() => (plantedAt ? blastField(engine.grid, plantedAt, UNITS_PER_PX) : null), [plantedAt?.x, plantedAt?.y, engine]); // eslint-disable-line react-hooks/exhaustive-deps
   const blastImg = useMemo(() => (blastF ? blastCanvas(blastF) : null), [blastF]);
   const roster = (side: 'CT' | 'T') => rosterRound && (
@@ -527,7 +530,11 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
 
         <Layer listening={false}>
           {/* the bomb's blast reaches, UNDER the players and everything else (an estimate: blast.ts) */}
-          {blastImg && <KImage image={blastImg} x={0} y={0} width={blastF!.w * CELL} height={blastF!.h * CELL} listening={false} opacity={0.5} />}
+          {blastImg && plantedAt && blastAge >= 0 && blastAge < 1.2 && (
+            <Group listening={false} clipFunc={ctx => { ctx.arc(plantedAt.x, plantedAt.y, (Math.min(1, blastAge / 0.5) * BLAST_REACH_U) / UNITS_PER_PX, 0, Math.PI * 2); }}>
+              <KImage image={blastImg} x={0} y={0} width={blastF!.w * CELL} height={blastF!.h * CELL} listening={false} opacity={0.75 * (1 - blastAge / 1.2)} />
+            </Group>
+          )}
           {/* where FACEIT level-10 players stand at this point of the round: a circle per callout, sized by their share
               of the time there (CT left, T right), with the share */}
           {engineNow && (() => {
@@ -914,7 +921,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         </div>
         <div className="slot top">
           {s.review && s.mode === 'review' && <RoundStrip data={s.review.data} at={s.review.round} spoilers={s.reviewSpoilers} onPick={i => s.setReviewRound(i)} />}
-          {rosterRound && s.review && <ScoreBug score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time}
+          {rosterRound && s.review && <ScoreBug names={s.review.data.names} score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time}
             switched={switches.includes(s.review.round) ? s.review.data.names[Object.keys(rosterRound.frames.players).find(id => rosterRound.frames.players[id].side === 'CT') ?? ''] ?? 'the other' : null} />}
           {!rosterRound && <RoundHud
             players={rosterRound ? [] : s.board.players.map(p => ({
@@ -1062,7 +1069,6 @@ function BombOnMap({ at, k, state, age, planted, unitsPerPx, grid }: { at: Vec2;
     const a = Math.min(1, age / 0.6);
     return (
       <Group x={at.x} y={at.y} listening={false}>
-        {age < 2.5 && <Circle radius={(14 + 70 * a) * k} fill="#ff7a1a" opacity={0.55 * (1 - age / 2.5)} />}
         {age < 1.2 && <Circle radius={(8 + 34 * a) * k} fill="#ffe08a" opacity={0.9 * (1 - age / 1.2)} />}
         <Circle radius={11 * k} fill="#1a1410" opacity={0.7} />
       </Group>
