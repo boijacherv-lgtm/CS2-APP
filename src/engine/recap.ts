@@ -97,11 +97,15 @@ const NADE_LABEL: Record<string, string> = { flashbang: 'a flash', hegrenade: 'a
  * worked out backwards from the plant / defuse (how long it takes, with or without a kit).
  */
 export function bombTryAt(r: DemoRound, t: number): BombTry | null {
-  const tries = r.bombTries ?? (r.bomb ?? []).filter(b => b.kind === 'plant' || b.kind === 'defuse').map(b => {
+  // the demo's own begin/abort events when it has them; every finished plant or defuse the events don't cover is worked out from the
+  // bomb events (a demo may carry the plant's begin event but not the defuse's: the defuse timer must still show)
+  const own = r.bombTries ?? [];
+  const derived = (r.bomb ?? []).filter(b => b.kind === 'plant' || b.kind === 'defuse').map(b => {
     const kit = b.kind === 'defuse' ? !!gearAt(r, b.id, b.t - 1)?.kit : undefined;
     const len = b.kind === 'plant' ? PLANT_SECONDS : kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS;
     return { t: b.t - len, end: b.t, kind: b.kind as 'plant' | 'defuse', id: b.id, done: true, kit };
-  });
+  }).filter(d => !own.some(o => o.kind === d.kind && Math.abs(o.end - d.end) < 1.5));
+  const tries = [...own, ...derived];
   return tries.find(x => x.t <= t && t < x.end) ?? null;
 }
 export type BombState =
