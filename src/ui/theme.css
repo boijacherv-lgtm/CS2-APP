@@ -167,7 +167,7 @@ body {
 .recap-score { font-size: 64px; text-shadow: 0 2px 24px #0008; }
 .recap-result { font-size: 16px; padding: 5px 14px; }
 .recap-verdict {
-  margin: 14px 0 2px !important; max-width: 720px; font-size: 16px; line-height: 1.45; font-weight: 600; color: var(--text-1);
+  margin: 14px 0 2px !important; max-width: 720px; font-size: 16px; line-height: 1.45; font-weight: 500; color: var(--text-1);
   padding-left: 12px; border-left: 3px solid var(--theme);
 }
 
@@ -222,7 +222,7 @@ input[type=range] { min-height: 24px; }
 }
 
 /* ---- audit Nov 10: type. Bold for headings, numbers and buttons; body text regular ----------------------------- */
-b, strong { font-weight: 600; }
+b, strong { font-weight: 500; }
 .recap-card > h3, .recap-card h3:first-child { text-transform: none; letter-spacing: 0; font-size: 14px; }
 /* marketing pages (home, game pages, pricing, info): body text 15 px */
 .site-section p, .site-section li, .feature p, .steps li, .game-card p, .site-section details p, .info-page p, .info-page li { font-size: 16px; line-height: 1.55; }
