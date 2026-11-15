@@ -1444,3 +1444,13 @@ body { font-weight: 500; }
 .tabs button { white-space: nowrap; }
 .board-ui .feed-card { padding: 6px 14px; }
 .board-ui .feed-card .feed-card-foot button { padding: 2px 9px; font-size: 12px; }
+
+/* Dota 2: the real map instead of a logo disc; the headline never leaves "2" alone on a line */
+.d2-hero-map { display: grid; place-items: center; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: var(--surface-1); aspect-ratio: 1; max-width: 420px; justify-self: end; }
+.d2-hero-map img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dl-hero-text h1 { text-wrap: balance; }
+@media (max-width: 760px) { .d2-hero-map { max-width: 260px; justify-self: start; } }
+/* Dota 2 team chips: white text, the team's colour on the edge and a dot, so they pass contrast on any accent */
+.chip.team { color: var(--text-1); box-shadow: inset 0 0 0 2px var(--team); }
+.chip.team::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--team); margin-right: 6px; }
+.chip.team.on { background: color-mix(in srgb, var(--team) 30%, var(--surface-2)); color: var(--text-1); }

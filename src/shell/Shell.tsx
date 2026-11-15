@@ -136,12 +136,13 @@ async function recordIfYours(data: DemoData, rounds: (RoundSummary | null)[]) {
 }
 
 const MODE_TITLE = { tactical: 'Tactical Board', review: 'Review a match', report: 'Match recap', home: 'Coach' } as const;
-const PAGE_TITLE: Record<string, string> = { missing: 'Page not found', privacy: 'Privacy', changelog: 'What\'s new', profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Page not found', puzzles: 'Puzzles', guides: 'Guides', moment: 'A shared moment' };
+const PAGE_TITLE: Record<string, string> = { missing: 'Page not found', privacy: 'Privacy', changelog: 'What\'s new', profile: 'Profile', pricing: 'Pricing', settings: 'Settings', dev: 'Dev', puzzles: 'Puzzles', guides: 'Guides', moment: 'A shared moment' };
 export function pageTitle(r: Route): string {
   // the public pages: the same titles as their static copies (tools/spa-pages.mjs META)
   if (r.page === 'cs2') return r.mode === 'home' ? 'CS2 demo review: every round graded S+ to F · RageView' : r.mode === 'review' ? 'CS2 Demo Review · RageView' : `CS2 ${MODE_TITLE[r.mode]} · RageView`;
   if (r.page === 'deadlock') return r.mode === 'home' ? 'Deadlock match review by match ID: every fight graded · RageView' : r.mode === 'review' ? 'Deadlock Match Review · RageView'
     : r.mode === 'tactical' ? 'Deadlock meta & builds this patch, by position · RageView' : `Deadlock ${MODE_TITLE[r.mode]} · RageView`;
+  if (r.page === 'dota2') return r.mode === 'home' ? 'Dota 2 match review by match ID: every fight graded · RageView' : r.mode === 'review' ? 'Dota 2 Match Review · RageView' : `Dota 2 ${MODE_TITLE[r.mode]} · RageView`;
   if (r.page === 'guides' && 'guide' in r) return GUIDES.find(g => g.slug === r.guide)?.title ?? 'Guides · RageView';
   if (r.page === 'puzzles') return 'CS2 & Deadlock puzzles: find the best play · RageView';
   if (r.page === 'pricing') return 'RageView pricing: free, Pro free in early access';
