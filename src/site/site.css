@@ -1314,7 +1314,7 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .perf-grade-tile { align-items: start; justify-items: start; }
 .pg-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: 100%; }
 /* .perf-tiles .kpi b (32px) is more specific than .pg-word, so name the tile too; the word wraps under the badge when it does not fit */
-.perf-tiles .perf-grade-tile b.pg-word { font: 700 20px/1 var(--font-num); color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.perf-tiles .perf-grade-tile b.pg-word { font: 800 20px/1 var(--font-ui); color: var(--text); min-width: 0; overflow-wrap: anywhere; }
 .perf-letter.reveal.g-c::before, .perf-letter.reveal.g-d::before, .perf-letter.reveal.g-f::before { content: '▼'; position: absolute; top: 3px; right: 5px; font: 700 12px/1 var(--font-ui); color: var(--ink); opacity: .75; }
 
 /* round 12: Side by side, Fix next and Keep doing are ONE card with a segmented control; no card inside a card */
@@ -1454,3 +1454,14 @@ body { font-weight: 500; }
 .chip.team { color: var(--text-1); box-shadow: inset 0 0 0 2px var(--team); }
 .chip.team::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--team); margin-right: 6px; }
 .chip.team.on { background: color-mix(in srgb, var(--team) 30%, var(--surface-2)); color: var(--text-1); }
+
+/* round 13, the CS2 recap */
+.recap-bar { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+.recap-bar .recap-close { margin-left: 0; }
+/* Side by side: values next to their labels, not across the whole card */
+.more-card .duo-table, .recap-two .duo-table { max-width: 640px; }
+/* scoreboard: ADR bars you can see, team headers you can read */
+.sb .sb-adr i { height: 4px; bottom: 2px; }
+.sb .sb-groups th:first-child { font-size: 14px; font-weight: 700; }
+/* the round-grade timeline: colour tells the grade, the letter only on hover and on the extremes */
+.rg .hc[data-l="S+"]::after, .rg .hc[data-l="F"]::after { opacity: 1; }
