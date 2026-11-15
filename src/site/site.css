@@ -1683,3 +1683,11 @@ body { font-weight: 500; }
 /* round 15, charts: axis words in the UI font (Oswald is for numbers), Side by side keeps its labels and values together */
 .sc-axis, .axis { font-family: var(--font-ui); }
 .report .recap-card .duo-table, .report .recap-card .more-card .duo-table, .report .more-card .duo-table { max-width: 640px; }
+
+/* round 15, sizes: what a person has to read is 14px (the 12px steps stay for chart axes and the board's overlays); the densest tables lose their bold */
+.report .muted, .report .small, .report td.num, .report th, .report caption, .report select, .report option, .report button.ghost, .report .chip, .report .sb td, .report i.up { font-size: 14px; }
+.dl-meta .muted, .dl-meta td, .dl-meta th, .dl-meta button, .dl-meta .dl-trend, .dl-meta .dl-patch, .dl-meta .dl-pos, .dl-meta .chip { font-size: 14px; }
+.dl-meta td, .dl-meta td.num, .dl-meta .dl-rate, .dl-meta .dl-trend, .dl-meta .dl-patch { font-weight: 500; }
+.moments .chip, .moments button, .moments .puzzle-tag, .moments .muted, .moments .puzzle-info span { font-size: 14px; }
+/* the coach card's values are words and numbers ("in 47% of rounds", "7.8 / round"): the UI font, Oswald stays on pure numbers */
+.dev-row .dev-val.num { font-family: var(--font-ui); font-weight: 700; }
