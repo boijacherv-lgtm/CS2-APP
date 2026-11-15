@@ -5,6 +5,7 @@
 // Puzzles page loads when you pick "Top players".
 //
 //   npm run puzzles -- <cs2 training folder> [--cs2 160 --dl 160 --demos 80]
+import './positions-ready';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';

@@ -10,6 +10,7 @@
 //   npm run learn:positions -- <folder> [--map de_dust2]
 //
 // Each demo's decisions are cached in <folder>/.stratboard-cache/positions; adding demos later only reads the new ones.
+import './positions-ready';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

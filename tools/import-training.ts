@@ -8,6 +8,7 @@
 // already in the folder (or imported before) isn't added twice.
 //
 //   npm run import:training -- <pack or folder> [<training folder>, default ~/Desktop/APPS/faceit-demos] [--train]
+import './positions-ready';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

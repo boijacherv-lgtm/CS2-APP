@@ -8,6 +8,7 @@
 // Writes src/engine/models/search-calibration.json.
 //
 //   npm run calibrate:search -- <folder> [--max 150] [--deep all|flagged|off]
+import './positions-ready';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';

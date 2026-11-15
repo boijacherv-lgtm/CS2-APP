@@ -12,6 +12,7 @@
 //      models/eval.json either way
 //
 //   npm run learn:win -- <folder> [<folder>…]
+import './positions-ready';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';

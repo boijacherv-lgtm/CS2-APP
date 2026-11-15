@@ -1,5 +1,6 @@
 // A quick look at the coach on the CS2 sample: team-harm marks after a round is decided, grenade-in-hand deaths.
 //   npx vite-node tools/check-sample.ts
+import './positions-ready';
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { getEngine } from '../src/map/catalog';
