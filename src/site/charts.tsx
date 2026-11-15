@@ -250,7 +250,7 @@ export function SplitChart({ points, base, top, bottom, colors, fmt, axis = fmt,
   const box = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(640);
   useEffect(() => { const el = box.current; if (!el) return; const f = () => setW(Math.max(280, Math.round(el.clientWidth))); f(); const ro = new ResizeObserver(f); ro.observe(el); return () => ro.disconnect(); }, []);
-  const H = height, L = 44, R = 12, T = 16, B = divider ? 38 : 22;
+  const H = height, L = 44, R = 12, T = label ? 28 : 16, B = divider ? 38 : 22; // a direct label gets its own band above the plot
   const geo = useMemo(() => {
     const t0 = points[0]?.t ?? 0, t1 = Math.max(t0 + 1, points.at(-1)?.t ?? 1);
     const far = Math.max(1e-9, ...points.map(p => Math.abs(p.v - base)));
@@ -293,7 +293,7 @@ export function SplitChart({ points, base, top, bottom, colors, fmt, axis = fmt,
         <path d={line} fill="none" stroke={colors[1]} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" clipPath={`url(#dn${id})`} />
         {dots.map((d, i) => { const p = at(d.t); return <circle key={i} cx={geo.x(p.t)} cy={geo.y(p.v)} r={4} fill={d.color} className="sc-dot"><title>{d.title}</title></circle>; })}
         {label && (() => { const p = at(label.t), x = geo.x(p.t), y = geo.y(p.v), up = p.v >= base;
-          return <g className="sc-label"><circle cx={x} cy={y} r={3} /><text x={Math.min(W - R - 4, Math.max(L + 4, x))} y={up ? y - 9 : y + 15} textAnchor={x > W * 0.8 ? 'end' : x < W * 0.2 ? 'start' : 'middle'}>{label.text}</text></g>; })()}
+          return <g className="sc-label"><line x1={x} x2={x} y1={T - 4} y2={y} className="sc-leader" /><circle cx={x} cy={y} r={3} /><text x={Math.min(W - R - 4, Math.max(L + 4, x))} y={T - 10} textAnchor={x > W * 0.8 ? 'end' : x < W * 0.2 ? 'start' : 'middle'}>{label.text}</text></g>; })()}
         {h && <line x1={geo.x(h.t)} x2={geo.x(h.t)} y1={T} y2={H - B} className="sc-cursor" />}
       </svg>
       {h && (

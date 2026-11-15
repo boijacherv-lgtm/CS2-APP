@@ -88,7 +88,7 @@ export function TeamSouls({ match, team }: { match: DlMatch; team: DlTeam }) {
   const best = Math.max(...lead), worst = Math.min(...lead), endLead = lead.at(-1)!;
   return (
     <section className="recap-card">
-      <h3>Souls</h3>
+      <h3 aria-level={2}>Souls</h3>
       <div className="dl-kpis">
         <span><b className="num" style={{ color: endLead >= 0 ? 'var(--good)' : 'var(--bad)' }}>{sign(endLead)}</b><i>at the end</i></span>
         <span><b className="num">{best > 0 ? sign(best) : '–'}</b><i>biggest lead</i></span>
@@ -97,7 +97,7 @@ export function TeamSouls({ match, team }: { match: DlMatch; team: DlTeam }) {
       {/* the lead around 0: above in your team's colour, below in theirs; the biggest lead labelled once */}
       {(() => {
         const far = lead.reduce((b, v, i) => (Math.abs(v) > Math.abs(lead[b]) ? i : b), 0);
-        return <SplitChart xticks={Array.from({ length: Math.floor(match.duration / 300) + 1 }, (_, k) => k * 300)} caption={`${TEAM_NAME[team]}'s soul lead over the match`} base={0} colors={[TEAM_COLOR[team], TEAM_COLOR[other]]}
+        return <SplitChart xticks={Array.from({ length: Math.floor(match.duration / 600) + 1 }, (_, k) => k * 600)} caption={`${TEAM_NAME[team]}'s soul lead over the match`} base={0} colors={[TEAM_COLOR[team], TEAM_COLOR[other]]}
           points={pts.map((p, i) => ({ t: p.t, v: lead[i] }))} fmt={sign} axis={v => (Math.abs(v) < 1 ? '0' : `${v > 0 ? '+' : '−'}${(Math.abs(v) / 1000).toFixed(Math.abs(v) >= 10000 ? 0 : 1)}k`)} xfmt={mins}
           label={lead[far] ? { t: pts[far].t, text: `${lead[far] > 0 ? 'Biggest lead' : 'Furthest behind'} ${sign(lead[far])}` } : null}
           dots={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], title: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />;
@@ -122,9 +122,9 @@ export function Economy({ match, slot, watch, slim }: { match: DlMatch; slot: nu
   const band = [{ t: 0, lo: 0, hi: 0 }, ...rows.filter(r => r.avg !== null).map(r => ({ t: r.minute * 60, lo: Math.max(0, r.avg! - r.sd!), hi: r.avg! + r.sd! }))];
   const avgLine = [{ t: 0, v: 0 }, ...rows.filter(r => r.avg !== null).map(r => ({ t: r.minute * 60, v: r.avg! }))];
   // souls a minute in each phase, against the average
-  const at = (mk: number) => rows.find(r => r.minute === mk);
-  const phases = ([['Laning', 0, 12], ['Mid game', 12, 25], ['Late game', 25, last.minute]] as const).filter(([, a, b]) => b > a && (a === 0 || at(a)) && at(b)).map(([label, a, b]) => {
-    const A = a === 0 ? { nw: 0, avg: 0 } : at(a)!, Bm = at(b)!;
+  const at = (mk: number): (typeof rows)[number] | undefined => rows.find(r => r.minute === mk) ?? (mk === Math.floor(match.duration / 60) && mk > last.minute ? ({ ...last, minute: mk, nw: worthAt(match, demo, slot, match.duration), avg: null } as (typeof rows)[number]) : undefined); // the late game runs to the end of the match, past the last benchmark minute
+  const phases = ([['Laning', 0, 12], ['Mid game', 12, 25], ['Late game', 25, Math.max(last.minute, Math.floor(match.duration / 60))]] as const).filter(([, a, b]) => b > a && (a === 0 || at(a)) && at(b)).map(([label, a, b]) => {
+    const A = a === 0 ? { nw: 0, avg: 0 as number | null } : at(a)!, Bm = at(b)!;
     return { label, a, b, you: (Bm.nw - A.nw) / (b - a), avg: Bm.avg !== null && A.avg !== null ? (Bm.avg - A.avg) / (b - a) : null };
   });
   const LABEL = { lane: 'Lane creeps', camps: 'Camps', kills: 'Hero kills', urn: 'Urn', boss: 'Bosses' } as const;
@@ -137,7 +137,7 @@ export function Economy({ match, slot, watch, slim }: { match: DlMatch; slot: nu
   return (
     <>
       <section className="recap-card">
-        <h3>Souls against the average {who}{opp ? ` and ${names[opp.account]?.name ?? heroOf(opp.hero).name}` : ''}</h3>
+        <h3 aria-level={2}>Souls against the average {who}{opp ? ` and ${names[opp.account]?.name ?? heroOf(opp.hero).name}` : ''}</h3>
         <div className="dl-kpis">
           <span><b className="num">{Math.round(last.nw / last.minute).toLocaleString()}</b><i>souls a minute (avg {last.avg !== null ? Math.round(last.avg / last.minute).toLocaleString() : '–'})</i></span>
           {lh12 && <span><b className="num">{lh12.lh}</b><i>last hits at 12:00 (avg {lh12.lhAvg !== null ? Math.round(lh12.lhAvg) : '–'})</i></span>}
@@ -151,7 +151,7 @@ export function Economy({ match, slot, watch, slim }: { match: DlMatch; slot: nu
 
       {!slim && (
       <section className="recap-card">
-        <h3>What to take away</h3>
+        <h3 aria-level={2}>What to take away</h3>
         <ul className="dl-take">
           {weak && weak.avg !== null && <li className={weak.you >= weak.avg ? 'is-up' : 'is-down'}><b>{weak.label} ({weak.a}–{weak.b} min)</b>{weak.you >= weak.avg ? ' was your best stretch: ' : ' is where you fell behind: '}{Math.round(weak.you).toLocaleString()} souls a minute against {Math.round(weak.avg).toLocaleString()}.</li>}
           {short && short.avg !== null && short.you < short.avg * 0.85 && <li className="is-down"><b>{LABEL[short.k]}</b> brought {Math.round(short.you).toLocaleString()} souls by {last.minute} min; the average {who} gets {Math.round(short.avg).toLocaleString()}.{short.k === 'camps' ? ' Clear a camp on your way when the lane is pushed.' : short.k === 'lane' ? ' Last-hit more and keep up with the waves.' : short.k === 'urn' ? ' Join the urn when it spawns on your side.' : ''}</li>}
@@ -162,7 +162,7 @@ export function Economy({ match, slot, watch, slim }: { match: DlMatch; slot: nu
       )}
 
       <section className="recap-card">
-        <h3>Souls a minute by phase</h3>
+        <h3 aria-level={2}>Souls a minute by phase</h3>
         <div className="dl-phases">
           {phases.map(p => (
             <div key={p.label} className={p.avg === null ? '' : p.you >= p.avg ? 'up' : 'down'}>
@@ -176,7 +176,7 @@ export function Economy({ match, slot, watch, slim }: { match: DlMatch; slot: nu
 
       {!slim && (
       <section className="recap-card">
-        <h3>Where the souls came from (by {last.minute} min)</h3>
+        <h3 aria-level={2}>Where the souls came from (by {last.minute} min)</h3>
         <ul className="dl-src">
           {last.src.map(x => (
             <li key={x.k}>
@@ -215,7 +215,7 @@ export function Items({ match, slot, slim }: { match: DlMatch; slot: number; sli
     <>
       {!slim && (
       <section className="recap-card">
-        <h3>Buy against this enemy team</h3>
+        <h3 aria-level={2}>Buy against this enemy team</h3>
         <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Items that win more than usual on {hero.name} against these heroes this patch ({band.label}), from public matches: the number is how much more often games with it are won against them; the heroes, who it helps most against.</p></details>
         <div className="dl-enemies">{enemies.map(h => <HeroImg key={h} hero={h} size={30} />)}</div>
         {counters === null ? <Loading>Reading the item stats…</Loading> : counters === 'error' ? <p className="muted">Couldn't read the item stats (deadlock-api). Try again later.</p> : (
@@ -239,7 +239,7 @@ export function Items({ match, slot, slim }: { match: DlMatch; slot: number; sli
       )}
 
       <section className="recap-card">
-        <h3>Your build</h3>
+        <h3 aria-level={2}>Your build</h3>
         <div className="dl-build-phases">
           {PH.map(([label, a, b]) => {
             const xs = bought.filter(i => i.t >= a && i.t < b);
@@ -265,7 +265,7 @@ export function Items({ match, slot, slim }: { match: DlMatch; slot: number; sli
 
       {!slim && (
       <section className="recap-card">
-        <h3>Core items on {hero.name}</h3>
+        <h3 aria-level={2}>Core items on {hero.name}</h3>
         {meta === null ? <Loading>Reading this patch's items…</Loading> : meta === 'error' ? <p className="muted">Couldn't read the item stats.</p> : (
           <div className="dl-rc-core">
             {core.map(c => {
@@ -350,7 +350,7 @@ export function Objectives({ match, team, watch }: { match: DlMatch; team: DlTea
       </section>
       <Collapse title="Who took what" hint="every objective, by lane">
       <section className="recap-card">
-        <h3>Who took what</h3>
+        <h3 aria-level={2}>Who took what</h3>
         <ul className="dl-obj-list">
           {feed.map((e, i) => {
             const by = nameOf(e.slot), side = e.team !== null ? TEAM_NAME[e.team] : '';
@@ -393,13 +393,13 @@ export function WinChance({ match, team, watch }: { match: DlMatch; team: DlTeam
   const peak = Math.max(...curve.map(c => c.v)), low = Math.min(...curve.map(c => c.v));
   return (
     <section className="recap-card" title={`From the coach's model: ${WIN_MODEL.matches.toLocaleString()} high-rank matches since the patch; right about the winner ${Math.round(WIN_MODEL.test.accuracy * 100)}% of the time on matches it hadn't seen`}>
-      <h3>Chance to win</h3>
+      <h3 aria-level={2}>Chance to win</h3>
       <div className="dl-kpis">
         <span><b className="num">{Math.round(peak)}%</b><i>highest</i></span>
         <span><b className="num">{Math.round(low)}%</b><i>lowest</i></span>
         <span><b className="num" style={{ color: match.winner === team ? 'var(--good)' : 'var(--bad)' }}>{match.winner === team ? 'Won' : 'Lost'}</b><i>{match.winner === team ? (low < 35 ? 'a comeback' : 'as expected') : (peak > 65 ? 'thrown from ahead' : 'never really ahead')}</i></span>
       </div>
-      <SplitChart xticks={Array.from({ length: Math.floor(match.duration / 300) + 1 }, (_, k) => k * 300)} caption={`${TEAM_NAME[team]}'s chance to win over the match`} base={50} top={100} bottom={0} colors={[TEAM_COLOR[team], TEAM_COLOR[(1 - team) as DlTeam]]}
+      <SplitChart xticks={Array.from({ length: Math.floor(match.duration / 600) + 1 }, (_, k) => k * 600)} caption={`${TEAM_NAME[team]}'s chance to win over the match`} base={50} top={100} bottom={0} colors={[TEAM_COLOR[team], TEAM_COLOR[(1 - team) as DlTeam]]}
         points={curve} fmt={v => `${Math.round(v)}%`} xfmt={mins} onPick={watch}
         label={(() => { const big = [...moves].sort((a, b) => Math.abs(b.d) - Math.abs(a.d))[0]; return big ? { t: big.t, text: `${mins(big.t)} ${big.d >= 0 ? '+' : '−'}${Math.abs(big.d).toFixed(0)}%` } : null; })()}
         dots={match.midBoss.map(b => ({ t: b.t, color: TEAM_COLOR[b.team], title: `${TEAM_NAME[b.team]} took the Mid Boss` }))} />
@@ -425,7 +425,7 @@ export function Positioning({ match, slot, watch }: { match: DlMatch; slot: numb
   const dots = p.path.filter(d => d.t >= ph.from && d.t < ph.to);
   return (
     <section className="recap-card dl-spots">
-      <h3>Where you played</h3>
+      <h3 aria-level={2}>Where you played</h3>
       <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Next to Pos {p.pos} players at {SPOT_SOURCE.minBadge >= 91 ? 'Phantom and up' : 'high ranks'} ({SPOT_SOURCE.matches} matches): time spent where they usually are.</p></details>
       <div className="dl-spots-body">
         <svg viewBox={`0 0 ${S} ${S}`} className="dl-spots-map" role="img" aria-label={`Your path from ${ph.label}, over where good Pos ${p.pos} players usually are`}>

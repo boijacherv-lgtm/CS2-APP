@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 export function Collapse({ title, hint, open, children }: { title: string; hint?: string; open?: boolean; children: ReactNode }) {
   return (
     <details className="collapse" open={open}>
-      <summary><h3>{title}</h3>{hint && <span className="muted small">{hint}</span>}</summary>
+      <summary><h3 aria-level={2}>{title}</h3>{hint && <span className="muted small">{hint}</span>}</summary>
       {children}
     </details>
   );
