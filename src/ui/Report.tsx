@@ -45,6 +45,7 @@ export function MatchReportPage() {
   // your default comparison (Settings), when the pro models are there
   const [level, setLevel] = useState<Level>(() => (useProfile.getState().data.prefs.compare === 'pro' && (!!PRO_MODEL || proAnalystAvailable) ? 'pro' : 'lvl10'));
   const [fullBoard, setFullBoard] = useState(false);
+  const [more, setMore] = useState<'duo' | 'fix' | 'keep'>('duo');
   const [tab, setTab] = useState<RecapTab>(() => { try { const t = localStorage.getItem(LS_TAB); if (t === 'analyst' || t === 'positions' || t === 'engine') return 'coach'; return t && RECAP_TABS.some(x => x.id === t) ? t as RecapTab : 'overview'; } catch { return 'overview'; } });
   const pickTab = (t: RecapTab) => { setTab(t); try { localStorage.setItem(LS_TAB, t); } catch { /* private mode */ } document.querySelector('.report')?.scrollTo({ top: 0 }); };
   // the overview's short version: the coach's summary, the three things to fix first, two to keep
@@ -104,36 +105,30 @@ export function MatchReportPage() {
           <Performance p={focus} players={view.players} me={me} onPlayer={setPicked} />
           {report.done && <RoundCallouts p={focus} onRound={openRound} />}
           <MatchChance data={data} team={focus.team as 0 | 1} onRound={i => openRound(i)} />
-          <div className="recap-two">
-          {report.done && <Collapse title="Side by side" hint="you next to another player"><DuoCard a={focus} players={view.players} /></Collapse>}
-          <section className="recap-card overview">
+          <section className="recap-card more-card">
             {/* half-graded notes read like verdicts: wait for every round */}
-            {!report.done && <p className="ov-summary muted">The coach's notes appear once every round is graded ({view.graded}/{view.total}).</p>}
-            {/* the summary is the header's one line (recap-verdict): not repeated here */}
-            <Collapse title="More to work on and keep" hint="the other fixes and what you already do well">
-            {/* the first fix is the header's line and the Fix next card: the list adds only what comes after it */}
-            {report.done && overview.fix.length > 1 && (
+            {!report.done ? <p className="ov-summary muted">The coach's notes appear once every round is graded ({view.graded}/{view.total}).</p> : (
               <>
-                <h3>Also work on</h3>
-                <ol className="ov-list" start={2}>
-                  {overview.fix.slice(1).map(n => (
-                    <li key={n.title}>
-                      <b>{n.title}</b>
-                      {n.rounds.length > 0 && <span className="coach-rounds">{watch(n.rounds)}</span>}
-                    </li>
-                  ))}
-                </ol>
+                <div className="more-head">
+                  <h2 className="display">More to work on and keep</h2>
+                  <div className="seg-mini more-seg" role="tablist" aria-label="Which view">
+                    {([['duo', 'Side by side'], ['fix', 'Fix next'], ['keep', 'Keep doing']] as const).map(([k, l]) => (
+                      <button key={k} role="tab" aria-selected={more === k} className={more === k ? 'on' : ''} onClick={() => setMore(k)}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+                {more === 'duo' && <DuoCard a={focus} players={view.players} />}
+                {more === 'fix' && (overview.fix.length > 1
+                  ? <ol className="ov-list" start={2}>{overview.fix.slice(1).map(n => (
+                    <li key={n.title}><b>{n.title}</b>{n.rounds.length > 0 && <span className="coach-rounds">{watch(n.rounds)}</span>}</li>
+                  ))}</ol>
+                  : <p className="muted">Nothing else to fix after the first note.</p>)}
+                {more === 'keep' && (overview.keep.length > 0
+                  ? <ul className="ov-list keep">{overview.keep.map(n => <li key={n.title}><b>{n.title}</b></li>)}</ul>
+                  : <p className="muted">Nothing stood out as a habit to keep yet.</p>)}
               </>
             )}
-            {report.done && overview.keep.length > 0 && (
-              <>
-                <h3>Keep doing</h3>
-                <ul className="ov-list keep">{overview.keep.map(n => <li key={n.title}><b>{n.title}</b></li>)}</ul>
-              </>
-            )}
-            </Collapse>
           </section>
-          </div>
         </>
       )}
       {/* one Coach tab (was Coach, Analyst, Positions and Engine): the notes, the engine's moments, the numbers, where you stood */}
@@ -232,13 +227,21 @@ function MatchChance({ data, team, onRound }: { data: DemoData; team: 0 | 1; onR
   if (data.rounds.length < 4) return null;
   const vs = curve.map(p => p.v), peak = Math.max(...vs), low = Math.min(...vs), end = vs[vs.length - 1], won = end > 50;
   const peakAt = curve[vs.indexOf(peak)].t, lowAt = curve[vs.indexOf(low)].t, last = curve[curve.length - 1].t;
-  const story = `Peaked ${Math.round(peak)}% in R${peakAt}${low < 50 ? ` · fell to ${Math.round(low)}% by R${lowAt}` : ''} · ${won ? (low < 35 ? 'a comeback' : 'won as expected') : (peak > 65 ? 'lost from ahead' : 'never really ahead')}`;
+  // the round the match was decided: where the chance last crossed 50% and stayed on the final side
+  let k = vs.length - 1;
+  while (k > 0 && (vs[k - 1] > 50) === won && vs[k - 1] !== 50) k--;
+  const decided = k > 0 ? curve[k] : null;
+  const ledFrom = vs.findIndex((_, i) => vs.slice(i).every(v => v > 50));
+  const story = won
+    ? (low >= 50 ? 'Never below 50%' : low < 35 ? `Comeback from ${Math.round(low)}%` : ledFrom > 0 ? `Led from R${curve[ledFrom].t}` : 'Won as expected')
+    : (peak > 65 ? `Lost from ahead ${Math.round(peak)}% → ${Math.round(end)}%` : peak <= 50 ? 'Never above 50%' : `Behind from R${curve[Math.max(0, vs.findIndex((_, i) => vs.slice(i).every(v => v < 50)))].t}`);
   const first = [...swaps].find(i => i > 0);
   return (
     <section className="recap-card match-chance">
       <div className="coach-head"><h2 className="display">Chance to win</h2><span className="chip takeaway">{story}</span></div>
       <SplitChart caption="Your team's chance to win the match, round by round" base={50} top={100} bottom={0} colors={['var(--good)', 'var(--bad)']}
         height={132} points={curve} fmt={v => `${Math.round(v)}%`} xfmt={t => (t === 0 ? 'Start' : `R${t}`)} xticks={Array.from({ length: Math.floor(last / 3) + 1 }, (_, k) => k * 3)} divider={first ? { t: first, label: 'Sides switched' } : null}
+        dots={decided ? [{ t: decided.t, color: won ? 'var(--good)' : 'var(--bad)', title: `Decided in R${decided.t}` }] : []}
         onPick={t => onRound(Math.max(0, Math.min(data.rounds.length - 1, t - 1)))} />
     </section>
   );
@@ -302,11 +305,11 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
         <div className="kpi perf-grade-tile" title={whyTitle(p)}>
           <span>Grade</span>
           {/* the reveal: the badge flips in once; S+ gets a short confetti burst (no motion with reduced motion) */}
-          <span className="perf-reveal">
+          <span className="pg-row"><span className="perf-reveal">
             <span className={`perf-letter display reveal g-${gradeKey(matchGrade(p))}`} style={letterStyle(matchGrade(p))}>{matchGrade(p)}</span>
             {matchGrade(p) === 'S+' && <span className="confetti" aria-hidden>{Array.from({ length: 14 }, (_, i) => <i key={i} style={{ '--a': `${(i * 360) / 14}deg`, '--d': `${38 + (i % 3) * 10}px` } as React.CSSProperties} />)}</span>}
-          </span>
-          <i>{p.level || p.lvl10 ? 'vs level 10' : 'in this lobby'}{NICK[matchGrade(p)] ? ` · ${NICK[matchGrade(p)]}` : ''}</i>
+          </span>{NICK[matchGrade(p)] && <b className="pg-word">{NICK[matchGrade(p)]}</b>}</span>
+          <i>{p.level || p.lvl10 ? 'vs level 10' : 'in this lobby'}</i>
         </div>
         {p.gameRating !== null && (
           <div className="kpi" title="Estimated rating for this match (duel performance + round impact); the change is against their real Premier rating">
@@ -849,9 +852,8 @@ function DuoCard({ a, players }: { a: PlayerReport; players: PlayerReport[] }) {
     ['Utility damage', p => p.utilDamage, v => v.toFixed(0)],
   ];
   return (
-    <section className="recap-card duo">
+    <div className="duo">
       <div className="duo-head">
-        <h3>Side by side</h3>
         <label className="muted small">with <select value={b.id} onChange={e => setB(e.target.value)}>{mates.map(p => <option key={p.id} value={p.id}>{p.name}{p.team === a.team ? ' (teammate)' : ' (enemy)'}</option>)}</select></label>
       </div>
       <table className="duo-table">
@@ -866,7 +868,7 @@ function DuoCard({ a, players }: { a: PlayerReport; players: PlayerReport[] }) {
           })}
         </tbody>
       </table>
-    </section>
+    </div>
   );
 }
 

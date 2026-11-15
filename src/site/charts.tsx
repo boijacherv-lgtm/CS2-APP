@@ -250,7 +250,7 @@ export function SplitChart({ points, base, top, bottom, colors, fmt, axis = fmt,
   const box = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(640);
   useEffect(() => { const el = box.current; if (!el) return; const f = () => setW(Math.max(280, Math.round(el.clientWidth))); f(); const ro = new ResizeObserver(f); ro.observe(el); return () => ro.disconnect(); }, []);
-  const H = height, L = 44, R = 12, T = 16, B = 22;
+  const H = height, L = 44, R = 12, T = 16, B = divider ? 38 : 22;
   const geo = useMemo(() => {
     const t0 = points[0]?.t ?? 0, t1 = Math.max(t0 + 1, points.at(-1)?.t ?? 1);
     const far = Math.max(1e-9, ...points.map(p => Math.abs(p.v - base)));
@@ -258,7 +258,7 @@ export function SplitChart({ points, base, top, bottom, colors, fmt, axis = fmt,
     const x = (t: number) => L + ((t - t0) / (t1 - t0)) * (W - L - R);
     const y = (v: number) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
     return { x, y, hi, lo };
-  }, [points, base, top, bottom, H]);
+  }, [points, base, top, bottom, H, W]);
   if (points.length < 2) return <p className="muted small">2 more points to draw this.</p>;
   const line = points.map((p, i) => `${i ? 'L' : 'M'}${geo.x(p.t).toFixed(1)} ${geo.y(p.v).toFixed(1)}`).join(' ');
   const yb = geo.y(base);
@@ -284,8 +284,8 @@ export function SplitChart({ points, base, top, bottom, colors, fmt, axis = fmt,
           </g>
         ))}
         {ticks.map(t => <line key={t} x1={geo.x(t)} x2={geo.x(t)} y1={H - B} y2={H - B + 4} className="sc-tick" />)}
-        {(xticks.length ? xticks : [points[0].t, points.at(-1)!.t]).map((t, k, all) => <text key={t} x={geo.x(t)} y={H - 6} className="sc-axis" textAnchor={k === 0 ? 'start' : k === all.length - 1 ? 'end' : 'middle'}>{xfmt(t)}</text>)}
-        {divider && <g><line x1={geo.x(divider.t)} x2={geo.x(divider.t)} y1={T} y2={H - B} className="sc-divider" /><text x={geo.x(divider.t) + 4} y={T + 10} className="sc-axis">{divider.label}</text></g>}
+        {(xticks.length ? xticks : [points[0].t, points.at(-1)!.t]).map((t, k, all) => <text key={t} x={geo.x(t)} y={H - B + 15} className="sc-axis" textAnchor={k === 0 ? 'start' : k === all.length - 1 ? 'end' : 'middle'}>{xfmt(t)}</text>)}
+        {divider && <g className="sc-divider-g"><line x1={geo.x(divider.t)} x2={geo.x(divider.t)} y1={H - B} y2={H - B + 6} className="sc-divider" /><rect x={geo.x(divider.t) - 50} y={H - 18} width={100} height={16} rx={6} className="sc-chip" /><text x={geo.x(divider.t)} y={H - 6} className="sc-axis" textAnchor="middle">{divider.label}</text></g>}
         <path d={area} fill={colors[0]} fillOpacity={0.12} clipPath={`url(#up${id})`} />
         <path d={area} fill={colors[1]} fillOpacity={0.12} clipPath={`url(#dn${id})`} />
         <line x1={L} x2={W - R} y1={yb} y2={yb} className="sc-base" />

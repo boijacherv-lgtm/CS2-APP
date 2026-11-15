@@ -211,7 +211,7 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
       {tab === 'players' && <section>
         <table className="kills">
           <thead><tr><th /><th title="Round grade, S+ (dominated the round) … F (a game-losing mistake). Hover a grade for why">Grade</th><th title="Total change in their team's win chance">Impact</th>
-            {COUNTED.map(g => <th key={g} title={`${NOTE_INFO[g].label} moves`} ><MarkFace note={g} size={16} /></th>)}
+            <th title="Brilliant and great moves">Great+</th><th title="Inaccuracies and mistakes">Slips</th><th title="Blunders: the costliest kind">Blunders</th>
           </tr></thead>
           <tbody>
             {Object.entries(players).sort(([a], [b]) => sideOf(a).localeCompare(sideOf(b)) || players[b].impact - players[a].impact).map(([id, p]) => (
@@ -221,8 +221,8 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
                   {finished && recap.roles[id] && <span className="role" title={recap.roles[id].note}>{recap.roles[id].role}</span>}
                 </td>
                 <td><Letter moves={seen.filter(m => m.player === id)} round={r} id={id} upTo={all ? Infinity : s.time} /></td>
-                <td style={{ color: p.impact > 0.02 ? '#7fbf4d' : p.impact < -0.02 ? '#e5483a' : undefined }}>{signed(p.impact)}</td>
-                {COUNTED.map(g => <td key={g}>{p.counts[g] || ''}</td>)}
+                <td className={`num mk-impact ${p.impact > 0.02 ? 'up' : p.impact < -0.02 ? 'down' : ''}`}>{p.impact > 0.02 ? '▲ ' : p.impact < -0.02 ? '▼ ' : ''}{signed(p.impact)}</td>
+                {[p.counts['!!'] + p.counts['!'], p.counts['?!'] + p.counts['?'], p.counts['??']].map((n, k) => <td key={k} className={`num mk-n ${k > 0 && n ? 'down' : ''}`}>{n || '·'}</td>)}
               </tr>
             ))}
           </tbody>
