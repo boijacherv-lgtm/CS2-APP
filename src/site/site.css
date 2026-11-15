@@ -1327,3 +1327,18 @@ a.hero-games-live:hover b { text-decoration: underline; }
 .sb .sb-adr { position: relative; } .sb .sb-adr i { position: absolute; left: 8px; bottom: 3px; height: 2px; max-width: calc(100% - 16px); border-radius: 2px; background: var(--text-3); }
 .sb .letter-chip { min-width: 28px; height: 28px; font-size: 16px; border-radius: 6px; }
 .sb td.sb-name { position: sticky; left: 0; background: var(--surface-1); z-index: var(--z-base); }
+
+/* round 12: the heat grid fits its card (30 rounds never clip); the scoreboard numbers read at 14 px */
+.rg { table-layout: fixed; max-width: 960px; }
+.rg td.name, .rg thead th:first-child { width: 130px; }
+.rg .hc { width: 100%; min-width: 14px; max-width: 28px; margin: 0 auto; }
+.rg td.cell { padding: 1px; }
+.sb td.num { font-size: 14px; }
+.sb td { font-size: 14px; }
+
+/* round 12 (1.4): widths: reading text 1120, tables 880, charts 960; a tooltip flips to the side with room, 280 at most */
+.recap-card p, .recap-card .ov-list { max-width: 1120px; }
+.sb-wrap, .duo-table, .num-rows, .habits-table { max-width: 880px; }
+.split-chart, .stretch-line { max-width: 960px; }
+.area-tip { max-width: 280px; }
+.area-tip.flip { transform: translateX(calc(-100% - 12px)); }

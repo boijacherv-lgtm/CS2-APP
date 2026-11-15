@@ -711,7 +711,7 @@ function Scoreboard({ team, players, score, focus, me, onPick, full }: { team: 0
               <tr key={p.id} className={p.id === focus ? 'focus' : ''} onClick={() => onPick(p.id)} title="Show their game in the cards above">
                 <td className="sb-name"><b className={team === 0 ? 'ct' : 't'}>{p.name}</b>{p.id === me && <span className="you-chip">YOU</span>}</td>
                 {hasRank && <td>{p.rank !== null ? fmt(p.rank) : <span className="muted" title="No Premier rating in the demo (unranked, or not played this season)">–</span>}</td>}
-                {hasGame && <td title={p.duelRating !== null ? `Duels ${p.duelsWon}–${p.duelsLost} vs avg ${fmt(p.avgOpponent ?? 0)} → ${fmt(p.duelRating)}; impact ${p.pointsPerRound >= 0 ? '+' : ''}${p.pointsPerRound.toFixed(1)} pts/round` : 'No duels yet'}>
+                {hasGame && <td title={p.duelRating !== null ? `Duels ${p.duelsWon}–${p.duelsLost} vs avg ${fmt(p.avgOpponent ?? 0)} → ${fmt(p.duelRating)}; impact ${p.pointsPerRound >= 0 ? '+' : ''}${p.pointsPerRound.toFixed(1)}% a round` : 'No duels yet'}>
                   <b>{p.gameRating !== null ? fmt(p.gameRating) : '–'}</b>
                 </td>}
                 {full && hasDelta && <td className={delta === null ? '' : delta >= 1000 ? 'hi' : delta <= -1000 ? 'lo' : ''}>{delta === null ? '' : `${delta >= 0 ? '+' : '−'}${fmt(Math.abs(delta))}`}</td>}
@@ -814,7 +814,7 @@ function RoundGrid({ data, players, focus, hot, onPick, onRound }: {
                 <td className="name" onClick={() => onPick(p.id)}><i className={`rg-dot ${p.team === 0 ? 'ct' : 't'}`} />{p.name}</td>
                 {p.rounds.map((l, i) => (
                   <td key={i} onClick={() => onRound(i)} className={`cell ${swap[i] ? 'half' : ''} ${hot === i ? 'hot' : ''}`}
-                    title={l ? `${l.side} · ${l.role} · ${l.kills}K ${l.deaths}D · ${Math.round(l.damage)} dmg · ${l.points >= 0 ? '+' : ''}${l.points.toFixed(0)} pts${l.tags.length ? ` · ${[...new Set(l.tags)].join(', ')}` : ''}` : 'not graded yet'}>
+                    title={l ? `${l.side} · ${l.role} · ${l.kills}K ${l.deaths}D · ${Math.round(l.damage)} dmg · ${l.points >= 0 ? '+' : ''}${l.points.toFixed(0)}%${l.tags.length ? ` · ${[...new Set(l.tags)].join(', ')}` : ''}` : 'not graded yet'}>
                     {l ? <span className="hc" data-l={l.letter} style={{ background: LETTER_COLOR[l.letter] }} /> : <span className="muted">·</span>}
                   </td>
                 ))}
