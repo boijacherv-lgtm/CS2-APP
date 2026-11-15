@@ -1556,23 +1556,21 @@ body { font-weight: 500; }
 .release-shot { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); margin: 0 0 12px; }
 .moments-head .puzzle-rating { white-space: nowrap; display: inline-flex; align-items: baseline; gap: 6px; }
 
-/* round 14, the bomb timer: the cell itself is the timer. Its colour fills it and drains with the fuse; the number is dark on the fill and
-   light on the rest; at 0 it turns red; a defuse splits the cell, the bottom half is the defuse timer */
-.sb-mid:has(.sb-tcell) { padding: 0; min-width: 136px; overflow: hidden; }
+/* round 15, the bomb cell: each row's colour fills it and drains with the time; the number stays on a fixed dark plate (one colour, no letter ever
+   crosses the fill's edge); at 0 it turns red; a defuse splits the cell in two rows of ~21px, the bottom one the defuse timer */
+.sb-mid:has(.sb-tcell) { padding: 0; min-width: 104px; overflow: hidden; }
 .sb-tcell { display: grid; grid-template-rows: 1fr; width: 100%; height: 100%; }
-.sb-tcell.split { grid-template-rows: 1fr 1fr; gap: 1px; background: var(--white-12); }
-.tt { --tc: var(--gold); position: relative; display: grid; align-items: center; justify-items: center; overflow: hidden; background: color-mix(in srgb, var(--tc) 12%, var(--ink)); min-height: 0; }
-.tt.tone-amber { --tc: var(--gold); } .tt.tone-orange { --tc: var(--letter-d); } .tt.tone-red { --tc: var(--bad); } .tt.tone-ct { --tc: var(--ct); } .tt.tone-late { --tc: var(--bad); }
-.tt-fill { position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--tc); transition: width .12s linear; }
-.tt.tone-late .tt-fill { background: repeating-linear-gradient(45deg, var(--bad) 0 4px, color-mix(in srgb, var(--bad) 55%, var(--ink)) 4px 8px); }
-.tt-text { grid-area: 1 / 1; position: relative; display: flex; width: 100%; height: 100%; justify-content: center; align-items: center; gap: 6px; white-space: nowrap; }
-.tt-text.light { color: var(--text-1); }
-.tt-text.dark { color: var(--ink); clip-path: inset(0 calc(100% - var(--p)) 0 0); }
-.tt.tone-red .tt-text.dark, .tt.tone-late .tt-text.dark { color: var(--white); }
-.tt.zero .tt-text.light { color: var(--bad); }
-.tt small { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.tt b { font-size: 24px; line-height: 1; font-weight: 800; }
-.sb-tcell.split .tt b { font-size: 16px; } .sb-tcell.split .tt small { font-size: 12px; }
+.sb-tcell.split { grid-template-rows: 1fr 1fr; gap: 2px; background: var(--ink); }
+.bt { --tc: var(--gold); position: relative; display: grid; place-items: center; overflow: hidden; min-height: 0; background: color-mix(in srgb, var(--tc) 22%, var(--ink)); }
+.bt.tone-amber { --tc: var(--gold); } .bt.tone-orange { --tc: var(--letter-d); } .bt.tone-red { --tc: var(--bad); } .bt.tone-ct { --tc: var(--ct); } .bt.tone-late { --tc: var(--bad); }
+.bt-fill { position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--tc); transition: width .12s linear; }
+.bt.tone-late .bt-fill { background: repeating-linear-gradient(45deg, var(--bad) 0 4px, color-mix(in srgb, var(--bad) 55%, var(--ink)) 4px 8px); }
+.bt-plate { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; min-width: 64px; height: 80%; max-height: 32px; border-radius: 6px; background: var(--ink); color: var(--white); white-space: nowrap; }
+.bt.zero .bt-plate b { color: var(--bad); }
+.bt small { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.bt b { font-size: 20px; line-height: 1; font-weight: 800; }
+.sb-tcell.split .bt-plate { min-width: 56px; padding: 0 8px; height: 86%; gap: 5px; }
+.sb-tcell.split .bt b { font-size: 14px; } .sb-tcell.split .bt small { font-size: 12px; letter-spacing: 0; }
 
 /* round 14, the panel's tables fit the panel: fixed layout, names cut with an ellipsis, loadout under the name */
 .drawer table.kills { width: 100%; table-layout: fixed; }

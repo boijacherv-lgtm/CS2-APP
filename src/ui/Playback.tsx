@@ -129,13 +129,13 @@ export function ScoreBug({ score, round, roundNo, time, switched, names }: {
               // fill and on the rest; a defuse splits the cell in two, the bottom half being the defuse timer
               ? (
                 <div className={`sb-tcell ${tone || 'amber'} ${defuse ? 'split' : ''}`} title={defuse ? `${defuse.who ? `${defuse.who} · ` : ''}${defuse.kit ? 'kit' : 'no kit'}${defuse.ok ? '' : ' · too late'}` : undefined}>
-                  <TwoTone p={planting !== null && fuse === null ? planting * 100 : (fuse ?? 0) / BOMB_SECONDS * 100} tone={tone || 'amber'} zero={fuse !== null && fuse <= 0} cls="top">
-                    <Icon name="bomb" size={defuse ? 12 : 16} /><small>{fuse === null ? 'Planting' : 'Bomb'}</small>{fuse !== null && <b className="num">{clockText}</b>}
-                  </TwoTone>
+                  <BombRow p={planting !== null && fuse === null ? planting * 100 : (fuse ?? 0) / BOMB_SECONDS * 100} tone={tone || 'amber'} zero={fuse !== null && fuse <= 0}>
+                    <Icon name="bomb" size={defuse ? 12 : 16} />{fuse === null ? <small>Planting</small> : <b className="num">{clockText}</b>}
+                  </BombRow>
                   {defuse && (
-                    <TwoTone p={defuse.share * 100} tone={defuse.ok ? 'ct' : 'late'} zero={false} cls="bottom">
-                      <Icon name="scissors" size={12} /><small>{defuse.kit ? 'Kit' : 'Defuse'}</small><b className="num">{Math.ceil(defuse.need)}</b>
-                    </TwoTone>
+                    <BombRow p={defuse.share * 100} tone={defuse.ok ? 'ct' : 'late'} zero={false}>
+                      <Icon name="scissors" size={12} /><b className="num">{Math.ceil(defuse.need)}</b>{defuse.kit && <small>kit</small>}
+                    </BombRow>
                   )}
                 </div>
               )
@@ -150,13 +150,15 @@ export function ScoreBug({ score, round, roundNo, time, switched, names }: {
   );
 }
 
-/** A timer drawn as a fill with its label in two colours: dark where the fill is under it, light on the rest (so it reads the whole way down). */
-function TwoTone({ p, tone, zero, cls, children }: { p: number; tone: string; zero: boolean; cls: string; children: React.ReactNode }) {
+/**
+ * One timer row of the bomb cell: the colour fills the row and drains with the time; the number sits on a fixed dark plate, so
+ * it is one colour and readable whatever the fill is doing (no letter ever crosses the edge of the fill). At 0 the number turns red.
+ */
+function BombRow({ p, tone, zero, children }: { p: number; tone: string; zero: boolean; children: React.ReactNode }) {
   return (
-    <div className={`tt ${cls} tone-${tone} ${zero ? 'zero' : ''}`} style={{ '--p': `${Math.max(0, Math.min(100, p))}%` } as React.CSSProperties}>
-      <i className="tt-fill" />
-      <span className="tt-text light">{children}</span>
-      <span className="tt-text dark" aria-hidden>{children}</span>
+    <div className={`bt tone-${tone} ${zero ? 'zero' : ''}`} style={{ '--p': `${Math.max(0, Math.min(100, p))}%` } as React.CSSProperties}>
+      <i className="bt-fill" />
+      <span className="bt-plate">{children}</span>
     </div>
   );
 }
