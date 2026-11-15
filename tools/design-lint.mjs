@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 
 const FILES = ['src/styles.css', 'src/site/site.css', 'src/deadlock/dl.css', 'src/ui/theme.css'];
-const RADII = new Set(['6px', '10px', '16px', '999px', '50%', 'inherit', '0']), SIZES = new Set([12, 14, 16, 20, 24, 32, 48, 64]);
+const RADII = new Set(['2px', '6px', '10px', '16px', '999px', '50%', 'inherit', '0']), SIZES = new Set([12, 14, 16, 20, 24, 32, 48, 64]);
 /** Splits a list on the commas outside brackets. */
 const splitTop = (v) => { const parts = []; let depth = 0, cur = ''; for (const ch of v) { if (ch === '(') depth++; if (ch === ')') depth--; if (ch === ',' && !depth) { parts.push(cur); cur = ''; } else cur += ch; } return [...parts, cur]; };
 const out = { hexOutsideTheme: 0, radius: 0, zIndex: 0, shadows: new Set(), fontSize: 0, durations: 0 };

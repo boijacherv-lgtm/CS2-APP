@@ -2,7 +2,7 @@ import { lastN, plural } from '../site/format';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { useEffect, useMemo, useState } from 'react';
 import { navigate } from '../shell/router';
-import { AreaChart, MiniLine, ResultStrip, TrendTile } from '../site/charts';
+import { AreaChart, MiniLine, ResultStrip, TrendTile, type TileMeta } from '../site/charts';
 import { Icon } from '../ui/Icon';
 import { Loading } from '../ui/Loading';
 import { getItem, setItem } from '../ui/localStore';
@@ -171,11 +171,19 @@ export function DlProfile({ account }: { account: string | null }) {
     <>
       {/* the same top as CS2's profile: the stat strip, then the biggest leak and your superpower */}
       <div className="trend-row stat-strip">
-        <TrendTile label="KDA" values={chrono.map(r => (r.player_kills + r.player_assists) / Math.max(1, r.player_deaths))} fmt={v => v.toFixed(2)} />
-        <TrendTile label="Souls a minute" values={chrono.filter(hasSouls).map(spm)} fmt={v => Math.round(v).toLocaleString('en-US')} />
-        <TrendTile label="Last hits a minute" values={chrono.filter(hasSouls).map(r => r.last_hits / Math.max(1, r.match_duration_s / 60))} fmt={v => v.toFixed(1)} />
-        <TrendTile label="Deaths" values={chrono.map(r => r.player_deaths)} fmt={v => v.toFixed(1)} higherBetter={false} />
-        {ranked.length >= 2 && <TrendTile label={`Rank · ${rankName(ranked.at(-1)!.ranked_display_badge!)}`} values={ranked.map(r => r.ranked_display_badge!)} fmt={v => rankName(Math.round(v))} sub={`your last ${ranked.length} ranked`} />}
+        {(() => {
+          const metaOf = (xs: DlHistoryRow[]): TileMeta[] => xs.map(r => ({ win: won(r), tip: `${heroOf(r.hero_id).name} · ${day(r.start_time)}` }));
+          const rich = chrono.filter(hasSouls);
+          return (
+            <>
+              <TrendTile label="KDA" meta={metaOf(chrono)} values={chrono.map(r => (r.player_kills + r.player_assists) / Math.max(1, r.player_deaths))} fmt={v => v.toFixed(2)} />
+              <TrendTile label="Souls a minute" meta={metaOf(rich)} values={rich.map(spm)} fmt={v => Math.round(v).toLocaleString('en-US')} />
+              <TrendTile label="Last hits a minute" meta={metaOf(rich)} values={rich.map(r => r.last_hits / Math.max(1, r.match_duration_s / 60))} fmt={v => v.toFixed(1)} />
+              <TrendTile label="Deaths" meta={metaOf(chrono)} values={chrono.map(r => r.player_deaths)} fmt={v => v.toFixed(1)} higherBetter={false} />
+              <TrendTile label="Net worth" meta={metaOf(rich)} values={rich.map(r => r.net_worth)} fmt={v => `${(v / 1000).toFixed(1)}k`} />
+            </>
+          );
+        })()}
       </div>
       <TrendsCard chrono={chrono} />
       {(leak || superPart) && (

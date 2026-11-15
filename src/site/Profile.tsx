@@ -18,7 +18,7 @@ import { SteamLoginButton } from '../ui/SteamLogin';
 import { plural, fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
 import { copyCard, drawShareCard, shareFileName, type ShareFormat } from './shareCard';
 import { AddMatches } from './AddMatches';
-import { ResultStrip, StretchLine, TrendTile } from './charts';
+import { ResultStrip, StretchLine, TrendTile, type TileMeta } from './charts';
 import { applyGame, gameOf, type GameId } from '../ui/tokens';
 import { DlProfile } from '../deadlock/DlProfile';
 import { BETTER, type FeatureId } from '../engine/coach';
@@ -26,18 +26,20 @@ import { steamId3 } from '../deadlock/api';
 
 /** The first row: K/D, ADR, KAST, HS% and the Premier change, each the last value with a sparkline and ↑/↓ vs your average. */
 function StatStrip({ matches }: { matches: ProfileMatch[] }) {
-  const chrono = [...matches].sort((a, b) => a.at - b.at).slice(-10);
+  const chrono = [...matches].sort((a, b) => a.at - b.at).slice(-11);
   if (!chrono.length) return null;
-  const rated = chrono.flatMap(m => (premierOf(m) !== null ? [premierOf(m)!] : []));
+  const meta = (ms: ProfileMatch[]): TileMeta[] => ms.map(m => ({ win: m.result === 'tie' ? null : m.result === 'win', tip: `${mapName(m.map)} · ${new Date(m.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` }));
+  const ratedM = chrono.filter(m => premierOf(m) !== null);
+  const rated = ratedM.map(m => premierOf(m)!);
   return (
     <div className="stat-strip-wrap">
-    <p className="muted small stat-strip-head">Last match vs your last {chrono.length}</p>
+    <p className="muted small stat-strip-head">Last match vs your last {chrono.length - 1}</p>
     <div className="trend-row stat-strip">
-      <TrendTile label="K/D" values={chrono.map(m => (m.deaths ? m.kills / m.deaths : m.kills))} fmt={v => v.toFixed(2)} />
-      <TrendTile label="ADR" values={chrono.map(m => m.adr)} fmt={v => v.toFixed(0)} />
-      <TrendTile label="KAST" values={chrono.map(m => m.kast)} fmt={v => `${v.toFixed(0)}%`} />
-      <TrendTile label="HS%" values={chrono.map(m => m.hs)} fmt={v => `${v.toFixed(0)}%`} />
-      {rated.length >= 2 && <TrendTile label="Premier" values={rated} fmt={v => fmtInt(v)} sub="rating going in" />}
+      <TrendTile label="K/D" meta={meta(chrono)} values={chrono.map(m => (m.deaths ? m.kills / m.deaths : m.kills))} fmt={v => v.toFixed(2)} />
+      <TrendTile label="ADR" meta={meta(chrono)} values={chrono.map(m => m.adr)} fmt={v => v.toFixed(0)} />
+      <TrendTile label="KAST" meta={meta(chrono)} values={chrono.map(m => m.kast)} fmt={v => `${v.toFixed(0)}%`} />
+      <TrendTile label="HS%" meta={meta(chrono)} values={chrono.map(m => m.hs)} fmt={v => `${v.toFixed(0)}%`} />
+      {rated.length >= 2 && <TrendTile label="Premier" meta={meta(ratedM)} values={rated} fmt={v => fmtInt(v)} sub="rating going in" />}
       {chrono.length < 2 && <p className="muted small">One more match and the trends start.</p>}
     </div>
     </div>

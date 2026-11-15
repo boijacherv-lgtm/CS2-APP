@@ -306,21 +306,44 @@ export function SplitChart({ points, base, top, bottom, colors, fmt, axis = fmt,
   );
 }
 
-/** A trend as a tile, the same layout every time: label, the last value big, one chip ("▼ 1.18 vs 1.65 avg"), a sparkline with a
- * dashed line at your average. The chip is coloured only when the value is beyond ±5% of your average. */
-export function TrendTile({ label, values, fmt, higherBetter = true, sub }: { label: string; values: number[]; fmt: (v: number) => string; higherBetter?: boolean; sub?: string }) {
-  if (values.length < 2) return null;
-  const last = values.at(-1)!, avg = values.reduce((a, b) => a + b, 0) / values.length, d = last - avg;
-  const good = Math.abs(d) < 1e-9 || Math.abs(d) <= 0.05 * Math.abs(avg) ? null : (d > 0) === higherBetter;
+/** A stat as a box, the same layout every time: label, the last value big, one chip ("▼ vs 1.65": the arrow is the last match against
+ * the average of the ten before it), and 11 thin bars (the last match thick-outlined + the 10 before) with a dashed average line.
+ * Teal above / orange below the average (flipped when lower is better); only an outline within ±5% of it. A dot under each bar
+ * is the result (filled won, hollow lost); the tooltip says value · result · when. */
+export type TileMeta = { win: boolean | null; tip: string };
+export function TrendTile({ label, values, fmt, higherBetter = true, sub, meta }: { label: string; values: number[]; fmt: (v: number) => string; higherBetter?: boolean; sub?: string; meta?: TileMeta[] }) {
+  const vs = values.slice(-11), ms = meta?.slice(-11);
+  if (vs.length < 2) return null;
+  const last = vs.at(-1)!, prev = vs.slice(0, -1), avg = prev.reduce((a, b) => a + b, 0) / prev.length, d = last - avg;
+  const near = (v: number) => Math.abs(v - avg) <= 0.05 * Math.abs(avg);
+  const tone = (v: number) => (near(v) ? 'mid' : (v > avg) === higherBetter ? 'good' : 'bad');
+  const lastTone = tone(last);
+  const lo = Math.min(...vs, avg), hi = Math.max(...vs, avg);
+  const base = lo / (hi || 1) > 0.6 ? lo - (hi - lo) * 0.6 : Math.min(0, lo);
+  const y = (v: number) => (hi === base ? 50 : ((v - base) / (hi - base)) * 100);
+  const ay = y(avg);
   return (
     <div className="trend-tile">
       <span className="tt-label">{label}</span>
       <b className="num tt-value">{fmt(last)}</b>
-      <span className={`tt-delta chip ${good === null ? '' : good ? 'up' : 'down'}`} title={`Your last match against your average over these ${values.length}`}>
-        {good === null ? '≈ avg' : `${d > 0 ? '▲ +' : '▼ −'}${fmt(Math.abs(d))} vs avg`}</span>
-      <MiniLine values={values} good={good} avg={avg} />
-      <span className="muted small tt-sub">{sub ?? ' '}</span>
-      <ChartTable caption={label} head={['Match', label]} rows={values.map((v, i) => [i + 1, fmt(v)])} />
+      <span className={`tt-delta chip ${lastTone === 'mid' ? '' : lastTone === 'good' ? 'up' : 'down'}`} title="Your last match against the average of the ten before it">
+        {lastTone === 'mid' ? '≈' : d > 0 ? '▲' : '▼'} vs {fmt(avg)}</span>
+      <div className="tt-chart">
+        <div className="tt-well" aria-hidden="true"><i className="above" style={{ height: `${100 - ay}%` }} /><i className="below" style={{ height: `${ay}%` }} /></div>
+        <i className="tt-avg" style={{ '--ay': ay } as React.CSSProperties} aria-hidden="true" />
+        <ol className="tt-bars">
+          {vs.map((v, i) => {
+            const m = ms?.[i];
+            return (
+              <li key={i} tabIndex={0} className={`${tone(v)} ${i === vs.length - 1 ? 'now' : ''}`} data-tip={`${fmt(v)}${m ? ` · ${m.win === null ? 'draw' : m.win ? 'won' : 'lost'} · ${m.tip}` : ''}${sub ? ` (${sub})` : ''}`}>
+                <b style={{ height: `${Math.max(4, y(v))}%` }} />
+                {m && <u className={m.win === null ? 'tie' : m.win ? 'win' : 'loss'} />}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      <ChartTable caption={label} head={['Match', label]} rows={vs.map((v, i) => [i + 1, fmt(v)])} />
     </div>
   );
 }
