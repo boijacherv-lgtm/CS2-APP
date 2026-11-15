@@ -1733,3 +1733,13 @@ body { font-weight: 500; }
 .app .board-ui .round-strip .rs-chip { min-width: 14px; font-size: 12px; }
 @container board (max-width: 940px) { .app .board-ui .slot.top .round-strip { left: 232px; } }
 @container board (max-width: 560px) { .app .board-ui .slot.top { padding-top: 0; } }
+
+/* round 16b: the strip is centred over the board, the chips carry how each round ended (icons) once it is revealed */
+.app .board-ui .slot.top .round-strip { left: 300px; right: 300px; justify-content: center; }
+@container board (max-width: 1100px) {
+  /* a board this narrow has no room beside the buttons for 30 chips: the strip gets its own row, centred, and the score bar moves down */
+  .app .board-ui .slot.top { padding-top: 72px; }
+  .app .board-ui .slot.top .round-strip { top: 44px; left: 8px; right: 8px; }
+}
+@container board (max-width: 560px) { .app .board-ui .slot.top { padding-top: 0; } }
+.round-strip .rs-chip svg { display: block; }
