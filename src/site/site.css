@@ -1707,3 +1707,8 @@ body { font-weight: 500; }
   .board-ui .slot.team-ct, .board-ui .slot.team-t, .board-ui .slot.br { display: none; }
   .app .board-ui .slot.tl { min-width: 0; }
 }
+
+/* the match list in Review: map names keep their weight (the global 600 -> 500 had made them thin), the date stays on one line, and the score column is only as wide as "11–13 LOSS" */
+.review-start .steam-list td:nth-child(1) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.review-start .steam-list td:nth-child(2) { font-weight: 700; }
+.review-start .steam-list td:nth-child(3) { min-width: 10ch; }
