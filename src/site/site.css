@@ -1661,11 +1661,11 @@ body { font-weight: 500; }
 
 /* round 15, the replay's top bar sizes itself by the board's own width (the panel takes 320px when it is open): under 940px the three top
    slots stop competing for one row — buttons keep one line, the strip gets the middle, chips shrink, the kill feed drops under the strip */
-.board-ui { container: board / inline-size; }
+*:has(> .board-ui) { container: board / inline-size; }
 @container board (max-width: 940px) {
-  .app .board-ui.broadcast { grid-template-columns: max-content minmax(0, 1fr) auto; }
-  .app .board-ui .slot.tl { flex-wrap: nowrap; min-width: max-content; }
-  .board-ui .slot.tl .tl-btn { white-space: nowrap; padding-inline: 8px; }
+  /* the three buttons keep to one row as icons (their names are in the tooltips) so the strip has its middle column */
+  .app .board-ui .slot.tl { flex-wrap: nowrap; }
+  .board-ui .slot.tl .tl-btn { font-size: 0; gap: 0; padding-inline: 10px; min-width: 40px; justify-content: center; }
   .board-ui .round-strip.two-rows { grid-template-columns: repeat(var(--cols), 20px); }
   .board-ui .rs-chip { width: 20px; height: 20px; }
   .board-ui.broadcast .slot.tr { position: absolute; right: 8px; top: 108px; max-width: 190px; }
@@ -1691,3 +1691,19 @@ body { font-weight: 500; }
 .moments .chip, .moments button, .moments .puzzle-tag, .moments .muted, .moments .puzzle-info span { font-size: 14px; }
 /* the coach card's values are words and numbers ("in 47% of rounds", "7.8 / round"): the UI font, Oswald stays on pure numbers */
 .dev-row .dev-val.num { font-family: var(--font-ui); font-weight: 700; }
+
+/* round 15, phones: the strip and the kill feed give way (the strip's two-row grid had overridden the rule that hid it), and the docked
+   card stacks: who and the buttons on top, then the line, the win bar, the reason */
+@media (max-width: 640px) { .round-strip.two-rows { display: none; } }
+@container board (max-width: 560px) {
+  .app .board-ui.broadcast .slot.tr { display: none; }
+  .board-ui .feed-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "head foot" "title title" "meter meter" "why why" "more more"; row-gap: 4px; padding: 8px 12px; }
+  .board-ui .feed-card .feed-title { white-space: normal; }
+  .board-ui .feed-card .feed-win, .board-ui .feed-card .feed-meter { justify-self: start; }
+}
+@container board (max-width: 560px) {
+  .app .board-ui, .app .board-ui.broadcast { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto minmax(0, 1fr) auto auto auto auto;
+    grid-template-areas: "tl tl" "top top" "left right" "bl bl" "card card" "eval eval" "dock dock"; }
+  .board-ui .slot.team-ct, .board-ui .slot.team-t, .board-ui .slot.br { display: none; }
+  .app .board-ui .slot.tl { min-width: 0; }
+}
