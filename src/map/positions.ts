@@ -1,4 +1,3 @@
-import POSITIONS from './generated/positions.json';
 import type { Phase } from '../engine/situations';
 import type { Side } from '../engine/types';
 
@@ -34,7 +33,24 @@ export const proRisk = (map: string, side: Side, place: string, pressure: number
 export type Advantage = 'even' | 'up' | 'down';
 export const advantageOf = (alive: [number, number]): Advantage => (alive[0] > alive[1] ? 'up' : alive[0] < alive[1] ? 'down' : 'even');
 
-const DATA = POSITIONS as unknown as Record<string, MapPositions>;
+/**
+ * One file per map (generated/positions/<map>.json, about 0.5–0.9 MB each), loaded when a match on that map is opened rather
+ * than shipped to every page: `loadPositions` first, then the readers below see the map. Until it has loaded they answer
+ * as if there were no data (the coach reads "no data" for it), and anything on screen is recomputed when `positionsVersion` moves.
+ */
+const loaders = import.meta.glob<{ default: MapPositions }>('./generated/positions/*.json');
+const DATA: Record<string, MapPositions> = {};
+let version = 0;
+const listeners = new Set<() => void>();
+export async function loadPositions(map: string): Promise<void> {
+  const load = loaders[`./generated/positions/${map}.json`];
+  if (DATA[map] || !load) return;
+  DATA[map] = (await load()).default;
+  version++;
+  listeners.forEach(l => l());
+}
+export const positionsVersion = () => version;
+export const onPositions = (cb: () => void) => { listeners.add(cb); return () => { listeners.delete(cb); }; };
 
 export const proPositions = (map: string): MapPositions | null => DATA[map] ?? null;
 export const proSpots = (map: string, side: Side, phase: Phase): ProSpot[] => DATA[map]?.spots[side][phase] ?? [];

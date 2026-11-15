@@ -11,6 +11,7 @@
 // most one per match and two of the same kind, and sends each with its round. --dry-run only lists them.
 //
 //   npm run ask:coach -- [<folder>] [--max 10] [--scan 40] [--dry-run]
+import './positions-ready';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

@@ -6,6 +6,7 @@
 // Writes src/engine/models/engine-calibration.json. Run after learn:positions (it runs this by itself).
 //
 //   npm run calibrate:engine -- <folder>
+import './positions-ready';
 import fs from 'node:fs';
 import path from 'node:path';
 import { engineHold, engineMove } from '../src/engine/engineEval';

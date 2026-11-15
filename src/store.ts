@@ -3,7 +3,9 @@ import { siteConfig } from './ui/siteConfig';
 import { create } from 'zustand';
 import { UTIL_FLIGHT } from './engine/grid';
 import type { RoundSummary } from './engine/match';
-import { withBlastTail, withPlants, type DemoData, type EvalScope } from './engine/recap';
+import { loadPositions } from './map/positions';
+import { withBlastTail, withPlants } from './engine/demoFix';
+import type { DemoData, EvalScope } from './engine/recap';
 import { withoutKnifeRound } from './engine/knife';
 import type { Clip } from './ui/disputesApi';
 import { presetsFor, tPlaysFor } from './map/catalog';
@@ -393,6 +395,7 @@ export const useStore = create<Store>((set, get) => {
       }),
     startReview: raw => {
       const data = withoutKnifeRound(withBlastTail(withPlants(raw)));
+      void loadPositions(data.map); // the level-10 positions for this map, fetched now (App re-grades the round when they arrive)
       return set(s => ({
         mode: 'review',
         parked: s.mode === 'review' || s.boardFromReplay ? s.parked : { board: s.board, mapId: s.mapId, level: s.level },

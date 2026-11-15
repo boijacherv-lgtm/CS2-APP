@@ -6,6 +6,7 @@
 //
 // Reads .dem, .dem.gz and .dem.zst (FACEIT's download format) directly, no unpacking needed. Each demo's numbers
 // are cached in <folder>/.stratboard-cache/coach, so adding demos later only reads the new ones.
+import './positions-ready';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

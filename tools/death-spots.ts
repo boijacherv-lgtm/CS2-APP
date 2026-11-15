@@ -1,6 +1,7 @@
 // Where FACEIT level-10 players die, per map and side: every kill in the training reads, by callout, early (first 40 s)
 // and later. Feeds the guide page /guides/deaths. Writes src/map/generated/death-spots.json.
 //   npx vite-node tools/death-spots.ts -- <training folder> [--demos 200]
+import './positions-ready';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';

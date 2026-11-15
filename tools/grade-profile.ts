@@ -3,6 +3,7 @@
 // match and sends each site user's entry to the Worker.
 //
 //   node node_modules/vite-node/vite-node.mjs tools/grade-profile.ts <match.json.gz> <out.json> [--played <ms>]
+import './positions-ready';
 import { withoutKnifeRound } from '../src/engine/knife';
 import fs from 'node:fs';
 import zlib from 'node:zlib';
