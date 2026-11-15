@@ -14,10 +14,12 @@ export function parseDemo(path) {
   try {
     return buildDemoData(native, path);
   } catch (e) {
-    // the npm build can lag behind CS2 updates (newer demos fail with "MalformedMessage"); the WebAssembly build
+    // the npm build can lag behind CS2 updates (newer demos fail with "MalformedMessage" or "EntityNotFound"); the WebAssembly build
     // in tools/demoparser-node is built from a newer parser source (.github/workflows/demoparser-wasm.yml), so
     // those demos are read with it instead (the same data once that build reads grenade flights; before, without them)
-    if (!/MalformedMessage/.test(String(e?.message ?? e))) throw e;
+    // any parser failure (not a missing or unreadable file) gets the newer build's try: it used to be only "MalformedMessage",
+    // and a demo that failed with "EntityNotFound" stayed "processing…" on the site for days
+    if (/ENOENT|EACCES|EISDIR/.test(String(e?.code ?? e?.message ?? e))) throw e;
     const wasm = require('./demoparser-node/demoparser2.js');
     return buildDemoData(wasmParserApi(wasm), fs.readFileSync(path));
   }

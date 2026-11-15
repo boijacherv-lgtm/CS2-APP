@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 env:
-  PARSER_REV: 45ca85aeac8fb0de9d385124d2c7fe0e7b8ff0c8
+  PARSER_REV: ef4f1b2645e1abf0f217bd47ac0310098a02921f # 0.42.2: decodes CS2 build 14197 demos (fixed8), which older parsers fail on with EntityNotFound
 
 jobs:
   build:
