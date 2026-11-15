@@ -1586,3 +1586,26 @@ body { font-weight: 500; }
 .drawer table.kills.econ td:not(:first-child) { font-size: 13px; white-space: nowrap; }
 .drawer table.kills th:nth-child(n+4) { font-size: 15px; font-weight: 800; text-align: center; }
 .drawer table.kills th:nth-child(3) { text-align: right; }
+
+/* round 14: the profile's tab bar stays in its own column (its negative margins reached over the side card) */
+.profile-main .recap-tabs { margin: 0 0 14px; padding: 8px 0; }
+.recap-bar { gap: 8px; }
+.recap-bar .recap-share, .recap-bar .recap-close { margin: 0; }
+
+/* round 14, the profile's side column: the last 20 as a 10 x 2 grid with its win rate, one clear card to add demos, a share button that fills its card */
+.profile-side .site-card { padding: 16px; }
+.profile-side .site-card .card-head { margin: 0 0 12px; }
+.profile-side .result-strip { display: grid; gap: 12px; }
+.profile-side .rs-tile { display: flex; align-items: baseline; gap: 10px; }
+.profile-side .rs-tile b { font-size: 40px; line-height: 1; }
+.profile-side .rs-tile span { font-size: 14px; color: var(--text-2); }
+.profile-side .result-strip ol { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; overflow: visible; }
+.profile-side .result-strip li { width: auto; height: auto; aspect-ratio: 1; flex: none; font-size: 11px; }
+.profile-side .rs-legend { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.profile-side .rs-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.profile-side .rs-legend i.win { background: var(--good); } .profile-side .rs-legend i.loss { background: var(--bad); }
+.profile-side .add-matches .card-head { display: grid; gap: 6px; }
+.profile-side .add-matches h2 { display: flex; align-items: center; gap: 8px; font-size: 16px; margin: 0; }
+.profile-side .add-matches .add-hint { font-size: 14px; line-height: 1.4; }
+.profile-side .add-matches .cta { width: 100%; justify-content: center; margin-top: 4px; min-height: 40px; }
+.profile-side .profile-side-links .cta { width: 100%; justify-content: center; min-height: 40px; }
