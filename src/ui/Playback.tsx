@@ -123,12 +123,6 @@ export function ScoreBug({ score, round, roundNo, time, switched, names }: {
     <div className="scorebug">
       <div className="sb-bar" title={`Round ${roundNo}`}>
         <div className="sb-side ct"><span className="sb-team">CT</span><span className="sb-score num">{score[0]}</span></div>
-        {defuse && !flash && (
-          <div className={`sb-defuse ${defuse.ok ? 'ok' : 'late'}`}>
-            <span className="sb-defuse-bar"><b style={{ width: `${Math.round(defuse.share * 100)}%` }} /></span>
-            <span className="sb-defuse-who">{defuse.who ? `${defuse.who} · ` : ''}{defuse.kit ? 'kit' : 'no kit'}{defuse.ok ? '' : ' · too late'}</span>
-          </div>
-        )}
         <div className={`sb-mid ${flash ? `flash ${flash}` : ''}`}>
           {flash ? <span className="sb-flash"><Icon name={flash === 'defuse' ? 'scissors' : 'bomb'} size={14} />{flash === 'defuse' ? 'DEFUSED' : 'EXPLODED'}</span>
             : <span className={`sb-clock num ${fuse !== null && !ended ? `bomb ${tone}` : left <= 10 && !ended ? 'low' : ''}`}>
@@ -143,6 +137,12 @@ export function ScoreBug({ score, round, roundNo, time, switched, names }: {
         </div>
         <div className="sb-side t"><span className="sb-score num">{score[1]}</span><span className="sb-team">T</span></div>
       </div>
+      {defuse && !flash && (
+        <div className={`sb-defuse ${defuse.ok ? 'ok' : 'late'}`}>
+          <span className="sb-defuse-bar"><b style={{ width: `${Math.round(defuse.share * 100)}%` }} /></span>
+          <span className="sb-defuse-who">{defuse.who ? `${defuse.who} · ` : ''}{defuse.kit ? 'kit' : 'no kit'}{defuse.ok ? '' : ' · too late'}</span>
+        </div>
+      )}
       {switched && time < SWITCH_BANNER && (
         <div className="sb-switch" role="status"><Icon name="swap" size={13} /> Sides switched · {switched}'s team is CT now</div>
       )}

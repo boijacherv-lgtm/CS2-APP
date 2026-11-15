@@ -83,6 +83,7 @@ export function DlProfile({ account }: { account: string | null }) {
   const [graded, setGraded] = useState<Graded[]>([]);
   const [grading, setGrading] = useState<{ done: number; of: number } | null>(null);
   const [opening, setOpening] = useState<number | null>(null);
+  const [ptab, setPtab] = useState<'overview' | 'heroes' | 'matches'>('overview');
   const [builds, setBuilds] = useState<MyBuild[]>([]);
 
   useEffect(() => {
@@ -168,8 +169,26 @@ export function DlProfile({ account }: { account: string | null }) {
   const ringNote = (s: number | null) => (s === null ? 'book' : noteOf((s - 50) / 20));
 
   return (
-    <>
-      {/* the same top as CS2's profile: the stat strip, then the biggest leak and your superpower */}
+    <div className="profile-cols">
+      {/* left, sticky like CS2's profile: the results, then the way into the matches */}
+      <aside className="profile-side">
+      <div>
+        <section className="site-card ">
+          <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2><span className="muted small">{plural(recent.length, 'match')}</span></div>
+          <ResultStrip results={chrono.slice(-20).map(r => ({ win: won(r), title: `${heroOf(r.hero_id).name} · ${day(r.start_time)} · ${won(r) ? 'won' : 'lost'}` }))} />
+        </section>
+      </div>
+
+      </aside>
+      <div className="profile-main">
+        <nav className="recap-tabs" aria-label="Deadlock profile">
+          <div className="recap-tabs-list" role="tablist">
+            {([['overview', 'Overview'], ['heroes', 'Heroes'], ['matches', 'Matches']] as const).map(([id, l]) => (
+              <button key={id} role="tab" aria-selected={ptab === id} className={ptab === id ? 'on' : ''} onClick={() => setPtab(id)}>{l}</button>
+            ))}
+          </div>
+        </nav>
+        {ptab === 'overview' && <>
       <div className="trend-row stat-strip">
         {(() => {
           const metaOf = (xs: DlHistoryRow[]): TileMeta[] => xs.map(r => ({ win: won(r), tip: `${heroOf(r.hero_id).name} · ${day(r.start_time)}` }));
@@ -195,13 +214,6 @@ export function DlProfile({ account }: { account: string | null }) {
             <p className="muted">Better than <b>{superPart.better}%</b> of players on your hero and position</p><p className="muted small">Your average {superPart.v} · 50 is average</p></section>}
         </div>
       )}
-
-      <div className="dash-row">
-        <section className="site-card dash-narrow">
-          <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2><span className="muted small">{plural(recent.length, 'match')}</span></div>
-          <ResultStrip results={chrono.slice(-20).map(r => ({ win: won(r), title: `${heroOf(r.hero_id).name} · ${day(r.start_time)} · ${won(r) ? 'won' : 'lost'}` }))} />
-        </section>
-      </div>
 
       <section className="site-card">
         <div className="card-head"><h2><Icon name="star" size={16} /> The coach on your last {GRADED} matches</h2>
@@ -252,9 +264,8 @@ export function DlProfile({ account }: { account: string | null }) {
         )}
       </section>
 
-      <PatchEffect rows={rows} />
-      <SoloVsParty account={account} rows={rows} />
-
+        </>}
+        {ptab === 'heroes' && <>
       <section className="site-card">
         <div className="card-head"><h2><Icon name="user" size={16} /> Your heroes</h2><span className="muted small">{lastN(recent.length, 'match').toLowerCase()}</span></div>
         <div className="dl-sb-scroll"><table className="site-table dl-pf-heroes">
@@ -273,6 +284,8 @@ export function DlProfile({ account }: { account: string | null }) {
         </table></div>
       </section>
 
+      <PatchEffect rows={rows} />
+      <SoloVsParty account={account} rows={rows} />
       {(matchups.length >= 2 || phases.length > 0 || Object.keys(lanes).length > 0) && (
         <div className="profile-grid">
           {matchups.length >= 2 && <section className="site-card"><div className="card-head"><h2>Matchups</h2><span className="muted small">2+ games against them</span></div>
@@ -291,6 +304,8 @@ export function DlProfile({ account }: { account: string | null }) {
         </div>
       )}
 
+        </>}
+        {ptab === 'matches' && <>
       <section className="site-card">
         <div className="card-head"><h2>{lastN(Math.min(10, rows.length), 'match')}</h2></div>
         <ul className="dl-rows">
@@ -311,7 +326,9 @@ export function DlProfile({ account }: { account: string | null }) {
           })}
         </ul>
       </section>
-    </>
+        </>}
+      </div>
+    </div>
   );
 }
 
