@@ -73,9 +73,10 @@ export function Changelog() {
     <div className="page info-page">
       <h1>What's new</h1>
       {[...cfg.changelog, ...CHANGES].map(c => (
-        <section key={c.date}>
+        <section key={c.date} className="release">
           <h2>{c.date}</h2>
-          <ul>{c.items.map(i => <li key={i}>{i}</li>)}</ul>
+          <ul>{c.items.slice(0, 3).map(i => <li key={i}>{i}</li>)}</ul>
+          {c.items.length > 3 && <details><summary className="muted">{c.items.length - 3} more</summary><ul>{c.items.slice(3).map(i => <li key={i}>{i}</li>)}</ul></details>}
         </section>
       ))}
     </div>

@@ -42,7 +42,7 @@ export function Settings() {
       <header className="page-head"><h1>Settings</h1></header>
       <div className="settings-layout">
       <nav className="settings-menu" aria-label="Settings sections">
-        {[['look', 'Look'], ['account', 'Account & privacy'], ['coach', 'Coach & Rage'], ['review', 'Review'], ['games', 'Games'], ['data', 'Tips & data']].map(([id, l]) => <a key={id} href={`#${id}`} className={at === id ? 'on' : ''} aria-current={at === id ? 'true' : undefined} onClick={() => setAt(id)}>{l}</a>)}
+        {([['look', 'Look', 'star'], ['account', 'Account & privacy', 'shield'], ['coach', 'Coach & Rage', 'target'], ['review', 'Review', 'play'], ['games', 'Games', 'crosshair'], ['data', 'Tips & data', 'info']] as const).map(([id, l, icon]) => <a key={id} href={`#${id}`} className={at === id ? 'on' : ''} aria-current={at === id ? 'true' : undefined} onClick={() => setAt(id)}><Icon name={icon} size={16} /> {l}</a>)}
       </nav>
       <div className="settings-body">
 
