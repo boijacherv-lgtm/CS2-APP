@@ -48,6 +48,7 @@ export function Pricing() {
           <h2>Free</h2>
           <p className="price"><b>$0</b><span>Everything you need</span></p>
           <ul>{FREE.map(f => <li key={f}><Icon name={iconFor(f)} size={14} /> {f}</li>)}</ul>
+          <p className="muted small plan-miss">What you'll miss on Free: matches past your last {FREE_HISTORY}, the engine's best line for every moment, and comparison with pro players.</p>
           <a className="cta" href="/cs2/review">Review a CS2 match</a>
         </section>
         <section className="plan featured">

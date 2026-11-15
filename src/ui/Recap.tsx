@@ -134,7 +134,7 @@ export function ReviewStart() {
             <div><b>3. Watch it back</b><span>Each round replays with a live win-chance bar. Every kill, grenade and costly death is graded from Brilliant to Blunder, and each round gets a letter from S+ to F.</span></div>
           </div>
           {/* nothing to drop yet: see what it does first */}
-          <p className="rs-nodemo muted"><button className="link-btn" onClick={() => void openCs2Sample()}>No demo? Watch a sample</button></p>
+          <p className="rs-nodemo"><span className="muted">No demo yet?</span> <button className="cta" onClick={() => void openCs2Sample()}><Icon name="play" size={12} /> Watch a sample</button></p>
         </div>
         <div className="rs-right">
           {ONLINE && <DemoFolder />}
