@@ -540,7 +540,7 @@ export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   'ECO DEATH': { color: BAD, tip: 'Died to a player on an eco while fully bought, without throwing anything.' },
   PLANT: { color: INFO, tip: 'Planted the bomb.' },
   DEFUSE: { color: GOOD, tip: 'Defused the bomb.' },
-  NINJA: { color: GOOD, tip: 'Defused with enemies still alive, or with almost no time left.' },
+  NINJA: { color: GOOD, tip: 'Defused with an enemy alive near the bomb, or with almost no time left.' },
   'NO TRADE': { color: BAD, tip: 'A teammate died close by while you could see the killer, and you didn\'t trade.' },
   'LATE ROTATION': { color: BAD, tip: 'Arrived at the site after the bomb was down.' },
   'OVER-ROTATION': { color: BAD, tip: 'Left a site that then got hit, for one that didn\'t.' },
@@ -1386,9 +1386,13 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     let note: Annotation = 'book', title = `${name(b.id)} planted the bomb${where(at)}`;
     if (b.kind === 'defuse') {
       const left = r.plant !== null ? BOMB_TIME - (b.t - r.plant) : null;
+      const me = posAt(idx(b.id), b.t);
       const enemies = sim.ids.filter((id, j) => sideOf.get(id) !== s && alive(j, b.t)).length;
-      const ninja = enemies > 0 || (left !== null && left < 1);
-      if (enemies) why.push(`${enemies} enem${enemies > 1 ? 'ies were' : 'y was'} still alive.`);
+      // a ninja defuse is under the enemies' noses: an enemy alive close to the bomb (about 25 m), not one anywhere on the map
+      const near = sim.ids.filter((id, j) => sideOf.get(id) !== s && alive(j, b.t) && Math.hypot(posAt(j, b.t).x - me.x, posAt(j, b.t).y - me.y) * scale < 1000).length;
+      const ninja = near > 0 || (left !== null && left < 1);
+      if (near) why.push(`${near} enem${near > 1 ? 'ies were' : 'y was'} close by, still alive.`);
+      else if (enemies) why.push(`${enemies} enem${enemies > 1 ? 'ies were' : 'y was'} still alive, far from the bomb.`);
       if (left !== null) why.push(`${left.toFixed(1)} s left on the bomb.`);
       if (ninja) tags.push('NINJA');
       note = ninja ? '!!' : '!';
