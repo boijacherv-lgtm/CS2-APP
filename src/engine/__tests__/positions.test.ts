@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loadPositions, positionsVersion, proPositions, proSpots } from '../../map/positions';
+import { loadPositions, POSITION_FILES, positionsVersion, proPositions, proSpots } from '../../map/positions';
 
 describe('level-10 positions load per map', () => {
   it('are empty until a map is loaded, then the readers see it, and the version moves once', async () => {
@@ -14,5 +14,10 @@ describe('level-10 positions load per map', () => {
     expect(positionsVersion()).toBe(v + 1);
     await loadPositions('de_nowhere'); // no such map: nothing happens either
     expect(positionsVersion()).toBe(v + 1);
+  });
+
+  it('has a loader for every map file in the folder (a new map from learn:positions needs a line in POSITION_FILES)', () => {
+    const maps = Object.keys(import.meta.glob('../../map/generated/positions/*.json')).map(f => f.replace(/^.*\/|\.json$/g, '')).sort();
+    expect(Object.keys(POSITION_FILES).sort()).toEqual(maps);
   });
 });

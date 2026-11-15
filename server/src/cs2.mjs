@@ -29,7 +29,7 @@ async function cycle(bot, log, uploaded, grading) {
   const { users } = await worker('GET', '/users');
   for (const steamId of users) {
     try { await worker('POST', `/sync/${steamId}`); } catch (e) { log(`cs2: sync ${steamId}: ${e.message}`); }
-    const { pending } = await worker('GET', `/pending/${steamId}`);
+    const { pending } = await worker('GET', `/pending/${steamId}?v=${encodeURIComponent(VERSION)}`);
     for (const m of pending) {
       log(`cs2: ${steamId} ${m.code}`);
       try {
@@ -50,7 +50,7 @@ async function cycle(bot, log, uploaded, grading) {
         const gone = e instanceof Gone;
         log(`  ${gone ? '✗ gone' : '! failed'}: ${e.message}`);
         if (gone) done.gone++; else done.failed++;
-        await worker('POST', `/result/${steamId}`, { outcomeId: m.outcomeId, gone, error: e.message }).catch(() => {});
+        await worker('POST', `/result/${steamId}`, { outcomeId: m.outcomeId, gone, error: e.message, version: VERSION }).catch(() => {});
       }
       done.handled++;
       await sleep(3000); // gentle on CS2's game coordinator

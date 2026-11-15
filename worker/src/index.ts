@@ -60,13 +60,15 @@ interface Match {
   // filled in by the server once the demo is processed
   time?: number | null; map?: string | null; scores?: [number, number] | null; result?: 'win' | 'loss' | 'tie' | null; kd?: [number, number] | null;
   parsed?: boolean; gone?: boolean; error?: string | null; tries?: number;
+  /** The bot version that last failed on it: a new version gets a fresh set of tries (the parser may have been fixed). */
+  failedIn?: string;
 }
 interface User { authCode?: string; knownCode?: string; lastCode?: string | null; matches: Match[]; lastSyncAt?: number; note?: string | null }
 
 const SESSION_DAYS = 30;
 const SYNC_EVERY_MS = 60_000; // Valve is asked at most once a minute per user
 const STEAM_API = 'https://api.steampowered.com';
-const MAX_TRIES = 3; // the server gives up on a demo after this many failures
+const MAX_TRIES = 3; // the server gives up on a demo after this many failures (per bot version: see Match.failedIn)
 const MAX_DEMO_BYTES = 24 * 1024 * 1024; // KV values must stay under 25 MB
 /** Matches uploaded from a demo folder: a read match is about 0.4 MB gzipped; KV's free plan holds 1 GB in all. */
 const UPLOAD_MAX_BYTES = 4 * 1024 * 1024, UPLOADS_MAX = 300; // (each player keeps 30 matches anyway: KEEP_MATCHES)
@@ -520,7 +522,9 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
   const pendingFor = path.match(/^\/internal\/pending\/(7656\d{13})$/);
   if (req.method === 'GET' && pendingFor) {
     const u = await loadUser(env, pendingFor[1]);
-    const todo = u.matches.filter(m => !m.parsed && !m.gone && (m.tries ?? 0) < MAX_TRIES).sort((a, b) => b.foundAt - a.foundAt)
+    // a match that used up its tries under another bot version is tried again by this one (it may be the fix that was missing)
+    const version = new URL(req.url).searchParams.get('v') ?? '';
+    const todo = u.matches.filter(m => !m.parsed && !m.gone && ((m.tries ?? 0) < MAX_TRIES || (!!version && m.failedIn !== version))).sort((a, b) => b.foundAt - a.foundAt)
       .map(m => ({ code: m.code, outcomeId: m.outcomeId, matchId: m.matchId }));
     return json({ pending: todo });
   }
@@ -545,13 +549,17 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
   // what came of one match for one user
   const resultFor = path.match(/^\/internal\/result\/(7656\d{13})$/);
   if (req.method === 'POST' && resultFor) {
-    const r = await body(req) as { outcomeId?: string; parsed?: boolean; gone?: boolean; error?: string; info?: Partial<Match> };
+    const r = await body(req) as { outcomeId?: string; parsed?: boolean; gone?: boolean; error?: string; version?: string; info?: Partial<Match> };
     const u = await loadUser(env, resultFor[1]);
     const m = u.matches.find(x => x.outcomeId === r.outcomeId);
     if (!m) return json({ error: 'Unknown match.' }, 404);
     if (r.parsed) Object.assign(m, pick(r.info ?? {}), { parsed: true, error: null });
     else if (r.gone) Object.assign(m, { gone: true, error: r.error ?? 'Valve no longer has this demo.' });
-    else Object.assign(m, { tries: (m.tries ?? 0) + 1, error: String(r.error ?? 'failed').slice(0, 300) });
+    else {
+      // the tries count per bot version: the first failure of a new version starts the count again
+      const version = String(r.version ?? '').slice(0, 40) || undefined;
+      Object.assign(m, { tries: (version && m.failedIn !== version ? 0 : m.tries ?? 0) + 1, failedIn: version ?? m.failedIn, error: String(r.error ?? 'failed').slice(0, 300) });
+    }
     await saveUser(env, resultFor[1], u);
     return json({ ok: true });
   }
