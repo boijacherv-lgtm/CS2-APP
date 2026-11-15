@@ -117,8 +117,6 @@ export function ScoreBug({ score, round, roundNo, time, switched, names }: {
   // the end flashes in the centre for 1.5 s: DEFUSED (CT blue) or EXPLODED
   const flash = bomb?.kind === 'defuse' || bomb?.kind === 'explode' ? (time - bomb.since < 1.5 ? bomb.kind : null) : null;
   const clockText = fuse !== null && !ended ? String(Math.ceil(fuse)) : ended ? clock(ROUND_SECONDS - time) : clock(left);
-  // the timer line sits under the clock (broadcast style): planting fills it amber, the fuse drains it, a defuse fills CT blue over it
-  const line = planting !== null ? { share: planting, cls: 'plant' } : fuse !== null && !ended ? { share: fuse / BOMB_SECONDS, cls: `fuse ${tone}` } : null;
   return (
     <div className="scorebug">
       <div className="sb-bar" title={`Round ${roundNo}`}>
@@ -127,27 +125,38 @@ export function ScoreBug({ score, round, roundNo, time, switched, names }: {
           {flash ? <span className="sb-flash"><Icon name={flash === 'defuse' ? 'scissors' : 'bomb'} size={14} />{flash === 'defuse' ? 'DEFUSED' : 'EXPLODED'}</span>
             : ended ? <span className={`sb-result ${bomb?.kind === 'explode' ? 't' : 'ct'}`}>{bomb?.kind === 'explode' ? 'T won' : 'CT won'}</span>
             : planting !== null || fuse !== null
-              // the bomb has its own amber capsule (C4, "Bomb", seconds) and the round clock is hidden while it runs
-              ? <span className={`sb-bombcap ${tone || 'amber'}`}><Icon name="bomb" size={16} /><small>{fuse === null ? 'Planting' : 'Bomb'}</small>{fuse !== null && <b className="num">{clockText}</b>}</span>
+              // the bomb IS the cell: its colour fills it and drains with the fuse, the number is drawn in the contrasting colour on the
+              // fill and on the rest; a defuse splits the cell in two, the bottom half being the defuse timer
+              ? (
+                <div className={`sb-tcell ${tone || 'amber'} ${defuse ? 'split' : ''}`} title={defuse ? `${defuse.who ? `${defuse.who} · ` : ''}${defuse.kit ? 'kit' : 'no kit'}${defuse.ok ? '' : ' · too late'}` : undefined}>
+                  <TwoTone p={planting !== null && fuse === null ? planting * 100 : (fuse ?? 0) / BOMB_SECONDS * 100} tone={tone || 'amber'} zero={fuse !== null && fuse <= 0} cls="top">
+                    <Icon name="bomb" size={defuse ? 12 : 16} /><small>{fuse === null ? 'Planting' : 'Bomb'}</small>{fuse !== null && <b className="num">{clockText}</b>}
+                  </TwoTone>
+                  {defuse && (
+                    <TwoTone p={defuse.share * 100} tone={defuse.ok ? 'ct' : 'late'} zero={false} cls="bottom">
+                      <Icon name="scissors" size={12} /><small>{defuse.kit ? 'Kit' : 'Defuse'}</small><b className="num">{Math.ceil(defuse.need)}</b>
+                    </TwoTone>
+                  )}
+                </div>
+              )
               : <span className={`sb-clock num ${left <= 10 ? 'low' : ''}`}>{clockText}</span>}
-          {line && !flash && (
-            <span className={`sb-timer ${line.cls}`} aria-hidden="true">
-              <i style={{ width: `${Math.round(line.share * 100)}%` }} />
-              {defuse && <u className={defuse.ok ? 'ok' : 'late'} style={{ left: `${defuse.end * 100}%` }} />}
-            </span>
-          )}
         </div>
         <div className="sb-side t"><span className="sb-score num">{score[1]}</span><span className="sb-team">T</span></div>
       </div>
-      {defuse && !flash && (
-        <div className={`sb-defuse ${defuse.ok ? 'ok' : 'late'}`}>
-          <span className="sb-defuse-bar"><b style={{ width: `${Math.round(defuse.share * 100)}%` }} /></span>
-          <span className="sb-defuse-who">{defuse.who ? `${defuse.who} · ` : ''}{defuse.kit ? 'kit' : 'no kit'}{defuse.ok ? '' : ' · too late'}</span>
-        </div>
-      )}
       {switched && time < SWITCH_BANNER && (
         <div className="sb-switch" role="status"><Icon name="swap" size={13} /> Sides switched · {switched}'s team is CT now</div>
       )}
+    </div>
+  );
+}
+
+/** A timer drawn as a fill with its label in two colours: dark where the fill is under it, light on the rest (so it reads the whole way down). */
+function TwoTone({ p, tone, zero, cls, children }: { p: number; tone: string; zero: boolean; cls: string; children: React.ReactNode }) {
+  return (
+    <div className={`tt ${cls} tone-${tone} ${zero ? 'zero' : ''}`} style={{ '--p': `${Math.max(0, Math.min(100, p))}%` } as React.CSSProperties}>
+      <i className="tt-fill" />
+      <span className="tt-text light">{children}</span>
+      <span className="tt-text dark" aria-hidden>{children}</span>
     </div>
   );
 }

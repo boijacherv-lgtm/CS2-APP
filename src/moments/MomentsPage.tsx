@@ -410,9 +410,9 @@ export function MomentsPage() {
 
       {source === 'mine' && <section className="site-card">
         <div className="card-head"><h2><Icon name="warning" size={16} /> Mistake reel</h2><span className="muted small">{groups.reduce((a, g) => a + g.moments.length, 0)} mistakes from your matches, by type</span></div>
-        {groups.map(gr => (
+        {groups.slice(0, 8).map(gr => (
           <details key={gr.kind} className="reel-group">
-            <summary><b>{gr.kind}</b><span className="num muted">{gr.moments.length}× · {pct(gr.cost)} win chance in all</span></summary>
+            <summary><b>{gr.kind}</b><span className="reel-bar" aria-hidden="true"><i style={{ width: `${(gr.moments.length / Math.max(1, groups[0].moments.length)) * 100}%` }} /></span><span className="num">{gr.moments.length}×</span><span className="num muted">−{pct(gr.cost / gr.moments.length)} each</span></summary>
             <ul className="reel-list">
               {gr.moments.slice(0, 12).map(m => (
                 <li key={m.id} className="moment-card" style={{ '--cls': SEARCH_COLOR[m.cls] } as React.CSSProperties}>
@@ -424,6 +424,7 @@ export function MomentsPage() {
             </ul>
           </details>
         ))}
+        {groups.length > 8 && <p className="muted small reel-more">+ {groups.length - 8} rarer types</p>}
       </section>}
     </div>
   );

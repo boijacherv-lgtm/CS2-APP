@@ -114,14 +114,14 @@ function SuperCard({ matches }: { matches: ProfileMatch[] }) {
   return (
     <section className="site-card super-card">
       <span className="eyebrow">Your superpower</span>
-      <div className="super-body">
-        <ScoreRing score={sp.better} note={noteOf((sp.better - 50) / 20)} size={84} />
-        <div>
-          <h2>{sp.title}</h2>
-          <p className="muted">Better than <b>{sp.better}%</b> of level-10 players</p>
-          <p className="muted small">{sp.row.label}: you {sp.row.fmt(sp.row.you)} · level 10 {sp.row.fmt(sp.row.lvl10)}{BETTER[sp.row.id as FeatureId] === 'low' ? ' (lower is better)' : ''}</p>
-        </div>
+      <h2>{sp.title}</h2>
+      <p className="super-big"><b className="num">{sp.better}</b><span>% of level-10 players are below you</span></p>
+      {/* a plain meter: 0 to 100, the level-10 middle marked, you as the dot */}
+      <div className="super-meter" role="img" aria-label={`Better than ${sp.better}% of level-10 players`}>
+        <i className="super-fill" style={{ width: `${sp.better}%` }} /><i className="super-mid" /><i className="super-dot" style={{ left: `${sp.better}%` }} />
       </div>
+      <div className="super-scale muted small"><span>0</span><span>typical level 10</span><span>100</span></div>
+      <p className="muted small">{sp.row.label}: you {sp.row.fmt(sp.row.you)} · level 10 {sp.row.fmt(sp.row.lvl10)}{BETTER[sp.row.id as FeatureId] === 'low' ? ' (lower is better)' : ''}</p>
     </section>
   );
 }
@@ -142,7 +142,7 @@ function TrendsCard({ matches }: { matches: ProfileMatch[] }) {
       <div className="card-head"><h2>Trends</h2>
         <div className="seg-mini" role="group" aria-label="Metric">{(['kd', 'adr', 'kast', 'premier'] as const).map(k => <button key={k} className={metric === k ? 'on' : ''} onClick={() => setMetric(k)}>{k === 'kd' ? 'K/D' : k === 'adr' ? 'ADR' : k === 'kast' ? 'KAST' : 'Premier'}</button>)}</div></div>
       {M.rows.length >= 3
-        ? <AreaChart points={M.rows.map((m, i) => ({ label: `#${i + 1} ${mapName(m.map)}`, value: M.f(m) }))} fmt={M.fmt} />
+        ? <AreaChart points={M.rows.map((m, i) => ({ label: `#${i + 1}`, note: mapName(m.map), value: M.f(m) }))} fmt={M.fmt} />
         : <p className="muted small">Premier shows once 3 of your matches carry a rating.</p>}
     </section>
   );
@@ -161,16 +161,19 @@ function SkillMapCard({ matches }: { matches: ProfileMatch[] }) {
   return (
     <section className="site-card skill-map">
       <div className="card-head"><h2>Skill map</h2><span className="muted small">against FACEIT level 10 · 50 = typical level 10</span></div>
-      <div className="dl-pf-parts">
+      <ul className="skill-rows">
         {map.map(sk => (
-          <button key={sk.name} className={`dl-pf-part sk-part ${open === sk.name ? 'open' : ''}`} onClick={() => setOpen(open === sk.name ? null : sk.name)} aria-expanded={open === sk.name} disabled={!sk.rows.length}>
-            <ScoreRing score={sk.pct} note={sk.pct === null ? 'book' : noteOf((sk.pct - 50) / 20)} size={64} />
-            <b>{sk.name}</b>
-            <span className={`sk-trend ${sk.trend ?? ''}`} title={sk.trend ? 'Your last 5 matches against the 5 before' : undefined}>
-              {sk.trend === 'up' ? <Icon name="trendUp" size={14} /> : sk.trend === 'down' ? <Icon name="trendDown" size={14} /> : sk.trend === 'flat' ? '–' : ''}</span>
-          </button>
+          <li key={sk.name}>
+            <button className={`skill-row ${open === sk.name ? 'open' : ''}`} onClick={() => setOpen(open === sk.name ? null : sk.name)} aria-expanded={open === sk.name} disabled={!sk.rows.length}>
+              <b>{sk.name}</b>
+              <span className="sk-bar" aria-hidden="true"><i className="sk-mid" />{sk.pct !== null && <i className="sk-fill" style={{ width: `${Math.max(0, Math.min(100, sk.pct))}%` }} />}</span>
+              <span className={`num sk-val ${sk.pct === null ? 'none' : sk.pct >= 50 ? 'up' : 'down'}`}>{sk.pct ?? 'no data'}</span>
+              <span className={`sk-trend ${sk.trend ?? ''}`} title={sk.trend ? 'Your last 5 matches against the 5 before' : undefined}>
+                {sk.trend === 'up' ? <Icon name="trendUp" size={16} /> : sk.trend === 'down' ? <Icon name="trendDown" size={16} /> : sk.trend === 'flat' ? '–' : ''}</span>
+            </button>
+          </li>
         ))}
-      </div>
+      </ul>
       {map.filter(sk => sk.name === open).map(sk => (
         <ul key={sk.name} className="sk-detail">
           {sk.rows.map(r => {
@@ -283,7 +286,7 @@ export function Profile() {
               </section>
             )}
             {ptab === 'skills' && <SkillMapCard matches={matches.slice(0, pro ? matches.length : FREE_HISTORY * 2)} />}
-            {ptab === 'goals' && <div className="profile-grid"><Goals matches={matches} /><MapStats matches={matches} /></div>}
+            {ptab === 'goals' && <div className="goals-page"><Goals matches={matches} /><MapStats matches={matches} /></div>}
             {ptab === 'friends' && <Friend mine={last} />}
           </div>
         </div>

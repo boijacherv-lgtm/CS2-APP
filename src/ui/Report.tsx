@@ -188,7 +188,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
   return (
     <>
     {/* the close button sits above the header, not over its faded map image */}
-    <div className="recap-bar"><button className="ghost small-btn recap-close" onClick={closeCs2Match}><Icon name="close" size={13} /> Close match</button></div>
+    <div className="recap-bar">{saved && <button className="ghost small-btn recap-share" onClick={() => setShare(true)}><Icon name="share" size={13} /> Share</button>}<button className="ghost small-btn recap-close" onClick={closeCs2Match}><Icon name="close" size={13} /> Close match</button></div>
     <header className="recap-head" style={{ '--map-art': map ? `url(${map.levels[0].image})` : 'none' } as React.CSSProperties}>
       <div className="recap-head-main">
         <h1 className="recap-map display">{map?.name ?? data.map} <span className="sr-only">{a}–{b}</span></h1>{data.sample && <span className="chip">Sample match · names replaced</span>}
@@ -197,7 +197,6 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
         </span>
         {result && <span className={`recap-result ${result.toLowerCase()}`}>{result}</span>}
         {mine && done && <span className="recap-grade" title="Your grade for this match: how it compares with a typical FACEIT level-10 game"><span className="perf-letter display reveal" style={letterStyle(matchGrade(mine))}>{matchGrade(mine)}</span><span className="muted small">your grade</span></span>}
-        {saved && <button className="recap-share" onClick={() => setShare(true)}><Icon name="share" size={14} /> Share</button>}
       </div>
       {share && saved && <ShareDialog m={saved} player={profileName ?? saved.name ?? 'Me'} onClose={() => setShare(false)} />}
       <p className="muted">

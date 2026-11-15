@@ -1555,3 +1555,102 @@ body { font-weight: 500; }
 .moments-head h1 { font-size: 36px; }
 .release-shot { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); margin: 0 0 12px; }
 .moments-head .puzzle-rating { white-space: nowrap; display: inline-flex; align-items: baseline; gap: 6px; }
+
+/* round 14, the bomb timer: the cell itself is the timer. Its colour fills it and drains with the fuse; the number is dark on the fill and
+   light on the rest; at 0 it turns red; a defuse splits the cell, the bottom half is the defuse timer */
+.sb-mid:has(.sb-tcell) { padding: 0; min-width: 136px; overflow: hidden; }
+.sb-tcell { display: grid; grid-template-rows: 1fr; width: 100%; height: 100%; }
+.sb-tcell.split { grid-template-rows: 1fr 1fr; gap: 1px; background: var(--white-12); }
+.tt { --tc: var(--gold); position: relative; display: grid; align-items: center; justify-items: center; overflow: hidden; background: color-mix(in srgb, var(--tc) 12%, var(--ink)); min-height: 0; }
+.tt.tone-amber { --tc: var(--gold); } .tt.tone-orange { --tc: var(--letter-d); } .tt.tone-red { --tc: var(--bad); } .tt.tone-ct { --tc: var(--ct); } .tt.tone-late { --tc: var(--bad); }
+.tt-fill { position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--tc); transition: width .12s linear; }
+.tt.tone-late .tt-fill { background: repeating-linear-gradient(45deg, var(--bad) 0 4px, color-mix(in srgb, var(--bad) 55%, var(--ink)) 4px 8px); }
+.tt-text { grid-area: 1 / 1; position: relative; display: flex; width: 100%; height: 100%; justify-content: center; align-items: center; gap: 6px; white-space: nowrap; }
+.tt-text.light { color: var(--text-1); }
+.tt-text.dark { color: var(--ink); clip-path: inset(0 calc(100% - var(--p)) 0 0); }
+.tt.tone-red .tt-text.dark, .tt.tone-late .tt-text.dark { color: #fff; }
+.tt.zero .tt-text.light { color: var(--bad); }
+.tt small { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.tt b { font-size: 26px; line-height: 1; font-weight: 800; }
+.sb-tcell.split .tt b { font-size: 16px; } .sb-tcell.split .tt small { font-size: 11px; }
+
+/* round 14, the panel's tables fit the panel: fixed layout, names cut with an ellipsis, loadout under the name */
+.drawer table.kills { width: 100%; table-layout: fixed; }
+.drawer table.kills td, .drawer table.kills th { padding-left: 4px; padding-right: 4px; overflow: hidden; text-overflow: ellipsis; }
+.drawer table.kills th:first-child, .drawer table.kills td:first-child { width: 36%; text-align: left; white-space: normal; }
+.drawer table.kills .role { display: block; margin: 2px 0 0; width: fit-content; }
+.drawer table.kills td b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drawer table.kills th { font-size: 12px; white-space: normal; line-height: 1.15; }
+.drawer table.kills.econ th:first-child, .drawer table.kills.econ td:first-child { width: 42%; }
+.drawer .eco-who .loadout { display: flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; }
+.drawer table.kills.econ td:not(:first-child) { font-size: 13px; white-space: nowrap; }
+.drawer table.kills th:nth-child(n+4) { font-size: 15px; font-weight: 800; text-align: center; }
+.drawer table.kills th:nth-child(3) { text-align: right; }
+
+/* round 14: the profile's tab bar stays in its own column (its negative margins reached over the side card) */
+.profile-main .recap-tabs { margin: 0 0 14px; padding: 8px 0; }
+.recap-bar { gap: 8px; }
+.recap-bar .recap-share, .recap-bar .recap-close { margin: 0; }
+
+/* round 14, the profile's side column: the last 20 as a 10 x 2 grid with its win rate, one clear card to add demos, a share button that fills its card */
+.profile-side .site-card { padding: 16px; }
+.profile-side .site-card .card-head { margin: 0 0 12px; }
+.profile-side .result-strip { display: grid; gap: 12px; }
+.profile-side .rs-tile { display: flex; align-items: baseline; gap: 10px; }
+.profile-side .rs-tile b { font-size: 40px; line-height: 1; }
+.profile-side .rs-tile span { font-size: 14px; color: var(--text-2); }
+.profile-side .result-strip ol { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; overflow: visible; }
+.profile-side .result-strip li { width: auto; height: auto; aspect-ratio: 1; flex: none; font-size: 11px; }
+.profile-side .rs-legend { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.profile-side .rs-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.profile-side .rs-legend i.win { background: var(--good); } .profile-side .rs-legend i.loss { background: var(--bad); }
+.profile-side .add-matches .card-head { display: grid; gap: 6px; }
+.profile-side .add-matches h2 { display: flex; align-items: center; gap: 8px; font-size: 16px; margin: 0; }
+.profile-side .add-matches .add-hint { font-size: 14px; line-height: 1.4; }
+.profile-side .add-matches .cta { width: 100%; justify-content: center; margin-top: 4px; min-height: 40px; }
+.profile-side .profile-side-links .cta { width: 100%; justify-content: center; min-height: 40px; }
+
+/* round 14: superpower as a plain meter, skills as rows, goals and maps stacked, calmer charts, the mistake reel as bars */
+.super-card { display: grid; gap: 8px; align-content: start; }
+.super-card h2 { margin: 4px 0 0; font-size: 22px; }
+.super-big { display: flex; align-items: baseline; gap: 8px; margin: 0; }
+.super-big b { font-size: 44px; line-height: 1; color: var(--text-1); }
+.super-big span { font-size: 14px; color: var(--text-2); }
+.super-meter { position: relative; height: 10px; border-radius: 999px; background: var(--surface-3); margin-top: 4px; }
+.super-fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, color-mix(in srgb, var(--good) 40%, var(--surface-3)), var(--good)); }
+.super-mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: var(--text-2); border-radius: 1px; }
+.super-dot { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--text-1); box-shadow: 0 0 0 3px var(--good); }
+.super-scale { display: flex; justify-content: space-between; }
+.skill-rows { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.skill-row { width: 100%; display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr) 64px 24px; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid transparent; background: var(--surface-2); color: var(--text-1); text-align: left; font: inherit; cursor: pointer; }
+.skill-row:hover:not(:disabled) { border-color: var(--border-strong); }
+.skill-row:disabled { opacity: .6; cursor: default; }
+.skill-row b { font-size: 16px; font-weight: 700; }
+.sk-bar { position: relative; height: 10px; border-radius: 999px; background: var(--surface-3); overflow: visible; }
+.sk-bar .sk-fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--theme); }
+.sk-bar .sk-mid { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; background: var(--text-2); z-index: 1; }
+.sk-val { font-size: 22px; text-align: right; } .sk-val.up { color: var(--good); } .sk-val.down { color: var(--bad); } .sk-val.none { font-size: 13px; color: var(--text-3); font-family: var(--font-ui); }
+.skill-rows .sk-detail { margin-top: 4px; }
+.goals-page { display: grid; gap: 14px; }
+.goals-page > .site-card { margin: 0; }
+.goals .goal-list { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.goals-page .site-table { width: 100%; }
+/* charts: a quiet dashed average, no heavy well behind the bars */
+.avg-line { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 4 4; opacity: .7; }
+.tt-well { display: none; }
+.tt-bars li b { border-radius: 4px 4px 2px 2px; }
+.tt-avg { opacity: .7; }
+/* the mistake reel: a bar per type, the count, and what each costs on average */
+.reel-group > summary { display: grid; grid-template-columns: minmax(150px, 1.1fr) minmax(0, 2fr) 56px 90px; align-items: center; gap: 14px; padding: 12px 0; cursor: pointer; list-style: none; }
+.reel-group > summary::-webkit-details-marker { display: none; }
+.reel-group > summary b { font-size: 15px; font-weight: 700; }
+.reel-bar { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.reel-bar i { display: block; height: 100%; border-radius: 999px; background: var(--bad); }
+.reel-group > summary .num { text-align: right; font-size: 16px; }
+.reel-more { margin: 8px 0 0; }
+@media (max-width: 700px) { .reel-group > summary { grid-template-columns: minmax(0, 1fr) 48px 80px; } .reel-group > summary .reel-bar { display: none; } .skill-row { grid-template-columns: minmax(90px, 1fr) minmax(0, 1fr) 52px 20px; gap: 10px; } }
+
+/* round 14: the match tab's close button is a quiet round button (it was a red square on hover) */
+.match-tab { padding: 0 5px 0 12px; }
+.match-tab-x { width: 26px; height: 26px; border-radius: 50%; margin-left: 2px; color: var(--text-2); background: var(--white-8); }
+.match-tab-x:hover:not(:disabled), .match-tab-x:focus-visible { background: var(--white-16, var(--surface-3)); color: var(--text-1); }
