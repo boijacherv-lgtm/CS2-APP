@@ -7,6 +7,7 @@ import { itemTimings, TIMING_MARGIN, typicalTiming } from './api';
 import type { D2Move, D2Tag } from './coach';
 import { abilityById, buildingOf, heroOf, itemById, itemByKey, mins, skillLook, TEAM_COLOR, TEAM_NAME, type D2Team } from './data';
 import { TalentTree } from './D2Talents';
+import { useLiveGameData, useMapLayout } from './gameData';
 import { GRADE_LEGEND, gradeMatch, type ChapterKind, type MatchGrades } from './grades';
 import { NORM_SAMPLE, supportNumbers, supportsOf, teamPlayLetter, visionLetter } from './support';
 import { clashes, keyFacts, laneResults, SWING_MINUTES, type D2Match } from './match';
@@ -36,10 +37,12 @@ const BENCH: [string, string][] = [['gold_per_min', 'Gold per minute'], ['xp_per
 
 /** Dota 2's Match recap: the result, the coach's lessons, fights, objectives, item timings and every player's numbers. */
 export function D2Report() {
+  useLiveGameData();
   const match = useD2(s => s.match);
   const coach = useCoach();
   const [tab, setTab] = useState<Tab>('overview');
   const tracks = useD2(s => (s.replay.status === 'ready' ? s.replay.tracks : null));
+  useMapLayout(match ?? null, tracks);
   const grades = useMemo(() => (match?.parsed ? gradeMatch(match, coach.all, tracks) : null), [match, coach.all, tracks]);
   if (!match) return <div className="page"><p className="muted">No match open. <a href="/dota2/review">Pick one</a></p></div>;
   const me = coach.mine !== null ? match.players[coach.mine] : null;

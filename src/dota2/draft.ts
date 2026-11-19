@@ -207,3 +207,8 @@ export function bestPair(d: HeroPairs, team: number[]): { a: number; b: number; 
   }));
   return best;
 }
+
+/** The position a hero is most played at: where pros play them, by the tags while they've had few games. */
+export function mainPosition(d: HeroPairs, hero: number): Position {
+  return ALL_POSITIONS.reduce((best, p) => (suits(d, hero, p) > suits(d, hero, best) ? p : best), 1 as Position);
+}

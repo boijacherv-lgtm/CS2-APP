@@ -4,9 +4,10 @@ import { NOTE_INFO } from '../engine/recap';
 import { Icon } from '../ui/Icon';
 import { loadMatch, requestParse } from './api';
 import { speedAt, type D2Move } from './coach';
-import { buildingOf, CAMP_ICONS, heroOf, isNight, itemByKey, itemLook, mins, nextDawnOrDusk, OBS_VISION, skillLook, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, visionShape, type D2Team } from './data';
+import { buildingOf, CAMP_ICONS, heroByKey, heroOf, isNight, itemByKey, itemLook, mins, nextDawnOrDusk, OBS_VISION, skillLook, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, visionShape, type D2Team } from './data';
 import { D2Map, drawCamps, useImages } from './D2Map';
 import { TalentTree } from './D2Talents';
+import { heroData, heroDataNow, useMapLayout } from './gameData';
 import { buildingUp, deadAt, kdAt, lastKnown, netWorthAt, seriesAt, teamKillsAt, type D2Event, type D2Match } from './match';
 import { useD2 } from './store';
 import { campsNow, heroAt, heroTrail, itemCooldownAt, itemsAt, skillsAt, unitsAt, vitalsAt, type Cooldown, type SkillNow } from './tracks';
@@ -19,6 +20,29 @@ const SPEEDS = [1, 2, 4, 8, 16, 32];
 /** A moment is shown from this long before it, and marked on the map until this long after. */
 const LEAD = 5, MOMENT_AFTER = 8;
 const SLOW_KEY = 'stratboard.d2.slow';
+/** The longest frame (ms) the clock moves on by in full: a slower one moves it only this much. */
+const LONGEST_FRAME = 50;
+/** While playing, the players' rows, gold charts and feed follow the clock this often (ms): at 32× redrawing all of them every frame made the map stutter. */
+const PANEL_EVERY = 120;
+
+/** The match clock for the side panels: at once when paused or moved by hand, at most every PANEL_EVERY ms while playing. */
+function usePanelTime(): number {
+  const [time, setTime] = useState(() => useD2.getState().time);
+  useEffect(() => {
+    let shown = 0, timer = 0;
+    const show = (t: number) => { shown = performance.now(); setTime(t); };
+    const unsub = useD2.subscribe((s, before) => {
+      if (s.time === before.time) return;
+      clearTimeout(timer);
+      const wait = PANEL_EVERY - (performance.now() - shown);
+      if (!s.playing || wait <= 0) show(s.time);
+      // the last step of a run still shows, a moment later
+      else timer = window.setTimeout(() => show(useD2.getState().time), wait);
+    });
+    return () => { unsub(); clearTimeout(timer); };
+  }, []);
+  return time;
+}
 /** How long a chat line stays on the board (s), and how many at once. */
 const CHAT_SHOWN = 15, CHAT_LINES = 4;
 
@@ -28,10 +52,15 @@ const SHOW_LABEL: Record<keyof Show, string> = { creeps: 'Creeps', neutrals: 'Ne
 /** Dota 2 Review's board: the map (heroes, creeps, Roshan, runes, wards, buildings, fights), both teams, and playback. */
 export function D2Board() {
   const match = useD2(s => s.match)!;
+  // the ten heroes' skills and talents as this patch has them
+  useEffect(() => { for (const p of match.players) void heroData(p.hero); }, [match]);
   const [show, setShow] = useState<Show>({ creeps: true, neutrals: true, couriers: true });
-  const time = useD2(s => s.time), playing = useD2(s => s.playing), speed = useD2(s => s.speed), selected = useD2(s => s.selected);
+  // the map and the play bar follow the clock every frame (they read it themselves); the rest needn't, see panelTime
+  const time = usePanelTime(), playing = useD2(s => s.playing), speed = useD2(s => s.speed), selected = useD2(s => s.selected);
   const replay = useD2(s => s.replay);
   const tracks = replay.status === 'ready' ? replay.tracks : null;
+  // the map as this match had it: its replay's, or its patch's
+  useMapLayout(match, tracks);
 
   const coach = useCoach();
   const graded = useMemo(() => coach.shown.filter(m => m.note !== 'book'), [coach.shown]);
@@ -42,7 +71,8 @@ export function D2Board() {
     let last = performance.now(), raf = 0;
     const tick = (now: number) => {
       const s = useD2.getState();
-      const t = Math.min(match.duration, s.time + ((now - last) / 1000) * speedAt(graded, s.time, s.speed, slow));
+      // a frame that came late doesn't make the heroes leap ahead: at 32× a hitch would be seconds of the match at once
+      const t = Math.min(match.duration, s.time + (Math.min(now - last, LONGEST_FRAME) / 1000) * speedAt(graded, s.time, s.speed, slow));
       last = now;
       useD2.setState({ time: t, ...(t >= match.duration ? { playing: false } : {}) });
       if (t < match.duration) raf = requestAnimationFrame(tick);
@@ -143,7 +173,7 @@ export function D2Board() {
             {selected !== null && match.players[selected].team === team && <div className="d2-under"><D2Items match={match} slot={selected} time={time} /></div>}
           </aside>
         ))}
-        <BoardMap match={match} time={time} selected={selected} show={show} moment={moment} overlay={<>
+        <BoardMap match={match} selected={selected} show={show} moment={moment} overlay={<>
           {moment && moment !== closed && (
             <article className="d2-moment" style={{ '--grade': NOTE_INFO[moment.note].color } as CSSProperties}>
               <header>
@@ -174,7 +204,7 @@ export function D2Board() {
           <ReplayNote />
         </>} />
       </div>
-      <Playbar match={match} time={time} playing={playing} speed={speed} graded={graded} slow={slow} setSlow={setSlow} canMine={coach.canMine}>
+      <Playbar match={match} playing={playing} speed={speed} graded={graded} slow={slow} setSlow={setSlow} canMine={coach.canMine}>
         <span className="d2-layers" role="group" aria-label="Show on the map">
           {(Object.keys(SHOW_LABEL) as (keyof Show)[]).map(key => (
             <label key={key} className="dl-layer"><input type="checkbox" checked={show[key]} onChange={e => setShow({ ...show, [key]: e.target.checked })} /> {SHOW_LABEL[key]}</label>
@@ -253,7 +283,8 @@ function TeamGold({ match, team, time }: { match: D2Match; team: D2Team; time: n
   );
 }
 
-function BoardMap({ match, time, selected, show, overlay, moment }: { match: D2Match; time: number; selected: number | null; show: Show; overlay: ReactNode; moment: D2Move | null }) {
+function BoardMap({ match, selected, show, overlay, moment }: { match: D2Match; selected: number | null; show: Show; overlay: ReactNode; moment: D2Move | null }) {
+  const time = useD2(s => s.time);
   const replay = useD2(s => s.replay);
   const tracks = replay.status === 'ready' ? replay.tracks : null;
   const wards = match.wards.filter(w => time >= w.t && time < w.until);
@@ -405,7 +436,8 @@ function HeroMark({ k, icon, name, team, selected, hp, dead }: { k: number; icon
 function Label({ text, k, fill, y }: { text: string; k: number; fill: string; y: number }) {
   return <Text text={text} x={-LABEL_W / 2} y={y} width={LABEL_W} align="center" wrap="none" fontSize={Math.max(8.5, 9.5 * k)} fontStyle="bold" fill={fill} stroke="#000" strokeWidth={2.2 * k} fillAfterStrokeEnabled />;
 }
-function Playbar({ match, time, playing, speed, graded, slow, setSlow, canMine, children }: { match: D2Match; time: number; playing: boolean; speed: number; graded: D2Move[]; slow: boolean; setSlow: (on: boolean) => void; canMine: boolean; children: ReactNode }) {
+function Playbar({ match, playing, speed, graded, slow, setSlow, canMine, children }: { match: D2Match; playing: boolean; speed: number; graded: D2Move[]; slow: boolean; setSlow: (on: boolean) => void; canMine: boolean; children: ReactNode }) {
+  const time = useD2(s => s.time);
   const s = useD2.getState();
   const scope = useD2(x => x.scope);
   const span = match.duration - match.start || 1;
@@ -438,8 +470,11 @@ function Playbar({ match, time, playing, speed, graded, slow, setSlow, canMine, 
           <button className={scope === 'mine' ? 'on' : ''} onClick={() => s.setScope('mine')}>Mine</button>
         </div>
       )}
-      <div className="dl-phases" role="group" aria-label="Jump to">
-        {PHASES.filter(p => p.t < match.duration).map(p => <button key={p.label} className="chip" onClick={() => s.setTime(p.t)}>{p.label}</button>)}
+      <div className="d2-phases" role="group" aria-label="Jump to">
+        {PHASES.filter(p => p.t < match.duration).map((p, i, all) => {
+          const now = time >= p.t && (i === all.length - 1 || time < all[i + 1].t);
+          return <button key={p.label} className={now ? 'on' : ''} aria-pressed={now} onClick={() => s.setTime(p.t)}>{p.label}</button>;
+        })}
       </div>
       <div className="dl-timeline">
         <input type="range" min={match.start} max={match.duration} step={1} value={Math.floor(time)} onChange={e => s.setTime(Number(e.target.value))} aria-label="Match time" />
@@ -459,16 +494,16 @@ function PlanFromHere({ match, time }: { match: D2Match; time: number }) {
   const replay = useD2(s => s.replay);
   if (replay.status !== 'ready') return null;
   const go = () => {
-    if (useTac.getState().heroes.length && !confirm('Replace your current plan in Tactical with this moment?')) return;
+    if (useTac.getState().heroes.length && !confirm('Replace your current plan with this moment?')) return;
     useTac.getState().loadMoment(time, match.players.flatMap(p => {
       const now = heroAt(replay.tracks, p.hero, time);
       return now ? [{ team: p.team, hero: p.hero, at: now.at }] : [];
     }));
     useD2.getState().setPlaying(false);
-    try { localStorage.setItem('stratboard.d2.tab', 'fight'); } catch { /* private mode */ }
+    try { localStorage.setItem('stratboard.d2.top', 'planner'); localStorage.setItem('stratboard.d2.tab', 'fight'); } catch { /* private mode */ }
     navigate({ page: 'dota2', mode: 'tactical' });
   };
-  return <button className="chip" onClick={go} title="Open this moment in Tactical, with every hero where they stand">Plan from here</button>;
+  return <button className="chip" onClick={go} title="Open this moment in the teamfight planner, with every hero where they stand">Plan from here</button>;
 }
 
 function stepMoment(moves: D2Move[], dir: 1 | -1) {
@@ -510,9 +545,12 @@ function ItemCell({ slot, cooldown }: { slot: string | null | undefined; cooldow
 }
 
 function SkillCell({ skill, heroKey, large }: { skill: SkillNow; heroKey: string; large?: boolean }) {
-  const look = skillLook(skill.name, heroKey);
+  const look = skillLook(skill.name, heroKey), hero = heroByKey(heroKey);
+  // this patch's words for it, once its hero's data is in
+  const said = hero ? heroDataNow(hero.id)?.skills[skill.name] : undefined;
+  const title = `${said?.name ?? look.name}, level ${skill.level}${skill.cooldown ? `: ready in ${Math.ceil(skill.cooldown.left)} s` : ''}${said?.desc ? `\n${said.desc}` : ''}`;
   return (
-    <span className={`d2-skill ${skill.level ? '' : 'unlearned'} ${large ? 'large' : ''}`} title={`${look.name}, level ${skill.level}${skill.cooldown ? `: ready in ${Math.ceil(skill.cooldown.left)} s` : ''}`}>
+    <span className={`d2-skill ${skill.level ? '' : 'unlearned'} ${large ? 'large' : ''}`} title={title}>
       <img src={look.icon} alt={look.name} onError={e => { e.currentTarget.style.visibility = 'hidden'; }} />
       <CooldownMark cd={skill.cooldown} />
       {large && skill.level > 0 && <b className="d2-skill-level num">{skill.level}</b>}
