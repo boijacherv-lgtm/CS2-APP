@@ -1,5 +1,8 @@
 import { create } from 'zustand';
-import { keyAt, type Frame, type Key, type Note } from '../deadlock/tacticalStore';
+import { keyAt, type Key, type Note } from '../deadlock/tacticalStore';
+
+/** A teamfight frame: where everyone stands, and who focuses whom (Deadlock's own planner no longer has these). */
+export interface Frame { pos: Record<string, Pt>; focus: { from: string; to: string }[] }
 import type { D2Team, Pt } from './data';
 
 export { keyAt };

@@ -55,13 +55,13 @@ export function AddMatches() {
     <section className="site-card add-matches">
       <div className="card-head">
         <h2><Icon name="upload" size={16} /> Add matches</h2>
+        {me && !items.length && <span className="muted small add-hint">several demos at once, about a minute each</span>}
         {me && <button className="cta small-btn" disabled={busy} onClick={() => input.current?.click()}>{busy ? 'Adding…' : 'Choose demos'}</button>}
       </div>
       {!me ? (
         <p className="muted">Log in with Steam (or pick yourself with Mine… in Review) so the site knows which player you are in your demos.</p>
       ) : !items.length ? (
-        <p className="muted">Pick several of your demos at once (.dem, or FACEIT/HLTV ones unzipped). Each is read and graded here, about a minute each,
-          and goes on your profile. Keep this tab open while it works.</p>
+        null
       ) : (
         <ul className="add-list">
           {items.map((it, i) => (

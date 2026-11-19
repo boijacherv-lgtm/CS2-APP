@@ -1,3 +1,4 @@
+import { AIM_SHARE, aimedShare } from './aim';
 import { worldToRadar } from './coords';
 import type { TacticalEngine } from './predict';
 import type { DemoRound } from './recap';
@@ -59,6 +60,12 @@ export interface Hold {
   ev?: number;
   /** Not a hold: the spot of their first fight, for a round where they never stood still long enough to hold one. */
   contact?: boolean;
+  /**
+   * What the stay was (aim.ts): 'hold' watching a way in the enemy comes from most of the time; 'waited' standing, then
+   * going on within WAIT_SECS (a timing: the move after it is the decision); 'stayed' anything else (spawn, behind
+   * teammates, looking away). Only 'hold' is judged as a hold. Missing on rounds without view data: a hold.
+   */
+  stay?: 'hold' | 'waited' | 'stayed';
 }
 export interface Move {
   player: string; side: Side; from: string; to: string; t: number; phase: Phase;
@@ -74,6 +81,8 @@ export interface Move {
 const HOLD_SECS = 4;
 /** …standing, not walking: under this average speed (game units a second; running is ~250, shift-walking ~130). */
 const HOLD_SPEED = 70;
+/** A stay that ends in a move this soon, without watching a way in, is waiting for the moment to go, not holding. */
+const WAIT_SECS = 20;
 
 /**
  * Whether a hold is a real decision: standing in your own spawn in the first 20 s is just the round starting
@@ -215,6 +224,11 @@ export function roundDecisions(engine: TacticalEngine, r: DemoRound): { holds: H
         seen: seenPlaces(side(id), h.from),
         ...(site && phase === 'post-plant' ? { site } : {}),
         pressure, alone, mateDown, ...(target ? { target } : {}),
+        ...(() => {
+          const aim = aimedShare(engine, r, id, h.from, h.to);
+          if (aim === null) return {};
+          return { stay: aim >= AIM_SHARE ? 'hold' as const : next && h.to - h.from <= WAIT_SECS ? 'waited' as const : 'stayed' as const };
+        })(),
       });
       if (next && next.place !== h.place) {
         const via: string[] = [];

@@ -4,6 +4,7 @@ import type { FloorShape, MapDefinition, PackedGrid, Utility, Vec2 } from './typ
  * Walkability grid derived from the official radar (or hand-drawn floor shapes).
  * Drives both pathing (Dijkstra => travel times) and line-of-sight (ray marching).
  */
+const NEIGHBOURS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 export const CELL = 4; // radar px per cell (= 20 world units on Mirage)
 
 export class MapGrid {
@@ -86,6 +87,42 @@ export class MapGrid {
       }
     return best;
   }
+
+  /**
+   * The floor a smoke or a fire covers from `at` (radar px): every walkable cell within `radius` radar px of it, by the
+   * way it would spread (around walls, through doorways, never through a wall), with how far it had to go (`d`). The
+   * cells' centres are relative to `at`. Cached per spot and radius (grenades are drawn every frame).
+   */
+  spread(at: Vec2, radius: number): { x: number; y: number; d: number }[] {
+    const key = `${Math.round(at.x)},${Math.round(at.y)},${Math.round(radius)}`;
+    const hit = this.spreadCache.get(key);
+    if (hit) return hit;
+    const start = this.snap(at), out: { x: number; y: number; d: number }[] = [];
+    if (start >= 0) {
+      const dist = new Map<number, number>([[start, 0]]), queue = [start];
+      // breadth-first with real step lengths (8 neighbours): close enough to round for a cloud, and fast
+      const done = new Set<number>();
+      for (let q = 0; q < queue.length; q++) {
+        const i = queue[q];
+        if (done.has(i)) continue;
+        done.add(i);
+        const d = dist.get(i)!, cx = i % this.w, cy = (i - cx) / this.w;
+        out.push({ x: cx * CELL + CELL / 2 - at.x, y: cy * CELL + CELL / 2 - at.y, d });
+        for (const [dx, dy] of NEIGHBOURS) {
+          const x = cx + dx, y = cy + dy;
+          if (x < 0 || y < 0 || x >= this.w || y >= this.h) continue;
+          const j = y * this.w + x, nd = d + Math.hypot(dx, dy) * CELL;
+          if (!this.walk[j] || done.has(j) || nd > radius || (dist.get(j) ?? Infinity) <= nd) continue;
+          dist.set(j, nd);
+          queue.push(j);
+        }
+      }
+    }
+    if (this.spreadCache.size > 400) this.spreadCache.clear();
+    this.spreadCache.set(key, out);
+    return out;
+  }
+  private spreadCache = new Map<string, { x: number; y: number; d: number }[]>();
 
   /**
    * Multi-source Dijkstra over 8-connected cells. Returns path length in radar px

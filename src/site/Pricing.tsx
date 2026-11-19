@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { proEarlyAccess, siteConfig } from '../ui/siteConfig';
 import { STEAM_AVAILABLE } from '../env';
-import { FREE_HISTORY, MAX_HISTORY, PRO_EARLY_ACCESS } from '../engine/profile';
-import { Icon } from '../ui/Icon';
+import { FREE_HISTORY, MAX_HISTORY } from '../engine/profile';
+import { Icon, type IconName } from '../ui/Icon';
 import { setNotifyPro, useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 
@@ -15,45 +16,52 @@ const FREE = [
 ];
 const PRO = [
   'Everything in Free',
-  `Unlimited history (your last ${MAX_HISTORY} matches, trends over all of them)`,
+  `Your last ${MAX_HISTORY} matches kept, with trends over all of them`,
   'Engine deep dive: the best line for every moment, not just the worst',
   'Compare with pro players, not just level 10',
+  'Deadlock: instant match lookup',
   'Supporter badge on your profile',
   'New features first',
 ];
 
+/** A small picture per feature (instead of a tick on every row). */
+const iconFor = (f: string): IconName => /replay/i.test(f) ? 'play' : /coach|level 10/i.test(f) ? 'chat' : /engine/i.test(f) ? 'route' : /profile|history|matches kept/i.test(f) ? 'stats'
+  : /goals/i.test(f) ? 'goal' : /friend|pro players/i.test(f) ? 'friends' : /deadlock/i.test(f) ? 'bolt' : /badge/i.test(f) ? 'trophy' : /new features/i.test(f) ? 'star' : 'check';
+
 /** Plans. There are no payments yet: during early access everyone has Pro. */
 export function Pricing() {
+  const price = siteConfig().pricing.price || '$5';
   const me = useProfile(s => s.me), notify = useProfile(s => s.data.notifyPro), remote = useProfile(s => s.remote);
   const [busy, setBusy] = useState(false);
   const toggle = async () => { setBusy(true); await setNotifyPro(!notify); setBusy(false); };
   return (
     <div className="page pricing">
       <header className="page-head">
-        <h1>Plans</h1>
-        <p className="lead">The coach is free. Pro is for people who review every match{PRO_EARLY_ACCESS ? ', and right now it\'s free too.' : '.'}</p>
+        <h1>{proEarlyAccess() ? 'Free. Pro is free too, for now.' : 'Plans'}</h1>
       </header>
-      {PRO_EARLY_ACCESS && (
+      {proEarlyAccess() && (<>
         <div className="notice"><Icon name="bolt" size={16} /> <span><b>Early access:</b> every Pro feature is unlocked for everyone while RageView is new. Nothing to pay, no card needed.</span></div>
-      )}
+        <p className="muted small pricing-after"><b>When early access ends{siteConfig().pricing.earlyEnds ? ` (${siteConfig().pricing.earlyEnds})` : ''}:</b> Pro costs {price} a month. Everything in Free stays free, and the matches you've reviewed stay saved (Free shows your last 5). You'll see it on your profile before anything changes.</p>
+      </>)}
       <div className="plans">
         <section className="plan">
           <h2>Free</h2>
-          <p className="price"><b>$0</b><span>forever</span></p>
-          <ul>{FREE.map(f => <li key={f}><Icon name="check" size={14} /> {f}</li>)}</ul>
-          <a className="cta" href="#/cs2/review">Review a match</a>
+          <p className="price"><b>$0</b><span>Everything you need</span></p>
+          <ul>{FREE.map(f => <li key={f}><Icon name={iconFor(f)} size={14} /> {f}</li>)}</ul>
+          <p className="muted small plan-miss">What you'll miss on Free: matches past your last {FREE_HISTORY}, the engine's best line for every moment, and comparison with pro players.</p>
+          <a className="cta" href="/cs2/review">Review a CS2 match</a>
         </section>
         <section className="plan featured">
-          <span className="plan-tag">{PRO_EARLY_ACCESS ? 'Free in early access' : 'Most complete'}</span>
+          <span className="plan-tag">{proEarlyAccess() ? 'Free in early access' : 'Most complete'}</span>
           <h2>Pro</h2>
-          <p className="price"><b>Coming soon</b><span>{PRO_EARLY_ACCESS ? 'unlocked for you now' : ''}</span></p>
-          <ul>{PRO.map(f => <li key={f}><Icon name="check" size={14} /> {f}</li>)}</ul>
+          <p className="price"><b>{price}</b><span>/ month{proEarlyAccess() ? ' after early access' : ''}</span></p>
+          <ul>{PRO.map(f => <li key={f}><Icon name={iconFor(f)} size={14} /> {f}</li>)}</ul>
           {me && remote ? (
             <button className={notify ? 'cta' : 'cta primary'} onClick={toggle} disabled={busy} aria-pressed={notify}>
               <Icon name="bell" size={14} /> {notify ? 'You\'ll be told when Pro launches' : 'Tell me when Pro launches'}
             </button>
           ) : STEAM_AVAILABLE ? (
-            <div className="plan-login"><span className="muted">Log in to be told when Pro launches:</span><SteamLoginButton compact /></div>
+            <div className="plan-login"><span className="muted">Pro is free for everyone right now: log in with Steam and it's on. We only get your SteamID, public name and avatar.</span><SteamLoginButton compact label="Get Pro free" /></div>
           ) : <p className="muted">Pro launches later; everything is unlocked until then.</p>}
           {me && remote && notify && <p className="muted small">You'll see it on your profile when it launches. We don't email you.</p>}
         </section>

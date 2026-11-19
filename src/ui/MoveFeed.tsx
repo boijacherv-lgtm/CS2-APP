@@ -1,10 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useSiteConfig } from './siteConfig';
 import { simStateAt, type Simulation } from '../engine/combat';
 import { moveLook, NoteMark } from './NoteMark';
 import { gunFromName } from '../engine/guns';
-import { calloutAt, NOTE_INFO, moveKey, readMs, TAG_INFO, type DemoRound, type Move, type Review } from '../engine/recap';
-import { useStore, whoAmI } from '../store';
-import { rageLine } from '../engine/rage';
+import { calloutAt, moveClock, NOTE_INFO, moveKey, QUIET_TAGS, readMs, TAG_INFO, type DemoRound, type Move, type Review, type Tag } from '../engine/recap';
+import { swingNote } from '../engine/notes';
+import { rageNow, useStore, whoAmI } from '../store';
+import { rageLines } from '../engine/rage';
 import { GameIcon, Icon } from './Icon';
 import { IMPACT_ICON, isImpactWeapon, KillIcon, killMods } from './KillIcons';
 import { VerdictBar } from './Verdict';
@@ -54,8 +56,17 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   }, [time]);
   useEffect(() => setRead(new Set()), [recap, shown]);
   const [page, setPage] = useState(0);
-  const { pending, backlog } = calloutAt(recap.moves, time, queueing, read, 0, shown);
-  const { move: atMove, group } = calloutAt(recap.moves, time, false, read, page, shown);
+  // cards for graded moves; a Book move (the expected play) stays in the killfeed, except a death of yours: you always
+  // see why you died (a lost duel you were the favourite in has no mark now, but it still pops up)
+  const me = useStore(whoAmI);
+  // a plant is book too: it only gets a card when it moved the round (3%+), otherwise it is the plain row
+  const carded = (m: Move) => shown(m) && (m.note !== 'book' || (m.kind === 'death' && !!me && m.player === me) || (m.kind === 'objective' && m.tags.includes('PLANT') && Math.abs(m.gain) >= 0.03));
+  useSiteConfig();
+  const rageLevel = useStore(rageNow);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const rage = useMemo(() => rageLines(recap.moves.filter(carded), rageLevel), [recap.moves, rageLevel, me, shown]);
+  const { pending, backlog } = calloutAt(recap.moves, time, queueing, read, 0, carded);
+  const { move: atMove, group } = calloutAt(recap.moves, time, false, read, page, carded);
   const groupKey = group.map(moveKey).join('|');
   useEffect(() => setPage(group.length - 1), [groupKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // a move picked from the killfeed or the move list, or a card you closed: holds until the replay moves on
@@ -122,7 +133,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
   };
 
   // with the arrows on (a debugging view): a line from the card to the player it's about
-  const arrows = useStore(st => st.engineLines), rage = useStore(st => st.rage);
+  const arrows = useStore(st => st.engineLines);
   const anchorEl = useRef<HTMLDivElement | null>(null);
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   useLayoutEffect(() => {
@@ -151,15 +162,13 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
           <circle className="feed-ring-pulse" cx={px} cy={py} r={ringR} fill="none" stroke={g.color} strokeWidth={1.5} />
         </svg>
       )}
-      <div className={`feed-card ${reading && !held ? 'reading' : ''} ${open ? 'open' : ''}`} key={cardKey} ref={anchorEl}
+      <div className={`feed-card fx-${({ '!!': 'brilliant', '!': 'good', book: 'book', '?!': 'inacc', '?': 'mistake', '??': 'blunder' } as Record<string, string>)[card.note]} ${reading && !held ? 'reading' : ''} ${open ? 'open' : ''}`} key={cardKey} ref={anchorEl}
         style={{ '--grade': g.color } as React.CSSProperties} onClick={skip} title={reading && !held ? 'Click for the next move' : undefined}>
         {/* 1. the grade, who, when */}
+        {/* the same card as Deadlock's: the grade as a coloured pill, then who and when */}
         <div className="feed-card-head">
-          <NoteMark m={card} className="feed-mark" size={14} />
-          <div className="feed-who">
-            <b>{g.label}</b>
-            <span><i className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</i><em className="num">{fmtT(card.t)}</em></span>
-          </div>
+          <span className="feed-grade" style={{ background: g.color }}>{g.label}</span>
+          <span className="feed-who"><i className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</i> · <em className="num">{moveClock(round.plant, card.t).text}</em></span>
           {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close"><Icon name="close" /></button>}
         </div>
         {/* 2. what happened */}
@@ -167,8 +176,8 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
         {/* 3. what it did to the round: the win chance before and after */}
         <WinMeter m={card} swing={facts.swing} />
         {/* 4. the better play, when the engine had one */}
-        {facts.better && <div className="feed-better"><Icon name="arrowRight" size={13} /><span>Better: <b>{facts.better}</b></span></div>}
-        {rage && rageLine(card) && <div className="feed-rage">{rageLine(card)}</div>}
+        {facts.better && <p className="feed-better"><b>Better:</b> {facts.better}</p>}
+        {rage.get(card) && <div className="feed-rage">{rage.get(card)}</div>}
         {/* 5. why: the two that matter most, the rest on demand */}
         {facts.reasons.length > 0 && (
           <ul className="feed-why">
@@ -180,7 +189,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
         )}
         {card.tags.length > 0 && (
           <div className="feed-tags">
-            {card.tags.map(t => <span key={t} className="tag" title={TAG_INFO[t].tip} style={{ color: TAG_INFO[t].color, borderColor: TAG_INFO[t].color }}>{t}</span>)}
+            {card.tags.filter(t => !QUIET_TAGS.has(t)).map(t => <span key={t} className="feed-tag" title={TAG_INFO[t].tip}>{t === 'ISOLATED' ? 'ALONE' : t}</span>)}
           </div>
         )}
         {/* 7. what you can do with it */}
@@ -188,6 +197,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
           {reading && !held && <button className="feed-stop" onClick={stop} title="Stop the replay on this move to read it"><Icon name="pause" size={12} /> Stop to read</button>}
           {held && <button className="primary" onClick={resume} title="Carry on (Space)"><Icon name="play" size={12} /> Continue</button>}
           {!reading && !held && <button className="feed-act" onClick={() => watchAgain(card.t)} title="Watch the 3 s leading up to it"><Icon name="rewind" size={12} /> Watch again</button>}
+          {!playing && !held && <ClipButton boardRef={boardRef} t={card.t} title={brief(card.title)} rage={rage.get(card) ?? null} mark={g.label} color={g.color} />}
           {!playing && !picked && !held && group.length > 1 && (
             <span className="feed-pager">
               <button onClick={() => setPage((page + group.length - 1) % group.length)} aria-label="Previous move at this moment">‹</button>
@@ -196,12 +206,18 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
             </span>
           )}
         </div>
-        {!playing && <div onClick={e => e.stopPropagation()}><VerdictBar m={card} /></div>}
+        {!playing && (card.note === '?' || card.note === '??') && <div onClick={e => e.stopPropagation()}><VerdictBar m={card} /></div>}
         {reading && !held && readFor > 0 && <i key={`r${cardKey}`} className="feed-read" style={{ animationDuration: `${readFor}ms`, background: g.color }} />}
       </div>
     </>
   );
 }
+
+/** Reasons a tag already says (the tag stays on the card, the line goes). */
+const SAID_BY_TAG: Partial<Record<Tag, RegExp>> = {
+  ISOLATED: /no teammate|nobody (could|to) trade|alone/i, TRADED: /\btraded\b/i, 'FLASH ASSIST': /flash assist/i, 'MULTI-KILL': /kills? in \d+ ?s/i,
+  'LOW HP': /\bHP\b|low health/i, 'POST-PLANT': /after the plant|bomb (was )?planted/i,
+};
 
 /** The card's parts from a move's reasons: the win-chance swing (for the meter), the engine's better play, the rest. */
 export function cardFacts(m: Move): { swing: { side: 'CT' | 'T'; before: number; after: number } | null; better: string | null; reasons: string[] } {
@@ -216,6 +232,11 @@ export function cardFacts(m: Move): { swing: { side: 'CT' | 'T'; before: number;
     const opt = w.match(/^Options: (.+?) \(best\)/);
     if (opt) { better ??= cap(opt[1]); continue; }
     // the engine's verdict is the card's grade already: keep what it adds (accuracy, cost)
+    // a line the card's tag already says is dropped (the tag stays)
+    if (m.tags.some(t => SAID_BY_TAG[t]?.test(w))) continue;
+    // "Duel odds: 58% …" says nothing when it's close to a coin flip: only shown below 40% or above 60%
+    const odds = w.match(/^Duel odds: (\d+)%/);
+    if (odds && +odds[1] >= 40 && +odds[1] <= 60) continue;
     reasons.push(brief(w).replace(/^Engine: [A-Za-z]+, a/, 'A'));
   }
   return { swing, better, reasons };
@@ -225,14 +246,12 @@ export function cardFacts(m: Move): { swing: { side: 'CT' | 'T'; before: number;
 function WinMeter({ m, swing }: { m: Move; swing: { side: 'CT' | 'T'; before: number; after: number } | null }) {
   const d = Math.round(m.gain * 100);
   const pill = <span className={`feed-gain ${d > 0 ? 'up' : d < 0 ? 'down' : 'flat'}`} title="Change in their team's win chance">{signedPct(m.gain)}</span>;
-  if (!swing) return <div className="feed-meter only">{pill}<span className="muted">win chance</span></div>;
+  // a choice that didn't change the round's chance (a positioning card): no "0% win chance" line
+  if (!swing) return d === 0 ? null : <div className="feed-meter only">{pill}<span className="muted">win chance</span></div>;
   return (
-    <div className="feed-meter" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
-      <div className="feed-meter-top"><span className={swing.side.toLowerCase()}>{swing.side} win chance</span><b className="num">{swing.before}% → {swing.after}%</b>{pill}</div>
-      <div className={`feed-meter-bar ${swing.side.toLowerCase()}`}>
-        <i className="fill" style={{ width: `${swing.after}%` }} />
-        <i className="was" style={{ left: `${swing.before}%` }} />
-      </div>
+    <div className="feed-win" title={`${swing.side} win chance ${swing.before}% → ${swing.after}%`}>
+      <span className="bar"><i style={{ '--from': `${swing.before}%`, width: `${swing.after}%`, background: swing.after >= swing.before ? 'var(--good)' : 'var(--bad)' } as React.CSSProperties} /></span>
+      <span className="num"><b className={`side-${swing.side.toLowerCase()}`}>{swing.side}</b> {swing.before}% → {swing.after}% {(() => { const n = swingNote(m.note, (swing.after - swing.before) / 100); return n ? <b className={n.tone}>{n.text}</b> : null; })()}</span>
     </div>
   );
 }
@@ -332,3 +351,20 @@ function signedPct(gain: number) {
 
 /** The pop-up's short form: drops every "(...)" aside, e.g. "(from Jungle, 14 m)" or "(headshot)". */
 export const brief = (s: string) => s.replace(/\s*\([^()]*\)/g, '').trim();
+
+/** A 10 s video of this moment with its line (and the Rage line when it's on), made in the browser (clip.ts). */
+function ClipButton({ boardRef, t, title, rage, mark, color }: { boardRef: React.RefObject<HTMLDivElement | null>; t: number; title: string; rage: string | null; mark: string; color: string }) {
+  const [busy, setBusy] = useState(false), [err, setErr] = useState<string | null>(null);
+  const go = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!boardRef.current || busy) return;
+    setBusy(true); setErr(null);
+    try {
+      const { recordClip, saveClip } = await import('./clip');
+      const blob = await recordClip(boardRef.current, t, { title, rage, mark, color });
+      saveClip(blob, `rageview-clip-${Math.round(t)}s.webm`);
+    } catch (x) { setErr(x instanceof Error ? x.message : String(x)); }
+    setBusy(false);
+  };
+  return <button className="feed-act" onClick={go} disabled={busy} title={err ?? 'A 10 s video of this moment with its line, to post anywhere (made here, nothing uploaded)'}><Icon name="download" size={12} /> {busy ? 'Recording 10 s…' : 'Clip'}</button>;
+}

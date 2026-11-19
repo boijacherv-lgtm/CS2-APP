@@ -1,4 +1,4 @@
-import { cappedDamage, duelOdds, roundFacts, roundGrade, type DemoData, type Letter, type Replay, type Review, type Role, type RoundPlay, type Tag } from './recap';
+import { cappedDamage, duelOdds, moveKey, roundFacts, roundGrade, type DemoData, type Letter, type Replay, type Review, type Role, type RoundPlay, type Tag } from './recap';
 import type { Side } from './types';
 import type { Hold, Move } from './situations';
 import type { AnalystRound } from './analyst';
@@ -34,6 +34,12 @@ export interface RoundLine {
   tags: Tag[];
   /** Duels: opponent id and whether this player won. */
   duels: { opp: string; won: boolean }[];
+  /** Their costliest move this round (the most win chance lost, 5% or more): for "your costliest moment". */
+  worst?: { t: number; gain: number; title: string; key: string };
+  /** Their best move this round (the most win chance added, 5% or more): for the recap's "Best play". */
+  best?: { t: number; gain: number; title: string; key: string };
+  /** Win chance lost (0–1, positive) on this round's moves, by tag: what each habit cost (profile → Biggest leak). */
+  lost?: Partial<Record<Tag, number>>;
 }
 
 export interface RoundSummary {
@@ -46,6 +52,8 @@ export interface RoundSummary {
   play?: RoundPlay;
   /** The search engine (search.ts), kept small: each player's accuracy, and the round's clearest mistakes. */
   search?: { players: RoundSearch['players']; key: SearchMoment[] };
+  /** Moves the checked disputes changed, by pattern (corrections.ts). */
+  corrected?: Record<string, number>;
 }
 
 export { cappedDamage };
@@ -76,6 +84,19 @@ export function summarizeRound(rep: Replay, rv: Review): RoundSummary {
       damage: gunDmg + utilDamage, utilDamage,
       kast: kills.length > 0 || assist || !died || traded,
       tags: moves.flatMap(m => m.tags),
+      ...(() => {
+        const lost: Partial<Record<Tag, number>> = {};
+        for (const m of moves) if (m.kind !== 'position' && m.gain < 0) for (const t of new Set(m.tags)) lost[t] = +((lost[t] ?? 0) - m.gain).toFixed(3);
+        return Object.keys(lost).length ? { lost } : {};
+      })(),
+      ...(() => {
+        const w = moves.filter(m => m.kind !== 'position' && m.gain <= -0.05).sort((a, b) => a.gain - b.gain)[0];
+        return w ? { worst: { t: w.t, gain: +w.gain.toFixed(3), title: w.title, key: moveKey(w) } } : {};
+      })(),
+      ...(() => {
+        const b = moves.filter(m => m.kind !== 'position' && m.gain >= 0.05).sort((x, y) => y.gain - x.gain)[0];
+        return b ? { best: { t: b.t, gain: +b.gain.toFixed(3), title: b.title, key: moveKey(b) } } : {};
+      })(),
       duels: [
         ...kills.map(k => ({ opp: k.victim, won: true })),
         ...(died && died.attacker && died.attacker !== id && sideOf(died.attacker) && sideOf(died.attacker) !== side ? [{ opp: died.attacker, won: false }] : []),
@@ -138,7 +159,8 @@ export function buildMatchReport(data: DemoData, rounds: (RoundSummary | null)[]
     const r = data.rounds.find(x => x.frames.players[id] && x.frames.players[ref]);
     return !r || r.frames.players[id].side === r.frames.players[ref].side ? 0 : 1;
   };
-  const rankOf = (id: string) => data.ranks?.[id]?.rating ?? null;
+  // a Competitive (map) rank is a skill group 1–18, not on the Premier scale: only Premier ratings compare
+  const rankOf = (id: string) => { const r = data.ranks?.[id]; return r?.type === 'premier' ? r.rating : null; };
   const score: [number, number] = [0, 0];
   data.rounds.forEach(r => {
     if (!r.winner) return;

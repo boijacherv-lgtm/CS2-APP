@@ -166,15 +166,15 @@ export class TacticalEngine {
       const reasons: string[] = [];
       let threat: number;
       if (!defenders.length) {
-        reasons.push(`No CT has a sightline on ${c.name}. Ts get it for free at ~${arr.min.toFixed(1)}s.`);
-        if (c.feeds.length > 1 || c.area === 'Mid') reasons.push('It connects to both sites, so Ts can split from here.');
+        reasons.push(`Nobody watches ${c.name}. Ts take it free at ${arr.min.toFixed(0)} s.`);
+        if (c.feeds.length > 1 || c.area === 'Mid') reasons.push('Links both sites. Ts can split from here.');
         threat = 0.62 + (c.area === 'Mid' ? 0.18 : 0.08) + 0.15 * sig((reinforceTime - 8) / 2);
       } else {
         if (timeAdvantage > 0)
-          reasons.push(`Ts arrive ${timeAdvantage.toFixed(1)}s before your hold is set (${arr.min.toFixed(1)}s vs ${holdReady.toFixed(1)}s).`);
-        if (defenders.length === 1) reasons.push('Single holder: one trade or flash opens it.');
-        else if (crossfire < 0.5) reasons.push('Holders are stacked on the same line; Ts can clear them one by one.');
-        if (reinforceTime > 10) reasons.push(`Second CT needs ~${reinforceTime.toFixed(0)}s to help.`);
+          reasons.push(`Ts arrive ${timeAdvantage.toFixed(1)} s before you're set.`);
+        if (defenders.length === 1) reasons.push('One holder. One flash opens it.');
+        else if (crossfire < 0.5) reasons.push('Holders on one line. Easy to clear one by one.');
+        if (reinforceTime > 10) reasons.push(`Help is ${reinforceTime.toFixed(0)} s away.`);
         threat =
           0.35 * sig(timeAdvantage) +
           0.3 * (defenders.length === 1 ? 1 : 1 - crossfire) * (defenders.length >= 3 ? 0.4 : 1) +
@@ -183,9 +183,9 @@ export class TacticalEngine {
       }
       // CT utility timed for the Ts' arrival makes the push costlier
       const u = utilityOnChoke(board.utility, c, arr.min, arr.max + 3, this.map.radar.scale);
-      if (u.flash) { threat *= 0.8; reasons.push(`Your flash pops on ${c.name} as Ts arrive: entry duels swing to you.`); }
-      if (u.he) { threat *= 0.9; reasons.push(`HE on ${c.name} softens the first Ts through.`); }
-      if (u.molly) { threat *= 0.85; reasons.push(`Molotov blocks ${c.name} while Ts arrive and delays the push.`); }
+      if (u.flash) { threat *= 0.8; reasons.push(`Your flash on ${c.name} lands as they arrive.`); }
+      if (u.he) { threat *= 0.9; reasons.push(`HE on ${c.name} softens the entry.`); }
+      if (u.molly) { threat *= 0.85; reasons.push(`Molotov on ${c.name} delays the push.`); }
       return { choke: c, tArrival: arr, defenders, crossfire, timeAdvantage, reinforceTime, threat: clamp01(threat), reasons };
     });
 

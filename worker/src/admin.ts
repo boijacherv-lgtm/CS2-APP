@@ -15,6 +15,12 @@ export interface AdminKV {
 
 export const isOwner = (ownerIds: string | undefined, steamId: string | null) =>
   !!steamId && (ownerIds ?? '').split(',').map(s => s.trim()).includes(steamId);
+/**
+ * Pro: everyone logged in while PRO_FOR_ALL is "1" (early access, as the Pricing page promises), else the owner and
+ * the SteamIDs in PRO_IDS (until payments fill it).
+ */
+export const isPro = (env: { PRO_FOR_ALL?: string; PRO_IDS?: string; OWNER_IDS?: string }, steamId: string | null) =>
+  !!steamId && (env.PRO_FOR_ALL === '1' || isOwner(env.OWNER_IDS, steamId) || isOwner(env.PRO_IDS, steamId));
 
 /** Every key under a prefix (paged; stops at `max`). */
 async function keys(kv: AdminKV, prefix: string, max = 5000): Promise<string[]> {

@@ -1,19 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { PRO_MODEL } from '../engine/coachModels';
 import { useStore } from '../store';
+import { useDl } from '../deadlock/store';
 import { Icon } from '../ui/Icon';
 import { forgetProfile, refreshProfile, setPrefs, useProfile } from '../ui/profileApi';
 import { VERDICT_LABEL, type MoveVerdict } from '../engine/profile';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { steamSignOut } from '../ui/steamApi';
-import { resetTours } from '../ui/Tour';
+import { resetHints } from '../ui/Hints';
+import { lookPref, setLook, type Look } from '../ui/tokens';
+import { useSiteConfig } from '../ui/siteConfig';
 
 /** Your account, privacy, the coach's and Review's defaults, and your data. */
 export function Settings() {
+  const flags = useSiteConfig().flags;
   const { me, data, remote } = useProfile();
   const s = useStore();
   const [confirm, setConfirm] = useState(false);
+  const [at, setAt] = useState('look');
+  // the menu follows where you are on the page
+  useEffect(() => {
+    const ids = ['look', 'account', 'coach', 'review', 'games', 'data'], els = ids.map(id => document.getElementById(id)).filter((e): e is HTMLElement => !!e);
+    const io = new IntersectionObserver(es => { const v = es.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]; if (v) setAt(v.target.id); }, { rootMargin: '-80px 0px -60% 0px' });
+    els.forEach(e => io.observe(e));
+    return () => io.disconnect();
+  }, []);
+  const dlScope = useDl(x => x.scope), dlDanger = useDl(x => x.danger);
+  // Rage mode asks first: turning it on is a choice to be sworn at
+  const [askRage, setAskRage] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [tipsReset, setTipsReset] = useState(false);
   const signOut = async () => { await steamSignOut(); useStore.setState({ me: null }); await refreshProfile(); };
@@ -25,20 +40,31 @@ export function Settings() {
   return (
     <div className="page settings">
       <header className="page-head"><h1>Settings</h1></header>
+      <div className="settings-layout">
+      <nav className="settings-menu" aria-label="Settings sections">
+        {([['look', 'Look', 'star'], ['account', 'Account & privacy', 'shield'], ['coach', 'Coach & Rage', 'target'], ['review', 'Review', 'play'], ['games', 'Games', 'crosshair'], ['data', 'Tips & data', 'info']] as const).map(([id, l, icon]) => <a key={id} href={`#${id}`} className={at === id ? 'on' : ''} aria-current={at === id ? 'true' : undefined} onClick={() => setAt(id)}><Icon name={icon} size={16} /> {l}</a>)}
+      </nav>
+      <div className="settings-body">
 
       <section className="site-card">
-        <h2>Account</h2>
+        <h2 id="look">Look</h2>
+        <LookSetting />
+        <SoundSetting />
+      </section>
+
+      <section className="site-card">
+        <h2 id="account">Account &amp; privacy</h2>
         {me ? (
           <div className="setting">
             <div className="setting-text">
               <b>{me.avatar && <img src={me.avatar} alt="" width={20} height={20} className="inline-avatar" />} {me.name ?? me.steamId}</b>
-              <span className="muted">Logged in with Steam. We only know your SteamID, public name and avatar.</span>
+              <span className="muted">Logged in with Steam. We only know your SteamID, name and avatar.</span>
             </div>
             <button className="cta" onClick={signOut}><Icon name="signOut" size={14} /> Sign out</button>
           </div>
         ) : (
           <div className="setting">
-            <div className="setting-text"><b>Not logged in</b><span className="muted">Your profile is kept in this browser. Log in to keep it on every device and compare with friends.</span></div>
+            <div className="setting-text"><b>Not logged in</b><span className="muted">Saved in this browser. Log in to sync and compare with friends.</span></div>
             {STEAM_AVAILABLE ? <SteamLoginButton compact /> : <span className="muted small">Steam login isn't available in this build.</span>}
           </div>
         )}
@@ -54,55 +80,86 @@ export function Settings() {
       <section className="site-card">
         <h2>Privacy</h2>
         <Toggle label="Public profile" on={data.prefs.public} disabled={!remote}
-          text={remote ? 'Friends who know your Steam profile can compare their last matches with yours (your name, avatar and the numbers of your last 5 matches; never your demos).' : 'Log in with Steam to make your profile public.'}
+          text={remote ? 'Friends can compare their last 5 matches with yours. Never your demos.' : 'Log in with Steam to make your profile public.'}
           onChange={v => setPrefs({ public: v })} />
-        <div className="setting">
-          <div className="setting-text"><b>Delete my data</b><span className="muted">{remote ? 'Removes your profile, goals and match list from your account. Demos you reviewed are not stored anywhere.' : 'Removes the profile kept in this browser.'}</span></div>
-          {confirm
-            ? <span className="confirm-row"><button className="cta danger" onClick={forget}>Delete for good</button><button className="ghost" onClick={() => setConfirm(false)}>Cancel</button></span>
-            : <button className="cta" onClick={() => setConfirm(true)}>Delete…</button>}
-        </div>
-        {done && <p className="muted small">{done}</p>}
       </section>
 
       <section className="site-card">
-        <h2>Coach</h2>
-        <Toggle label="Rage mode" on={s.rage} text="The coach loses it at your plays: a blunt, sweary line on every graded move and in the recap (18+, strong language). It swears at the play, never at you as a person. The grades don't change." onChange={s.setRage} />
+        <h2 id="games">Games</h2>
+        <p className="muted small">Deadlock: the map and its cards. CS2 has no game-only settings yet.</p>
+        <Toggle label="Danger map" on={dlDanger} text="Where high-rank players die at this point of the match." onChange={() => useDl.getState().toggleDanger()} />
+      </section>
+
+      <section className="site-card">
+        <h2 id="coach">Coach &amp; Rage</h2>
+        {flags.rage && <>
+        <Toggle label="Rage mode" on={s.rage !== 'off' || askRage} text="The coach roasts your worst plays. 18+, strong language. Grades don't change." onChange={v => (v ? setAskRage(true) : s.setRage('off'))} />
+        {s.rage !== 'off' && (
+          <div className="setting">
+            <div className="setting-text"><b>How angry</b><span className="muted">Mild: fewer lines, no swearing. Full: everything.</span></div>
+            <div className="seg-mini">
+              <button className={s.rage === 'mild' ? 'on' : ''} onClick={() => s.setRage('mild')}>Mild</button>
+              <button className={s.rage === 'full' ? 'on' : ''} onClick={() => s.setRage('full')}>Full</button>
+            </div>
+          </div>
+        )}
+        {askRage && s.rage === 'off' && (
+          <div className="rage-ask" role="alertdialog" aria-label="Turn on Rage mode">
+            <span>Turn on Rage mode? The coach will not be nice. 18+.</span>
+            <span className="confirm-row"><button className="cta danger" onClick={() => { s.setRage('full'); setAskRage(false); }}>Roast me</button><button className="ghost" onClick={() => setAskRage(false)}>Keep it calm</button></span>
+          </div>
+        )}
+        </>}
         <div className="setting">
-          <div className="setting-text"><b>Compare with</b><span className="muted">What the recap's coach and analyst compare you with first.</span></div>
+          <div className="setting-text"><b>Compare with</b><span className="muted">Who the coach compares you with first.</span></div>
           <div className="seg-mini">
             <button className={data.prefs.compare === 'lvl10' ? 'on' : ''} onClick={() => setPrefs({ compare: 'lvl10' })}>Level 10</button>
             <button className={data.prefs.compare === 'pro' ? 'on' : ''} disabled={!PRO_MODEL} onClick={() => setPrefs({ compare: 'pro' })}>Pro</button>
           </div>
         </div>
         <div className="setting">
-          <div className="setting-text">
-            <b>Where the coach was wrong</b>
-            <span className="muted">{data.verdicts.length
-              ? `${data.verdicts.length} move${data.verdicts.length > 1 ? 's' : ''} you marked in Review. The coach is checked against them when it learns.`
-              : 'Mark moves in Review ("Coach wrong?" on a move card). The coach is checked against them when it learns.'}</span>
+          <div className="setting-text"><b>Whose moves</b><span className="muted">Coach cards for every player, or only you (or the player you click). Both games.</span></div>
+          <div className="seg-mini">
+            <button className={s.evalScope === 'all' ? 'on' : ''} onClick={() => { s.setEvalScope('all'); useDl.getState().setScope('all'); }}>All</button>
+            <button className={s.evalScope === 'mine' ? 'on' : ''} onClick={() => { s.setEvalScope('mine'); useDl.getState().setScope('mine'); }}>Mine</button>
           </div>
-          <button className="cta" disabled={!data.verdicts.length} onClick={() => downloadVerdicts(data.verdicts)} title="A file for the coach's learning tools (my-demos folder)">Download</button>
         </div>
       </section>
 
       <section className="site-card">
-        <h2>Review</h2>
+        <h2 id="review">Review</h2>
         <Toggle label="Move cards" on={s.popups} text="A card with the grade and the reasons for each graded move." onChange={s.setPopups} />
-        <Toggle label="Arrows" on={s.engineLines} text="For checking the engine: its best option drawn next to what was done, and a line from each card to its player. Off by default." onChange={s.setEngineLines} />
+        <Toggle label="Arrows" on={s.engineLines} text="The coach's best option drawn next to what was done." onChange={s.setEngineLines} />
         <Toggle label="Slow motion while reading" on={s.readSlow} text="The replay slows down while a card is open." onChange={s.setReadSlow} />
+      </section>
+      <section className="site-card">
+        <h2 id="data">Tips &amp; data</h2>
         <div className="setting">
-          <div className="setting-text"><b>Grade</b><span className="muted">Every player's moves, or only yours (when the site knows which player you are).</span></div>
-          <div className="seg-mini">
-            <button className={s.evalScope === 'all' ? 'on' : ''} onClick={() => s.setEvalScope('all')}>All</button>
-            <button className={s.evalScope === 'mine' ? 'on' : ''} onClick={() => s.setEvalScope('mine')}>Mine</button>
-          </div>
+          <div className="setting-text"><b>Tips</b><span className="muted">The welcome card and the one-line hints, once more.</span></div>
+          <button className="ghost small-btn" onClick={() => { resetHints(); setTipsReset(true); }} disabled={tipsReset}>{tipsReset ? 'They\'ll show again' : 'Show the tips again'}</button>
         </div>
         <div className="setting">
-          <div className="setting-text"><b>Tips</b><span className="muted">The short tours of the CS2 page, Review and Match recap: shown once, again from here.</span></div>
-          <button className="ghost small-btn" onClick={() => { resetTours(); setTipsReset(true); }} disabled={tipsReset}>{tipsReset ? 'They\'ll show again' : 'Show the tips again'}</button>
+          <div className="setting-text">
+            <b>Your "Coach wrong" marks</b>
+            <span className="muted">{data.verdicts.length
+              ? `${data.verdicts.length} move${data.verdicts.length > 1 ? 's' : ''} you marked in Review. The coach is checked against them when it learns.`
+              : 'Mark moves in Review ("Coach wrong?" on a move card). The coach is checked against them when it learns.'}</span>
+          </div>
+          <button className="cta" disabled={!data.verdicts.length} onClick={() => downloadVerdicts(data.verdicts)} title="A file for the coach's learning tools (my-demos folder)">Download my "Coach wrong" marks</button>
+        </div>
+        <div className="danger-zone">
+          <h3>Danger zone</h3>
+        <div className="setting">
+          <div className="setting-text"><b>Delete my data</b><span className="muted">{remote ? 'Removes your profile, goals and match list from your account.' : 'Removes the profile kept in this browser.'}</span></div>
+          {confirm
+            ? <span className="confirm-row"><button className="cta danger" onClick={forget}>Delete for good</button><button className="ghost" onClick={() => setConfirm(false)}>Cancel</button></span>
+            : <button className="cta" onClick={() => setConfirm(true)}>Delete…</button>}
+        </div>
+        {done && <p className="muted small">{done}</p>}
         </div>
       </section>
+      </div>
+      </div>
     </div>
   );
 }
@@ -123,4 +180,24 @@ function downloadVerdicts(list: MoveVerdict[]) {
   const a = document.createElement('a');
   a.href = url; a.download = `verdicts-app-${new Date().toISOString().slice(0, 10)}.json`; a.click();
   URL.revokeObjectURL(url);
+}
+
+/** System (follows the computer's dark / light switch), Dark or Light. */
+function LookSetting() {
+  const [look, set] = useState<Look>(lookPref);
+  const pick = (l: Look) => { set(l); setLook(l); };
+  return (
+    <div className="setting">
+      <div className="setting-text"><b>Theme</b><span className="muted">System follows your computer.</span></div>
+      <div className="seg-mini" role="radiogroup" aria-label="Theme">
+        {(['system', 'dark', 'light'] as Look[]).map(l => <button key={l} role="radio" aria-checked={look === l} className={look === l ? 'on' : ''} onClick={() => pick(l)}>{l === 'system' ? 'System' : l === 'dark' ? 'Dark' : 'Light'}</button>)}
+      </div>
+    </div>
+  );
+}
+
+/** Sound on a puzzle answer (the same switch as the speaker button on Puzzles). */
+function SoundSetting() {
+  const [on, setOn] = useState(() => { try { return localStorage.getItem('rageview.sound') !== '0'; } catch { return true; } });
+  return <Toggle label="Sound" text="Two short tones on a right or wrong puzzle answer." on={on} onChange={v => { setOn(v); try { localStorage.setItem('rageview.sound', v ? '1' : '0'); } catch { /* private mode */ } }} />;
 }

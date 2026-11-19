@@ -36,3 +36,35 @@ describe('switching between Tactical and Review', () => {
     st().setMode('tactical');
   });
 });
+
+describe('older parses without bomb events', () => {
+  it('withPlants gives the plant a planter (the stillest living T) and a spot, and leaves complete rounds alone', async () => {
+    const { withPlants } = await import('../demoFix');
+    const t = Array.from({ length: 41 }, (_, i) => i * 0.25);
+    const track = (side: 'CT' | 'T', x0: number, step: number) => ({
+      side, x: t.map((_, i) => x0 + i * step), y: t.map(() => 100), z: t.map(() => 0), yaw: t.map(() => 0), hp: t.map(() => 100), alive: t.map(() => 1),
+    });
+    const round: any = {
+      n: 1, winner: 'T', reason: 'bomb_exploded', duration: 10, plant: 8, kills: [], util: [], frames: { t, players: { runner: track('T', 0, 5), planter: track('T', 50, 0), ct: track('CT', 0, 0) } },
+    };
+    const out = withPlants({ map: 'de_dust2', tickrate: 64, names: {}, rounds: [round] } as any);
+    const plant = out.rounds[0].bomb!.find(b => b.kind === 'plant')!;
+    expect(plant.id).toBe('planter');
+    expect(plant.t).toBe(8);
+    expect(plant.x).toBe(50);
+    expect(out.rounds[0].bomb!.some(b => b.kind === 'explode')).toBe(true);
+    expect(withPlants(out)).toBe(out); // already has the events
+  });
+});
+
+describe('a round that ends in an explosion', () => {
+  it('plays on for the blast, once', async () => {
+    const { withBlastTail, BLAST_TAIL_SECONDS } = await import('../demoFix');
+    const r: any = { n: 1, duration: 93.69, plant: 52, reason: 'bomb_exploded', bomb: [{ t: 93.69, kind: 'explode', id: 'a', x: 0, y: 0 }] };
+    const other: any = { n: 2, duration: 50, plant: null, reason: 't_killed', bomb: [] };
+    const once = withBlastTail({ map: 'de_dust2', tickrate: 64, names: {}, rounds: [r, other] } as any);
+    expect(once.rounds[0].duration).toBeCloseTo(93.69 + BLAST_TAIL_SECONDS);
+    expect(once.rounds[1].duration).toBe(50);
+    expect(withBlastTail(once)).toBe(once);
+  });
+});

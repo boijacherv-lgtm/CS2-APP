@@ -4,6 +4,7 @@
 // disputes-*.json (moments checked by hand on the dev page, each with its round: the call there is the answer).
 // A check for blind spots (context the coach is missing), not something to tune every number to: one player's
 // verdicts aren't ground truth.
+import './positions-ready';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';

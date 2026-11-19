@@ -1,15 +1,20 @@
 import Konva from 'konva';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { MAPS } from '../map/catalog';
+import { useCanvasLabel } from './canvasLabel';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BLAST_REACH_U, blastDamageAt, blastField } from '../engine/blast';
+import { blastCanvas } from './blastCanvas';
 import { Arc, Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import { KonvaFace } from './KonvaFace';
 import { JudgePanel } from './JudgePanel';
 import type { ControlMap } from '../engine/control';
 import { FOV, type Analysis, type TacticalEngine } from '../engine/predict';
-import { activeSmokes, distToSegment, smokeOpenAt, SMOKE_RADIUS_UNITS } from '../engine/grid';
+import { activeSmokes, CELL, distToSegment, smokeOpenAt, SMOKE_RADIUS_UNITS, type MapGrid } from '../engine/grid';
 import { radarToWorld, worldToRadar } from '../engine/coords';
-import { simStateAt, type Simulation } from '../engine/combat';
+import { SIM_FUSE, simStateAt, type Simulation } from '../engine/combat';
 import type { BatchStats } from '../engine/batch';
 import type { SpotMap } from '../engine/spots';
-import { bombAt, evalAt, type Review } from '../engine/recap';
+import { bombAt, bombTryAt, evalAt, PLANT_SECONDS, type Review } from '../engine/recap';
 import { moveLook } from './NoteMark';
 import { gunOf } from '../engine/guns';
 import { NadeAtLanding, NadeFlight } from './Nades';
@@ -19,7 +24,7 @@ import { useShown } from './shown';
 import { SIDE_COLOR, T as TOK, UTIL_COLOR } from './tokens';
 import { MomentNav } from './Recap';
 import { LayersBar } from './Layers';
-import { PlaybackBar, RoundHud, ScoreBug, scoreBefore, sideSwitches } from './Playback';
+import { PlaybackBar, RoundHud, RoundStrip, ScoreBug, scoreBefore, sideSwitches } from './Playback';
 import { FOV as VISION_FOV } from '../engine/predict';
 import { ENTRY_COLOR, entryClock, entryReports } from '../engine/entries';
 import { BUILTIN_LINEUPS } from '../map/lineups';
@@ -33,6 +38,7 @@ import { standSpots } from '../map/stands';
 import { phaseOf } from '../engine/situations';
 import { SEARCH_COLOR } from '../engine/search';
 import { useStore, whoAmI } from '../store';
+import { matchKey } from '../engine/profile';
 
 Konva.dragDistance = 4;
 
@@ -388,6 +394,13 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
       }
     return out;
   }, [s.review?.data, s.review?.round]);
+  // the planted bomb's blast over the walkable grid (an estimate): each player's expected damage, for the roster's blinking slice
+  const bombNow = s.review ? bombAt(s.review.data.rounds[s.review.round], s.time) : null;
+  // the blast field is worked out once planted (for the roster's slice); it is DRAWN only when the bomb goes off: a wave along the paths, once (~1.2 s)
+  const plantedAt = bombNow && (bombNow.kind === 'plant' || bombNow.kind === 'explode') ? worldToRadar(bombNow, engine.map.radar) : null;
+  const blastAge = bombNow?.kind === 'explode' ? s.time - bombNow.since : -1;
+  const blastF = useMemo(() => (plantedAt ? blastField(engine.grid, plantedAt, UNITS_PER_PX) : null), [plantedAt?.x, plantedAt?.y, engine]); // eslint-disable-line react-hooks/exhaustive-deps
+  const blastImg = useMemo(() => (blastF ? blastCanvas(blastF) : null), [blastF]);
   const roster = (side: 'CT' | 'T') => rosterRound && (
     <TeamRoster side={side} round={rosterRound} time={s.time}
       players={s.board.players.filter(p => p.side === side).slice(0, 5).map(p => {
@@ -397,6 +410,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           id: p.id, name: s.review?.data.names[p.id] ?? p.label, alive: live.get(p.id)?.alive !== false, hp: live.get(p.id)?.hp ?? 100, avatar: avatars[p.id],
           kills: (pastKd.get(p.id)?.k ?? 0) + now.filter(kl => kl.attacker === p.id && kl.victim !== p.id).length,
           deaths: (pastKd.get(p.id)?.d ?? 0) + now.filter(kl => kl.victim === p.id).length, roundKills,
+          bombDmg: blastF && live.get(p.id)?.pos ? blastDamageAt(blastF, live.get(p.id)!.pos) : 0,
         };
       })} />
   );
@@ -415,6 +429,8 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const selectedRaw = s.board.players.find(p => p.id === s.selectedId);
   const selected = selectedRaw && !isDead(selectedRaw) ? livePlayer(selectedRaw) : undefined;
   const smokesNow = activeSmokes(s.board.utility, s.time, UNITS_PER_PX);
+  // smokes and fires spread over this map's floor (around walls), like in the game
+  const floorOf = useCallback((at: Vec2, r: number) => engine.grid.spread(at, r), [engine]);
   // review: each grenade's letter (when it's evaluated: every move, or only yours), shown on the grenade itself
   const { shown, mine: mineScope } = useShown();
   // the search engine's lines for the player in focus (selected, or you with "Mine"): its best option at this moment and what they did
@@ -464,9 +480,13 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const spotImg = useMemo(() => (spots ? spotCanvas(engine, spots) : null), [engine, spots]);
   const walkImg = useMemo(() => (tools && s.overlays.walkable ? walkableCanvas(engine) : null), [engine, tools, s.overlays.walkable]);
   const radarImg = useRadarImage(MAP.radarImage);
+  useCanvasLabel(wrap, `${MAPS.find(m => m.id === s.mapId)?.name ?? 'The'} map: ${recap ? 'the round replaying' : 'the tactical board'}, players and grenades`);
 
   return (
     <div ref={wrap} className={`board tool-${s.tool}`}>
+      <h1 className="sr-only">{recap ? 'CS2 match replay' : `CS2 Tactical board: ${MAPS.find(m => m.id === s.mapId)?.name ?? ''}`}</h1>
+      {/* the panels' sections are h3: an h2 between keeps the outline without a skipped level */}
+      <h2 className="sr-only">{recap ? 'The round' : 'The board and your plan'}</h2>
       <Stage
         ref={stageRef}
         width={size.w}
@@ -509,6 +529,12 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         </Layer>
 
         <Layer listening={false}>
+          {/* the bomb's blast reaches, UNDER the players and everything else (an estimate: blast.ts) */}
+          {blastImg && plantedAt && blastAge >= 0 && blastAge < 1.2 && (
+            <Group listening={false} clipFunc={ctx => { ctx.arc(plantedAt.x, plantedAt.y, (Math.min(1, blastAge / 0.5) * BLAST_REACH_U) / UNITS_PER_PX, 0, Math.PI * 2); }}>
+              <KImage image={blastImg} x={0} y={0} width={blastF!.w * CELL} height={blastF!.h * CELL} listening={false} opacity={0.55 * Math.min(1, blastAge / 0.3) * (1 - blastAge / 1.2)} />
+            </Group>
+          )}
           {/* where FACEIT level-10 players stand at this point of the round: a circle per callout, sized by their share
               of the time there (CT left, T right), with the share */}
           {engineNow && (() => {
@@ -594,9 +620,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               const hot = named(c.name);
               const fs = (c.minor && !hot ? 8 : 9.5) / view.scale;
               return (
-                <Text key={`${c.name}-${i}`} text={c.name.toUpperCase()} x={c.pos.x - 80} y={c.pos.y - fs / 2} width={160} align="center" fontSize={fs}
+                <Text key={`${c.name}-${i}`} text={c.name.toUpperCase()} x={c.pos.x - 400} y={c.pos.y - fs / 2} width={800} align="center" fontSize={fs}
                   letterSpacing={0.6 / view.scale} fill={hot ? TOK.highlight : c.minor ? '#b9c1cc' : '#eef1f5'} stroke="#000" strokeWidth={2.2 / view.scale} fillAfterStrokeEnabled
-                  fontStyle={c.minor && !hot ? 'normal' : 'bold'} opacity={hot ? 1 : c.minor ? 0.6 : 0.78} />
+                  fontStyle={c.minor && !hot ? 'normal' : 'bold'} opacity={hot ? 1 : c.minor ? 0.6 : 0.78} wrap="none" />
               );
             })}
           {visionLayer && visionLayer.cones.map(v => (
@@ -679,7 +705,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 onDragEnd={e => s.move(u.id, { x: e.target.x(), y: e.target.y() })}
                 onClick={e => { e.cancelBubble = true; if (aiming) commitAim(); else if (carry) { const q = pointer(); if (q) drop(q); } else if (s.tool === 'select') s.select(u.id); }}>
                 <NadeAtLanding u={u} t={s.time} k={k} unitsPerPx={UNITS_PER_PX} selected={s.selectedId === u.id} doomed={doomed} editable={s.mode !== 'review'} grade={nadeGrades.get(u.id)}
-                  opened={u.type === 'smoke' ? smokeOpenAt(u, s.board.utility, s.time, UNITS_PER_PX) : undefined} />
+                  opened={u.type === 'smoke' ? smokeOpenAt(u, s.board.utility, s.time, UNITS_PER_PX) : undefined} floor={floorOf} />
               </Group>
             );
           })}
@@ -773,15 +799,31 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             </Group>
             );
           })}
+          {/* a simulated play's bomb, once planted (ticking, then defused or gone off) */}
+          {!recap && sim?.bomb && s.time >= sim.bomb.plantT && (
+            <BombOnMap at={sim.bomb.pos} k={k} state={sim.bomb.explodeT !== undefined && s.time >= sim.bomb.explodeT ? 'explode' : sim.bomb.defuseT !== undefined && s.time >= sim.bomb.defuseT ? 'defuse' : 'plant'} age={s.time - (sim.bomb.explodeT !== undefined && s.time >= sim.bomb.explodeT ? sim.bomb.explodeT : sim.bomb.plantT)} planted={s.time - sim.bomb.plantT}  grid={engine.grid} />
+          )}
           {recap && s.review && (() => {
             const b = bombAt(s.review.data.rounds[s.review.round], s.time);
             if (!b) return null;
+            const r = s.review.data.rounds[s.review.round], act = bombTryAt(r, s.time);
             if (b.kind === 'carry') {
               const at = live.get(b.id);
-              return at && at.alive !== false ? <C4 x={at.pos.x + 11 * k} y={at.pos.y + 10 * k} k={k * 0.9} /> : null;
+              if (!at || at.alive === false) return null;
+              return (
+                <>
+                  {/* planting: a T-colour arc filling round the planter over the 3.2 s */}
+                  {act?.kind === 'plant' && <>
+                    <Circle x={at.pos.x} y={at.pos.y} radius={20 * k} stroke="#0a0c10" strokeWidth={5 * k} opacity={0.75} listening={false} />
+                    <Arc x={at.pos.x} y={at.pos.y} innerRadius={18.3 * k} outerRadius={21.7 * k} rotation={-90} listening={false}
+                      angle={Math.min(1, (s.time - act.t) / PLANT_SECONDS) * 360} fill={SIDE_COLOR.T} />
+                  </>}
+                  <C4 x={at.pos.x + 11 * k} y={at.pos.y + 10 * k} k={k * 0.9} />
+                </>
+              );
             }
             const at = worldToRadar(b, engine.map.radar);
-            return <BombOnMap at={at} k={k} state={b.kind} age={s.time - b.since} planted={b.plantedAt === null ? null : s.time - b.plantedAt} />;
+            return <BombOnMap at={at} k={k} state={b.kind} age={s.time - b.since} planted={b.plantedAt === null ? null : s.time - b.plantedAt} unitsPerPx={UNITS_PER_PX} grid={engine.grid} />;
           })()}
           {recap && sim && s.review && (
             <Gunfire round={s.review.data.rounds[s.review.round]} sim={sim} engine={engine} t={s.time} k={k}
@@ -826,9 +868,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             return (
               <Group key={`badge-${i}`} x={sim.x[pi][step] + 13 * k} y={sim.y[pi][step] - 13 * k} listening={false}
                 opacity={age < 0.8 ? 1 : (1 - age) * 5} scaleX={age < 0.06 ? 0.6 + age * 7 : 1} scaleY={age < 0.06 ? 0.6 + age * 7 : 1}>
-                {/* book moves: a small plain dot; annotated ones: their !! ! ? ?? */}
+                {/* book moves: a small plain dot; annotated ones: their face */}
                 <Circle radius={(m.note === 'book' ? 4.5 : 9) * k} fill={g.color} stroke="#000" strokeWidth={1.5 * k} shadowColor="#000" shadowBlur={4} shadowOpacity={0.5} />
-                {m.note !== 'book' && <Text text={g.mark} fontSize={(g.mark.length > 1 ? 9.5 : 12) * k} fontStyle="bold" fill="#111" width={18 * k} x={-9 * k} y={-5.5 * k} align="center" />}
+                {m.note !== 'book' && <KonvaFace note={m.note} radius={9 * k} />}
               </Group>
             );
           })}
@@ -856,9 +898,30 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
       </Stage>
       {/* everything over the map lives in fixed slots around its edges, so nothing overlaps */}
       <div className={`board-ui ${rosterRound ? 'broadcast' : ''}`}>
-        <div className="slot tl"><LayersBar /></div>
+        <div className="slot tl">
+          {/* the map, named and changeable right here (it was only in Setup) */}
+          {!recap && (
+            <label className="tl-btn map-pick" title="Map">
+              <Icon name="map" />
+              <select value={s.mapId} onChange={e => s.setMap(e.target.value)} aria-label="Map">
+                {MAPS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </label>
+          )}
+          <LayersBar />
+          {/* Auto zoom lives in the playbar's Options (fewer buttons over the map) */}
+          {recap && (
+            <button className={`tl-btn reveal-float ${s.reviewSpoilers ? 'on' : ''}`} onClick={() => s.setReviewSpoilers(!s.reviewSpoilers)} title="Shortcut: R">
+              {s.reviewSpoilers ? <><Icon name="prev" /> Live</> : <><Icon name="revealAll" /> Reveal all</>}
+            </button>
+          )}
+          {recap && <CostliestButton />}
+          <button className={`tl-btn drawer-toggle ${s.drawerOpen ? 'on' : ''}`} onClick={() => s.setDrawerOpen(!s.drawerOpen)}
+            title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}><Icon name={s.drawerOpen ? 'panelClose' : 'panelOpen'} /> Panel</button>
+        </div>
         <div className="slot top">
-          {rosterRound && s.review && <ScoreBug score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time}
+          {s.review && s.mode === 'review' && <RoundStrip data={s.review.data} at={s.review.round} spoilers={s.reviewSpoilers} onPick={i => s.setReviewRound(i)} />}
+          {rosterRound && s.review && <ScoreBug names={s.review.data.names} score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time}
             switched={switches.includes(s.review.round) ? s.review.data.names[Object.keys(rosterRound.frames.players).find(id => rosterRound.frames.players[id].side === 'CT') ?? ''] ?? 'the other' : null} />}
           {!rosterRound && <RoundHud
             players={rosterRound ? [] : s.board.players.map(p => ({
@@ -879,15 +942,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
           </div>
         </div>
         <div className="slot tr">
-          <div className="tr-buttons">
-          {recap && (
-            <button className={`reveal-float ${s.reviewSpoilers ? 'on' : ''}`} onClick={() => s.setReviewSpoilers(!s.reviewSpoilers)} title="Shortcut: R">
-              {s.reviewSpoilers ? <><Icon name="prev" /> Live</> : <><Icon name="revealAll" /> Reveal all</>}
-            </button>
-          )}
-          <button className={`drawer-toggle ${s.drawerOpen ? 'on' : ''}`} onClick={() => s.setDrawerOpen(!s.drawerOpen)}
-            title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}><Icon name={s.drawerOpen ? 'panelClose' : 'panelOpen'} /> Panel</button>
-          </div>
+          {!recap && sim && <SimFeed sim={sim} time={s.time} players={s.board.players} />}
           {recap && s.review && (
             <KillFeed recap={recap} round={s.review.data.rounds[s.review.round]} time={s.time} names={s.review.data.names} />
           )}
@@ -896,14 +951,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         {rosterRound && !s.judging && <div className="slot team-ct">{roster('CT')}</div>}
         {rosterRound && !s.judging && <div className="slot team-t">{roster('T')}</div>}
         <div className="slot right">
-          {rosterRound ? (
-            <div className="zoom">
-              <button className={s.autoCam ? 'on' : ''} onClick={() => s.setAutoCam(!s.autoCam)} aria-pressed={s.autoCam}
-                title={s.autoCam ? 'Auto zoom is on: the map zooms in when everyone is on one part of it. Click for the whole map.' : 'Auto zoom is off: the whole map. Click to follow the fight.'}>
-                Auto
-              </button>
-            </div>
-          ) : (
+          {!rosterRound && (
             <div className="zoom">
               <button onClick={() => zoomAt(1.25)} title="Zoom in (pinch, or ⌘ + scroll)">+</button>
               <button onClick={() => zoomAt(0.8)} title="Zoom out">−</button>
@@ -988,9 +1036,13 @@ const TEAMBAR = { w: 330, h: 248 }, ROSTER_MIN_W = 700;
  * map stays between them (narrower), or above them (shorter), whichever leaves it bigger.
  */
 function fitView(w: number, h: number, rosters = false) {
+  // phones: the radar picture has empty borders around the map itself, so a narrow board zooms in a little past
+  // them (only the borders go off screen) and keeps almost no side margin
+  const narrow = w < 600;
   const fit = (side: number, bottom: number) => {
-    const aw = Math.max(200, w * 0.5, w - side * 2), ah = Math.max(200, h - FIT_PAD.top - bottom);
-    const scale = Math.min(aw, ah) / 1024;
+    const aw = Math.max(200, w * 0.5, w - (narrow ? 6 : side) * 2), ah = Math.max(200, h - FIT_PAD.top - bottom);
+    // the radar picture has empty borders: the Tactical board (no rosters) zooms past them a little, the phones more
+    const scale = (Math.min(aw, ah) / 1024) * (narrow ? 1.12 : rosters ? 1 : 1.15);
     return { scale, x: (w - 1024 * scale) / 2, y: FIT_PAD.top + (ah - 1024 * scale) / 2 };
   };
   const plain = fit(FIT_PAD.side, FIT_PAD.bottom);
@@ -1013,12 +1065,11 @@ function C4({ x, y, k, light }: { x: number; y: number; k: number; light?: strin
 }
 
 /** Dropped (waiting to be picked up), planted (blinking faster as the fuse runs out), defused or exploded. */
-function BombOnMap({ at, k, state, age, planted }: { at: Vec2; k: number; state: 'drop' | 'plant' | 'defuse' | 'explode'; age: number; planted: number | null }) {
+function BombOnMap({ at, k, state, age, planted, unitsPerPx, grid }: { at: Vec2; k: number; state: 'drop' | 'plant' | 'defuse' | 'explode'; age: number; planted: number | null; unitsPerPx?: number; grid?: MapGrid }) {
   if (state === 'explode') {
     const a = Math.min(1, age / 0.6);
     return (
       <Group x={at.x} y={at.y} listening={false}>
-        {age < 2.5 && <Circle radius={(14 + 70 * a) * k} fill="#ff7a1a" opacity={0.55 * (1 - age / 2.5)} />}
         {age < 1.2 && <Circle radius={(8 + 34 * a) * k} fill="#ffe08a" opacity={0.9 * (1 - age / 1.2)} />}
         <Circle radius={11 * k} fill="#1a1410" opacity={0.7} />
       </Group>
@@ -1039,6 +1090,7 @@ function BombOnMap({ at, k, state, age, planted }: { at: Vec2; k: number; state:
     const pulse = ((planted ?? 0) * rate) % 1;
     return (
       <Group listening={false}>
+        {/* how far it reaches (estimate): the cells the shockwave gets to, redder where it hurts more; never through a wall */}
         <Circle x={at.x} y={at.y} radius={(16 + 20 * pulse) * k} stroke="#ff3b30" strokeWidth={2.5 * k} opacity={0.8 * (1 - pulse)} />
         <C4 x={at.x} y={at.y} k={k * 1.35} light={on ? '#ff3b30' : '#5a1a14'} />
       </Group>
@@ -1306,4 +1358,68 @@ function toolHint(t: string) {
     case 'erase': return 'Click or drag over players, utility and routes to delete them (red = will be deleted)';
     default: return 'Click to place utility. It is thrown at the current round time on the slider';
   }
+}
+
+/** A simulated play: who killed whom so far, and once it's over, how it ended ("T win: 5 left against 0 at 1:21"). */
+function SimFeed({ sim, time, players }: { sim: Simulation; time: number; players: { id: string; side: 'CT' | 'T'; label: string }[] }) {
+  const who = (id: string) => { const p = players.find(x => x.id === id); return p ? `${p.side} ${p.label}` : 'a grenade'; };
+  const sideOf = (id: string) => players.find(x => x.id === id)?.side;
+  const kills = sim.kills.filter(k => k.t <= time).slice(-5);
+  const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  const over = time >= sim.end - 0.05;
+  const alive = (side: 'CT' | 'T') => sim.ids.filter((id, i) => sideOf(id) === side && !(sim.deathT[i] <= time)).length;
+  const ct = alive('CT'), t = alive('T');
+  const b = sim.bomb && time >= sim.bomb.plantT ? sim.bomb : null;
+  const lastDeath = (side: 'CT' | 'T') => Math.max(...sim.ids.map((id, i) => (sideOf(id) === side ? sim.deathT[i] : -1)));
+  // how the round went: the bomb first (it ends rounds), then who's left
+  const end = b?.explodeT !== undefined && time >= b.explodeT ? `T win: the bomb went off on ${b.site} at ${clock(b.explodeT)}`
+    : b?.defuseT !== undefined && time >= b.defuseT ? `CT win: ${who(b.defuser!)} defused on ${b.site} at ${clock(b.defuseT)}`
+    : ct === 0 && t > 0 ? `T win: CTs all down by ${clock(lastDeath('CT'))}`
+    : t === 0 && ct > 0 && !b ? `CT win: Ts all down by ${clock(lastDeath('T'))}, no plant`
+    : !over ? null
+    : b ? `Bomb down on ${b.site}: it goes off at ${clock(b.plantT + SIM_FUSE)} unless ${ct} CT retake${t === 0 ? ' (and no T left to stop them)' : ''}`
+    // the play's end isn't the round's (1:55): no win to call yet
+    : sim.end >= 115 ? `Time: no plant, CT win (${ct} CT and ${t} T alive)` : `No plant by ${clock(sim.end)}: ${ct} CT and ${t} T alive`;
+  if (!kills.length && !end && !b) return null;
+  return (
+    <div className="sim-feed" aria-live="polite">
+      {kills.map((k, i) => (
+        <div key={i} className="sim-kill"><span className={sideOf(k.killer)?.toLowerCase()}>{k.killer ? who(k.killer) : 'Grenade'}</span> <Icon name="crosshair" size={11} /> <span className={sideOf(k.victim)?.toLowerCase()}>{who(k.victim)}</span><em className="num">{clock(k.t)}</em></div>
+      ))}
+      {b && <div className="sim-kill"><Icon name="bomb" size={12} /> <span className="t">{who(b.by)}</span> planted on {b.site}<em className="num">{clock(b.plantT)}</em></div>}
+      {end && <div className="sim-end">{end}</div>}
+    </div>
+  );
+}
+
+/**
+ * Once the match is graded: your costliest moment of the match, one click away (the round, the moment, its card open).
+ * Shown until you use it or close it, once per match.
+ */
+function CostliestButton() {
+  const report = useStore(s => s.report), me = useStore(whoAmI);
+  const data = report?.data;
+  const key = data ? `rv.costliest:${matchKey(data.map, data.rounds)}` : '';
+  const [gone, setGone] = useState(() => { try { return !!key && localStorage.getItem(key) === '1'; } catch { return false; } });
+  useEffect(() => { try { setGone(!!key && localStorage.getItem(key) === '1'); } catch { /* private mode */ } }, [key]);
+  if (!report?.done || !me || gone) return null;
+  let best: { round: number; t: number; gain: number; title: string; key: string } | null = null;
+  report.rounds.forEach((rs, i) => { const w = rs?.lines[me]?.worst; if (w && (!best || w.gain < best.gain)) best = { round: i, ...w }; });
+  if (!best) return null;
+  const b = best as { round: number; t: number; gain: number; title: string; key: string };
+  const done = () => { try { localStorage.setItem(key, '1'); } catch { /* private mode */ } setGone(true); };
+  const go = () => {
+    const st = useStore.getState();
+    st.setReviewRound(b.round);
+    st.setTime(b.t);
+    useStore.setState({ feedPick: { key: b.key, t: b.t } });
+    done();
+  };
+  const clock = `${Math.floor(b.t / 60)}:${String(Math.floor(b.t % 60)).padStart(2, '0')}`;
+  return (
+    <span className="tl-btn costliest">
+      <button onClick={go} title={b.title}>Your costliest: R{b.round + 1} {clock} (−{Math.abs(Math.round(b.gain * 100))}%) · Watch</button>
+      <button className="costliest-x" onClick={done} aria-label="Hide your costliest moment"><Icon name="close" size={12} /></button>
+    </span>
+  );
 }

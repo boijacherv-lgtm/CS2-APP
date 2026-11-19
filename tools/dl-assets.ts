@@ -10,12 +10,19 @@ const API = 'https://api.deadlock-api.com';
 const OUT = path.resolve(import.meta.dirname, '../src/deadlock/generated');
 const get = async (p: string) => { const r = await fetch(API + p); if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); };
 
-type Hero = { id: number; name: string; player_selectable: boolean; disabled: boolean; in_development: boolean; colors?: { style_hex?: string }; images: Record<string, string> };
+type Hero = { id: number; name: string; hero_type?: string; player_selectable: boolean; disabled: boolean; in_development: boolean; colors?: { style_hex?: string }; images: Record<string, string>; items?: Record<string, string> };
 const heroes = (await get('/v1/assets/heroes?only_active=true')) as Hero[];
+// each hero's four abilities (the demo names a cast by its class), the ultimate and its cooldown
+type Ability = { id: number; class_name: string; name: string; ability_type?: string; image?: string; image_webp?: string; properties?: { AbilityCooldown?: { value?: number | string } } };
+const abilities = new Map(((await get('/v1/assets/items/by-type/ability')) as Ability[]).map(a => [a.class_name, a]));
+const kitOf = (h: Hero) => [1, 2, 3, 4].map(n => abilities.get(h.items?.[`signature${n}`] ?? '')).filter((a): a is Ability => !!a)
+  .map(a => ({ id: a.id, cls: a.class_name, name: a.name, ult: a.ability_type === 'ultimate', cd: Number(a.properties?.AbilityCooldown?.value) || 0, img: a.image_webp ?? a.image ?? null }));
 const outHeroes = heroes.filter(h => h.player_selectable && !h.disabled).map(h => ({
   id: h.id, name: h.name, color: h.colors?.style_hex ?? '#888888',
   icon: h.images.minimap_image_webp ?? h.images.minimap_image ?? h.images.icon_image_small_webp ?? null,
   card: h.images.icon_image_small_webp ?? h.images.icon_image_small ?? null,
+  abilities: kitOf(h),
+  role: h.hero_type ?? null,
 })).sort((a, b) => a.name.localeCompare(b.name));
 
 type Pt = { left_relative: number; top_relative: number; position?: number[]; [k: string]: unknown };
@@ -59,10 +66,11 @@ const outMap = {
   // the mid boss stands in the middle of the map
   midBoss: { x: 0.5, y: 0.5 },
 };
-type Item = { id: number; name: string; cost: number; item_tier: number; item_slot_type: string; shopable: boolean; disabled?: boolean | null; image_webp?: string; image?: string };
+type Item = { id: number; name: string; cost: number; item_tier: number; item_slot_type: string; shopable: boolean; disabled?: boolean | null; image_webp?: string; image?: string; shop_image_webp?: string; shop_image?: string };
 const items = (await get('/v1/assets/items/by-type/upgrade')) as Item[];
 const outItems = items.filter(i => i.shopable && !i.disabled).map(i => ({
-  id: i.id, name: i.name, cost: i.cost, tier: i.item_tier, slot: i.item_slot_type, icon: i.image_webp ?? i.image ?? null,
+  id: i.id, name: i.name, cost: i.cost, tier: i.item_tier, slot: i.item_slot_type, // the picture the game's shop shows (the plain `image` is a white glyph, unreadable small)
+  icon: i.shop_image_webp ?? i.shop_image ?? i.image_webp ?? i.image ?? null,
 })).sort((a, b) => a.tier - b.tier || a.slot.localeCompare(b.slot) || a.name.localeCompare(b.name));
 
 fs.mkdirSync(OUT, { recursive: true });

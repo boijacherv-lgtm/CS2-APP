@@ -6,6 +6,7 @@
 //   npm run learn:analyst -- <folder>
 //
 // Each demo's facts are cached in <folder>/.stratboard-cache/analyst; adding demos later only reads the new ones.
+import './positions-ready';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

@@ -17,17 +17,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './Icon';
 import { threatColor } from './Board';
 
-const TOOLS: { id: Tool; label: string; key: string }[] = [
-  { id: 'select', label: 'Move', key: 'V' },
-  { id: 'ct', label: 'CT player', key: 'C' },
-  { id: 't', label: 'T player', key: 'T' },
-  { id: 'smoke', label: 'Smoke', key: 'S' },
-  { id: 'flash', label: 'Flash', key: 'F' },
-  { id: 'molotov', label: 'Molotov', key: 'M' },
-  { id: 'he', label: 'HE grenade', key: 'H' },
-  { id: 'path', label: 'Route', key: 'P' },
-  { id: 'lineup', label: 'Line-up', key: 'L' },
-  { id: 'erase', label: 'Erase', key: 'E' },
+/** `short`: the word under the icon (the key stays in the tooltip). */
+const TOOLS: { id: Tool; label: string; key: string; short: string }[] = [
+  { id: 'select', label: 'Move', key: 'V', short: 'Move' },
+  { id: 'ct', label: 'CT player', key: 'C', short: 'CT' },
+  { id: 't', label: 'T player', key: 'T', short: 'T' },
+  { id: 'smoke', label: 'Smoke', key: 'S', short: 'Smoke' },
+  { id: 'flash', label: 'Flash', key: 'F', short: 'Flash' },
+  { id: 'molotov', label: 'Molotov', key: 'M', short: 'Molly' },
+  { id: 'he', label: 'HE grenade', key: 'H', short: 'HE' },
+  { id: 'path', label: 'Route', key: 'P', short: 'Route' },
+  { id: 'lineup', label: 'Line-up', key: 'L', short: 'Line-up' },
+  { id: 'erase', label: 'Erase', key: 'E', short: 'Erase' },
 ];
 
 const TOOL_ICON: Partial<Record<Tool, IconName>> = { select: 'cursor', path: 'route', lineup: 'target', erase: 'eraser' };
@@ -62,7 +63,7 @@ export function Rail({ engine }: { engine: TacticalEngine }) {
           {TOOLS.map(t => (
             <button key={t.id} className={`rail-btn ${s.tool === t.id ? 'on' : ''}`} onClick={() => s.setTool(t.id)} title={`${t.label} (key ${t.key})`} aria-label={t.label}>
               {TOOL_ICON[t.id] ? <span className="rail-ico"><Icon name={TOOL_ICON[t.id]!} size={18} /></span> : <span className={`dot ${t.id}`} />}
-              <small>{t.key}</small>
+              <small>{t.short}</small>
               {(t.id === 'ct' || t.id === 't') && <em className="rail-count">{count(t.id === 'ct' ? 'CT' : 'T')}/5</em>}
             </button>
           ))}
@@ -342,8 +343,8 @@ function KillChances({ batch }: { batch: { stats: BatchStats; done: boolean } | 
         </div>
       )}
       {batch && <div className="stack-labels"><span className="ct">CT win {pct(batch.stats.ctWin)}</span><span>Even {pct(batch.stats.draw)}</span><span className="t">T win {pct(batch.stats.tWin)}</span></div>}
-      <table className="kills">
-        <thead><tr><th /><th title="Chance to get at least one kill">Kill</th><th title="Average kills per round">Avg K</th><th title="Chance to survive the round">Alive</th><th title="Rounds in which this player gets blinded for 1 s or more">Flashed</th></tr></thead>
+      <table className="kills kc">
+        <thead><tr><th /><th title="Chance to get at least one kill">Kill</th><th title="Average kills per round">Avg K</th><th title="Chance to survive the round">Alive</th><th title="Rounds in which this player gets blinded for 1 s or more">Blind</th></tr></thead>
         <tbody>{cts.map(row)}{ts.map(row)}</tbody>
       </table>
     </Fold>
@@ -424,7 +425,7 @@ function KillFeed({ sim, engine }: { sim: Simulation; engine: TacticalEngine }) 
       ].sort((a, b) => a.t - b.t).map((row, i) => row.kind === 'kill' ? (
         <button key={i} className={`kill ${row.k.t <= s.time ? 'past' : ''}`} onClick={() => { s.setPlaying(false); s.setTime(row.k.t + 0.05); }}>
           <span className="muted">{fmt(row.k.t)}</span>
-          {row.k.killer ? <b className={side(row.k.killer).toLowerCase()}>{name(row.k.killer)}</b> : <b>{row.k.cause === 'he' ? <><Icon name="burst" /> HE</> : <><Icon name="flame" /> Molotov</>}</b>}
+          {row.k.killer ? <b className={side(row.k.killer).toLowerCase()}>{name(row.k.killer)}</b> : <b>{row.k.cause === 'he' ? <><Icon name="burst" /> HE</> : row.k.cause === 'bomb' ? <><Icon name="bomb" /> Bomb</> : <><Icon name="flame" /> Molotov</>}</b>}
           <Icon name="close" size={11} /> <b className={side(row.k.victim).toLowerCase()}>{name(row.k.victim)}</b>
           <span className="muted grow-r">{where(row.k.at)}</span>
         </button>

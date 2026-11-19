@@ -4,6 +4,7 @@ import { gradeRounds } from './gradeRounds';
 import type { DemoData } from './recap';
 import type { BoardState } from './types';
 import type { CorrectionTable } from './corrections';
+import { loadPositions } from '../map/positions';
 
 /**
  * Grades every round of a match off the main thread (about half a second a round with the engine), posting each as
@@ -15,8 +16,8 @@ export type MatchWorkerOut = { i: number; summary: RoundSummary | null } | { err
 
 const post = (m: MatchWorkerOut) => (self as unknown as Worker).postMessage(m);
 
-self.onmessage = (e: MessageEvent<MatchWorkerIn>) => {
-  try { gradeAll(e.data); } catch (err) { post({ error: err instanceof Error ? err.message : String(err) }); }
+self.onmessage = async (e: MessageEvent<MatchWorkerIn>) => {
+  try { await loadPositions(e.data.data.map); gradeAll(e.data); } catch (err) { post({ error: err instanceof Error ? err.message : String(err) }); }
   post({ done: true });
 };
 

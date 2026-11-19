@@ -1,7 +1,12 @@
+import type { RageLevel } from './engine/rage';
+import { siteConfig } from './ui/siteConfig';
 import { create } from 'zustand';
 import { UTIL_FLIGHT } from './engine/grid';
 import type { RoundSummary } from './engine/match';
+import { loadPositions } from './map/positions';
+import { withBlastTail, withPlants } from './engine/demoFix';
 import type { DemoData, EvalScope } from './engine/recap';
+import { withoutKnifeRound } from './engine/knife';
 import type { Clip } from './ui/disputesApi';
 import { presetsFor, tPlaysFor } from './map/catalog';
 import { loadCustomLineups, saveCustomLineups, type Lineup } from './map/lineups';
@@ -94,8 +99,8 @@ interface Store {
   /** SteamID of the signed-in player (null when not logged in with Steam). */
   me: string | null;
   /** Rage mode: the coach swears at the plays (an extra line on each graded move, and the recap's main point). Off by default. */
-  rage: boolean;
-  setRage(on: boolean): void;
+  rage: RageLevel;
+  setRage(level: RageLevel): void;
   /** The player picked with "This is me" (no Steam login needed); a Steam login wins over it. Remembered. */
   claimed: string | null;
   setClaimed(id: string | null): void;
@@ -228,7 +233,8 @@ export const useStore = create<Store>((set, get) => {
     // the arrows (engine lines, and the card's line to its player): a debugging view, off unless turned on
     engineLines: loadJson<{ on: boolean }>('stratboard.arrows', { on: false }).on,
     autoCam: loadJson<{ on: boolean }>('stratboard.autoCam', { on: true }).on,
-    drawerOpen: loadJson<{ on: boolean }>(LS_DRAWER, { on: typeof window === 'undefined' || window.innerWidth >= 1280 }).on,
+    // under 1280 px the panel is a drawer over the map: it starts closed there whatever was saved on a wider screen
+    drawerOpen: typeof window !== 'undefined' && window.innerWidth < 1280 ? false : loadJson<{ on: boolean }>(LS_DRAWER, { on: typeof window === 'undefined' || window.innerWidth >= 1600 }).on,
     slowUntil: 0,
     slowSpeed: 0.3,
     readHold: false,
@@ -236,8 +242,9 @@ export const useStore = create<Store>((set, get) => {
     cardText: null,
     evalScope: loadJson<{ v: EvalScope }>(LS_EVAL, { v: 'all' }).v,
     me: null,
-    rage: loadJson<{ on: boolean }>('stratboard.rage', { on: false }).on,
-    setRage: rage => { saveJson('stratboard.rage', { on: rage }); set({ rage }); },
+    // older saves have { on: boolean }: on meant the full rage
+    rage: (r => r.level ?? (r.on ? 'full' : 'off'))(loadJson<{ on?: boolean; level?: RageLevel }>('stratboard.rage', {})),
+    setRage: rage => { saveJson('stratboard.rage', { level: rage }); set({ rage }); },
     claimed: loadJson<{ id: string | null }>(LS_CLAIMED, { id: null }).id,
     setClaimed: claimed => { saveJson(LS_CLAIMED, { id: claimed }); set({ claimed }); },
     setEvalScope: evalScope => { saveJson(LS_EVAL, { v: evalScope }); set({ evalScope, slowUntil: 0, readHold: false, feedPick: null }); },
@@ -386,8 +393,10 @@ export const useStore = create<Store>((set, get) => {
           : s.boardFromReplay ? { board: { ...freshBoard(s.mapId), context: s.board.context }, level: 0 } : {};
         return { ...common, parked: null, time: 10, boardFromReplay: false, ...restored };
       }),
-    startReview: data =>
-      set(s => ({
+    startReview: raw => {
+      const data = withoutKnifeRound(withBlastTail(withPlants(raw)));
+      void loadPositions(data.map); // the level-10 positions for this map, fetched now (App re-grades the round when they arrive)
+      return set(s => ({
         mode: 'review',
         parked: s.mode === 'review' || s.boardFromReplay ? s.parked : { board: s.board, mapId: s.mapId, level: s.level },
         review: { data, round: 0 },
@@ -395,7 +404,8 @@ export const useStore = create<Store>((set, get) => {
         judging: null,
         mapId: data.map, level: 0, selectedId: null, draftRoute: null, playing: false, time: 0, past: [], future: [],
         tool: 'select',
-      })),
+      }));
+    },
     setReviewRound: n => set(s => (s.review ? { review: { ...s.review, round: n }, time: 0, playing: false, selectedId: null, judging: null } : s)),
     setReviewSpoilers: reviewSpoilers => set({ reviewSpoilers }),
     exitReview: () => set({ review: null, report: null, time: 0, playing: false, selectedId: null, judging: null }),
@@ -448,3 +458,5 @@ export const useStore = create<Store>((set, get) => {
 
 /** You: the Steam login, or else the player picked with "This is me". */
 export const whoAmI = (s: Pick<Store, 'me' | 'claimed'>) => s.me ?? s.claimed;
+/** Rage mode as it applies now: off when the dev page switched the feature off (Content → flags). */
+export const rageNow = (s: Pick<Store, 'rage'>): RageLevel => (siteConfig().flags.rage ? s.rage : 'off');

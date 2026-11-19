@@ -10,6 +10,9 @@ SITE_ORIGINS = "https://tsakhstvo.xyz,https://www.tsakhstvo.xyz"
 RETURN_TO = "https://tsakhstvo.xyz/"
 # SteamIDs that may open the site's dev page (#/dev); comma-separated
 OWNER_IDS = "76561199107207687"
+# Pro: "1" = everyone logged in (early access, as the Pricing page says); "0" = only the owner and PRO_IDS
+PRO_FOR_ALL = "1"
+PRO_IDS = ""
 
 # Logins, codes and match lists. Create it once with:  npx wrangler kv namespace create SB
 # and paste the id it prints here.
@@ -18,3 +21,25 @@ binding = "SB"
 id = "18d250c7684140f2944fd2a4be8e3e03"
 
 # Secret (never in this file):  npx wrangler secret put STEAM_API_KEY
+
+# Deadlock's meta for everyone (worker/src/dlMeta.ts), read every 3 hours; and every 15 minutes the bots' backup timer
+# (worker/src/botKick.ts: starts .github/workflows/bots.yml when GitHub's own timer hasn't; needs secret GH_TOKEN)
+[triggers]
+crons = ["7 */3 * * *", "*/15 * * * *"]
+
+# Rate limits (Cloudflare's built-in limiter; the numbers are per minute). RATE_PUBLIC: per visitor's IP on the calls
+# that make the Worker ask Steam (login check, names and avatars, public profiles). RATE_USER: per logged-in player
+# on their writes and Steam look-ups.
+[[ratelimits]]
+name = "RATE_PUBLIC"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 60
+  period = 60
+
+[[ratelimits]]
+name = "RATE_USER"
+namespace_id = "1002"
+  [ratelimits.simple]
+  limit = 30
+  period = 60

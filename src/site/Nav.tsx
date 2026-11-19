@@ -1,28 +1,52 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { proEarlyAccess } from '../ui/siteConfig';
 import { APP_NAME, LogoMark } from '../shell/Logo';
 import { navigate, routeHref, type Route } from '../shell/router';
 import { STEAM_AVAILABLE } from '../env';
-import { GAMES, STATUS_LABEL } from './games';
+import { GAMES } from './games';
 import { GameMark } from './gameMarks';
-import { hasPro } from '../engine/profile';
+
 import { useStore } from '../store';
 import { MAPS } from '../map/catalog';
 import { Icon } from '../ui/Icon';
+import { heroOf } from '../deadlock/data';
+import { steamId3 } from '../deadlock/api';
 import { refreshProfile, useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 import { steamSignOut } from '../ui/steamApi';
 import { useDl } from '../deadlock/store';
+import { closeCs2Match, closeDlMatch } from '../ui/closeMatch';
+import { gameOf } from '../ui/tokens';
 import { useD2 } from '../dota2/store';
 
-/** The bar on every page: the brand, the game, CS2's three modes, Pricing and your account. */
+type KitGame = 'cs2' | 'deadlock' | 'dota2';
+/**
+ * The game kit's places. Browsing: Overview · Review · <the game's own tab> · Puzzles. Inside an open match: Review ·
+ * Recap · the match tab. The 4th tab is the game's: CS2's Tactical board, Deadlock's Meta & builds.
+ */
+type Place = 'overview' | 'review' | 'recap' | 'tab' | 'puzzles';
+const GAME_TAB: Record<KitGame, { label: string; icon: 'grid' | 'stats'; href: string; tip: string }> = {
+  cs2: { label: 'Tactical', icon: 'grid', href: '/cs2/tactical', tip: 'Tactical board: place players, utility and routes, then play the round out' },
+  deadlock: { label: 'Meta', icon: 'stats', href: '/deadlock/meta', tip: 'Meta & builds: heroes this patch by position, builds, draft and macro planners' },
+  dota2: { label: 'Tactical', icon: 'grid', href: '/dota2/tactical', tip: 'Plan lanes, rotations and wards, or a teamfight' },
+};
+const HREF: Record<KitGame, Record<Place, string>> = {
+  cs2: { overview: '/cs2', review: '/cs2/review', recap: '/cs2/report', tab: GAME_TAB.cs2.href, puzzles: '/puzzles' },
+  deadlock: { overview: '/deadlock', review: '/deadlock/review', recap: '/deadlock/report', tab: GAME_TAB.deadlock.href, puzzles: '/puzzles' },
+  dota2: { overview: '/dota2', review: '/dota2/review', recap: '/dota2/report', tab: GAME_TAB.dota2.href, puzzles: '/puzzles' },
+};
+
+/** The bar on every page: the brand, every game, the game's places (or the open match's), Profile and your account. */
 export function NavBar({ route }: { route: Route }) {
-  const loaded = useStore(s => s.review);
+  const loaded = useStore(s => s.review), report = useStore(s => s.report);
   const exitReview = useStore(s => s.exitReview);
+  const dlMatch = useDl(s => s.match), dlClose = useDl(s => s.close);
+  const d2Match = useD2(s => s.match), d2Close = useD2(s => s.close);
+  const me = useProfile(s => s.me);
   const cs2 = route.page === 'cs2';
-  // with a match loaded there's no Tactical tab: its address goes to Review (Load another closes the match);
-  // without one there's no recap to show: Match recap goes to Review too
+  // the CS2 Tactical board and an open match share the board: with a match open, its address goes to Review
   useEffect(() => {
-    if (cs2 && ((loaded && route.mode === 'tactical') || (!loaded && route.mode === 'report'))) navigate({ page: 'cs2', mode: 'review' });
+    if (cs2 && loaded && route.mode === 'tactical') navigate({ page: 'cs2', mode: 'review' });
   }, [cs2, loaded, route]); // eslint-disable-line react-hooks/exhaustive-deps
   // who's logged in, again whenever you come back to the tab (a login in another tab, a session that ran out)
   useEffect(() => {
@@ -30,66 +54,124 @@ export function NavBar({ route }: { route: Route }) {
     window.addEventListener('focus', again);
     return () => window.removeEventListener('focus', again);
   }, []);
+  // the game the bar is about: the page's, else the one you were last in (puzzles open on it too)
+  const game: KitGame = route.page === 'cs2' || route.page === 'deadlock' || route.page === 'dota2' ? route.page : (gameOf('profile') as KitGame);
+  const here: Place | null = route.page === 'puzzles' ? 'puzzles'
+    : route.page === 'cs2' || route.page === 'deadlock' || route.page === 'dota2'
+      ? (route.mode === 'home' ? 'overview' : route.mode === 'review' ? 'review' : route.mode === 'report' ? 'recap' : 'tab')
+      : null;
+  // inside a match: this game has one open, and you're on the game's pages
+  const open = game === 'cs2' ? !!loaded : game === 'dota2' ? !!d2Match : !!dlMatch;
+  const inMatch = open && (route.page === 'cs2' || route.page === 'deadlock' || route.page === 'dota2');
+  const places: Place[] = inMatch ? ['review', 'recap'] : ['overview', 'review', 'tab', 'puzzles'];
+  const label: Record<Place, string> = { overview: 'Overview', review: 'Review', recap: 'Recap', tab: GAME_TAB[game].label, puzzles: 'Puzzles' };
+  const icon = { overview: 'info', review: 'play', recap: 'star', tab: GAME_TAB[game].icon, puzzles: 'target' } as const;
+  const tip: Record<Place, string> = {
+    overview: `What RageView does for ${GAMES.find(g => g.id === game)?.name}`, review: open ? 'Replay this match with the coach' : 'Load a match to replay it with the coach',
+    recap: 'The match report: grades, the coach, the scoreboard', tab: GAME_TAB[game].tip, puzzles: `${GAMES.find(g => g.id === game)?.name} puzzles`,
+  };
+  // CS2's recap fills in while the rounds are graded: a ring with how far, then "ready" once
+  const grading = game === 'cs2' && loaded && report && !report.done ? { done: report.rounds.filter(Boolean).length, of: report.rounds.length } : null;
+  const ready = useRecapReady(game === 'cs2' && !!loaded && !!report?.done, route.page === 'cs2' && route.mode === 'report');
   return (
     <header className="navbar">
-      <a className="brand" href="#/"><LogoMark /><span>{APP_NAME}</span></a>
-      <nav className="game-bar" aria-label="Games">
-        {GAMES.map(g => g.status === 'live' ? (
-          <a key={g.id} href={routeHref({ page: 'cs2', mode: cs2 ? route.mode : 'review' })} className={`game-btn live ${cs2 ? 'on' : ''}`} title={`${g.name}: live`}>
-            <GameMark game={g} size={24} /><span>{g.short}</span>
+      <a className="brand" href="/" aria-label={`${APP_NAME} home`}><LogoMark /><span>{APP_NAME}</span></a>
+      <GameRow game={game} active={here !== null} />
+      {/* on the pages that belong to no game (home, guides, pricing, settings …) the game's tabs are hidden: none would be lit */}
+      {here !== null && <nav className="modes" aria-label={`${GAMES.find(g => g.id === game)?.name}`}>
+        {places.map(p => (
+          <a key={p} href={HREF[game][p]} aria-current={here === p ? 'page' : undefined} className={`${here === p ? 'on' : ''} ${p === 'recap' && ready.pulse ? 'pulse' : ''}`} title={tip[p]}
+            onClick={() => { if (p === 'puzzles') { try { localStorage.setItem('stratboard.game', game); } catch { /* private mode */ } } }}>
+            <Icon name={icon[p]} className="mode-ico" /> <span className="mode-label">{label[p]}</span>
+            {p === 'review' && open && !inMatch ? <i className="dot-live" title="A match is open" /> : null}
+            {p === 'recap' && grading && <ProgressRing done={grading.done} of={grading.of} />}
           </a>
-        ) : g.status === 'beta' && g.review ? (
-          <a key={g.id} href={route.page === g.id ? routeHref(route) : g.review} className={`game-btn live ${route.page === g.id ? 'on' : ''}`} title={`${g.name}: beta`}>
-            <GameMark game={g} size={24} muted={route.page !== g.id} /><span>{g.short}</span>
-          </a>
-        ) : g.page ? (
-          // a coming game with its own page (what it will do, notify me)
-          <a key={g.id} href={g.page} className={`game-btn soon has-page ${route.page === g.id ? 'on' : ''}`} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}. See what's coming`}>
-            <GameMark game={g} size={24} muted={route.page !== g.id} />
-          </a>
-        ) : (
-          <span key={g.id} className="game-btn soon" role="img" aria-label={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`} title={`${g.name}: ${STATUS_LABEL[g.status].toLowerCase()}`}>
-            <GameMark game={g} size={24} muted />
-          </span>
         ))}
-      </nav>
-      {cs2 && (
-        <div className="modes" role="tablist" aria-label="Mode">
-          {/* before a match is loaded: plan (Tactical) or load one (Review); with a match: Review and its recap */}
-          {!loaded && (
-            <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
-              onClick={() => navigate({ page: 'cs2', mode: 'tactical' })} title="Plan rounds on the board">
-              <Icon name="grid" className="mode-ico" /> <span className="mode-label">Tactical</span>
-            </button>
-          )}
-          <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
-            onClick={() => navigate({ page: 'cs2', mode: 'review' })} title={loaded ? 'Replay and grade this match' : 'Load a match to replay and grade it'}>
-            <Icon name="play" className="mode-ico" /> <span className="mode-label">Review</span>{loaded ? <i className="dot-live" title="A match is loaded" /> : null}
-          </button>
-          {loaded && (
-            <button role="tab" aria-selected={route.mode === 'report'} className={route.mode === 'report' ? 'on' : ''}
-              onClick={() => navigate({ page: 'cs2', mode: 'report' })} title="The coach's notes, every player's grades and estimated rating for the match">
-              <Icon name="star" className="mode-ico" /> <span className="mode-label">Match recap</span>
-            </button>
-          )}
-        </div>
+      </nav>}
+      {/* the open matches, like browser tabs: back to one, or × to close it */}
+      {loaded && (
+        <span className={`match-tab ${cs2 ? '' : 'away'}`} title={`Open CS2 match: ${MAPS.find(m => m.id === loaded.data.map)?.name ?? loaded.data.map}, ${loaded.data.rounds.length} rounds`}>
+          <a href="/cs2/review"><Icon name="map" size={14} /><b>{MAPS.find(m => m.id === loaded.data.map)?.name ?? loaded.data.map}</b></a>
+          <button className="match-tab-x" onClick={closeCs2Match} aria-label="Close the CS2 match" title="Close this match"><Icon name="close" size={13} /></button>
+        </span>
       )}
-      {/* the open match, like a browser tab: what it is, and × to close it (back to picking a match) */}
-      {cs2 && loaded && (
-        <div className="match-tab" title={`Open match: ${MAPS.find(m => m.id === loaded.data.map)?.name ?? loaded.data.map}, ${loaded.data.rounds.length} rounds`}>
-          <Icon name="map" size={14} />
-          <b>{MAPS.find(m => m.id === loaded.data.map)?.name ?? loaded.data.map}</b>
-          <span className="match-tab-n">{loaded.data.rounds.length} rds</span>
-          <button className="match-tab-x" onClick={exitReview} aria-label="Close match" title="Close this match and pick another one"><Icon name="close" size={13} /></button>
-        </div>
+      {dlMatch && (
+        <span className={`match-tab ${route.page === 'deadlock' ? '' : 'away'}`} title={`Open Deadlock match ${dlMatch.id}`}>
+          <a href="/deadlock/review"><Icon name="map" size={14} /><b>{dlChip(dlMatch)}</b></a>
+          <button className="match-tab-x" onClick={closeDlMatch} aria-label="Close the Deadlock match" title="Close this match"><Icon name="close" size={13} /></button>
+        </span>
       )}
-      {route.page === 'deadlock' && <DlNav route={route} />}
-      {route.page === 'dota2' && <D2Nav route={route} />}
+      {d2Match && (
+        <span className={`match-tab ${route.page === 'dota2' ? '' : 'away'}`} title={`Open Dota 2 match ${d2Match.id}`}>
+          <a href="/dota2/review"><Icon name="map" size={14} /><b>{`Match ${d2Match.id}`}</b></a>
+          <button className="match-tab-x" onClick={d2Close} aria-label="Close the Dota 2 match" title="Close this match"><Icon name="close" size={13} /></button>
+        </span>
+      )}
       <div className="nav-right">
-        <a className={`nav-link ${route.page === 'pricing' ? 'on' : ''}`} href="#/pricing">Pricing</a>
+        {/* logged out there is no account menu: this one (Profile, Pricing, Settings, tips) shows at every width */}
+        <details className={`nav-menu ${me ? '' : 'always'}`} key={routeHref(route)}>
+          <summary aria-label="Menu"><Icon name="menu" size={18} /></summary>
+          <div className="account-pop" role="menu">
+            {/* the game's own places, for widths where the bar has no room for them (they show here under 1280 px) */}
+            {here !== null && places.map(p => <a key={p} role="menuitem" className="menu-mode" href={HREF[game][p]}><Icon name={icon[p]} size={16} /> {label[p]}</a>)}
+            <a role="menuitem" href="/profile"><Icon name="user" size={16} /> Profile</a>
+            <a role="menuitem" href="/pricing"><Icon name="coins" size={16} /> Pricing</a>
+            <a role="menuitem" href="/settings"><Icon name="gear" size={16} /> Settings</a>
+            <button role="menuitem" className="ghost" onClick={() => dispatchEvent(new Event('rv:hints'))}><Icon name="info" size={16} /> Tips &amp; shortcuts</button>
+          </div>
+        </details>
         <AccountMenu route={route} />
       </div>
+      {ready.toast && (
+        <div className="hint-card recap-toast" role="status">
+          <span><b>Your recap is ready.</b></span>
+          <a className="cta primary small-btn" href="/cs2/report" onClick={ready.close}>Open</a>
+          <button className="ghost small-btn" onClick={ready.close}>Later</button>
+        </div>
+      )}
     </header>
+  );
+}
+
+/** "21/30": how much of the recap is graded, as a small ring. */
+function ProgressRing({ done, of }: { done: number; of: number }) {
+  const share = of ? done / of : 0;
+  return (
+    <span className="nav-ring" title={`Grading the rounds: ${done} of ${of}`} aria-label={`${done} of ${of} rounds graded`}>
+      <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden><circle cx="10" cy="10" r="8" className="nav-ring-track" /><circle cx="10" cy="10" r="8" className="nav-ring-fill" pathLength={1} strokeDasharray={`${share} 1`} transform="rotate(-90 10 10)" /></svg>
+      <span className="num">{done}/{of}</span>
+    </span>
+  );
+}
+
+/** The moment the recap is ready (grading just finished): the Recap tab pulses once and a toast offers to open it. */
+function useRecapReady(done: boolean, onRecap: boolean) {
+  const [was, setWas] = useState(done);
+  const [toast, setToast] = useState(false), [pulse, setPulse] = useState(false);
+  useEffect(() => {
+    if (done && !was && !onRecap) { setToast(true); setPulse(true); setTimeout(() => setPulse(false), 1200); }
+    if (!done) setToast(false);
+    setWas(done);
+  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (onRecap) setToast(false); }, [onRecap]);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(false), 6000); return () => clearTimeout(t); }, [toast]);
+  return { toast, pulse, close: () => setToast(false) };
+}
+
+/** Every game, by its icon and full name: the live ones as links (switching keeps your place), the coming ones greyed. */
+function GameRow({ game, active }: { game: KitGame; active: boolean }) {
+  const path = typeof location !== 'undefined' ? location.pathname : '';
+  const same = (to: KitGame) => {
+    const place = (Object.keys(HREF[game]) as Place[]).find(p => HREF[game][p] === path && p !== 'puzzles' && p !== 'tab');
+    return place ? HREF[to][place] : HREF[to].overview;
+  };
+  return (
+    <nav className="game-row" aria-label="Games">
+      {GAMES.filter(x => x.review || x.id === 'dota2').map(x => x.review
+        ? <a key={x.id} href={same(x.id as KitGame)} className={`game-pill ${x.id === game && active ? 'on' : ''}`} aria-current={x.id === game && active ? 'page' : undefined}>
+            <GameMark game={x} size={20} muted={x.id !== game} /><span>{x.name}</span></a>
+        : <span key={x.id} className="game-pill soon" aria-disabled="true" title={`${x.name}: coming`}><GameMark game={x} size={20} muted /><span>{x.name}</span><em>soon</em></span>)}
+    </nav>
   );
 }
 
@@ -102,7 +184,7 @@ function AccountMenu({ route }: { route: Route }) {
   if (me === undefined && STEAM_AVAILABLE) return <span className="account-wait" />;
   if (!me) return (
     <div className="account">
-      <a className={`nav-link ${route.page === 'profile' ? 'on' : ''}`} href="#/profile" aria-label="Profile"><Icon name="user" size={16} /> <span>Profile</span></a>
+      <a className={`nav-link nav-wide ${route.page === 'profile' ? 'on' : ''}`} href="/profile" aria-label="Profile"><Icon name="user" size={16} /> <span>Profile</span></a>
       {STEAM_AVAILABLE && <SteamLoginButton compact />}
     </div>
   );
@@ -112,13 +194,15 @@ function AccountMenu({ route }: { route: Route }) {
       <summary title="Your account">
         {me.avatar ? <img src={me.avatar} alt="" width={28} height={28} /> : <Icon name="user" size={22} />}
         <span className="account-name">{me.name ?? 'You'}</span>
-        {hasPro() && <span className="pro-badge" title="Pro is free during early access">PRO</span>}
+        {proEarlyAccess() && <span className="pro-badge" title="Pro is free during early access">PRO</span>}
         <Icon name="chevronDown" size={12} />
       </summary>
       <div className="account-pop" role="menu">
-        <a role="menuitem" href="#/profile"><Icon name="user" size={16} /> Profile</a>
-        <a role="menuitem" href="#/settings"><Icon name="gear" size={16} /> Settings</a>
-        {me.owner && <a role="menuitem" href="#/dev"><Icon name="stats" size={16} /> Dev</a>}
+        <a role="menuitem" href="/profile"><Icon name="user" size={16} /> Profile</a>
+        <a role="menuitem" href="/settings"><Icon name="gear" size={16} /> Settings</a>
+        <a role="menuitem" href="/pricing"><Icon name="coins" size={16} /> Pricing</a>
+        <button role="menuitem" className="ghost" onClick={() => dispatchEvent(new Event('rv:hints'))}><Icon name="info" size={16} /> Tips &amp; shortcuts</button>
+        {me.owner && <a role="menuitem" href="/dev"><Icon name="stats" size={16} /> Dev</a>}
         <a role="menuitem" href={`https://steamcommunity.com/profiles/${me.steamId}`} target="_blank" rel="noreferrer"><Icon name="arrowRight" size={16} /> Steam profile</a>
         <button role="menuitem" className="ghost" onClick={signOut}><Icon name="signOut" size={16} /> Sign out</button>
       </div>
@@ -126,69 +210,9 @@ function AccountMenu({ route }: { route: Route }) {
   );
 }
 
-/** Deadlock's modes (Tactical, Review, and Match recap once a match is open) and its open match, like CS2's. */
-function D2Nav({ route }: { route: Extract<Route, { page: 'deadlock' | 'dota2' }> }) {
-  const match = useD2(s => s.match), close = useD2(s => s.close);
-  const mins = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-  return (
-    <>
-      <div className="modes" role="tablist" aria-label="Mode">
-        <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
-          onClick={() => navigate({ page: 'dota2', mode: 'tactical' })} title="Plan: lanes, rotations and wards, or a teamfight">
-          <Icon name="grid" className="mode-ico" /> <span className="mode-label">Tactical</span>
-        </button>
-        <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
-          onClick={() => navigate({ page: 'dota2', mode: 'review' })} title={match ? 'Replay this match' : 'Pick a match to replay'}>
-          <Icon name="play" className="mode-ico" /> <span className="mode-label">Review</span>{match ? <i className="dot-live" title="A match is loaded" /> : null}
-        </button>
-        {match && (
-          <button role="tab" aria-selected={route.mode === 'report'} className={route.mode === 'report' ? 'on' : ''}
-            onClick={() => navigate({ page: 'dota2', mode: 'report' })} title="The coach's lessons, fights, objectives, item timings and the scoreboard">
-            <Icon name="star" className="mode-ico" /> <span className="mode-label">Match recap</span>
-          </button>
-        )}
-      </div>
-      {match && (
-        <div className="match-tab" title={`Open match ${match.id}, ${mins(match.duration)}`}>
-          <Icon name="map" size={14} />
-          <b>Match {match.id}</b>
-          <span className="match-tab-n">{mins(match.duration)}</span>
-          <button className="match-tab-x" onClick={close} aria-label="Close match" title="Close this match and pick another one"><Icon name="close" size={13} /></button>
-        </div>
-      )}
-    </>
-  );
+/** The open Deadlock match's tab: the hero you played and whether you won (the ID is in its tooltip). */
+function dlChip(m: NonNullable<ReturnType<typeof useDl.getState>['match']>): string {
+  const mine = useProfile.getState().me?.steamId ? m.players.find(p => String(p.account) === steamId3(useProfile.getState().me!.steamId)) : null;
+  return mine ? `${heroOf(mine.hero).name} · ${m.winner === mine.team ? 'Won' : 'Lost'}` : `Match ${m.id}`;
 }
 
-function DlNav({ route }: { route: Extract<Route, { page: 'deadlock' | 'dota2' }> }) {
-  const match = useDl(s => s.match), close = useDl(s => s.close);
-  const mins = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-  return (
-    <>
-      <div className="modes" role="tablist" aria-label="Mode">
-        <button role="tab" aria-selected={route.mode === 'tactical'} className={route.mode === 'tactical' ? 'on' : ''}
-          onClick={() => navigate({ page: 'deadlock', mode: 'tactical' })} title="Plan: lanes and rotations, a teamfight, builds and power spikes">
-          <Icon name="grid" className="mode-ico" /> <span className="mode-label">Tactical</span>
-        </button>
-        <button role="tab" aria-selected={route.mode === 'review'} className={route.mode === 'review' ? 'on' : ''}
-          onClick={() => navigate({ page: 'deadlock', mode: 'review' })} title={match ? 'Replay this match' : 'Pick a match to replay'}>
-          <Icon name="play" className="mode-ico" /> <span className="mode-label">Review</span>{match ? <i className="dot-live" title="A match is loaded" /> : null}
-        </button>
-        {match && (
-          <button role="tab" aria-selected={route.mode === 'report'} className={route.mode === 'report' ? 'on' : ''}
-            onClick={() => navigate({ page: 'deadlock', mode: 'report' })} title="The coach's lessons, fights, objectives and the scoreboard">
-            <Icon name="star" className="mode-ico" /> <span className="mode-label">Match recap</span>
-          </button>
-        )}
-      </div>
-      {match && (
-        <div className="match-tab" title={`Open match ${match.id}, ${mins(match.duration)}`}>
-          <Icon name="map" size={14} />
-          <b>Match {match.id}</b>
-          <span className="match-tab-n">{mins(match.duration)}</span>
-          <button className="match-tab-x" onClick={close} aria-label="Close match" title="Close this match and pick another one"><Icon name="close" size={13} /></button>
-        </div>
-      )}
-    </>
-  );
-}

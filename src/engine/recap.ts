@@ -1,14 +1,15 @@
+import { AIM_SHARE, aimedShare } from './aim';
 import { FLASH_POP, HE_POP, SIM_DT, type KillEvent, type Simulation } from './combat';
 import { computeControl } from './control';
 import { radarToWorld, worldToRadar } from './coords';
 import { gunFromName, primaryGun } from './guns';
-import { lifeOf, popAt, segmentHitsCircle, smokeBlasts, smokeOpenAt, SMOKE_CLEAR, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
+import { CELL, lifeOf, popAt, segmentHitsCircle, smokeBlasts, smokeOpenAt, SMOKE_CLEAR, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
 import type { TacticalEngine } from './predict';
 import UTIL_SPOTS from '../map/generated/util-spots.json';
 import { placeOf as calloutOfSpot } from './situations';
 import { analyzeRound } from './analyst';
 import { duelOdds as duelModelOdds, pctOdds } from './duelModel';
-import { COST_SCALE, keySearchMoments, searchRound, walkDistance, type RoundSearch } from './search';
+import { keySearchMoments, searchRound, walkDistance, type RoundSearch } from './search';
 import { ACTION_TEXT, judgeMoment, keyMoments, momentLine, pctPlay, PLAY_MODEL, roundMoments, type Action, type MomentVerdict } from './playModel';
 import { controlCounts, learnedLogit, tradePending, WIN_MODEL } from './winprob';
 import { analystBench, proAnalystAvailable, proTradeConversion } from './analystModel';
@@ -84,17 +85,33 @@ export interface Fight { t0: number; dt: number; attacker: string; victim: strin
 export interface BombEvent { t: number; kind: 'carry' | 'drop' | 'plant' | 'defuse' | 'explode'; id: string; x: number; y: number }
 export interface BombTry { t: number; end: number; kind: 'plant' | 'defuse'; id: string; done: boolean; kit?: boolean }
 export const PLANT_SECONDS = 3.2, DEFUSE_SECONDS = 10, DEFUSE_KIT_SECONDS = 5;
+/** The C4's fuse, a knife-out run (units a second), and when a round counts as decided (win chance, either way). */
+/** How close an enemy must be for a teammate's flash to count (units, ~25 m). */
+const TEAMFLASH_NEAR = 985;
+const BOMB_FUSE_SECONDS = 40, RUN_SPEED = 250, DECIDED = 0.97;
+/** A grenade as the active weapon (the frames' weapon name), and how a card names it. */
+const NADE_IN_HAND = /flashbang|hegrenade|smokegrenade|molotov|incgrenade|decoy/;
+const NADE_LABEL: Record<string, string> = { flashbang: 'a flash', hegrenade: 'an HE grenade', smokegrenade: 'a smoke', molotov: 'a molotov', incgrenade: 'an incendiary', decoy: 'a decoy' };
 /**
  * The plant or defuse going on at time t, if any. Older parses don't have the attempts: the finished ones are
  * worked out backwards from the plant / defuse (how long it takes, with or without a kit).
  */
 export function bombTryAt(r: DemoRound, t: number): BombTry | null {
-  const tries = r.bombTries ?? (r.bomb ?? []).filter(b => b.kind === 'plant' || b.kind === 'defuse').map(b => {
+  // the demo's own begin/abort events when it has them; every finished plant or defuse the events don't cover is worked out from the
+  // bomb events (a demo may carry the plant's begin event but not the defuse's: the defuse timer must still show)
+  const own = r.bombTries ?? [];
+  const derived = (r.bomb ?? []).filter(b => b.kind === 'plant' || b.kind === 'defuse').map(b => {
     const kit = b.kind === 'defuse' ? !!gearAt(r, b.id, b.t - 1)?.kit : undefined;
     const len = b.kind === 'plant' ? PLANT_SECONDS : kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS;
     return { t: b.t - len, end: b.t, kind: b.kind as 'plant' | 'defuse', id: b.id, done: true, kit };
-  });
+  }).filter(d => !own.some(o => o.kind === d.kind && Math.abs(o.end - d.end) < 1.5));
+  const tries = [...own, ...derived];
   return tries.find(x => x.t <= t && t < x.end) ?? null;
+}
+/** A move's time as the HUD shows it: time left on the round clock, or on the bomb's fuse once the bomb is down. */
+export function moveClock(plant: number | null, t: number): { text: string; bomb: boolean } {
+  const bomb = plant !== null && t >= plant, left = Math.max(0, bomb ? BOMB_FUSE_SECONDS - (t - plant!) : ROUND_TIME - t);
+  return { text: `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`, bomb };
 }
 export type BombState =
   | { kind: 'carry'; id: string }
@@ -231,6 +248,8 @@ export interface DemoData {
   ranks?: Record<string, PlayerRank>;
   /** When the match was played (ms): the demo file's date, which CS2 sets as it saves the demo after the match. */
   playedAt?: number;
+  /** The front page's sample (names replaced): the recap says so. */
+  sample?: boolean;
 }
 
 // ---- replay -----------------------------------------------------------------------------------
@@ -449,11 +468,8 @@ export function evalState(state: {
  *           see annotateKill / annotateDeath / the grenade and bomb rules in reviewRound.
  *   rounds  a letter per player per round, S+ … F (roundGrade), and per match (matchLetter in match.ts).
  */
-export type Letter = 'S+' | 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
-export const LETTER_COLOR: Record<Letter, string> = {
-  'S+': '#f5c542', S: '#22c55e', A: '#7fbf4d', B: '#5c8bd6', C: '#a39b8f', D: '#e5a52a', F: '#e5483a',
-};
-export const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'];
+export { LETTER_COLOR, LETTERS, type Letter } from './notes';
+import { LETTER_COLOR, LETTERS, type Letter } from './notes';
 export const LETTER_INFO: Record<Letter, string> = {
   'S+': 'Transcendent: dominated the round and won the objective (a clutch, a solo anchor, entry and plant)',
   S: 'Exceptional: three kills, or two with the entry plus great utility or the plant / defuse',
@@ -482,16 +498,9 @@ export function standardSpot(map: string, type: UtilType, side: Side, x: number,
 export const knowsSpots = (map: string, type: UtilType, side: Side) => (SPOTS[map] ?? []).filter(sp => sp.type === type && sp.side === side).length >= 5;
 
 /** A move's annotation, as in chess. */
-export type Annotation = '!!' | '!' | 'book' | '?!' | '?' | '??';
-export const NOTES: Annotation[] = ['!!', '!', 'book', '?!', '?', '??'];
-export const NOTE_INFO: Record<Annotation, { mark: string; label: string; color: string; tip: string }> = {
-  '!!': { mark: '!!', label: 'Brilliant', color: '#1baca6', tip: 'Exceptional, statistically unlikely: a 1v3 clutch, a ninja defuse, a solo anchor, a pistol beating full gear' },
-  '!': { mark: '!', label: 'Good move', color: '#5c9ced', tip: 'Swung the round: a quick trade, a multi-kill, the opening kill, a flash or HE that won fights' },
-  book: { mark: '', label: 'Book', color: '#a88865', tip: 'The expected, sound play: a standard smoke, an ordinary kill or grenade' },
-  '?!': { mark: '?!', label: 'Inaccuracy', color: '#f7c045', tip: 'Not the best: a level-10 player would have played it a little better' },
-  '?': { mark: '?', label: 'Mistake', color: '#e58f2a', tip: 'Cost the team: an untraded opening or isolated death, a team flash, dying with utility' },
-  '??': { mark: '??', label: 'Blunder', color: '#ca3431', tip: 'A round-losing error: a team kill, a team flash that got a teammate killed, dying to an eco with full gear and grenades unused' },
-};
+export { NOTES, NOTE_INFO, type Annotation } from './notes';
+import type { Annotation } from './notes';
+import { NOTE_INFO } from './notes';
 
 /** Context tags: the one-word "why" next to a grade (like a match feed). */
 /** "smokegrenade" → "smoke": the grenade that hit someone directly. */
@@ -502,9 +511,11 @@ export type Tag =
   | 'FLASH ASSIST' | 'NADE ASSIST' | 'BLIND' | 'LOW HP' | 'TEAM FLASH' | 'TEAM DAMAGE' | 'WASTED' | 'DENIED' | 'POST-PLANT' | 'UNUSED UTIL' | 'WHIFF' | 'UPSET'
   | 'FLANK' | 'ANCHOR' | 'TEAM KILL' | 'ECO DEATH' | 'PLANT' | 'DEFUSE' | 'NINJA'
   | 'NO TRADE' | 'LATE ROTATION' | 'OVER-ROTATION' | 'DRY PEEK'
-  | 'KNIFE OUT' | 'NO AMMO' | 'MOVING SHOT' | 'LOUD' | 'BAD PEEK' | 'LONG ODDS' | 'STALL' | 'OUTGUNNED'
+  | 'KNIFE OUT' | 'NADE IN HAND' | 'BOMB IN HAND' | 'NO AMMO' | 'MOVING SHOT' | 'LOUD' | 'BAD PEEK' | 'LONG ODDS' | 'STALL' | 'OUTGUNNED'
   | 'WALLBANG' | 'THROUGH SMOKE' | 'BLIND SHOT' | 'NO-SCOPE' | 'JUMP SHOT' | 'NADE KILL' | 'SMOKE CLEAR';
 const GOOD = '#22c55e', BAD = '#ef4444', UTIL = '#3b82f6', INFO = '#a39b8f';
+/** Tags kept for the numbers (profile, recap) but not shown on a card. */
+export const QUIET_TAGS = new Set<Tag>(['UNUSED UTIL']);
 export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   OPENING: { color: INFO, tip: 'First kill of the round.' },
   TRADE: { color: GOOD, tip: 'Killed the enemy who had just killed a teammate.' },
@@ -525,21 +536,23 @@ export const TAG_INFO: Record<Tag, { color: string; tip: string }> = {
   WASTED: { color: BAD, tip: 'The grenade did nothing useful.' },
   DENIED: { color: UTIL, tip: 'Took sightlines or ground away from the enemy.' },
   'POST-PLANT': { color: INFO, tip: 'After the bomb was planted.' },
-  'UNUSED UTIL': { color: BAD, tip: 'Died holding two or more grenades.' },
+  'UNUSED UTIL': { color: BAD, tip: 'Died holding two or more grenades (counted on the profile; no mark).' },
   WHIFF: { color: BAD, tip: 'Fired a burst right before dying and barely hit anything.' },
   UPSET: { color: GOOD, tip: 'Beat a much higher-rated player (Premier rating).' },
   FLANK: { color: GOOD, tip: 'Caught the enemy from behind or from an angle they weren\'t watching.' },
   ANCHOR: { color: GOOD, tip: 'Held a site alone: three or more kills against a full push.' },
   'TEAM KILL': { color: BAD, tip: 'Killed a teammate.' },
-  'ECO DEATH': { color: BAD, tip: 'Died to a player on an eco while fully bought, with grenades unused.' },
+  'ECO DEATH': { color: BAD, tip: 'Died to a player on an eco while fully bought, without throwing anything.' },
   PLANT: { color: INFO, tip: 'Planted the bomb.' },
   DEFUSE: { color: GOOD, tip: 'Defused the bomb.' },
-  NINJA: { color: GOOD, tip: 'Defused with enemies still alive, or with almost no time left.' },
+  NINJA: { color: GOOD, tip: 'Defused with an enemy alive near the bomb, or with almost no time left.' },
   'NO TRADE': { color: BAD, tip: 'A teammate died close by while you could see the killer, and you didn\'t trade.' },
   'LATE ROTATION': { color: BAD, tip: 'Arrived at the site after the bomb was down.' },
   'OVER-ROTATION': { color: BAD, tip: 'Left a site that then got hit, for one that didn\'t.' },
   'DRY PEEK': { color: BAD, tip: 'Swung into a player holding the angle, without a flash or a teammate.' },
-  'KNIFE OUT': { color: BAD, tip: 'Died holding a knife, grenade or the bomb instead of a gun.' },
+  'KNIFE OUT': { color: BAD, tip: 'Died holding the knife instead of a gun.' },
+  'NADE IN HAND': { color: BAD, tip: 'Died with a grenade as the active weapon.' },
+  'BOMB IN HAND': { color: BAD, tip: 'Died holding the bomb (not while planting).' },
   'NO AMMO': { color: BAD, tip: 'Died with 3 bullets or fewer in the magazine: should have reloaded in cover first.' },
   'MOVING SHOT': { color: BAD, tip: 'Their first shot was fired while moving too fast to be accurate (no counter-strafe).' },
   LOUD: { color: BAD, tip: 'Was running (footsteps) right before dying with the enemy close: they heard them coming.' },
@@ -576,7 +589,7 @@ export interface Move {
 export type Role = 'Entry' | 'Lurk' | 'Support' | 'AWPer' | 'Anchor' | 'Rotator' | 'Rifler';
 export interface PlayerRole { role: Role; note: string }
 
-const TAG_POINTS: Partial<Record<Tag, number>> = { CLUTCH: 5, 'MULTI-KILL': 2, ANCHOR: 4, NINJA: 3, 'TEAM KILL': -6, 'TEAM FLASH': -2, 'TEAM DAMAGE': -3, 'UNUSED UTIL': -2 };
+const TAG_POINTS: Partial<Record<Tag, number>> = { CLUTCH: 5, 'MULTI-KILL': 2, ANCHOR: 4, NINJA: 3, 'TEAM KILL': -6, 'TEAM FLASH': -2, 'TEAM DAMAGE': -3 };
 /** Impact points: win chance added (in %) plus a few things % misses. Ranks players and feeds the game rating. */
 export function impactPoints(moves: Move[]): number {
   let pts = 0;
@@ -757,6 +770,13 @@ export interface RoundPlay {
 
 
 /** Full review of a replayed round. */
+/** How long before a death an opinion about a decision can explain it (seconds). */
+const OPINION_SECS = 20;
+/** Kills and a death this close together (seconds) are one play, judged together. */
+const PLAY_GAP = 10;
+/** How far a molotov's fire reaches from where it broke (world units; inferno_max_range), as the replay draws it. */
+const MOLLY_REACH_U = 150;
+
 export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   const { sim, board, round: r, names } = rep;
   const g = engine.grid;
@@ -783,7 +803,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   const hasEcon = [...gear.values()].some(v => v !== null);
   // a pistol round: nobody has more than a pistol and armour, so "eco" means nothing
   const pistolRound = hasEcon && [...gear.values()].every(v => v === null || v <= 1300);
-  const rating = (id: string) => rep.ranks[id]?.rating ?? null;
+  const rating = (id: string) => { const r = rep.ranks[id]; return r?.type === 'premier' ? r.rating : null; }; // skill groups aren't Premier
   const stateAt = (t: number) => {
     let ct = 0, tt = 0, ctHp = 0, tHp = 0, ctGear = 0, tGear = 0;
     const ctR: number[] = [], tR: number[] = [];
@@ -810,6 +830,28 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
 
   const curve: Review['curve'] = [];
   for (let t = 0; t <= r.duration + 0.01; t += 0.5) curve.push({ t, ct: stateAt(t) });
+  /**
+   * Was the round already decided at t (for `side`'s action)? No enemy alive, the bomb can't be stopped any more (every
+   * living CT is further than the fuse allows, kit or not), or the win chance at 97%+ / 3%-. A decided round's team
+   * flashes, team damage, wasted grenades and unused ones cost nothing.
+   */
+  const decided = (t: number, side: Side): boolean => {
+    const enemies = sim.ids.filter((id, i) => sideOf.get(id) !== side && alive(i, t)).length;
+    if (!enemies) return true;
+    const ct = stateAt(t), mine = side === 'CT' ? ct : 1 - ct;
+    if (mine >= DECIDED || mine <= 1 - DECIDED) return true;
+    const plant = (r.bomb ?? []).find(b => b.kind === 'plant');
+    if (plant && t > plant.t) {
+      const left = BOMB_FUSE_SECONDS - (t - plant.t), bomb = worldToRadar({ x: plant.x, y: plant.y }, engine.map.radar);
+      const cts = sim.ids.filter((id, i) => sideOf.get(id) === 'CT' && alive(i, t));
+      if (cts.length && cts.every(id => {
+        const p = whereAt(id, t);
+        const walk = p ? (Math.hypot(p.x - bomb.x, p.y - bomb.y) * scale) / RUN_SPEED : 0;
+        return walk + (gearAt(r, id, t)?.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS) > left;
+      })) return true;
+    }
+    return false;
+  };
 
   const moves: Move[] = [];
   /** Deaths excused as the player's usual job (re-checked once the duel is known: a dry peek isn't the job). */
@@ -858,7 +900,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const dk = demoKill(k);
     const kGun = dk ? gunFromName(dk.weapon) : undefined;
     const withGun = kGun ? ` with ${kGun.name}${dk?.headshot ? ' (headshot)' : ''}`
-      : k.cause === 'he' ? ' with an HE grenade' : k.cause === 'molotov' ? ' with fire' : k.cause === 'impact' ? ` with a ${impactName(dk?.weapon)} to the face` : dk?.headshot ? ' (headshot)' : '';
+      : k.cause === 'he' ? ' with an HE grenade' : k.cause === 'bomb' ? ' to the bomb' : k.cause === 'molotov' ? ' with fire' : k.cause === 'impact' ? ` with a ${impactName(dk?.weapon)} to the face` : dk?.headshot ? ' (headshot)' : '';
     const before = stateAt(k.t - 0.05), after = stateAt(k.t + 0.05);
     const ctDelta = after - before;
     const vi = idx(k.victim);
@@ -866,7 +908,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const firstKill = n === 0;
     const ki = k.killer ? idx(k.killer) : -1;
     const killerAt = ki >= 0 ? posAt(ki, k.t) : null;
-    const cause = k.cause === 'he' ? 'HE grenade' : k.cause === 'molotov' ? 'fire' : k.cause === 'impact' ? `${impactName(dk?.weapon)} (direct hit)` : kGun?.name ?? '';
+    const cause = k.cause === 'he' ? 'HE grenade' : k.cause === 'bomb' ? 'the bomb' : k.cause === 'molotov' ? 'fire' : k.cause === 'impact' ? `${impactName(dk?.weapon)} (direct hit)` : kGun?.name ?? '';
     // how the bullet got there (newer parses): through walls, through a smoke, from a flashed / jumping shooter
     const walls = dk?.wall ?? 0, thruSmoke = !!dk?.smoke, blindShot = !!dk?.blind;
     const wallText = walls === 1 ? 'a wall' : `${walls} walls`;
@@ -890,37 +932,36 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const vOdds = rv !== null && rk !== null ? duelOdds(rv, rk) : null;
     if (vOdds !== null) {
       loss *= 1 + (vOdds - 0.5) * 0.6;
-      if (vOdds >= 0.65) why.push(`Lost to a lower-rated player (${num(rv!)} vs ${num(rk!)}): was a ${pct(vOdds)} favourite.`);
-      else if (vOdds <= 0.35) why.push(`Up against a much higher-rated player (${num(rk!)} vs ${num(rv!)}).`);
+      if (vOdds >= 0.65) why.push(`You were the favourite (${pct(vOdds)}) vs a lower-rated player. Lost.`);
+      else if (vOdds <= 0.35) why.push(`Much higher-rated opponent (${num(rk!)} vs ${num(rv!)}).`);
     }
     // whiff: emptied a burst right before dying and barely hurt anyone
     const fired = (r.shots ?? []).filter(x => x.id === k.victim && x.t >= k.t - 3 && x.t <= k.t + 0.05).length;
     const dealt = (r.hits ?? []).filter(x => x.attacker === k.victim && x.t >= k.t - 3 && x.t <= k.t + 0.05).reduce((a, x) => a + x.dmg, 0);
     const whiff = fired >= 4 && dealt < 25;
     if (whiff) why.push(`Fired ${fired} shots in the last 3 s and did ${dealt ? `only ${dealt}` : 'no'} damage.`);
-    if (traded) { loss *= 0.4; why.push('Traded by a teammate, so the death bought information and space.'); }
-    else if (support === 0 && !lastAliveAt(vi, k.t)) why.push('No teammate close enough to trade: an isolated death.');
-    if (seers >= 2) why.push(`Exposed to ${seers} enemies at once (crossfire).`);
-    if (wasBlind) why.push('Was flashed when it happened.');
-    if (hpBefore < 50 && hpBefore > 0) why.push(`Already hurt (${hpBefore} hp) before the duel.`);
+    if (traded) { loss *= 0.4; why.push('Traded. Your death opened the fight.'); }
+    else if (support === 0 && !lastAliveAt(vi, k.t)) why.push('Died alone. Nobody could trade.');
+    if (seers >= 2) why.push(`Caught in a crossfire by ${seers} enemies.`);
+    if (wasBlind) why.push('You were flashed.');
+    if (hpBefore < 50 && hpBefore > 0) why.push(`Took the duel on ${hpBefore} hp.`);
     if (k.cause !== 'gun') why.push(k.cause === 'he' ? 'Killed by an HE grenade.' : k.cause === 'impact'
       ? `Finished off by a ${impactName(dk?.weapon)} that hit you directly: you were on almost no health and still exposed.`
       : 'Burned by a molotov: stood in fire.');
-    if (walls) why.push(`Shot through ${wallText} (a wallbang): they knew or guessed where you were. Don't stop on a spot they can spray through, and don't make noise next to one.`);
-    if (thruSmoke) why.push(`Shot through a smoke: they were spraying it${walls ? ' as well' : ''}. Standing behind or crossing a smoke that's being sprayed gets you killed: wait it out or go wide.`);
-    if (blindShot) why.push('They were flashed when they killed you: you had the fight won and lost it (swing while they can\'t see).');
+    if (walls) why.push(`Killed through ${wallText}. Don't stop on a spot they can spray.`);
+    if (thruSmoke) why.push('Killed through a smoke they were spraying. Wait it out or go wide.');
+    if (blindShot) why.push('They were flashed and still won. Swing while they\'re blind.');
     if (dk?.noscope) why.push(`Lost to a no-scope${kGun ? ` (${kGun.name})` : ''}.`);
-    if (firstKill) why.push('First death of the round (lost the opening duel).');
+    if (firstKill) why.push('First death of the round.');
     const lost = gear.get(k.victim);
     const vAwp = !!r.econ?.[k.victim] && weaponClass(r.econ[k.victim].weapons) === 'awp';
-    if (lost != null && lost >= 3000) why.push(`Lost ${money(lost)} of gear${vAwp ? ' (incl. the AWP)' : ''}.`);
+    if (lost != null && lost >= 3000) why.push(`Lost ${money(lost)} of gear${vAwp ? ' (AWP included)' : ''}.`);
     const unused = unusedNades(k.victim, k.t);
-    if (unused >= 2) why.push(`Died with ${unused} grenades unused.`);
     const postPlant = r.plant !== null && k.t >= r.plant;
     // outgunned: their best gun a pistol / SMG / shotgun against a rifle or the AWP (not a pistol round)
     const outgunned = !pistolRound && k.cause === 'gun' && !!kGun && (kGun.cls === 'rifle' || kGun.cls === 'awp') && bestGunClass(r, k.victim, k.t) !== null
       && !['rifle', 'awp'].includes(bestGunClass(r, k.victim, k.t)!);
-    if (outgunned) why.push(`Outgunned: ${bestGunClass(r, k.victim, k.t)} against ${kGun!.name}. Most players lose that fight; the choice is where to take it.`);
+    if (outgunned) why.push(`Outgunned: your ${bestGunClass(r, k.victim, k.t)} vs their ${kGun!.name}. Pick a better spot for it.`);
     // the round was already about lost for their side: one more death changed little
     const vBefore = vSide === 'CT' ? before : 1 - before;
     const myAlive = vi >= 0 ? sim.ids.filter((id, j) => sideOf.get(id) === vSide && alive(j, k.t - 0.05)).length : 2;
@@ -928,8 +969,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const lostCause = vBefore < LOST_CAUSE || (myAlive <= 1 && theirAlive >= 3);
     // a lost round doesn't excuse dying on almost no health: one hit kills, so the job is to hide and save
     const careless = lostCause && !(!!k.killer && sideOf.get(k.killer) === vSide) && !traded && hpBefore > 0 && hpBefore <= 20;
-    if (careless) why.push(`On ${hpBefore} hp with the round lost, any hit kills: stay out of sight and save, don't take another fight.`);
-    else if (lostCause) why.push(`The round was already about lost (${pct(vBefore)} for ${vSide}): little to blame here.`);
+    if (careless) why.push(`${hpBefore} hp, round lost. Save, don't fight.`);
+    else if (lostCause) why.push(`Round was already lost (${pct(vBefore)}). Not on you.`);
     const vTags: Tag[] = [];
     if (outgunned) vTags.push('OUTGUNNED');
     if (firstKill) vTags.push('OPENING');
@@ -946,23 +987,23 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const byMate = !!k.killer && sideOf.get(k.killer) === vSide;
     const vG = gear.get(k.victim), kG = k.killer ? gear.get(k.killer) : null;
     const threw = r.util.some(u => u.thrower === k.victim && u.t <= k.t);
-    const ecoDeath = !pistolRound && !byMate && !traded && vG != null && kG != null && vG >= 3500 && kG <= 1500 && !threw && unused >= 1;
-    if (ecoDeath) { vTags.push('ECO DEATH'); why.push(`Died to a ${money(kG!)} eco with ${money(vG!)} of gear and no grenade thrown.`); }
+    const ecoDeath = !pistolRound && !byMate && !traded && vG != null && kG != null && vG >= 3500 && kG <= 1500 && !threw;
+    if (ecoDeath) { vTags.push('ECO DEATH'); why.push(`Died to an eco (${money(kG!)} vs your ${money(vG!)}), no grenade used.`); }
     // a huge loss alone isn't a blunder (late in a close round one death often swings 20%+): it needs a fault too
     // the last one alive on their side is alone by definition: that isn't a fault
     const lastAlive = vi >= 0 && !sim.ids.some((id, j) => j !== vi && sideOf.get(id) === vSide && alive(j, k.t - 0.05));
     const alone = support === 0 && !lastAlive;
-    const fault = alone || whiff || unused >= 2 || blindShot;
+    const fault = alone || whiff || blindShot;
     // ? only for a death with a clear fault, not every untraded one: alone or the opening duel and it cost 8%+,
     // a missed spray, two grenades in the pocket, the AWP thrown away
     // their usual job this half (an entry taking the same spot first every round): an opening or untraded death there,
     // early, is the role's risk more than a mistake
     const role = rep.usual?.[k.victim];
-    const onRole = !!role && k.t < 30 && placeOf(k.at) === role.place && !whiff && unused < 2 && !blindShot && !ecoDeath;
-    if (onRole) why.push(`Taking ${role!.place} first is ${name(k.victim)}'s usual job on ${vSide} this match (${role!.rounds} of ${role!.of} rounds): dying there early is part of that role.`);
+    const onRole = !!role && k.t < 30 && placeOf(k.at) === role.place && !whiff && !blindShot && !ecoDeath;
+    if (onRole) why.push(`Your role this match: first into ${role!.place} (${role!.rounds} of ${role!.of} rounds). Dying here is part of it.`);
     const vNote: Annotation = careless ? '?' : byMate || lostCause || (outgunned && !whiff) ? 'book'
       : ecoDeath || (!traded && loss <= -0.3 && fault) ? '??'
-      : !traded && (whiff || unused >= 2 || vAwp || blindShot || ((alone || firstKill) && loss <= -0.08)) ? (onRole ? '?!' : '?') : 'book';
+      : !traded && (whiff || vAwp || blindShot || ((alone || firstKill) && loss <= -0.08)) ? (onRole ? '?!' : '?') : 'book';
     const deathMove: Move = {
       t: k.t, player: k.victim, side: vSide, kind: 'death', gain: loss, note: vNote,
       title: `${name(k.victim)} died${where(k.at)}${k.killer && k.killer !== k.victim
@@ -977,6 +1018,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const ai = idx(k.killer);
       const aSide = sideOf.get(k.killer)!;
       let gain = forSide(aSide, ctDelta);
+      // a kill once the round is decided (an exit frag, a saving player hunted down) is worth half
+      if (decided(k.t - 0.05, aSide)) gain *= 0.5;
       const aOdds = vOdds !== null ? 1 - vOdds : null;
       if (aOdds !== null) gain *= 1 + (0.5 - aOdds) * 0.6;
       const upset = aOdds !== null && aOdds <= 0.35;
@@ -988,32 +1031,32 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       // the credit isn't the whole swing when the ratings made the duel lopsided: say why the numbers differ
       if (aOdds !== null && Math.abs(gain - forSide(aSide, ctDelta)) >= 0.02)
         awhy.push(`Counted as ${signedPct(gain)} of the ${signedPct(forSide(aSide, ctDelta))}: ${aOdds > 0.5 ? `by rating they were expected to win this duel (${pct(aOdds)})` : `by rating it was an upset (${pct(aOdds)} on paper), so it counts more`}.`);
-      if (others >= 1) awhy.push(`Won it while ${others} more ${others > 1 ? 'enemies' : 'enemy'} had sight on them.`);
-      if (multi >= 2) awhy.push(`Part of a ${multi}-kill burst.`);
-      if (vi >= 0 && wasBlind) awhy.push('The victim was flashed: teamwork kill.');
+      if (others >= 1) awhy.push(`Won it with ${others} ${others > 1 ? 'enemies' : 'enemy'} watching.`);
+      if (multi >= 2) awhy.push(`${multi} kills in a row.`);
+      if (vi >= 0 && wasBlind) awhy.push('Kill on a flashed enemy. Teamwork.');
       const vGear = gear.get(k.victim), aGear = gear.get(k.killer);
-      if (vGear != null && r.econ?.[k.victim] && weaponClass(r.econ[k.victim].weapons) === 'awp') awhy.push('Took down the AWP.');
-      else if (!pistolRound && vGear != null && vGear < 1000 && (aGear ?? 0) >= 2500) awhy.push('The victim was on an eco, so the kill is worth less.');
-      if (aGear != null && vGear != null && aGear + 1500 < vGear) awhy.push(`Won it with ${money(aGear)} of gear against ${money(vGear)}.`);
+      if (vGear != null && r.econ?.[k.victim] && weaponClass(r.econ[k.victim].weapons) === 'awp') awhy.push('Took out their AWP.');
+      else if (!pistolRound && vGear != null && vGear < 1000 && (aGear ?? 0) >= 2500) awhy.push('Eco kill. Worth less.');
+      if (aGear != null && vGear != null && aGear + 1500 < vGear) awhy.push(`Won with ${money(aGear)} of gear vs their ${money(vGear)}.`);
       const vGun = r.econ?.[k.victim] ? primaryGun(r.econ[k.victim].weapons) : undefined;
-      if (kGun && vGun && kGun.cls === 'pistol' && vGun.cls !== 'pistol') awhy.push(`Pistol (${kGun.name}) beat a ${vGun.name}.`);
-      if (kGun?.id === 'awp' && dk?.headshot === false) awhy.push('AWP one-shot to the body.');
-      if (k.cause === 'he') awhy.push('An HE grenade kill: utility that finished the job.');
-      if (k.cause === 'molotov') awhy.push('Burned them: a molotov kill.');
+      if (kGun && vGun && kGun.cls === 'pistol' && vGun.cls !== 'pistol') awhy.push(`Pistol beat a rifle: your ${kGun.name} vs their ${vGun.name}.`);
+      if (kGun?.id === 'awp' && dk?.headshot === false) awhy.push('AWP one-shot.');
+      if (k.cause === 'he') awhy.push('HE kill.');
+      if (k.cause === 'molotov') awhy.push('Molotov kill.');
       if (k.cause === 'impact') awhy.push(`Killed them with a ${impactName(dk?.weapon)} to the face: a direct hit on a player with almost no health left.`);
-      if (walls) awhy.push(`Through ${wallText}: a wallbang, shot where they had to be.`);
-      if (thruSmoke) awhy.push('Through a smoke: read where they were and shot without seeing them.');
-      if (blindShot) awhy.push('Got it while flashed.');
+      if (walls) awhy.push(`Wallbang through ${wallText}. Good read.`);
+      if (thruSmoke) awhy.push('Through the smoke. Good read.');
+      if (blindShot) awhy.push('Kill while you were flashed.');
       if (dk?.noscope) awhy.push(`No-scope${kGun ? ` with the ${kGun.name}` : ''}.`);
-      if (dk?.air) awhy.push('In the air: a jumping shot (inaccurate with most guns, so partly luck).');
+      if (dk?.air) awhy.push('Jumping shot. Mostly luck.');
       // last one standing on their side, against two or more
       const mates = sim.ids.filter((id, j) => j !== ai && sideOf.get(id) === aSide && alive(j, k.t - 0.05)).length;
       const foes = sim.ids.filter((id, j) => sideOf.get(id) !== aSide && alive(j, k.t - 0.05)).length;
       const clutch = ai >= 0 && mates === 0 && foes >= 2;
-      if (clutch) awhy.push(`1v${foes} clutch situation.`);
+      if (clutch) awhy.push(`1v${foes} clutch.`);
       const trade = sim.kills.some(o => o.killer === k.victim && o.t < k.t && k.t - o.t <= 5 && sideOf.get(o.victim) === aSide);
       if (trade) awhy.push('Traded a teammate\'s death.');
-      if (upset) awhy.push(`Beat a higher-rated player (${num(rv!)} vs ${num(rk!)}): only a ${pct(aOdds!)} chance on paper.`);
+      if (upset) awhy.push(`Beat a higher-rated player. You had ${pct(aOdds!)}.`);
       const teamKill = aSide === vSide;
       // caught from behind: the victim was looking more than ~115° away from the killer
       const vPos = vi >= 0 ? posAt(vi, k.t - 0.1) : null;
@@ -1023,17 +1066,17 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         const off = Math.abs(((facingAt(vi, k.t - 0.15) - toKiller + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
         flank = off > 2.0 && metres(killerAt, vPos) > 2;
       }
-      if (flank) awhy.push('Caught them from behind: they were looking the other way.');
+      if (flank) awhy.push('Caught them from behind.');
       // a solo anchor: a CT with 3+ kills in 15 s against a push of three or more Ts
       const burst = sim.kills.filter(o => o.killer === k.killer && o.t <= k.t && k.t - o.t <= 15 && sideOf.get(o.victim) !== aSide);
       const pushed = burst.length >= 3 && killerAt
         ? sim.ids.filter((id, j) => sideOf.get(id) !== aSide && alive(j, burst[0].t - 0.5) && Math.hypot(posAt(j, burst[0].t - 0.5).x - killerAt.x, posAt(j, burst[0].t - 0.5).y - killerAt.y) * scale < 1500).length : 0;
       const anchor = aSide === 'CT' && burst.length >= 3 && pushed >= 3;
-      if (anchor) awhy.push(`Held against a ${pushed}-man push alone: ${burst.length} kills in ${Math.round(k.t - burst[0].t)} s.`);
+      if (anchor) awhy.push(`Held a ${pushed}-man push alone: ${burst.length} kills in ${Math.round(k.t - burst[0].t)} s.`);
       const clutchOf = clutches.get(k.killer);
       const inClutch = clutchOf !== undefined && clutch;
       const clutchWon = inClutch && won(aSide);
-      if (clutchWon) awhy.push(`Won the 1v${clutchOf} clutch.`);
+      if (clutchWon) awhy.push(`Won the 1v${clutchOf}.`);
       const kitted = vGear != null && vGear >= 3700, broke = aGear != null && aGear <= 1000;
       const ecoHero = kitted && broke && kGun?.cls === 'pistol';
       const aTags: Tag[] = [];
@@ -1089,12 +1132,26 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const enemyDmg = dmg.filter(d => sideOf.has(d.victim) && sideOf.get(d.victim) !== s).reduce((a, d) => a + d.dmg, 0);
     const teamDmg = dmg.filter(d => d.victim !== u.thrower && sideOf.get(d.victim) === s).reduce((a, d) => a + d.dmg, 0);
     const hitEnemies = [...new Set(dmg.filter(d => sideOf.has(d.victim) && sideOf.get(d.victim) !== s).map(d => d.victim))];
+    // the real shape (MapGrid.spread, as the replay draws it): the floor a smoke filled or a fire burned, around walls
+    // and through doorways but never through a wall, instead of a circle that also counts the room behind a thin wall
+    const cover = (radiusPx: number) => {
+      const cells = g.spread(at, radiusPx);
+      return { cells, set: new Set(cells.map(q => g.idx({ x: at.x + q.x, y: at.y + q.y }))) };
+    };
+    const crosses = (set: Set<number>, a: Vec2, b: Vec2) => {
+      const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / (CELL / 2)));
+      for (let i = 0; i <= n; i++) if (set.has(g.idx({ x: a.x + ((b.x - a.x) * i) / n, y: a.y + ((b.y - a.y) * i) / n }))) return true;
+      return false;
+    };
+    /** Square metres of floor (a CS unit is an inch). */
+    const sqm = (cells: number) => Math.round(cells * (CELL * scale) ** 2 * 0.000645);
     const why: string[] = [];
     let gain = 0;
-    if (r.plant !== null && from > r.plant + 0.5 && s === 'T' && u.type === 'smoke') why.push('Thrown after the plant (post-plant smoke).');
+    if (r.plant !== null && from > r.plant + 0.5 && s === 'T' && u.type === 'smoke') why.push('Post-plant smoke.');
 
     if (u.type === 'smoke') {
       const R = SMOKE_RADIUS_UNITS / scale;
+      const filled = cover(R);
       let pairSec = 0, watchSec = 0;
       const cut = new Set<string>(), blinded = new Set<string>();
       // points on the near rim of the smoke: if an enemy sees them, the smoke is in their view
@@ -1110,7 +1167,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
             if (!alive(f, t)) continue;
             const pf = posAt(f, t);
             if (Math.hypot(pe.x - pf.x, pe.y - pf.y) > 1100) continue;
-            if (segmentHitsCircle(pf, pe, at, R) && g.lineOfSight(pf, pe)) { pairSec++; cut.add(sim.ids[e]); }
+            if ((filled.cells.length ? crosses(filled.set, pf, pe) : segmentHitsCircle(pf, pe, at, R)) && g.lineOfSight(pf, pe)) { pairSec++; cut.add(sim.ids[e]); }
           }
         }
       }
@@ -1120,12 +1177,15 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       // kills shot through this smoke while it was up: the enemy spraying it, or your team using it
       const radar = (x: number, y: number) => worldToRadar({ x, y }, engine.map.radar);
       const through = r.kills.filter(k => k.smoke && k.t >= from && k.t <= to && sideOf.has(k.attacker) && sideOf.has(k.victim)
-        && segmentHitsCircle(radar(k.ax, k.ay), radar(k.x, k.y), at, R * 1.1));
+        && (filled.cells.length ? crosses(filled.set, radar(k.ax, k.ay), radar(k.x, k.y)) : segmentHitsCircle(radar(k.ax, k.ay), radar(k.x, k.y), at, R * 1.1)));
       const sprayedUs = through.filter(k => sideOf.get(k.attacker) !== s && sideOf.get(k.victim) === s).length;
       const usedIt = through.filter(k => sideOf.get(k.attacker) === s && sideOf.get(k.victim) !== s).length;
       gain = Math.min(0.09, 0.0035 * pairSec + 0.0018 * watchSec) - 0.03 * caught - 0.02 * sprayedUs + 0.02 * usedIt;
       if (pairSec) why.push(`Cut ${cut.size === 1 ? 'an enemy' : `${cut.size} enemies`} off from seeing your team (${pairSec} player-second${pairSec > 1 ? 's' : ''} of sightlines).`);
       if (blinded.size) why.push(`Blocked the view of ${blinded.size === 1 ? 'an enemy' : `${blinded.size} enemies`} looking that way (${watchSec} s).`);
+      // walls around it: the smoke filled only part of a full one's space (it spreads into the room it lands in)
+      const full = Math.PI * (R / CELL) ** 2;
+      if (filled.cells.length && filled.cells.length < full * 0.6) why.push(`Walls hemmed it in: it filled ${sqm(filled.cells.length)} m² of floor, ${Math.round((filled.cells.length / full) * 100)}% of an open smoke.`);
       const std = standardSpot(engine.map.id, 'smoke', s, u.x, u.y);
       // meant for a usual spot but landed into the wall: part of the smoke sits inside it, leaving a gap on the open
       // side anyone can peek through (how much of the smoke is inside walls, against the usual smoke there)
@@ -1152,18 +1212,18 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         // seeing a smoke from afar isn't blocking anything: say what happened instead
         const i = why.findIndex(w => w.startsWith('Blocked the view'));
         if (i >= 0) why.splice(i, 1);
-        why.push('Missed: it landed away from the usual smoke spots and blocked no sightline.');
+        why.push('Smoke missed. Blocked nothing.');
         gain = Math.min(gain, 0);
       }
-      if (caught) why.push(`${caught} teammate${caught > 1 ? 's' : ''} died at the smoke anyway.`);
+      if (caught) why.push(`${caught} teammate${caught > 1 ? 's' : ''} died at that smoke anyway.`);
       const blownBy = smokeBlasts(nade, board.utility, scale).map(b => board.utility.findIndex(h => h.type === 'he' && popAt(h) === b.t))
         .filter(i => i >= 0 && sideOf.get(r.util[i]?.thrower) !== s);
       if (blownBy.length) why.push(`Blown open by an enemy HE${blownBy.length > 1 ? ` ${blownBy.length} times` : ''}: see-through for about ${Math.round(SMOKE_CLEAR.open + SMOKE_CLEAR.refill / 2)} s each time.`);
       if (sprayedUs) why.push(`${sprayedUs === 1 ? 'A teammate was' : `${sprayedUs} teammates were`} shot through it: the enemy sprayed the smoke.`);
       if (usedIt) why.push(`Your team got ${usedIt === 1 ? 'a kill' : `${usedIt} kills`} shooting through it.`);
       const hits = u.bounces?.length ?? 0;
-      if (missed && hits >= 2) why.push(`It hit something ${hits} times on the way (marked on its trail): the throw went off its line.`);
-      if (nade.duration !== undefined && nade.duration < 12) why.push(`Cleared early (lasted ${nade.duration.toFixed(0)} s).`);
+      if (missed && hits >= 2) why.push(`Bounced ${hits} times. Off its line.`);
+      if (nade.duration !== undefined && nade.duration < 12) why.push(`Gone after ${nade.duration.toFixed(0)} s.`);
       const tags: Tag[] = missed ? ['WASTED'] : gain >= 0.03 ? ['DENIED'] : [];
       // book: a standard smoke, or one that did its job; ! cut a lot of sightlines or your team shot through it for
       // kills; ? missed, or got teammates killed (at it, or sprayed through it)
@@ -1200,13 +1260,25 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
 
     if (u.type === 'molotov') {
       // area denial: enemies that were close to the fire while it burned (it held them off or pushed them out)
-      const near = new Set<string>();
+      const near = new Set<string>(), walkedIn = new Set<string>();
+      const burned = cover(MOLLY_REACH_U / scale);
+      const edge = (p: Vec2) => {
+        let best: Vec2 = at, bd = Infinity;
+        for (const q of burned.cells) { const d = Math.hypot(at.x + q.x - p.x, at.y + q.y - p.y); if (d < bd) { bd = d; best = { x: at.x + q.x, y: at.y + q.y }; } }
+        return { at: best, d: bd };
+      };
       for (let t = from; t <= Math.min(to, r.duration); t += 0.5)
         for (const e of enemiesOf(s)) {
           if (!alive(e, t)) continue;
           const pe = posAt(e, t);
-          if (Math.hypot(pe.x - at.x, pe.y - at.y) * scale < 900 && g.lineOfSight(pe, at)) near.add(sim.ids[e]);
+          if (!burned.cells.length) { if (Math.hypot(pe.x - at.x, pe.y - at.y) * scale < 900 && g.lineOfSight(pe, at)) near.add(sim.ids[e]); continue; }
+          if (burned.set.has(g.idx(pe)) && t >= from + 0.3) walkedIn.add(sim.ids[e]);
+          // close to the fire's edge and seeing it: it was in their way
+          const ed = edge(pe);
+          if (ed.d * scale < 600 && g.lineOfSight(pe, ed.at)) near.add(sim.ids[e]);
         }
+      if (burned.cells.length) why.push(`It burned ${sqm(burned.cells.length)} m² of floor.`);
+      if (walkedIn.size) why.push(`${walkedIn.size === 1 ? 'An enemy' : `${walkedIn.size} enemies`} walked into the fire.`);
       gain += 0.02 * Math.min(3, near.size);
       if (near.size) why.push(`Kept ${near.size === 1 ? 'an enemy' : `${near.size} enemies`} off that ground for ${(to - from).toFixed(0)} s.`);
       if (near.size) tags.push('DENIED');
@@ -1229,7 +1301,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       });
       if (tookIt) return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Burned the spot as your team took the space: they walked through it right after.'], tags };
       if (!near.size && !enemyDmg && std && s === 'T') {
-        why.push('Nobody was there: it cleared an empty spot. Burn it when someone was seen there, or keep it for the post-plant.');
+        why.push('Burned an empty spot. Save it for the post-plant.');
         return { gain: Math.min(gain, -0.01), note: '?!', why, tags: [...tags, 'WASTED'] };
       }
       // an empty burn on a standard spot still did its job (nobody came through); anywhere else it was wasted
@@ -1243,7 +1315,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     } else if (!enemyDmg && stall && u.type === 'he') {
       return { gain: Math.min(gain, 0), note: hurtTeam ? '?' : 'book', why: [...why, 'Thrown early to slow a push down: nobody was there to hit, which is the point.'], tags: [...tags, 'STALL'] };
     } else if (!enemyDmg) {
-      why.push(`Hit nobody: wasted utility.${bounceNote(u)}`);
+      why.push(`Hit nobody.${bounceNote(u)}`);
       return { gain: Math.min(gain, -0.01), note: '?', why, tags: [...tags, 'WASTED'] };
     }
     const note: Annotation = enemyDmg >= 150 || hitEnemies.length >= 3 ? '!!' : enemyDmg >= 70 || softened.length ? '!' : hurtTeam ? '?' : 'book';
@@ -1253,7 +1325,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   /** " It bounced 3 times first (off 2 walls)." for a grenade that hit things on the way (newer parses). */
   const bounceNote = (u: DemoRound['util'][number]) => {
     const n = u.bounces?.length ?? 0, walls = u.bounces?.filter(b => b[3] === 1).length ?? 0;
-    return n ? ` It bounced ${n === 1 ? 'once' : `${n} times`} first${walls ? ` (off ${walls === 1 ? 'a wall' : `${walls} walls`})` : ''}: see its trail.` : '';
+    return n ? ` Bounced ${n === 1 ? 'once' : `${n} times`}${walls ? ` (${walls === 1 ? 'a wall' : `${walls} walls`})` : ''}.` : '';
   };
 
   /** " (thrown from Top Mid)" when the grenade was thrown from another area. */
@@ -1279,13 +1351,17 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       return;
     }
     const hits = sim.utilEvents.filter(e => e.src === `u${ui}` && e.amount >= 0.7);
-    const enemy = hits.filter(e => sideOf.get(e.id) !== s), team = hits.filter(e => sideOf.get(e.id) === s);
+    // a teammate flash counts when it hurt: blind 1.5 s+ with an enemy alive within ~25 m of them
+    const enemyNear = (id: string, t: number) => { const p = whereAt(id, t); return !!p && sim.ids.some(o => sideOf.get(o) !== s && (() => { const q = whereAt(o, t); return !!q && Math.hypot(q.x - p.x, q.y - p.y) * scale <= TEAMFLASH_NEAR; })()); };
+    const enemy = hits.filter(e => sideOf.get(e.id) !== s), mates = hits.filter(e => sideOf.get(e.id) === s);
+    const team = mates.filter(e => e.amount >= 1.5 && enemyNear(e.id, e.t)), harmless = mates.length - team.length;
     const assisted = enemy.filter(e => sim.kills.some(k => k.victim === e.id && k.t >= e.t && k.t - e.t <= 3));
     const gain = 0.035 * Math.min(3, enemy.length) + 0.06 * assisted.length - 0.05 * team.length;
     const why = [];
-    if (enemy.length) why.push(`Blinded ${enemy.length === 1 ? 'an enemy' : `${enemy.length} enemies`} (${enemy.map(e => e.amount.toFixed(1) + 's').join(', ')}).`);
-    if (assisted.length) why.push(`${assisted.length} of them died within 3 s: the flash won the duel.`);
-    if (team.length) why.push(`Team-flashed ${team.length} teammate${team.length > 1 ? 's' : ''}.`);
+    if (enemy.length) why.push(`Blinded ${enemy.length} (${enemy.map(e => e.amount.toFixed(1) + ' s').join(', ')}).`);
+    if (assisted.length) why.push(`${assisted.length} died within 3 s: the flash won it.`);
+    if (team.length) why.push(`Flashed ${team.length} teammate${team.length > 1 ? 's' : ''}.`);
+    else if (harmless) why.push(`Flashed a teammate, no enemy near.`);
     if (!hits.length) why.push(`Blinded nobody.${bounceNote(u)}`);
     else if (enemy.length && u.bounces?.some(b => b[3] === 1)) why.push('Banked off a wall before it popped.');
     const tags: Tag[] = [];
@@ -1315,9 +1391,13 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     let note: Annotation = 'book', title = `${name(b.id)} planted the bomb${where(at)}`;
     if (b.kind === 'defuse') {
       const left = r.plant !== null ? BOMB_TIME - (b.t - r.plant) : null;
+      const me = posAt(idx(b.id), b.t);
       const enemies = sim.ids.filter((id, j) => sideOf.get(id) !== s && alive(j, b.t)).length;
-      const ninja = enemies > 0 || (left !== null && left < 1);
-      if (enemies) why.push(`${enemies} enem${enemies > 1 ? 'ies were' : 'y was'} still alive.`);
+      // a ninja defuse is under the enemies' noses: an enemy alive close to the bomb (about 25 m), not one anywhere on the map
+      const near = sim.ids.filter((id, j) => sideOf.get(id) !== s && alive(j, b.t) && Math.hypot(posAt(j, b.t).x - me.x, posAt(j, b.t).y - me.y) * scale < 1000).length;
+      const ninja = near > 0 || (left !== null && left < 1);
+      if (near) why.push(`${near} enem${near > 1 ? 'ies were' : 'y was'} close by, still alive.`);
+      else if (enemies) why.push(`${enemies} enem${enemies > 1 ? 'ies were' : 'y was'} still alive, far from the bomb.`);
       if (left !== null) why.push(`${left.toFixed(1)} s left on the bomb.`);
       if (ninja) tags.push('NINJA');
       note = ninja ? '!!' : '!';
@@ -1367,13 +1447,15 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       }
     }
     for (const ro of an.rotations) {
-      if (!sideOf.has(ro.player) || !(ro.late || ro.overRotated)) continue;
+      // late rotations: no card (too many false ones: a move already on its way, a player busy where he was); the coach's
+      // report still counts them, with a small weight (analystBench)
+      if (!sideOf.has(ro.player) || !ro.overRotated) continue;
       moves.push({
         // an inaccuracy, not a mistake: the call that moved them (or should have) isn't in the demo
         t: ro.arrive ?? ro.start, player: ro.player, side: sideOf.get(ro.player)!, kind: 'teamplay', gain: 0, note: '?!',
-        tags: [ro.late ? 'LATE ROTATION' : 'OVER-ROTATION'],
-        title: ro.late ? `${name(ro.player)} rotated ${ro.from} → ${ro.to} too late` : `${name(ro.player)} over-rotated ${ro.from} → ${ro.to}`,
-        why: [ro.late ? `Got to ${ro.to} after the bomb was already down there.` : `Left ${ro.from}, which then got hit, for ${ro.to}, which didn't.`,
+        tags: ['OVER-ROTATION'],
+        title: `${name(ro.player)} over-rotated ${ro.from} → ${ro.to}`,
+        why: [`Left ${ro.from}, which then got hit, for ${ro.to}, which didn't.`,
           ro.trigger ? `Moved after "${ro.trigger}".` : 'Moved without anything visible to react to: rotate on information.',
           'Calls aren\'t in the demo: if a teammate called the enemy there, the move itself was reasonable; the timing is what to look at.'],
       });
@@ -1386,20 +1468,37 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const ft = r.frames.t;
       let k = 0; while (k < ft.length - 1 && ft[k + 1] <= d.t - 0.2) k++;
       const w = f.w[k] ?? '';
-      if (/knife|bayonet|karambit|dagger|flashbang|hegrenade|smokegrenade|molotov|incgrenade|decoy|c4/.test(w)) {
+      const nade = NADE_IN_HAND.exec(w)?.[0];
+      if (/c4/.test(w)) {
+        // dying while planting is the plan, not a mistake
+        const planting = bombTryAt(r, d.t - 0.1);
+        if (!(planting?.kind === 'plant' && planting.id === d.victim)) {
+          death.tags.push('BOMB IN HAND');
+          if (death.note === 'book' || death.note === '?!') death.note = '?';
+          death.why.push('The bomb in your hands, not a gun.');
+        }
+      } else if (nade) {
+        // how long the grenade had been out: held into the fight, or switched to mid-fight
+        let j = k; while (j > 0 && f.w[j - 1] === w) j--;
+        const held = d.t - ft[j];
+        const label = NADE_LABEL[nade] ?? 'a grenade';
+        death.tags.push('NADE IN HAND');
+        if (death.tags.includes('OUTGUNNED')) death.why.push(`Had ${label} out: with a weaker gun, utility instead of the duel is reasonable.`);
+        else if (held >= 1) { if (death.note === 'book' || death.note === '?!') death.note = '?'; death.why.push(`You had ${label} out when they swung.`); }
+        else if (held < 0.6) { if (death.note === 'book' || death.note === '?!') death.note = '?'; death.why.push('Switched to a grenade mid-fight.'); }
+        else death.why.push(`${label[0].toUpperCase()}${label.slice(1)} in your hands as the fight started.`);
+      } else if (/knife|bayonet|karambit|dagger/.test(w)) {
         death.tags.push('KNIFE OUT');
-        const what = /c4/.test(w) ? 'the bomb' : /knife|bayonet|karambit|dagger/.test(w) ? 'the knife' : 'a grenade';
-        // outgunned (an SMG or shotgun against rifles): reaching for utility instead of taking the fight is a sound plan
-        if (death.tags.includes('OUTGUNNED')) death.why.push(`Had ${what} out: with a weaker gun, playing utility instead of the duel is reasonable; the risk is being caught while switching.`);
-        else { if (death.note === 'book' || death.note === '?!') death.note = '?'; death.why.push(`Had ${what} out instead of a gun.`); }
+        if (death.tags.includes('OUTGUNNED')) death.why.push('Had the knife out: with a weaker gun, running past instead of the duel can be right.');
+        else { if (death.note === 'book' || death.note === '?!') death.note = '?'; death.why.push('The knife in your hands, not a gun.'); }
       }
-      else if (f.am[k] >= 0 && f.am[k] <= 3 && w !== 'awp' && gunFromName(w)) { death.tags.push('NO AMMO'); death.why.push(`Only ${f.am[k]} bullet${f.am[k] === 1 ? '' : 's'} left in the magazine.`); }
-      if (d.detail?.vMovingShot) { death.tags.push('MOVING SHOT'); death.why.push('Their first shot was fired while still moving (no counter-strafe).'); }
+      else if (f.am[k] >= 0 && f.am[k] <= 3 && w !== 'awp' && gunFromName(w)) { death.tags.push('NO AMMO'); death.why.push(`Only ${f.am[k]} bullet${f.am[k] === 1 ? '' : 's'} left. Reload earlier.`); }
+      if (d.detail?.vMovingShot) { death.tags.push('MOVING SHOT'); death.why.push('You shot while moving. Counter-strafe first.'); }
       const k0 = Math.max(1, k - 6);
       let loud = 0;
       for (let j = k0; j <= k; j++) { const sp = Math.hypot(f.x[j] - f.x[j - 1], f.y[j] - f.y[j - 1]) / ((ft[j] - ft[j - 1]) || 0.25); if (sp > 150 && !(f.fl[j] & (FL.walking | FL.crouching))) loud++; }
       const killer = r.frames.players[d.killer];
-      if (loud >= 4 && killer && Math.hypot(killer.x[k] - f.x[k], killer.y[k] - f.y[k]) < 1100) { death.tags.push('LOUD'); death.why.push('Was running (footsteps) toward an enemy close enough to hear it.'); }
+      if (loud >= 4 && killer && Math.hypot(killer.x[k] - f.x[k], killer.y[k] - f.y[k]) < 1100) { death.tags.push('LOUD'); death.why.push('Running = loud. They heard you.'); }
     }
     // the duel model: each fight's odds at first contact, for the winner and the loser
     const RANK: Annotation[] = ['!!', '!', 'book', '?!', '?', '??'];
@@ -1417,9 +1516,12 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         }
         // a fight they were the clear favourite in, lost without a missed spray or the wrong thing in hand: more bad
         // luck (or a great shot) than a bad decision, so at most an inaccuracy
-        if (lost.p >= 0.7 && (death.note === '?' || death.note === '??') && !death.tags.some(t => (['WHIFF', 'KNIFE OUT', 'NO AMMO', 'ECO DEATH'] as Tag[]).includes(t))) {
-          death.note = '?!';
-          death.why.push(`You were the favourite in this fight (${pctOdds(lost.p)}): a duel you usually win, so more bad luck than a bad call.`);
+        // luck, so no mark, and it counts against them only for the share that was on them (1 − odds)
+        if (lost.p >= 0.7 && !death.tags.some(t => (['WHIFF', 'KNIFE OUT', 'NADE IN HAND', 'BOMB IN HAND', 'NO AMMO', 'ECO DEATH', 'TEAM KILL'] as Tag[]).includes(t))) {
+          const full = death.gain;
+          death.note = 'book';
+          death.gain = full * (1 - lost.p);
+          death.why.push(`You were the favourite (${pctOdds(lost.p)}). Bad luck, not a bad call.`);
         }
       }
       if (kill && won) {
@@ -1433,10 +1535,10 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const death = moves.find(m => m.kind === 'death' && m.player === d.victim && Math.abs(m.t - d.t) < 0.06);
       const flashedFor = r.blind.some(b => b.victim === d.killer && b.t <= d.t && d.t - b.t <= 2.5);
       if (death && !flashedFor) {
-        death.tags.push('DRY PEEK'); death.why.push('Swung into a player holding the angle, with no flash on them.');
+        death.tags.push('DRY PEEK'); death.why.push('Swung into a held angle with no flash.');
         // the job is to take the spot, not to swing a held angle dry: the role doesn't excuse that
         if (onRoleDeaths.has(death)) {
-          death.why = death.why.filter(w => !w.includes('usual job'));
+          death.why = death.why.filter(w => !w.startsWith('Your role this match'));
           atLeast(death, '?');
         }
       }
@@ -1446,9 +1548,14 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
   // the search engine (search.ts): every 2 s of every player, what they could have done, calculated ahead; its
   // clearest mistakes become moves (shown with "Mine")
   let search: RoundSearch | undefined;
+  /**
+   * Opinions about a decision (the engine's better option, what level-10 players usually do here) are not evidence: the
+   * demo doesn't hear calls, and nothing may have come of it. They never make a mark of their own; when the player dies
+   * soon after (OPINION_SECS), the opinion goes on that death card as the likely reason.
+   */
+  const opinions: { t: number; player: string; line: string }[] = [];
   try {
     search = searchRound(engine, r);
-    const signed = (c: number) => (Math.abs(c) < 0.0005 ? '±0%' : `${c > 0 ? '−' : '+'}${Math.abs(Math.round(c * 1000) / 10)}%`);
     for (const m of keySearchMoments(search, 1, true)) {
       if (!sideOf.has(m.player)) continue;
       const best = m.options[0];
@@ -1458,21 +1565,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       const onMap = bomb && (bomb.kind === 'plant' || bomb.kind === 'defuse') ? { x: bomb.x, y: bomb.y } : null;
       const world = (p: Vec2) => radarToWorld(p, engine.map.radar);
       const retaking = !!onMap && !!from && walkDistance(engine, world(m.did.to), onMap) < walkDistance(engine, world(from), onMap) * 0.9;
-      moves.push({
-        t: m.t, player: m.player, side: m.side, kind: 'position', gain: -m.cost, note: retaking ? '?!' : m.cls === 'Blunder' ? '??' : '?', tags: [],
-        title: `${name(m.player)}: ${m.did.label}; best was ${best.label.charAt(0).toLowerCase()}${best.label.slice(1)}`,
-        why: [
-          `Engine: ${m.cls}, accuracy ${Math.round(m.accuracy)}. It cost about ${(m.cost * 100).toFixed(1)}% of the round.`,
-          `Options: ${m.options.slice(0, 4).map((o, i) => (i === 0 ? `${o.label} (best)` : `${o.label} ${signed((best.win - o.win) * COST_SCALE)}`)).join(', ')}.`,
-          ...(m.did.death >= 0.25 ? [`What you did: about ${Math.round(m.did.death * 100)}% to die in the next seconds${m.did.kills ? `, ${m.did.kills.toFixed(1)} kills expected` : ''}.`] : []),
-          ...(best.death < m.did.death - 0.1 ? [`${best.label}: ${Math.round(best.death * 100)}% to die${best.kills ? `, ${best.kills.toFixed(1)} kills expected` : ''}.`] : []),
-          // thinking two moves ahead: the best line, the best from where they went, and what they really did next
-          ...(m.deep && best.next ? [`Best line: ${best.label} → then ${best.next.label.charAt(0).toLowerCase()}${best.next.label.slice(1)}.`] : []),
-          ...(m.deep && m.did.next ? [`From where you went, the best next move was ${m.did.next.label.charAt(0).toLowerCase()}${m.did.next.label.slice(1)}.`] : []),
-          ...(m.then ? [`What you did next: ${m.then.label.charAt(0).toLowerCase()}${m.then.label.slice(1)} (${m.then.cls}).`] : []),
-          ...(retaking ? ['A retake: you were moving in on the bomb, so this is only about which way in.'] : []),
-        ],
-      });
+      // an opinion, not something that happened: it explains the player's death when one follows (attachOpinions)
+      opinions.push({ t: m.t, player: m.player, line: `${retaking ? 'A retake, only the way in' : `the engine preferred ${best.label.charAt(0).toLowerCase()}${best.label.slice(1)} to ${m.did.label.charAt(0).toLowerCase()}${m.did.label.slice(1)}`} (about ${(m.cost * 100).toFixed(1)}% of the round)` });
     }
   } catch { /* the engine is extra */ }
 
@@ -1498,16 +1592,49 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
         const a = posAt(i, v.t), b = posAt(i, Math.min(r.duration, v.t + 4));
         return Math.hypot(b.x - k.at.x, b.y - k.at.y) < Math.hypot(a.x - k.at.x, a.y - k.at.y) - 250 / scale;
       }));
-      const key = keyMoments(vs).filter(v => !retaking(v) && !moves.some(m => m.kind === 'position' && m.player === v.player && Math.abs(m.t - v.t) < 6));
+      // "held" only when it was a hold (aim.ts): standing still, then moving off within a few seconds is waiting for the
+      // moment to go, and standing without watching the way the enemy comes is just standing; neither is judged as holding
+      const notAHold = (v: MomentVerdict) => {
+        if (v.did !== 'hold') return false;
+        const i = idx(v.player);
+        if (i < 0) return false;
+        const a = posAt(i, v.t + 3), b = posAt(i, Math.min(r.duration, v.t + 8));
+        if (alive(i, Math.min(r.duration, v.t + 8)) && Math.hypot(b.x - a.x, b.y - a.y) * scale > 250) return true;
+        const aim = aimedShare(engine, r, v.player, v.t, v.t + 3);
+        return aim !== null && aim < AIM_SHARE;
+      };
+      const key = keyMoments(vs).filter(v => !retaking(v) && !notAHold(v) && !opinions.some(o => o.player === v.player && Math.abs(o.t - v.t) < 6));
       for (const v of key)
-        moves.push({ t: v.t, player: v.player, side: v.side, kind: 'position', gain: 0, note: v.pro[0].share >= 0.75 && v.share < 0.03 ? '?' : '?!', tags: [],
-          title: `${name(v.player)} chose to ${ACTION_TEXT[v.did]}; a level-10 player would ${ACTION_TEXT[v.pro[0].a]}`,
-          why: [momentLine(v), `They ${ACTION_TEXT[v.did]} here only ${pctPlay(v.share)} of the time.`] });
+        opinions.push({ t: v.t, player: v.player, line: `you chose to ${ACTION_TEXT[v.did]}; level-10 players ${ACTION_TEXT[v.pro[0].a]} here ${pctPlay(v.pro[0].share)} of the time (${momentLine(v).replace(/^Level-10 players in this situation \(([^)]*)\).*/, '$1')})` });
       play = { stats, key: key.map(v => ({ t: v.t, player: v.player, did: v.did, best: v.pro[0].a, share: +v.share.toFixed(3), agree: +v.pro[0].share.toFixed(3) })) };
     }
   } catch { /* the play model is extra */ }
+  // the opinions explain deaths that followed them (the latest one before each death, within OPINION_SECS)
+  const clockOf = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  for (const d of moves.filter(m => m.kind === 'death')) {
+    const before = opinions.filter(o => o.player === d.player && o.t < d.t && d.t - o.t <= OPINION_SECS).sort((a, b) => b.t - a.t)[0];
+    if (before) d.why.push(`Before it, at ${clockOf(before.t)}: ${before.line}.`);
+  }
 
   moves.sort((a, b) => a.t - b.t || (a.kind === 'kill' ? -1 : 1));
+  // the whole play: a player's kills (and their death) in one fight, a few seconds apart, judged together on the
+  // last card, from the side's win chance before the first to after the last
+  for (const id of sim.ids) {
+    const evs = moves.filter(m => m.player === id && (m.kind === 'kill' || m.kind === 'death'));
+    let run: Move[] = [];
+    const close = () => {
+      if (run.length >= 2 && run.some(m => m.kind === 'kill')) {
+        const first = run[0], last = run[run.length - 1], ct = first.side === 'CT';
+        const a = evalAt(curve, first.t - 0.3), b = evalAt(curve, last.t + 0.3);
+        const from = ct ? a : 1 - a, to = ct ? b : 1 - b, kills = run.filter(m => m.kind === 'kill').length;
+        const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+        last.why.push(`The whole play, ${clock(first.t)}–${clock(last.t)}: ${kills} kill${kills > 1 ? 's' : ''}${last.kind === 'death' ? ', then died' : ''}. ${first.side} win chance ${pct(from)} → ${pct(to)} (${signedPct(Math.round(to * 100) / 100 - Math.round(from * 100) / 100)})`);
+      }
+      run = [];
+    };
+    for (const m of evs) { if (run.length && m.t - run[run.length - 1].t > PLAY_GAP) close(); run.push(m); }
+    close();
+  }
   const players: Review['players'] = {};
   for (const id of sim.ids) players[id] = { impact: 0, counts: { '!!': 0, '!': 0, book: 0, '?!': 0, '?': 0, '??': 0 } };
   for (const m of moves) {
@@ -1516,6 +1643,13 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     players[m.player].counts[m.note]++;
   }
   const turningPoint = moves.filter(m => m.kind !== 'death' && m.kind !== 'position').reduce<Move | null>((best, m) => (!best || Math.abs(m.gain) > Math.abs(best.gain) ? m : best), null);
+  // the round was already decided: team flashes, team damage, wasted and unused grenades cost nothing and mark nothing
+  const HARM: Tag[] = ['TEAM FLASH', 'TEAM DAMAGE', 'WASTED', 'UNUSED UTIL'];
+  for (const m of moves) {
+    if (!m.tags.some(t => HARM.includes(t)) || !decided(m.t - 0.05, m.side)) continue;
+    m.tags = m.tags.filter(t => !HARM.includes(t));
+    if (m.kind === 'utility' || m.kind === 'flash') { m.note = 'book'; m.gain = Math.max(0, m.gain); m.why = ['Round already decided.', ...m.why.filter(w => !/team|nobody|Hit nobody|empty|missed|Blocked nothing/i.test(w))]; }
+  }
   return { curve, moves, players, roles: playerRoles(engine, rep, moves), turningPoint, ...(play ? { play } : {}), ...(search ? { search } : {}) };
 }
 
@@ -1588,3 +1722,4 @@ export function evalAt(curve: Review['curve'], t: number): number {
 
 /** Moves that have happened by round time t (or all of them when spoilers are on). */
 export const movesUntil = (rv: Review, t: number, all: boolean) => (all ? rv.moves : rv.moves.filter(m => m.t <= t + 0.01));
+

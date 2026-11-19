@@ -54,6 +54,8 @@ export interface CoachNote {
   kind: 'improve' | 'strength';
   title: string;
   detail: string;
+  /** A one-line headline with its own numbers (the side note: that side's impact, not the match's). */
+  headline?: string;
   /** How far from normal, weighted (bigger = more important). */
   score: number;
   /** Rounds (index) where it happened, to watch. */
@@ -183,7 +185,7 @@ function words(id: FeatureId, v: number, n: number, role: Role): { improve: [str
     };
     case 'unusedUtil': return {
       improve: ['Use your grenades before you die', `${per(v, n)} you died holding two or more grenades. Throw them earlier: a flash for your peek, a molotov to delay, a smoke to cross. Grenades in the pocket of a dead player are wasted money.`],
-      strength: ['You used your utility', 'You rarely died with grenades left.'],
+      strength: ['You rarely died holding grenades', 'You rarely died with grenades left.'],
     };
     case 'wastedFlashes': return {
       improve: ['Make your flashes blind someone', `About ${per(v, n)} had a flash that blinded nobody. Learn 2–3 pop-flashes for the spots you play, and throw them where an enemy is likely to be looking, not just at the corner.`],
@@ -281,7 +283,9 @@ export function coach(p: PlayerReport, model: CoachModel = DEFAULT_MODEL): Coach
   const sides = { CT: sideImpact('CT'), T: sideImpact('T') };
   if (sides.CT !== null && sides.T !== null && Math.abs(sides.CT - sides.T) > 5) {
     const weak = sides.CT < sides.T ? 'CT' : 'T';
+    const own = (weak === 'CT' ? sides.CT : sides.T)!, normal = profile.find(d => d.feature === 'impact')?.normal;
     notes.push({
+      headline: `${weak} side: ${own >= 0 ? '+' : '−'}${Math.abs(own).toFixed(1)}% impact per round${normal ? ` (level 10: ${normal})` : ''}. ${weak === 'CT' ? 'Fall back after contact.' : 'Come in with utility and a teammate.'}`,
       feature: 'impact', kind: 'improve', title: weak === 'CT' ? 'Your CT side: one angle at a time, fall back after contact' : 'Your T side: fight with utility and a teammate', score: Math.abs(sides.CT - sides.T) / 5,
       detail: `You did much better on ${weak === 'CT' ? 'T' : 'CT'} (${(weak === 'CT' ? sides.T! : sides.CT!).toFixed(1)}% a round) than on ${weak} (${(weak === 'CT' ? sides.CT : sides.T)!.toFixed(1)}%). ${weak === 'CT'
         ? 'On CT: hold one angle at a time, fall back after first contact instead of re-peeking, and save utility to retake.'
@@ -290,7 +294,10 @@ export function coach(p: PlayerReport, model: CoachModel = DEFAULT_MODEL): Coach
     });
   }
   const improve = notes.filter(x => x.kind === 'improve').sort((a, b) => b.score - a.score).slice(0, 4);
-  const strengths = notes.filter(x => x.kind === 'strength').sort((a, b) => b.score - a.score).slice(0, 3);
+  // a habit can't be praised while a stat of the same family is flagged (grenades kept vs flashes wasted: both "utility")
+  const family = (id: FeatureId) => (id === 'unusedUtil' || id === 'wastedFlashes' || id === 'teamHarm' ? 'utility' : id);
+  const flagged = new Set(notes.filter(x => x.kind === 'improve').map(x => family(x.feature as FeatureId)));
+  const strengths = notes.filter(x => x.kind === 'strength' && !flagged.has(family(x.feature as FeatureId))).sort((a, b) => b.score - a.score).slice(0, 3);
   const summary = n === 0 ? 'Not graded yet.'
     : improve.length === 0 ? `A solid game as ${role.toLowerCase()}: nothing stands out as a weakness.`
     : `Main thing to work on: ${lowerFirst(improve[0].title)}.${strengths.length ? ` Keep it up: ${lowerFirst(strengths[0].title)}.` : ''}`;

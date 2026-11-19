@@ -1,3 +1,4 @@
+import { go } from '../shell/router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoData } from '../engine/recap';
 import { MAPS } from '../map/catalog';
@@ -7,6 +8,7 @@ import { SteamLoginButton } from './SteamLogin';
 import { steamFetch, steamSignOut } from './steamApi';
 import { Icon } from './Icon';
 import { ONLINE } from '../env';
+import { useFolder, type FolderRow } from './folderStore';
 
 const SYNC_EVERY = 5 * 60 * 1000; // new games show up by themselves
 
@@ -39,7 +41,9 @@ export function SteamMatches() {
       // the website's Worker answers 401 until you log in: show the box logged out, not hidden
       if (res.status === 401) { setSt(LOGGED_OUT); setOffline(false); return; }
       if (!res.ok) throw new Error();
-      setSt(await res.json());
+      const j = await res.json();
+      if (j?.loggedOut) { setSt(LOGGED_OUT); setOffline(false); return; }
+      setSt(j);
       setOffline(false);
     } catch { setOffline(true); }
   }, []);
@@ -66,8 +70,8 @@ export function SteamMatches() {
 
   // coming back from Steam's login page with a problem: show it once and tidy the URL
   useEffect(() => {
-    const err = new URLSearchParams(location.hash.split('?')[1] ?? '').get('steam_error');
-    if (err) { setMsg(`Log in with Steam didn't work: ${err}`); history.replaceState(null, '', '#/cs2/review'); }
+    const err = new URLSearchParams(location.search).get('steam_error');
+    if (err) { setMsg(`Log in with Steam didn't work: ${err}`); go('/cs2/review', true); }
   }, []);
   // status every few seconds (imports land by themselves), Valve every few minutes once set up
   useEffect(() => { refresh(); const t = setInterval(refresh, 4000); return () => clearInterval(t); }, [refresh]);
@@ -92,9 +96,21 @@ export function SteamMatches() {
       const data = ONLINE ? await steamFetch(`/demo/${m.outcomeId}`).then(async r => { const out = await r.json(); if (!r.ok) throw new Error(out.error ?? r.statusText); return out as DemoData; })
         : await post<DemoData>('load', { outcomeId: m.outcomeId });
       if (!MAPS.some(x => x.id === data.map)) throw new Error(`${data.map} isn't one of the supported maps.`);
+      if (!data.playedAt && m.time) data.playedAt = m.time; // when it was played (Valve's time), for the profile's order
       startReview(data);
     } catch (e) { setMsg(errText(e)); }
   };
+
+  // one list: the bot's matches and your demo folder's (DemoFolder), the same match once (by its outcome id)
+  const folder = useFolder(s => s.rows);
+  useEffect(() => { useFolder.setState({ merged: loggedIn }); return () => useFolder.setState({ merged: false }); }, [loggedIn]);
+  const byOutcome = new Map(folder.filter(f => f.outcomeId).map(f => [f.outcomeId!, f]));
+  const fromBot = new Set((st?.matches ?? []).map(m => m.outcomeId).filter(Boolean));
+  type Row = { m: SteamMatch | null; f: FolderRow | null; at: number };
+  const rows: Row[] = [
+    ...(st?.matches ?? []).map(m => ({ m, f: (m.outcomeId && byOutcome.get(m.outcomeId)) || null, at: m.time ?? m.loadedAt ?? m.foundAt ?? 0 })),
+    ...(loggedIn ? folder.filter(f => !f.outcomeId || !fromBot.has(f.outcomeId)).map(f => ({ m: null, f, at: f.modified })) : []),
+  ].sort((a, b) => b.at - a.at);
 
   if (offline || !st) return null; // static build without the dev server: only manual demos
 
@@ -109,11 +125,8 @@ export function SteamMatches() {
       {/* step 1: who you are */}
       {!loggedIn && (
         <form className="steam-profile" onSubmit={saveProfile}>
-          <div className="row"><SteamLoginButton /></div>
-          <p className="muted">
-            Opens Steam's own login page (steamcommunity.com), where you can scan Steam's QR code with Steam Guard. Steam only tells
-            the app your SteamID: no password, no access to your account.
-          </p>
+          <div className="row"><SteamLoginButton outline /></div>
+          <p className="muted">Log in with Steam and your recent matches show up here.</p>
           {/* desktop only: the website's match list is tied to a real Steam login */}
           {!ONLINE && <>
             <p className="muted">Or paste your profile link:</p>
@@ -134,7 +147,7 @@ export function SteamMatches() {
       {st.importing.error && <p className="warn-text">Couldn't import {st.importing.error}</p>}
 
       {/* step 3: the list (Valve's matches + every demo you've loaded) */}
-      {st.matches.length > 0 && (
+      {rows.length > 0 && (
         <>
           <p className="muted">
             {ready ? (ONLINE ? 'From Valve · updates every few minutes. ' : 'From Valve · updates every few minutes. Map and score show once the demo is in. ')
@@ -148,30 +161,39 @@ export function SteamMatches() {
           </p>
           <table className="steam-list">
             <tbody>
-              {st.matches.map(m => (
-                <tr key={m.code} className={m.result ?? ''} style={{ '--radar': m.map ? `url(/images/maps/${m.map}.png)` : 'none' } as React.CSSProperties}>
-                  <td>{m.time ? new Date(m.time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-                    : m.loadedAt ? <span className="muted">loaded {fmtDay(m.loadedAt)}</span>
-                    : m.foundAt ? <span className="muted">found {fmtDay(m.foundAt)}</span> : ''}</td>
-                  <td>{m.map ? MAPS.find(x => x.id === m.map)?.name ?? m.map : <span className="muted">{m.processing ? 'getting the demo…' : 'demo not loaded yet'}</span>}</td>
-                  <td className={m.result ?? ''}>{m.scores ? `${m.scores[0]}–${m.scores[1]}` : ''} {m.result ? m.result.toUpperCase() : ''}</td>
-                  <td className="muted">{m.kd ? `${m.kd[0]}/${m.kd[1]}` : ''}</td>
-                  <td>
-                    {m.parsed
-                      ? <button onClick={() => open(m)}>Review</button>
-                      : m.processing
-                        ? <span className="muted" title="The server is downloading and reading this demo; it appears here by itself">processing…</span>
-                      : m.gone
-                        ? <span className="muted" title="Valve keeps demos for about a month">demo expired</span>
-                      : m.download
-                        ? <a className="btn" href={m.download} onClick={() => setWaiting(new Set(waiting).add(m.code))}
-                            title="Opens CS2, which downloads the demo; the app imports it by itself">
-                            {waiting.has(m.code) ? 'Downloading in CS2…' : 'Download in CS2'}
-                          </a>
-                        : null}
-                  </td>
-                </tr>
-              ))}
+              {rows.map(({ m, f }) => {
+                const map = m?.map ?? f?.map ?? null, result = m?.result ?? f?.result ?? null, score = m?.scores ?? f?.score ?? null, kd = m?.kd ?? f?.kd ?? null;
+                const when = m?.time ?? (f ? f.modified : null);
+                return (
+                  <tr key={m?.code ?? f!.name} className={result ?? ''} style={{ '--radar': map ? `url(/images/maps/${map}.png)` : 'none' } as React.CSSProperties}>
+                    <td>{when ? fmtWhen(when)
+                      : m?.loadedAt ? <span className="muted">loaded {fmtDay(m.loadedAt)}</span>
+                      : m?.foundAt ? <span className="muted">found {fmtDay(m.foundAt)}</span> : ''}
+                      {' '}{(() => { const by = m?.source === 'upload' ? 'saved' : 'bot'; return <span className="muted small" title={m ? `${by === 'saved' ? 'Saved to your account from your demo folder' : 'Fetched by the bot'}: opens on any device you're logged in on${f ? '; also in your demo folder' : ''}` : 'In your demo folder on this computer (saved to your account once you log in)'}>{m && f ? `· ${by} + folder` : m ? `· ${by}` : '· folder'}</span>; })()}</td>
+                    <td>{map ? MAPS.find(x => x.id === map)?.name ?? map : <span className="muted">{m?.processing ? 'getting the demo…' : f?.state === 'reading' ? 'reading…' : 'demo not loaded yet'}</span>}</td>
+                    <td className={result ?? ''}>{score ? `${score[0]}–${score[1]}` : f?.rounds ? `${f.rounds} rounds` : ''} {result ? result.toUpperCase() : ''}</td>
+                    <td className="muted">{kd ? `${kd[0]}/${kd[1]}` : ''}</td>
+                    <td>
+                      {m?.parsed
+                        ? <button onClick={() => open(m)}>Review</button>
+                        : f?.state === 'read' ? <button onClick={f.open}>Review</button>
+                        : f?.state === 'reading' ? <span className="muted">reading…</span>
+                        : m?.processing
+                          ? <span className="muted" title="The server is downloading and reading this demo; it appears here by itself">processing…</span>
+                        : f?.state === 'unread' ? <button onClick={f.read}>Read</button>
+                        : m?.gone
+                          ? <span className="muted" title="Valve keeps demos for about a month">demo expired</span>
+                        : f?.state === 'failed' ? <span className="warn-text" title={f.error}>couldn't read</span>
+                        : m?.download
+                          ? <a className="btn" href={m.download} onClick={() => setWaiting(new Set(waiting).add(m.code))}
+                              title="Opens CS2, which downloads the demo; the app imports it by itself">
+                              {waiting.has(m.code) ? 'Downloading in CS2…' : 'Download in CS2'}
+                            </a>
+                          : null}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </>
@@ -264,5 +286,7 @@ function ValveSetup({ st, post, first, onDone }: { st: SteamStatus; post: <T>(ro
   );
 }
 
+/** "Nov 11 · 4:12 PM": never cut short. */
+const fmtWhen = (t: number) => `${new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
 const fmtDay = (t: number) => new Date(t).toLocaleDateString(undefined, { dateStyle: 'medium' });
 const errText = (e: unknown) => `Couldn't do that: ${e instanceof Error ? e.message : String(e)}`;

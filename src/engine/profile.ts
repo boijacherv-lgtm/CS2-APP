@@ -35,7 +35,18 @@ export interface ProfileMatch {
   name?: string;
   features: Features;
   mech: Mechanics;
+  /** Newer matches: per habit, the win chance it cost this match (0–1) and its costliest rounds (round numbers, max 3). */
+  leaks?: Partial<Record<GoalId, [number, number[]]>>;
+  /** Newer matches: clutches (last alive against 2+) played and won. */
+  clutch?: [number, number];
 }
+
+/** Which move tags each habit is (a move with the tag counts its lost win chance to the habit). */
+export const LEAK_TAGS: Partial<Record<GoalId, string[]>> = {
+  untradedDeaths: ['NO TRADE'], isolatedDeaths: ['ISOLATED'], openingDeaths: ['OPENING'], whiffs: ['WHIFF'],
+  wastedFlashes: ['WASTED'], teamHarm: ['TEAM FLASH', 'TEAM KILL', 'TEAM DAMAGE'], awpLost: ['AWP LOST'], lowHpFights: ['LOW HP'],
+  loud: ['LOUD'], stopped: ['MOVING SHOT'],
+};
 
 export type GoalId = FeatureId | keyof Mechanics;
 export interface Goal { id: GoalId; since: number }
@@ -55,6 +66,26 @@ export interface ProfileData {
   notifyGames: string[];
   /** Where they told the coach it was wrong (Review's move cards): checked against, and learned from. */
   verdicts: MoveVerdict[];
+  /** Your CS2 puzzle record (Puzzles), saved with your account: the leaderboard reads it when your profile is public. */
+  puzzles?: PuzzleRecord;
+  /** The same for Deadlock's puzzles: a rating of its own. */
+  puzzlesDeadlock?: PuzzleRecord;
+}
+
+/** The puzzle games, each with its own rating and leaderboard. */
+export type PuzzleGame = 'cs2' | 'deadlock';
+export const puzzleGameOf = (v: unknown): PuzzleGame => (v === 'deadlock' ? 'deadlock' : 'cs2');
+export const puzzleField = (g: PuzzleGame) => (g === 'deadlock' ? 'puzzlesDeadlock' : 'puzzles') as 'puzzles' | 'puzzlesDeadlock';
+
+export interface PuzzleRecord { rating: number; solved: number; tried: number; best: number; dailyStreak: number; rushBest: number; at: number }
+const intIn = (v: unknown, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.min(hi, Math.max(lo, v))) : null);
+/** A puzzle record from the browser, checked (null when it isn't one). */
+export function cleanPuzzles(raw: unknown): PuzzleRecord | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const rating = intIn(r.rating, 100, 3500), solved = intIn(r.solved, 0, 1e6), tried = intIn(r.tried, 0, 1e6), best = intIn(r.best, 0, 1e5), dailyStreak = intIn(r.dailyStreak, 0, 1e4), rushBest = intIn(r.rushBest, 0, 1000);
+  if (rating === null || solved === null || tried === null || solved > tried || best === null || dailyStreak === null || rushBest === null) return null;
+  return { rating, solved, tried, best, dailyStreak, rushBest, at: Date.now() };
 }
 
 /**
@@ -101,6 +132,9 @@ export const cleanVerdicts = (raw: unknown): MoveVerdict[] => (Array.isArray(raw
 export const PRO_EARLY_ACCESS = true;
 /** Matches the profile shows on the free plan, and keeps at most. */
 export const FREE_HISTORY = 5, MAX_HISTORY = 100;
+/** Fewer rounds than this is a partial demo (a clip, a disconnect): it would skew win rate and averages. */
+export const MIN_ROUNDS = 8;
+export const fullMatches = (list: ProfileMatch[]) => list.filter(m => m.rounds >= MIN_ROUNDS);
 export const MAX_GOALS = 3;
 export const hasPro = () => PRO_EARLY_ACCESS;
 
@@ -112,7 +146,7 @@ export function cleanNotifyGames(raw: unknown): string[] {
   return [...new Set(raw.filter((g): g is string => typeof g === 'string' && /^[a-z0-9]{2,12}$/.test(g)))].slice(0, 10);
 }
 
-const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'];
+export const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'];
 
 /** A match's identity: the map, the rounds and when the first rounds' kills happened (the same for every player in it). */
 export function matchKey(map: string, rounds: { kills: { t: number }[] }[]) {
@@ -147,6 +181,20 @@ export function cleanMatch(raw: unknown): ProfileMatch | null {
     gameRating: int(r.gameRating, 0, 60000), rank: int(r.rank, 0, 60000), engine: num(r.engine, 0, 100), features, mech,
     ...(typeof r.name === 'string' && r.name.trim() ? { name: r.name.trim().slice(0, 40) } : {}),
   };
+  if (r.leaks && typeof r.leaks === 'object') {
+    const leaks: NonNullable<ProfileMatch['leaks']> = {};
+    for (const k of Object.keys(LEAK_TAGS) as GoalId[]) {
+      const v = (r.leaks as Record<string, unknown>)[k];
+      if (!Array.isArray(v) || v.length !== 2 || !Array.isArray(v[1])) continue;
+      const cost = num(v[0], 0, 10);
+      if (cost !== null) leaks[k] = [cost, (v[1] as unknown[]).map(x => int(x, 1, 99)).filter((x): x is number => x !== null).slice(0, 3)];
+    }
+    if (Object.keys(leaks).length) out.leaks = leaks;
+  }
+  if (Array.isArray(r.clutch) && r.clutch.length === 2) {
+    const played = int(r.clutch[0], 0, 99), won = int(r.clutch[1], 0, 99);
+    if (played !== null && won !== null && won <= played) out.clutch = [played, won];
+  }
   return out;
 }
 export function cleanGoals(raw: unknown): Goal[] {
@@ -170,7 +218,11 @@ export function cleanPrefs(raw: unknown, was: ProfilePrefs = EMPTY_PROFILE.prefs
 }
 /** Adds or replaces a match, newest first, keeping at most MAX_HISTORY. */
 export function withMatch(list: ProfileMatch[], m: ProfileMatch): ProfileMatch[] {
-  return [m, ...list.filter(x => x.id !== m.id)].sort((a, b) => b.at - a.at).slice(0, MAX_HISTORY);
+  // the same match again (reviewed again, or graded by the bot first): it keeps the earliest time, which is when it was
+  // played (a review without the demo's date would otherwise move it to the top as "newest")
+  const was = list.find(x => x.id === m.id);
+  const merged = was && was.at > 0 && was.at < m.at ? { ...m, at: was.at } : m;
+  return [merged, ...list.filter(x => x.id !== m.id)].sort((a, b) => b.at - a.at).slice(0, MAX_HISTORY);
 }
 
 // ---- what the profile page shows ------------------------------------------------------------------------------

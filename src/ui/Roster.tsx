@@ -8,7 +8,7 @@ import { GameIcon, Icon } from './Icon';
  * the match's kills / deaths so far, the gun in hand (and what else they carry), grenades, armour, kit or bomb, and
  * money. Reads the gear log of the demo (newer parses), else the buy minus the grenades thrown since.
  */
-export interface RosterPlayer { id: string; name: string; alive: boolean; hp: number; avatar?: string; kills: number; deaths: number; roundKills: number }
+export interface RosterPlayer { id: string; name: string; alive: boolean; hp: number; avatar?: string; kills: number; deaths: number; roundKills: number; /** the planted bomb's expected damage here (blast.ts, an estimate): a blinking red slice of the health bar */ bombDmg?: number }
 
 /** Inventory names ("AK-47", "Smoke Grenade") and weapon-in-hand names ("ak47") → CS2's pictogram. */
 const ICON_OF: Record<string, string> = {
@@ -37,14 +37,10 @@ export function TeamRoster({ side, players, round, time }: { side: 'CT' | 'T'; p
   let k = 0; while (k < ft.length - 1 && ft[k + 1] <= time) k++;
   const gears = players.map(p => (p.alive ? gearAt(round, p.id, time) : null));
   const bank = players.reduce((a, p) => a + (gearAt(round, p.id, time)?.money ?? 0), 0);
-  const alive = players.filter(p => p.alive).length;
   return (
     <div className={`teambar ${side.toLowerCase()}`}>
       <div className="tb-head">
         <b><span className="tb-long">{side === 'CT' ? 'Counter-Terrorists' : 'Terrorists'}</span><span className="tb-short">{side}</span></b>
-        <span className="tb-alive" title={`${alive} of ${players.length} alive`}>
-          {players.map((p, i) => <i key={i} className={p.alive ? 'on' : ''} />)}
-        </span>
         {bank > 0 && <span className="tb-bank num" title="The team's money">{dollars(bank)}</span>}
       </div>
       {players.map((p, i) => {
@@ -68,7 +64,11 @@ export function TeamRoster({ side, players, round, time }: { side: 'CT' | 'T'; p
         const hp = Math.max(0, Math.min(100, Math.round(p.hp)));
         return (
           <div key={p.id} className={`tb-row ${p.alive ? '' : 'dead'} ${p.alive && hp <= 30 ? 'low' : ''}`} style={{ '--hp': `${p.alive ? hp : 0}%` } as React.CSSProperties}>
-            <span className="tb-pic">{p.avatar ? <img src={p.avatar} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <b>{p.name.slice(0, 2)}</b>}</span>
+            {p.alive && !!p.bombDmg && p.bombDmg >= 1 && (
+              <i className={`tb-bomb-hp ${p.bombDmg >= hp ? 'lethal' : ''}`} style={{ left: `${Math.max(0, hp - p.bombDmg)}%`, width: `${Math.min(hp, p.bombDmg)}%` }}
+                title={p.bombDmg >= hp ? 'The blast would kill them here (estimate)' : `The blast would do about ${Math.round(p.bombDmg)} damage here (estimate)`} />
+            )}
+            <span className="tb-pic">{p.avatar ? <img src={p.avatar} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <b>{initials(p.name)}</b>}</span>
             <div className="tb-main">
               <div className="tb-line">
                 {p.alive ? <span className="tb-hp num" title="Health">{hp}</span> : <Icon name="skull" size={13} title="Dead" className="tb-dead" />}
@@ -103,3 +103,6 @@ export function TeamRoster({ side, players, round, time }: { side: 'CT' | 'T'; p
     </div>
   );
 }
+
+/** Two letters for a player with no avatar: "Player 4" → "P4", "s1mple" → "S1". */
+const initials = (n: string) => { const m = /^(\S)\S*\s+(\d+)$/.exec(n.trim()); return (m ? m[2] : n.trim().slice(0, 2)).toUpperCase(); };

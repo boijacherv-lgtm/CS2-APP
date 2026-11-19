@@ -44,7 +44,7 @@ Both read demos with the same parser (LaihoE/demoparser); the website uses a Web
 
 | Mark | Means | For example |
 |---|---|---|
-| **!!** Brilliant | exceptional, statistically unlikely | winning a 1v3+ clutch, a ninja defuse (enemies alive or under 1 s left), holding a site alone (3+ kills against a push), a pistol with no armour beating full gear, an HE for 150+ damage, a flash that sets up two kills |
+| **!!** Brilliant | exceptional, statistically unlikely | winning a 1v3+ clutch, a ninja defuse (an enemy alive near the bomb, or under 1 s left), holding a site alone (3+ kills against a push), a pistol with no armour beating full gear, an HE for 150+ damage, a flash that sets up two kills |
 | **!** Good move | swung the round | a trade within 3 s, a double or triple kill, the opening kill in a fair fight, a kill from behind, a 1v2 clutch, a flash that won a duel, an HE for 70+, a defuse |
 | book | the expected, sound play (plain dot) | a standard smoke or molotov (a spot FACEIT level-10 players use), a plant; ordinary kills and deaths show as plain "Kill" / "Death" |
 | **?** Mistake | cost the team | an untraded opening or isolated death, dying with two grenades, losing the AWP, flashing only your own team, an HE that hit nobody, a smoke that missed every standard spot and blocked nothing, a molotov on empty ground |
@@ -181,7 +181,7 @@ trained it uses hand-set Premier numbers. To train it:
    team had seen) and every move to another spot with what had just happened (a teammate died there, an enemy was
    seen, the bomb went down). It learns, per map, side and phase (0–25 s, 25–60 s, 60 s+, after the plant), where
    level-10 players stand, their share of the time there and how often that side won, plus their common moves and
-   triggers, into `src/map/generated/positions.json`. The **Pro positions** layer (layers menu) shows it on the map
+   triggers, into `src/map/generated/positions/<map>.json (one file per map, loaded when a match on that map opens)`. The **Pro positions** layer (layers menu) shows it on the map
    for the current moment of the round.
    Step 2: the **Positions** tab in Review lists a player's decisions in the round (where they held, where they moved
    and right after what) and compares each one with level-10 players in the same situation: the same part of the
@@ -261,7 +261,7 @@ Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings an
 | Steam login + match list | Cloudflare Worker `stratboard-api` → https://stratboard-api.stratboard.workers.dev | code in `worker/` (setup and updates: [worker/README.md](worker/README.md)); secret `STEAM_API_KEY`; KV storage `SB`. After changing `worker/src`: `cd worker && npx wrangler deploy` |
 | Link between them | GitHub → Settings → Secrets and variables → Actions → **Variables** | `API_URL` = `https://stratboard-api.stratboard.workers.dev` |
 | Demo parser in the browser | `public/demoparser/` (WebAssembly, ~3 MB) | built by the GitHub Action **Build demo parser (browser)** from LaihoE/demoparser at a pinned commit (`PARSER_REV`) with two build patches (browser-safe clock, panic messages) |
-| Demo bot | not hosted yet | code in `server/` ([server/README.md](server/README.md)): would download and read every new match by itself with its own bot Steam account; shares secret `SERVER_TOKEN` with the Worker |
+| Bots | Fly.io (`rageview-dl-bot`) | `server/` ([server/DEADLOCK.md](server/DEADLOCK.md)): one bot Steam login finds every user's new Deadlock matches (deadlock-api) and downloads, reads and grades their new CS2 matches; shares secret `SERVER_TOKEN` with the Worker |
 
 **Keep secrets out of the repo and out of chats.** The Steam Web API key only ever goes into `npx wrangler secret put STEAM_API_KEY` (type the command exactly like that, then paste the key when asked) and, for desktop, into the app's own paste box. If a key is ever shown anywhere, revoke it on steamcommunity.com/dev/apikey and make a new one.
 
@@ -280,6 +280,15 @@ Developed on macOS (Apple Silicon), also runs on Windows. Your Steam settings an
 | "No CS2 demo folder inside …" | picked a folder that doesn't contain CS2 | pick the Steam library where CS2 is installed |
 | Website: reading a .dem fails or the tab crashes | very large demo on a low-memory device | try a desktop browser, or the desktop version |
 | CT / T player button does nothing | that side already has 5 players | the 5/5 counter shows it; select a player first to move it, or Clear |
+
+## Dev page notes
+
+- **Weekly numbers** (Site tab, "Matches played per week") come from the Worker's stats: after changing them,
+  redeploy it (`cd worker && npx wrangler deploy`).
+- **Coach asks** (CS2 tab, disputes): `npm run ask:coach` sends the moments the coach is least sure of, to judge like a
+  dispute.
+- **Demo bot** setup: `server/README.md`.
+- Experiments that didn't ship: `docs/notes/`.
 
 ## Features
 
@@ -381,7 +390,7 @@ tools/
   steam.mjs          desktop Steam backend: OpenID, Valve match-history API, replays-folder auto-import, parsed demos (.steam-cache/)
   train-coach.ts     trains the coach on a folder of demos → src/engine/models/<name>.json (npm run train:coach)
   learn-spots.ts     standard smoke / molotov spots from a folder of demos → src/map/generated/util-spots.json
-  learn-positions.ts where level-10 players stand and why they move → src/map/generated/positions.json
+  learn-positions.ts where level-10 players stand and why they move → src/map/generated/positions/<map>.json (one file per map, loaded when a match on that map opens)
   learn-analyst.ts   trades, duels, control, rotations, plans, utility, economy, post-plant benchmarks → src/engine/models/analyst.json
   build-maps.mjs     radar PNG → grid (alpha = floor; small grey shapes = props/walls; dark lines = walls on Nuke/Vertigo)
   overviews/         Valve's overview .txt per map (pos_x/pos_y/scale, spawns, bomb markers), read by build-maps
@@ -392,7 +401,7 @@ public/images/       every image the site shows
   logo.svg           site icon
 public/demoparser/   WebAssembly demo parser for the website (built by CI)
 worker/              Cloudflare Worker: Steam OpenID check, sessions, Valve match history with the site's key (worker/README.md)
-server/              demo bot, not hosted (server/README.md)
+server/              the bots (Deadlock + CS2), on Fly.io (server/DEADLOCK.md)
 .github/workflows/   pages.yml (test + ONLINE build + deploy), demoparser-wasm.yml (builds the WebAssembly parser)
 ```
 
@@ -428,7 +437,7 @@ server/              demo bot, not hosted (server/README.md)
 
 ### Status and open work
 - **Coach training:** `trainCoach()` exists and is tested but nothing calls it yet. Next step the user is thinking about: train on their own games (e.g. a "Train on my games" button over the demo folder), later fit weights to round wins.
-- **Demo bot** (`server/`) is written but not hosted; the user decided against Oracle/Azure for now.
+- **Bots** (`server/`): Deadlock and CS2 on one Fly.io app and one bot Steam login (4 GB machine for CS2 demos).
 - Ideas the user showed interest in: positioning/rotation moves, CT reactions in the simulation (rotate on contact, retreat), more line-ups, a hand-made Vertigo layer, lower-level layers for Train/Vertigo, FACEIT matches.
 - Calibration: travel times come from geometry and the fight and grading models are hand-tuned; nothing is fitted to pro data yet.
 

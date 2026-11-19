@@ -33,7 +33,7 @@ export type CorrectionTable = Record<string, Correction>;
 /** The tags that decide how a move is marked (the rest only describe it). */
 const DECIDING: Tag[] = [
   'OPENING', 'TRADED', 'ISOLATED', 'CROSSFIRE', 'BLIND', 'LOW HP', 'AWP LOST', 'UNUSED UTIL', 'WHIFF', 'POST-PLANT', 'OUTGUNNED',
-  'ECO DEATH', 'BAD PEEK', 'DRY PEEK', 'KNIFE OUT', 'NO AMMO', 'MOVING SHOT', 'LOUD', 'WASTED', 'TEAM FLASH', 'TEAM DAMAGE', 'NO TRADE',
+  'ECO DEATH', 'BAD PEEK', 'DRY PEEK', 'KNIFE OUT', 'NADE IN HAND', 'BOMB IN HAND', 'NO AMMO', 'MOVING SHOT', 'LOUD', 'WASTED', 'TEAM FLASH', 'TEAM DAMAGE', 'NO TRADE',
   'LATE ROTATION', 'OVER-ROTATION', 'STALL', 'DENIED',
 ];
 export const patternOf = (kind: string, note: string, tags: readonly string[]) =>
@@ -69,6 +69,26 @@ export function applyCorrections<M extends Move>(moves: M[], table: CorrectionTa
     const c = correctionFor(table, m);
     return c ? { ...m, note: c.note, why: [...m.why, c.why] } : m;
   });
+}
+
+/** How many moves the rulings changed, by pattern (sent with the sampled grading time, for Dev → Disputes). */
+export function countCorrections(moves: Pick<Move, 'kind' | 'note' | 'tags'>[], table: CorrectionTable | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!table) return out;
+  for (const m of moves) if (correctionFor(table, m)) { const p = patternOf(m.kind, m.note, m.tags); out[p] = (out[p] ?? 0) + 1; }
+  return out;
+}
+
+/** What a pattern's rulings do now: live (and what it changes), or how many more "player's right" calls it needs. */
+export function correctionStatus(c: Correction | undefined, note: Annotation): { live: boolean; text: string } {
+  const wrong = c?.wrong ?? 0, of = wrong + (c?.right ?? 0);
+  if (wrong >= MIN_CASES && wrong / of >= MIN_SHARE) {
+    const to = FLAGGED.includes(note) ? SOFTER[note] : note === 'book' || note === '!' ? '?!' : null;
+    return to ? { live: true, text: `Live: moves like this go ${note === 'book' ? '·' : note} → ${to === 'book' ? '·' : to} (${wrong} of ${of} say the coach was wrong)` }
+      : { live: false, text: `Enough calls (${wrong} of ${of}), but a ${note} mark isn't changed by rulings` };
+  }
+  if (wrong < MIN_CASES) return { live: false, text: `Not live yet: ${wrong} of ${MIN_CASES} "player's right" calls on moves like this` };
+  return { live: false, text: `Not live: only ${wrong} of ${of} calls say the coach was wrong (needs ${Math.round(MIN_SHARE * 100)}%)` };
 }
 
 /** The table from rulings (worker/src/clips.ts keeps them). */

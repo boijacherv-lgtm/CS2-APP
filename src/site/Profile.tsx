@@ -1,164 +1,305 @@
+import { letterStyle } from '../engine/notes';
+import { proEarlyAccess } from '../ui/siteConfig';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { STEAM_AVAILABLE } from '../env';
 import { GOAL_CHOICES, goalInfo, habits } from '../engine/habits';
-import { averages, FREE_HISTORY, premierOf, goalSeries, hasPro, mapStats, MAX_GOALS, type Averages, type GoalId, type ProfileMatch } from '../engine/profile';
-import { LETTER_COLOR } from '../engine/recap';
+import { focusOf, loadMoments } from '../moments/moments';
+import { EmptyArt } from '../ui/Art';
+import { averages, fullMatches, FREE_HISTORY, premierOf, goalSeries, mapStats, MAX_GOALS, type Averages, type GoalId, type ProfileMatch } from '../engine/profile';
+import { biggestLeak, SKILL_MAP_FROM, skillMap, superpower } from '../engine/profileView';
+import { matchKey } from '../engine/profile';
+import { useStore } from '../store';
+import { navigate } from '../shell/router';
+import { openCs2Sample } from '../ui/sample';
 import { Icon } from '../ui/Icon';
 import { findFriend, setGoals, useProfile, type PublicProfile } from '../ui/profileApi';
+import { steamFetch } from '../ui/steamApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
-import { fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
-import { copyCard, drawShareCard, shareFileName } from './shareCard';
+import { plural, fmtDate, fmtInt, fmtKd, mapName, pct } from './format';
+import { copyCard, drawShareCard, shareFileName, type ShareFormat } from './shareCard';
 import { AddMatches } from './AddMatches';
-import { AreaChart, BarList, Donut, MiniLine, Radar, StretchLine } from './charts';
-import { T } from '../ui/tokens';
+import { AreaChart, ResultStrip, StretchLine, TrendTile, type TileMeta } from './charts';
+import { ScoreRing } from '../ui/ScoreRing';
+import { noteOf } from '../deadlock/grade';
+import { applyGame, gameOf, type GameId } from '../ui/tokens';
+import { DlProfile } from '../deadlock/DlProfile';
+import { BETTER, type FeatureId } from '../engine/coach';
+import { steamId3 } from '../deadlock/api';
 
-/** Your profile: your last matches, how they trend, your goals, your maps, a friend next to you, and share cards. */
-export function Profile() {
-  const { me, data, remote, loaded, error } = useProfile();
-  const pro = hasPro();
-  const [all, setAll] = useState(false);
-  const [share, setShare] = useState<ProfileMatch | null>(null);
-  const matches = data.matches;
-  const shown = all && pro ? matches : matches.slice(0, FREE_HISTORY);
-  const last = averages(matches.slice(0, FREE_HISTORY)), before = averages(matches.slice(FREE_HISTORY, FREE_HISTORY * 2));
-  const name = me?.name ?? 'Your profile';
-
+/** The first row: K/D, ADR, KAST, HS% and the Premier change, each the last value with a sparkline and ↑/↓ vs your average. */
+function StatStrip({ matches }: { matches: ProfileMatch[] }) {
+  const chrono = [...matches].sort((a, b) => a.at - b.at).slice(-11);
+  if (!chrono.length) return null;
+  const meta = (ms: ProfileMatch[]): TileMeta[] => ms.map(m => ({ win: m.result === 'tie' ? null : m.result === 'win', tip: `${mapName(m.map)} · ${new Date(m.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` }));
+  const ratedM = chrono.filter(m => premierOf(m) !== null);
+  const rated = ratedM.map(m => premierOf(m)!);
   return (
-    <div className="page profile">
-      <header className="profile-head">
-        {me?.avatar ? <img className="avatar" src={me.avatar} alt="" width={64} height={64} /> : <span className="avatar empty"><Icon name="user" size={34} /></span>}
-        <div className="profile-id">
-          <h1>{name}{pro && <span className="pro-badge" title="Pro is free during early access">PRO</span>}</h1>
-          <p className="muted">
-            {remote ? <><Icon name="shield" size={13} /> Saved to your Steam account · {matches.length} match{matches.length === 1 ? '' : 'es'}</>
-              : <>Kept in this browser{matches.length ? ` · ${matches.length} match${matches.length === 1 ? '' : 'es'}` : ''}{STEAM_AVAILABLE && !me ? '. Log in with Steam to keep it on every device.' : ''}</>}
-          </p>
-          {error && me && <p className="warn-text small">Your account's profile couldn't be loaded ({error}); showing this browser's copy.</p>}
-        </div>
-        <div className="profile-actions">
-          {STEAM_AVAILABLE && loaded && !me && <SteamLoginButton compact />}
-          <a className="cta" href="#/settings"><Icon name="gear" size={14} /> Settings</a>
-        </div>
-      </header>
-
-      {!matches.length ? (
-        <section className="empty-card">
-          <Icon name="trophy" size={30} />
-          <h2>Review a match you played</h2>
-          <p className="muted">Drop one of your demos in Review and pick yourself (Mine…, or This is me in the recap). Once it's graded it shows up here, with your
-            numbers, your trends and your goals.</p>
-          <a className="cta primary" href="#/cs2/review">Review a match</a>
-        </section>
-      ) : null}
-      <AddMatches />
-      {!matches.length ? null : (
-        <>
-          {last && <Kpis now={last} was={before} matches={matches} />}
-          <div className="dash-row">
-            <PremierTrend matches={matches} />
-            <Results matches={matches.slice(0, pro ? matches.length : FREE_HISTORY)} />
-          </div>
-
-          <section className="site-card">
-            <div className="card-head">
-              <h2>{all && pro ? 'All matches' : `Last ${Math.min(FREE_HISTORY, matches.length)} matches`}</h2>
-              {matches.length > FREE_HISTORY && (pro
-                ? <button className="ghost small-btn" onClick={() => setAll(!all)}>{all ? 'Show the last 5' : `Show all ${matches.length}`}</button>
-                : <a className="muted small" href="#/pricing"><Icon name="lock" size={12} /> {matches.length - FREE_HISTORY} older with Pro</a>)}
-            </div>
-            <div className="match-list">
-              {shown.map(m => <MatchRow key={m.id} m={m} onShare={() => setShare(m)} />)}
-            </div>
-          </section>
-
-          <div className="profile-grid">
-            <Goals matches={matches} />
-            <MapStats matches={matches} />
-          </div>
-          <Skills matches={matches.slice(0, pro ? matches.length : FREE_HISTORY)} />
-        </>
-      )}
-      <Friend mine={last} />
-      {share && <ShareDialog m={share} player={me?.name ?? share.name ?? 'Me'} onClose={() => setShare(null)} />}
+    <div className="stat-strip-wrap">
+    <p className="muted small stat-strip-head">Last match vs your last {chrono.length - 1}</p>
+    <div className="trend-row stat-strip">
+      <TrendTile label="K/D" meta={meta(chrono)} values={chrono.map(m => (m.deaths ? m.kills / m.deaths : m.kills))} fmt={v => v.toFixed(2)} />
+      <TrendTile label="ADR" meta={meta(chrono)} values={chrono.map(m => m.adr)} fmt={v => v.toFixed(0)} />
+      <TrendTile label="KAST" meta={meta(chrono)} values={chrono.map(m => m.kast)} fmt={v => `${v.toFixed(0)}%`} />
+      <TrendTile label="HS%" meta={meta(chrono)} values={chrono.map(m => m.hs)} fmt={v => `${v.toFixed(0)}%`} />
+      {rated.length >= 2 && <TrendTile label="Premier" meta={meta(ratedM)} values={rated} fmt={v => fmtInt(v)} sub="rating going in" />}
+      {chrono.length < 2 && <p className="muted small">One more match and the trends start.</p>}
+    </div>
     </div>
   );
 }
 
-/** The headline numbers: each with its last 10 matches as a mini line and its change against the matches before. */
-function Kpis({ now, was, matches }: { now: Averages; was: Averages | null; matches: ProfileMatch[] }) {
-  // oldest to newest, the last 10
-  const recent = [...matches].sort((a, b) => a.at - b.at).slice(-10);
-  const series = (f: (m: ProfileMatch) => number | null) => recent.map(f).filter((v): v is number => v !== null);
-  const pill = (d: number | null, text: string) => d === null || Math.abs(d) < 1e-9
-    ? <i className="kpi-pill flat">last {now.matches}</i>
-    : <i className={`kpi-pill ${d > 0 ? 'up' : 'down'}`} title={`Against the ${was?.matches ?? 0} matches before`}><Icon name={d > 0 ? 'trendUp' : 'trendDown'} size={11} /> {text}</i>;
-  const items: { label: string; v: string; d: number | null; dt: string; line: number[] }[] = [
-    { label: 'K/D', v: fmtKd(now.kd), d: was && now.kd !== null && was.kd !== null ? now.kd - was.kd : null, dt: '', line: series(m => (m.deaths ? m.kills / m.deaths : m.kills)) },
-    { label: 'ADR', v: now.adr.toFixed(0), d: was ? now.adr - was.adr : null, dt: '', line: series(m => m.adr) },
-    { label: 'KAST', v: `${now.kast.toFixed(0)}%`, d: was ? now.kast - was.kast : null, dt: '', line: series(m => m.kast) },
-    { label: 'Headshots', v: `${now.hs.toFixed(0)}%`, d: was ? now.hs - was.hs : null, dt: '', line: series(m => m.hs) },
-  ];
-  for (const i of items) i.dt = i.d === null ? '' : i.label === 'K/D' ? Math.abs(i.d).toFixed(2) : fmtInt(Math.abs(i.d));
+/** No Steam avatar: a player silhouette in the game's colour. */
+function Silhouette() {
   return (
-    <section className="kpi-strip" aria-label={`Averages over your last ${now.matches} matches`}>
-      <div className="kpi-tile" title="Your in-game Premier rating at the start of your newest reviewed match">
-        <span>Premier</span>
-        <div className="kpi-body"><b>{now.premier !== null ? fmtInt(now.premier) : '–'}</b><MiniLine values={series(premierOf)} good={now.premierMoved === null ? null : now.premierMoved >= 0} /></div>
-        {pill(now.premierMoved, `${now.premierMoved !== null && now.premierMoved > 0 ? '+' : '−'}${fmtInt(Math.abs(now.premierMoved ?? 0))} over ${now.matches}`)}
+    <svg viewBox="0 0 64 64" width="40" height="40" aria-hidden><circle cx="32" cy="22" r="11" fill="currentColor" /><path d="M12 58c2-13 10-20 20-20s18 7 20 20z" fill="currentColor" /></svg>
+  );
+}
+
+/** The hero card: the habit that costs you most, what it costs, rounds to watch, and what to do about it. */
+function LeakCard({ matches }: { matches: ProfileMatch[] }) {
+  const leak = useMemo(() => biggestLeak(matches), [matches]);
+  const goals = useProfile(s => s.data.goals);
+  if (!leak) return null;
+  const id = leak.row.id as GoalId, goal = goals.find(g => g.id === id);
+  const ids = goals.map(g => g.id);
+  // a goal's progress: its average before the goal against since
+  const progress = (() => {
+    if (!goal) return null;
+    const val = (m: ProfileMatch) => goalSeries([m], id)[0];
+    const pick = (ms: ProfileMatch[]) => ms.map(val).filter((v): v is number => v !== null);
+    const was = pick(matches.filter(m => m.at < goal.since)), now = pick(matches.filter(m => m.at >= goal.since));
+    if (!was.length || !now.length) return null;
+    const a = was.reduce((x, y) => x + y, 0) / was.length, b = now.reduce((x, y) => x + y, 0) / now.length;
+    return { a, b, since: goal.since };
+  })();
+  return (
+    <section className="site-card leak-card">
+      <span className="eyebrow">Biggest leak</span>
+      <h2>{leak.title}</h2>
+      <p className="leak-num">{leak.cost !== null && leak.cost > 0
+        ? <>Costs you about <b>{Math.min(3, leak.cost).toFixed(1)} rounds</b> a match</>
+        : <>{leak.row.label}: you <b>{leak.row.fmt(leak.row.you)}</b> · level 10 {leak.row.fmt(leak.row.lvl10)}</>}</p>
+      {leak.clip && (
+        <p className="leak-clips">
+          {leak.clip.rounds.map(n => <RoundLink key={n} match={leak.clip!.match} n={n} />)}
+          <span className="muted small">{mapName(leak.clip.match.map)}, {fmtDate(leak.clip.match.at)}</span>
+        </p>
+      )}
+      {progress && <p className={`leak-progress ${progress.b < progress.a === !goalInfo(id).higherBetter ? 'up' : 'down'}`}>
+        {progress.b < progress.a ? 'Down' : 'Up'} from {goalInfo(id).fmt(progress.a)} to {goalInfo(id).fmt(progress.b)} since {fmtDate(progress.since)}</p>}
+      <div className="hero-cta">
+        <a className="cta" href="/puzzles">Practise in Puzzles</a>
+        {!goal && (ids.length >= MAX_GOALS
+          ? <a className="cta" href="#goals" title={`You have ${MAX_GOALS} goals already: change one to make room`}>Goals full · manage</a>
+          : <button className="cta primary" onClick={() => setGoals([...ids, id])}>Make it a goal</button>)}
       </div>
-      <div className="kpi-tile">
-        <span>Win rate</span>
-        <div className="kpi-body"><b>{pct(now.winRate)}</b>
-          <span className="wl-row" aria-label="Your last 10 matches, oldest first">{recent.map(m => <i key={m.id} className={m.result} title={`${mapName(m.map)} ${m.score[0]}:${m.score[1]}`} />)}</span>
-        </div>
-        {pill(was ? now.winRate - was.winRate : null, pct(Math.abs(was ? now.winRate - was.winRate : 0)))}
+    </section>
+  );
+}
+
+/** A round of one of your matches: straight to it when that match is open in Review, else to Review to open it. */
+function RoundLink({ match, n }: { match: ProfileMatch; n: number }) {
+  const open = useStore(st => st.review);
+  const here = !!open && matchKey(open.data.map, open.data.rounds) === match.id;
+  const i = here ? open!.data.rounds.findIndex(r => r.n === n) : -1;
+  return here && i >= 0
+    ? <button className="chip" title={`Watch round ${n}`} onClick={() => { useStore.getState().setReviewRound(i); navigate({ page: 'cs2', mode: 'review' }); }}>Watch R{n}</button>
+    : <a className="chip" href="/cs2/review" title={`Round ${n}: open this match (${mapName(match.map)}, ${fmtDate(match.at)}) in Review to watch it`}>Watch R{n}</a>;
+}
+
+/** Your best habit, and how many level-10 players you beat at it. */
+function SuperCard({ matches }: { matches: ProfileMatch[] }) {
+  const sp = useMemo(() => superpower(matches), [matches]);
+  if (!sp) return null;
+  return (
+    <section className="site-card super-card">
+      <span className="eyebrow">Your superpower</span>
+      <h2>{sp.title}</h2>
+      <p className="super-big"><b className="num">{sp.better}</b><span>% of level-10 players are below you</span></p>
+      {/* a plain meter: 0 to 100, the level-10 middle marked, you as the dot */}
+      <div className="super-meter" role="img" aria-label={`Better than ${sp.better}% of level-10 players`}>
+        <i className="super-fill" style={{ width: `${sp.better}%` }} /><i className="super-mid" /><i className="super-dot" style={{ left: `${sp.better}%` }} />
       </div>
-      {items.map(i => (
-        <div key={i.label} className="kpi-tile">
-          <span>{i.label}</span>
-          <div className="kpi-body"><b>{i.v}</b><MiniLine values={i.line} good={i.d === null ? null : i.d >= 0} /></div>
-          {pill(i.d, i.dt)}
-        </div>
+      <div className="super-scale muted small"><span>0</span><span>typical level 10</span><span>100</span></div>
+      <p className="muted small">{sp.row.label}: you {sp.row.fmt(sp.row.you)} · level 10 {sp.row.fmt(sp.row.lvl10)}{BETTER[sp.row.id as FeatureId] === 'low' ? ' (lower is better)' : ''}</p>
+    </section>
+  );
+}
+
+/** The same Trends card Deadlock has: one metric over your matches, switch with the buttons. */
+function TrendsCard({ matches }: { matches: ProfileMatch[] }) {
+  const [metric, setMetric] = useState<'kd' | 'adr' | 'kast' | 'premier'>('kd');
+  const chrono = [...matches].sort((x, y) => x.at - y.at);
+  const M = {
+    kd: { label: 'K/D', f: (m: ProfileMatch) => (m.deaths ? m.kills / m.deaths : m.kills), fmt: (v: number) => v.toFixed(2), rows: chrono },
+    adr: { label: 'ADR', f: (m: ProfileMatch) => m.adr, fmt: (v: number) => v.toFixed(0), rows: chrono },
+    kast: { label: 'KAST', f: (m: ProfileMatch) => m.kast, fmt: (v: number) => `${v.toFixed(0)}%`, rows: chrono },
+    premier: { label: 'Premier', f: (m: ProfileMatch) => premierOf(m) ?? 0, fmt: (v: number) => fmtInt(v), rows: chrono.filter(m => premierOf(m) !== null) },
+  }[metric];
+  if (chrono.length < 3) return null;
+  return (
+    <section className="site-card trends-card">
+      <div className="card-head"><h2>Trends</h2>
+        <div className="seg-mini" role="group" aria-label="Metric">{(['kd', 'adr', 'kast', 'premier'] as const).map(k => <button key={k} className={metric === k ? 'on' : ''} onClick={() => setMetric(k)}>{k === 'kd' ? 'K/D' : k === 'adr' ? 'ADR' : k === 'kast' ? 'KAST' : 'Premier'}</button>)}</div></div>
+      {M.rows.length >= 3
+        ? <AreaChart points={M.rows.map((m, i) => ({ label: `#${i + 1}`, note: mapName(m.map), value: M.f(m) }))} fmt={M.fmt} />
+        : <p className="muted small">Premier shows once 3 of your matches carry a rating.</p>}
+    </section>
+  );
+}
+
+/** The 6 skills as dots on a track (0–100 against level 10, 50 = typical level 10), a trend arrow, details on a tap. */
+function SkillMapCard({ matches }: { matches: ProfileMatch[] }) {
+  const map = useMemo(() => skillMap(matches), [matches]);
+  const [open, setOpen] = useState<string | null>(null);
+  if (!map) {
+    const left = SKILL_MAP_FROM - matches.length;
+    return (
+      <p className="skill-unlock muted small"><b>Skill map</b> · {plural(left, 'more match', 'more matches')} to unlock it <span className="unlock-bar"><i style={{ width: `${(matches.length / SKILL_MAP_FROM) * 100}%` }} /></span></p>
+    );
+  }
+  return (
+    <section className="site-card skill-map">
+      <div className="card-head"><h2>Skill map</h2><span className="muted small">against FACEIT level 10 · 50 = typical level 10</span></div>
+      <ul className="skill-rows">
+        {map.map(sk => (
+          <li key={sk.name}>
+            <button className={`skill-row ${open === sk.name ? 'open' : ''}`} onClick={() => setOpen(open === sk.name ? null : sk.name)} aria-expanded={open === sk.name} disabled={!sk.rows.length}>
+              <b>{sk.name}</b>
+              <span className="sk-bar" aria-hidden="true"><i className="sk-mid" />{sk.pct !== null && <i className="sk-fill" style={{ width: `${Math.max(0, Math.min(100, sk.pct))}%` }} />}</span>
+              <span className={`num sk-val ${sk.pct === null ? 'none' : sk.pct >= 50 ? 'up' : 'down'}`}>{sk.pct ?? 'no data'}</span>
+              <span className={`sk-trend ${sk.trend ?? ''}`} title={sk.trend ? 'Your last 5 matches against the 5 before' : undefined}>
+                {sk.trend === 'up' ? <Icon name="trendUp" size={16} /> : sk.trend === 'down' ? <Icon name="trendDown" size={16} /> : sk.trend === 'flat' ? '–' : ''}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {map.filter(sk => sk.name === open).map(sk => (
+        <ul key={sk.name} className="sk-detail">
+          {sk.rows.map(r => {
+            const m = matches.find(x => (x.leaks?.[r.id as GoalId]?.[1].length ?? 0) > 0);
+            return (
+              <li key={r.id}><span>{r.label}</span><span className={`num ${r.z >= 0 ? 'up' : 'down'}`}>{r.fmt(r.you)}</span><span className="muted small">level 10: {r.fmt(r.lvl10)}</span>
+                {m && r.z < 0 && <span className="sk-rounds">{m.leaks![r.id as GoalId]![1].map(n => <RoundLink key={n} match={m} n={n} />)}<span className="muted small">{mapName(m.map)}</span></span>}</li>
+            );
+          })}
+        </ul>
       ))}
     </section>
   );
 }
 
-/** Your Premier rating match by match (or your ADR when the demos have no ratings). */
-function PremierTrend({ matches }: { matches: ProfileMatch[] }) {
-  const chrono = [...matches].sort((a, b) => a.at - b.at);
-  const rated = chrono.filter(m => premierOf(m) !== null);
-  // Premier when the demos have it (all of them, or at least two to draw); otherwise damage per round
-  const usePremier = rated.length >= 2 || (rated.length > 0 && rated.length === chrono.length);
-  const pts = (usePremier ? rated : chrono).slice(-20).map(m => ({
-    label: new Date(m.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    value: usePremier ? premierOf(m)! : m.adr,
-    note: `${mapName(m.map)} ${m.score[0]}:${m.score[1]}`,
-  }));
+/** Your profile: your last matches, how they trend, your goals, your maps, a friend next to you, and share cards. */
+export function Profile() {
+  const { me, data, remote, loaded, error } = useProfile();
+  const pro = proEarlyAccess();
+  const [all, setAll] = useState(false);
+  const [share, setShare] = useState<ProfileMatch | null>(null);
+  const [ptab, setPtab] = useState<'overview' | 'matches' | 'skills' | 'goals' | 'friends'>('overview');
+  const matches = fullMatches(data.matches).sort((a, b) => b.at - a.at);
+  const shown = all && pro ? matches : matches.slice(0, FREE_HISTORY);
+  const last = averages(matches.slice(0, FREE_HISTORY));
+  const name = me?.name ?? 'Your profile';
+  // stats per game: CS2 or Deadlock (the game you were last in first); switching also dresses the page in its colours
+  const [game, setGame] = useState<GameId>(() => gameOf('profile'));
+  const pickGame = (g: GameId) => { setGame(g); applyGame(gameOf(g)); };
+  // the header's dim map art: your most-played map; Premier now and over the last 10
+  const headArt = game === 'cs2' ? mapStats(matches)[0]?.map ?? null : null;
+  const premier = (() => {
+    const rs = matches.slice(0, 10).flatMap(m => (premierOf(m) !== null ? [premierOf(m)!] : []));
+    return rs.length ? { now: rs[0], change: rs.length >= 2 ? rs[0] - rs[rs.length - 1] : null } : null;
+  })();
+
   return (
-    <section className="site-card dash-wide">
-      <div className="card-head">
-        <h2><Icon name="trendUp" size={16} /> {usePremier ? 'Premier rating' : 'Damage per round'}</h2>
-        <span className="muted small">{usePremier ? 'going into each match' : 'no Premier ratings in these demos'} · last {pts.length}</span>
-      </div>
-      {pts.length >= 2 ? <AreaChart points={pts} fmt={v => (usePremier ? fmtInt(v) : v.toFixed(0))} />
-        : <p className="muted">Two matches and the line starts.</p>}
-    </section>
+    <div className="page profile">
+      <header className="profile-head" style={headArt ? { '--head-art': `url(/images/maps/${headArt}.png)` } as React.CSSProperties : undefined}>
+        {me?.avatar ? <img className="avatar" src={me.avatar} alt="" width={64} height={64} /> : <span className="avatar empty" aria-hidden><Silhouette /></span>}
+        <div className="profile-id">
+          {/* the badge sits next to the heading, not in it (a screen reader read "Your profilePRO"); only when logged in */}
+          <div className="profile-title"><h1>{name}</h1>{pro && me && <span className="pro-badge" title="Pro is free during early access">PRO</span>}
+            {game === 'cs2' && premier && <span className="profile-premier num" title="Premier going into your newest match, and the change over your last 10">{fmtInt(premier.now)}{premier.change !== null && <i className={premier.change >= 0 ? 'up' : 'down'}> {premier.change >= 0 ? '+' : '−'}{fmtInt(Math.abs(premier.change))} {premier.change >= 0 ? '▲' : '▼'}</i>}</span>}</div>
+          <p className="muted">
+            {remote ? <><Icon name="shield" size={13} /> Saved to your Steam account{game === 'cs2' && ` · ${matches.length} CS2 match${matches.length === 1 ? '' : 'es'}`}</>
+              : <span className="pill-small">{STEAM_AVAILABLE && !me ? 'Saved in this browser · Log in to sync' : 'Saved in this browser'}</span>}
+          </p>
+          {error && me && <p className="warn-text small">Your account's profile couldn't be loaded ({error}); showing this browser's copy.</p>}
+        </div>
+        <div className="profile-actions">
+          <a className="cta" href="/settings"><Icon name="gear" size={14} /> Settings</a>
+        </div>
+      </header>
+
+      <nav className="recap-tabs profile-games" aria-label="Game">
+        <div className="recap-tabs-list" role="tablist">
+          {(['cs2', 'deadlock'] as GameId[]).map(g => (
+            <button key={g} role="tab" aria-selected={game === g} className={game === g ? 'on' : ''} onClick={() => pickGame(g)}>{g === 'cs2' ? 'Counter-Strike 2' : 'Deadlock'}</button>
+          ))}
+        </div>
+      </nav>
+
+      <FocusBanner game={game} />
+
+      {game === 'deadlock' ? <DlProfile account={me?.steamId ? steamId3(me.steamId) : null} /> : <>
+      {!matches.length ? (
+        <section className="empty-card">
+          <EmptyArt />
+          <h2>No matches yet.</h2>
+          <div className="hero-cta"><button className="cta" onClick={() => void openCs2Sample()}>Watch a sample</button><a className="cta primary" href="/cs2/review">Review my match</a></div>
+        </section>
+      ) : null}
+      {!matches.length && <AddMatches />}
+      {!matches.length ? null : (
+        <div className="profile-cols">
+          {/* left, sticky: the last 20 results, adding matches, settings */}
+          <aside className="profile-side">
+            <section className="site-card">
+              <div className="card-head"><h2>Last 20</h2></div>
+              <ResultStrip results={[...matches].slice(0, 20).reverse().map(m => ({ win: m.result === 'win' ? true : m.result === 'loss' ? false : null, title: `${mapName(m.map)} ${m.score[0]}:${m.score[1]}` }))} />
+            </section>
+            <AddMatches />
+            <section className="site-card profile-side-links">
+              {matches[0] && <button className="cta" onClick={() => setShare(matches[0])}><Icon name="share" size={14} /> Share card</button>}</section>
+          </aside>
+          <div className="profile-main">
+            <nav className="recap-tabs" aria-label="Profile">
+              <div className="recap-tabs-list" role="tablist">
+                {([['overview', 'Overview'], ['matches', 'Matches'], ['skills', 'Skills'], ['goals', 'Goals'], ['friends', 'Friends']] as const).map(([id, l]) => (
+                  <button key={id} role="tab" aria-selected={ptab === id} className={ptab === id ? 'on' : ''} onClick={() => setPtab(id)}>{l}</button>
+                ))}
+              </div>
+            </nav>
+            {ptab === 'overview' && <>
+              <StatStrip matches={matches} />
+              <div className="leak-row"><LeakCard matches={matches} /><SuperCard matches={matches} /></div>
+              <TrendsCard matches={matches.slice(0, pro ? matches.length : FREE_HISTORY * 2)} />
+            </>}
+            {ptab === 'matches' && (
+              <section className="site-card">
+                <div className="card-head">
+                  <h2>{all && pro ? 'All matches' : 'Matches'}</h2>
+                  <span className="muted small">Last {shown.length}</span>
+                  {matches.length > FREE_HISTORY && (pro
+                    ? <button className="ghost small-btn" onClick={() => setAll(!all)}>{all ? 'Show the last 5' : `Show all ${matches.length}`}</button>
+                    : <a className="muted small" href="/pricing"><Icon name="lock" size={12} /> {matches.length - FREE_HISTORY} older with Pro</a>)}
+                </div>
+                <div className="match-list">{shown.map(m => <MatchRow key={m.id} m={m} onShare={() => setShare(m)} />)}</div>
+              </section>
+            )}
+            {ptab === 'skills' && <SkillMapCard matches={matches.slice(0, pro ? matches.length : FREE_HISTORY * 2)} />}
+            {ptab === 'goals' && <div className="goals-page"><Goals matches={matches} /><MapStats matches={matches} /></div>}
+            {ptab === 'friends' && <Friend mine={last} />}
+          </div>
+        </div>
+      )}
+      {!matches.length && <Friend mine={last} />}
+      </>}
+      {share && <ShareDialog m={share} player={me?.name ?? share.name ?? 'Me'} onClose={() => setShare(null)} />}
+    </div>
   );
 }
 
-/** Wins, losses and draws as a ring. */
-function Results({ matches }: { matches: ProfileMatch[] }) {
-  const n = (r: ProfileMatch['result']) => matches.filter(m => m.result === r).length;
-  const w = n('win'), l = n('loss'), t = n('tie');
-  return (
-    <section className="site-card dash-narrow">
-      <div className="card-head"><h2><Icon name="trophy" size={16} /> Results</h2><span className="muted small">{matches.length} matches</span></div>
-      <Donut center={pct(matches.length ? w / matches.length : 0)} sub="won"
-        parts={[{ label: 'Wins', value: w, color: T.good }, { label: 'Losses', value: l, color: T.bad }, { label: 'Draws', value: t, color: T.text3 }]} />
-    </section>
-  );
-}
+
+
 
 function MatchRow({ m, onShare }: { m: ProfileMatch; onShare: () => void }) {
   const grade = m.level ?? m.lobby;
@@ -173,7 +314,7 @@ function MatchRow({ m, onShare }: { m: ProfileMatch; onShare: () => void }) {
       <span className="match-stat"><small>K/D</small>{m.kills}/{m.deaths}</span>
       <span className="match-stat"><small>ADR</small>{m.adr.toFixed(0)}</span>
       <span className="match-stat" title="Your Premier rating going into this match"><small>Premier</small>{premierOf(m) !== null ? fmtInt(premierOf(m)!) : '–'}</span>
-      <span className="letter-chip" style={{ background: LETTER_COLOR[grade] }} title={m.level ? 'Level: B = a typical level-10 game, S = a typical pro game' : 'Grade among the lobby'}>{grade}</span>
+      <span className="letter-chip" style={letterStyle(grade)} title={m.level ? 'Level: B = a typical level-10 game, S = a typical pro game' : 'Grade among the lobby'}>{grade}</span>
       <button className="ghost icon-btn" onClick={onShare} title="Share card" aria-label="Share card"><Icon name="share" size={16} /></button>
     </div>
   );
@@ -188,7 +329,7 @@ function Goals({ matches }: { matches: ProfileMatch[] }) {
   const suggested = useMemo(() => habits(matches)?.work.map(r => r.id as GoalId) ?? [], [matches]);
   const toggle = (id: GoalId) => setGoals(ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id].slice(0, MAX_GOALS));
   return (
-    <section className="site-card goals">
+    <section className="site-card goals" id="goals">
       <div className="card-head">
         <h2><Icon name="goal" size={16} /> Goals</h2>
         <button className="ghost small-btn" onClick={() => setEditing(!editing)}>{editing ? 'Done' : ids.length ? 'Change' : 'Pick goals'}</button>
@@ -205,7 +346,7 @@ function Goals({ matches }: { matches: ProfileMatch[] }) {
         </div>
       ) : !ids.length ? (
         <div className="goal-empty">
-          <p className="muted">Pick up to {MAX_GOALS} habits to work on: each new match shows whether they got better.</p>
+          <p className="muted">No goals yet. Pick up to {MAX_GOALS} habits, or take the coach's picks: each new match shows if they got better.</p>
           {suggested.length > 0 && (
             <button className="cta" onClick={() => setGoals(suggested.slice(0, MAX_GOALS))}>Use the coach's picks: {suggested.slice(0, MAX_GOALS).map(id => goalInfo(id).label.toLowerCase()).join(', ')}</button>
           )}
@@ -257,7 +398,7 @@ function MapStats({ matches }: { matches: ProfileMatch[] }) {
   const rows = useMemo(() => mapStats(matches), [matches]);
   return (
     <section className="site-card">
-      <div className="card-head"><h2><Icon name="map" size={16} /> Maps</h2><span className="muted small">all {matches.length} matches</span></div>
+      <div className="card-head"><h2><Icon name="map" size={16} /> Maps</h2><span className="muted small">{matches.length === 1 ? '1 match' : `all ${plural(matches.length, 'match')}`}</span></div>
       <table className="site-table">
         <thead><tr><th>Map</th><th>Played</th><th>Won</th><th>ADR</th><th>K/D</th><th>Best</th></tr></thead>
         <tbody>
@@ -268,7 +409,7 @@ function MapStats({ matches }: { matches: ProfileMatch[] }) {
               <td className={`num ${r.matches >= 2 ? (r.winRate >= 0.55 ? 'up' : r.winRate <= 0.45 ? 'down' : '') : ''}`}>{pct(r.winRate)}</td>
               <td className="num">{r.adr.toFixed(0)}</td>
               <td className="num">{fmtKd(r.kd)}</td>
-              <td>{r.best && <span className="letter-chip small" style={{ background: LETTER_COLOR[r.best] }}>{r.best}</span>}</td>
+              <td>{r.best && <span className="letter-chip small" style={letterStyle(r.best)}>{r.best}</span>}</td>
             </tr>
           ))}
         </tbody>
@@ -277,37 +418,7 @@ function MapStats({ matches }: { matches: ProfileMatch[] }) {
   );
 }
 
-const RADAR: [string, string][] = [['adr', 'Damage'], ['hs', 'Headshots'], ['trades', 'Trading'], ['isolatedDeaths', 'With the team'],
-  ['openingDeaths', 'Opening duels'], ['utilDamage', 'Utility'], ['stopped', 'Counter-strafe'], ['loud', 'Quiet moving']];
 
-/** Your skills against level 10: a radar of the main ones, and the weakest and strongest habits as bars. */
-function Skills({ matches }: { matches: ProfileMatch[] }) {
-  const h = useMemo(() => habits(matches), [matches]);
-  if (!h) return null;
-  const byId = new Map(h.rows.map(r => [r.id, r]));
-  const axes = RADAR.map(([id, label]) => {
-    const r = byId.get(id);
-    return { label, you: r ? r.z : null, tip: r ? `${r.label}: ${r.fmt(r.you)} (level 10: ${r.fmt(r.lvl10)})` : `${label}: not measured` };
-  });
-  const bar = (r: (typeof h.rows)[number], tone: 'up' | 'down') => ({ label: r.label, value: r.fmt(r.you), share: Math.min(1, Math.abs(r.z) / 2), tone, note: `Level 10: ${r.fmt(r.lvl10)}. ${r.tip}` });
-  const weak = h.rows.filter(r => r.z < -0.1).slice(0, 4), strong = [...h.rows].reverse().filter(r => r.z > 0.1 && r.id !== 'awpLost').slice(0, 4); // not losing an AWP you never bought isn't a strength
-  return (
-    <div className="dash-row">
-      <section className="site-card dash-narrow">
-        <div className="card-head"><h2><Icon name="star" size={16} /> Skill profile</h2><span className="muted small">{h.matches} matches</span></div>
-        <Radar axes={axes} />
-      </section>
-      <section className="site-card dash-wide">
-        <div className="card-head"><h2><Icon name="goal" size={16} /> Weakest and strongest</h2><span className="muted small">against FACEIT level 10</span></div>
-        <div className="habit-cols">
-          <div><h3 className="dev-h">Work on</h3>{weak.length ? <BarList rows={weak.map(r => bar(r, 'down'))} /> : <p className="muted small">Nothing below level 10.</p>}</div>
-          <div><h3 className="dev-h">Your strengths</h3>{strong.length ? <BarList rows={strong.map(r => bar(r, 'up'))} /> : <p className="muted small">Nothing above level 10 yet.</p>}</div>
-        </div>
-        {weak[0] && <p className="muted small skills-tip"><b>{weak[0].label}:</b> {weak[0].tip}</p>}
-      </section>
-    </div>
-  );
-}
 
 /** A friend's last matches next to yours (their profile must be public). */
 function Friend({ mine }: { mine: Averages | null }) {
@@ -317,6 +428,27 @@ function Friend({ mine }: { mine: Averages | null }) {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const theirs = friend ? averages(friend.matches) : null;
+  // your Steam friends who use the site with a public profile: one click to compare (Worker /friends)
+  const [onSite, setOnSite] = useState<{ steamId: string; matches: number; name: string | null; avatar: string | null }[] | null>(null);
+  const [onSiteNote, setOnSiteNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!me || !remote) return;
+    let live = true;
+    (async () => {
+      const r = await steamFetch('/friends').then(x => (x.ok ? x.json() : null)).catch(() => null) as { friends: { steamId: string; matches: number }[]; note: string | null } | null;
+      if (!r || !live) return;
+      const names = r.friends.length ? await steamFetch(`/profiles?ids=${r.friends.slice(0, 20).map(f => f.steamId).join(',')}`).then(x => (x.ok ? x.json() : null)).catch(() => null) : null;
+      if (!live) return;
+      setOnSite(r.friends.slice(0, 20).map(f => ({ ...f, name: names?.profiles?.[f.steamId]?.name ?? null, avatar: names?.profiles?.[f.steamId]?.avatar ?? null })));
+      setOnSiteNote(r.note);
+    })();
+    return () => { live = false; };
+  }, [me, remote]);
+  const compareWith = async (id: string) => {
+    setQ(id); setBusy(true); setErr(null);
+    try { setFriend(await findFriend(id)); } catch (x) { setFriend(null); setErr(x instanceof Error ? x.message : String(x)); }
+    setBusy(false);
+  };
   const look = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!q.trim()) { setErr('Paste a Steam profile link, a custom URL name or a SteamID.'); return; }
@@ -334,11 +466,22 @@ function Friend({ mine }: { mine: Averages | null }) {
       <div className="card-head"><h2><Icon name="friends" size={16} /> Compare with a friend</h2></div>
       {!me || !remote ? (
         <div className="goal-empty">
-          <p className="muted">Log in with Steam to look up a friend. They need a public profile (Settings → Public profile).</p>
+          <div className="empty-art-row"><EmptyArt size={72} /><p className="muted">No friends added. Log in with Steam, add one and see who's better. They need a public profile (Settings → Public profile).</p></div>
           {STEAM_AVAILABLE && !me && <SteamLoginButton compact />}
         </div>
       ) : (
         <>
+          {onSite && onSite.length > 0 && (
+            <div className="friend-chips" role="group" aria-label="Your Steam friends on RageView">
+              <span className="muted small">Your friends here:</span>
+              {onSite.map(f => (
+                <button key={f.steamId} className={`chip ${friend && q === f.steamId ? 'on' : ''}`} onClick={() => void compareWith(f.steamId)} disabled={busy}>
+                  {f.avatar && <img src={f.avatar} alt="" width={16} height={16} />} {f.name ?? 'A friend'} <span className="muted small">{f.matches}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {onSite && !onSite.length && onSiteNote && <p className="muted small">{onSiteNote}</p>}
           <form className="friend-form" onSubmit={look}>
             <input type="text" value={q} onChange={e => { setQ(e.target.value); setErr(null); }} placeholder="steamcommunity.com/id/yourfriend" aria-label="Friend's Steam profile" />
             <button className="cta primary" type="submit" disabled={busy}>{busy ? 'Looking…' : 'Compare'}</button>
@@ -365,10 +508,11 @@ export function ShareDialog({ m, player, onClose }: { m: ProfileMatch; player: s
   const canvas = useRef<HTMLCanvasElement>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean | null>(null);
+  const [format, setFormat] = useState<ShareFormat>('wide');
   useEffect(() => {
     const c = canvas.current!;
-    drawShareCard(c, m, player).then(() => setUrl(c.toDataURL('image/png')));
-  }, [m, player]);
+    drawShareCard(c, m, player, format).then(() => setUrl(c.toDataURL('image/png')));
+  }, [m, player, format]);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', esc);
@@ -378,7 +522,11 @@ export function ShareDialog({ m, player, onClose }: { m: ProfileMatch; player: s
     <div className="dialog-back" onClick={onClose}>
       <div className="dialog" role="dialog" aria-modal="true" aria-label="Share card" onClick={e => e.stopPropagation()}>
         <div className="card-head"><h2>Share card</h2><button className="ghost icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" size={16} /></button></div>
-        <canvas ref={canvas} className="share-canvas" />
+        <div className="seg-mini" role="group" aria-label="Size">
+          <button className={format === 'wide' ? 'on' : ''} onClick={() => setFormat('wide')}>Wide 1200×630</button>
+          <button className={format === 'tall' ? 'on' : ''} onClick={() => setFormat('tall')}>Tall 1080×1350</button>
+        </div>
+        <canvas ref={canvas} className={`share-canvas ${format}`} />
         <div className="dialog-actions">
           {url && <a className="cta primary" href={url} download={shareFileName(m)}><Icon name="download" size={14} /> Download</a>}
           <button className="cta" onClick={async () => setCopied(await copyCard(canvas.current!))}><Icon name="copy" size={14} /> Copy image</button>
@@ -386,5 +534,19 @@ export function ShareDialog({ m, player, onClose }: { m: ProfileMatch; player: s
         </div>
       </div>
     </div>
+  );
+}
+
+/** The next match's one thing (the most frequent mistake lately, from your moments) and whether you're fixing it. */
+function FocusBanner({ game }: { game: GameId }) {
+  const f = useMemo(() => focusOf(loadMoments(), game), [game]);
+  if (!f) return null;
+  return (
+    <a className="site-card focus-banner" href="/puzzles">
+      <Icon name="goal" size={20} />
+      <span><span className="muted small">Next match, one thing</span><b>{f.kind}</b></span>
+      <span className={`focus-streak ${f.streak ? 'up' : ''}`}>{f.streak ? `Fixing it: ${f.streak} in a row` : 'Practise it in Puzzles'}</span>
+      <Icon name="arrowRight" size={14} />
+    </a>
   );
 }

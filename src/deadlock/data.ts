@@ -5,12 +5,20 @@
 import HEROES from './generated/heroes.json';
 import MAP from './generated/map.json';
 
-export interface DlHero { id: number; name: string; color: string; icon: string | null; card: string | null }
+export interface DlAbility { id?: number; cls: string; name: string; ult: boolean; cd: number; img?: string | null }
+export interface DlHero { id: number; name: string; color: string; icon: string | null; card: string | null; abilities?: DlAbility[];
+  /** The game's role: marksman, mystic, brawler or assassin. */
+  role?: string | null }
 export const DL_HEROES = HEROES as DlHero[];
 const byId = new Map(DL_HEROES.map(h => [h.id, h]));
 export const heroOf = (id: number): DlHero => byId.get(id) ?? { id, name: `Hero ${id}`, color: '#888888', icon: null, card: null };
+/** The hero's big card art (280×380, deadlock-api's icon_hero_card), for large backgrounds: `card` is a 128 px portrait
+ * and blurs when stretched. Every hero's files are named <key>_sm / <key>_card. */
+export const heroArt = (id: number): string | null => heroOf(id).card?.replace(/_sm\.webp$/, '_card.webp') ?? null;
 
 export const DL_MAP = MAP;
+/** A neutral camp's tier as the game shows it: T1 small, T2 medium, T3 large; null for Sinner's Sacrifice (the vaults). */
+export const campTier = (kind: string): 1 | 2 | 3 | null => (kind === 'weak' ? 1 : kind === 'medium' ? 2 : kind === 'strong' ? 3 : null);
 export const DL_MAP_IMAGE = '/images/maps/deadlock.png';
 export const DL_MAP_FRAME = '/images/maps/deadlock-frame.png';
 

@@ -13,13 +13,15 @@
  *   GET  /resolve?q=        a Steam profile link, vanity name or SteamID → SteamID (logged-in only)
  *   POST /internal/profile/:steamId   the demo bot adds a match it graded (server token only)
  */
-import { cleanGoals, cleanMatch, cleanNotifyGames, cleanPrefs, cleanVerdict, cleanVerdicts, EMPTY_PROFILE, withVerdict, FREE_HISTORY, withMatch, type ProfileData } from '../../src/engine/profile';
+import { puzzleField, puzzleGameOf, cleanPuzzles, cleanGoals, cleanMatch, cleanNotifyGames, cleanPrefs, cleanVerdict, cleanVerdicts, EMPTY_PROFILE, withVerdict, FREE_HISTORY, withMatch, type ProfileData } from '../../src/engine/profile';
 
 export interface ProfileKV {
   get(key: string, type: 'json'): Promise<unknown>;
   put(key: string, value: string): Promise<void>;
   delete(key: string): Promise<void>;
 }
+
+import { updateBoard } from './puzzles';
 
 const KEY = (steamId: string) => `stats:${steamId}`;
 
@@ -54,8 +56,17 @@ export async function profileRoute(kv: ProfileKV, steamId: string, method: strin
     if (!game) throw new Error('Which game?');
     p.notifyGames = input.on === true ? cleanNotifyGames([...p.notifyGames, game]) : p.notifyGames.filter(g => g !== game);
   }
+  else if (path === '/profile/puzzles') {
+    const rec = cleanPuzzles(input.puzzles);
+    if (!rec) throw new Error('That isn\'t a puzzle record.');
+    p[puzzleField(puzzleGameOf(input.game))] = rec;
+  }
   else return null;
   await save(kv, steamId, p);
+  // the puzzle leaderboard follows the record and the public switch
+  // (each game's board: the one whose record changed, or both when the public switch did)
+  if (path === '/profile/puzzles') await updateBoard(kv, steamId, p[puzzleField(puzzleGameOf(input.game))], p.prefs.public, puzzleGameOf(input.game));
+  if (path === '/profile/prefs') for (const g of ['cs2', 'deadlock'] as const) await updateBoard(kv, steamId, p[puzzleField(g)], p.prefs.public, g);
   return p;
 }
 

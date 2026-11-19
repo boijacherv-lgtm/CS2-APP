@@ -1,5 +1,7 @@
+import { MarkFace } from './MarkFace';
+import { siteConfig } from './siteConfig';
 import { useMemo, useRef } from 'react';
-import { bombAt, bombTryAt, DEFUSE_KIT_SECONDS, DEFUSE_SECONDS, NOTE_INFO, PLANT_SECONDS, type Annotation, type DemoData, type DemoRound, type Review } from '../engine/recap';
+import { bombAt, bombTryAt, DEFUSE_KIT_SECONDS, DEFUSE_SECONDS, gearAt, NOTE_INFO, PLANT_SECONDS, type Annotation, type DemoData, type DemoRound, type Review } from '../engine/recap';
 import { moveLook, NoteMark } from './NoteMark';
 import { SIDE_COLOR, T } from './tokens';
 import { useShown } from './shown';
@@ -91,8 +93,8 @@ export function RoundHud({ players, score, plantedAt }: { players: HudPlayer[]; 
  * round number under it, and a strip that becomes the bomb's: planting (filling), the 40 s fuse (draining, red),
  * a defuse (filling blue, green when it beats the fuse, red when it can't), then defused / exploded.
  */
-export function ScoreBug({ score, round, roundNo, time, switched }: {
-  score: [number, number]; round: DemoRound; roundNo: number; time: number;
+export function ScoreBug({ score, round, roundNo, time, switched, names }: {
+  score: [number, number]; round: DemoRound; roundNo: number; time: number; names?: Record<string, string>;
   /** The first round after the teams swapped sides: who's on CT now (a player's name), shown for the first seconds. */
   switched?: string | null;
 }) {
@@ -102,37 +104,152 @@ export function ScoreBug({ score, round, roundNo, time, switched }: {
   const fuse = plantedAt !== null ? Math.max(0, BOMB_SECONDS - (time - plantedAt)) : null;
   const ended = bomb?.kind === 'defuse' || bomb?.kind === 'explode';
   const left = fuse ?? ROUND_SECONDS - time;
-  let strip: { cls: string; label: string; share: number; num?: string; icon?: 'bomb' | 'scissors' } | null = null;
-  if (bomb?.kind === 'defuse') strip = { cls: 'defused', label: 'Bomb defused', share: 1, icon: 'scissors' };
-  else if (bomb?.kind === 'explode') strip = { cls: 'exploded', label: 'Bomb exploded', share: 1, icon: 'bomb' };
-  else if (act?.kind === 'defuse') {
-    const len = act.end - act.t, made = time - act.t, need = (act.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS) - made;
-    const inTime = fuse === null || need <= fuse;
-    strip = { cls: `defusing ${inTime ? 'ok' : 'late'}`, label: `Defusing${act.kit ? ' with kit' : ''}${inTime ? '' : ': no time'}`, share: Math.min(1, made / (act.done ? len : act.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS)), num: Math.max(0, need).toFixed(1), icon: 'scissors' };
-  } else if (act?.kind === 'plant') strip = { cls: 'planting', label: 'Planting', share: Math.min(1, (time - act.t) / PLANT_SECONDS), num: Math.max(0, PLANT_SECONDS - (time - act.t)).toFixed(1), icon: 'bomb' };
-  else if (fuse !== null) strip = { cls: 'fuse', label: 'Bomb planted', share: fuse / BOMB_SECONDS, num: fuse.toFixed(1), icon: 'bomb' };
+  const al = aliveAt(round, time);
+  // ONE timer line under the bar (3 px): planting fills it (3.2 s), the fuse drains it (amber, orange ≤ 10, red ≤ 5), a defuse
+  // fills CT blue over it (striped red when it can't finish)
+  const planting = act?.kind === 'plant' && !ended ? Math.min(1, (time - act.t) / PLANT_SECONDS) : null;
+  const tone = fuse === null ? '' : fuse > 10 ? 'amber' : fuse > 5 ? 'orange' : 'red';
+  let defuse: { share: number; ok: boolean; need: number; kit: boolean; who: string; end: number } | null = null;
+  if (act?.kind === 'defuse' && !ended) {
+    const full = act.kit ? DEFUSE_KIT_SECONDS : DEFUSE_SECONDS, made = time - act.t, need = Math.max(0, full - made);
+    defuse = { share: Math.min(1, made / full), ok: fuse === null || need <= fuse, need, kit: !!act.kit, who: names?.[act.id] ?? '', end: fuse === null ? 0 : Math.max(0, fuse - need) / BOMB_SECONDS };
+  }
+  // the end flashes in the centre for 1.5 s: DEFUSED (CT blue) or EXPLODED
+  const flash = bomb?.kind === 'defuse' || bomb?.kind === 'explode' ? (time - bomb.since < 1.5 ? bomb.kind : null) : null;
+  const clockText = fuse !== null && !ended ? String(Math.ceil(fuse)) : ended ? clock(ROUND_SECONDS - time) : clock(left);
   return (
     <div className="scorebug">
-      <div className="sb-main">
-        <span className="sb-team ct">CT</span>
-        <span className="sb-score ct num">{score[0]}</span>
-        <span className={`sb-clock num ${fuse !== null && !ended ? 'bomb' : left <= 10 && !ended ? 'low' : ''}`}>
-          {fuse !== null && !ended ? <><Icon name="bomb" size={15} className="sb-bomb-icon" />{Math.ceil(fuse)}</> : ended ? clock(ROUND_SECONDS - time) : clock(left)}
-        </span>
-        <span className="sb-score t num">{score[1]}</span>
-        <span className="sb-team t">T</span>
+      <div className="sb-bar" title={`Round ${roundNo}`}>
+        <div className="sb-side ct"><span className="sb-team">CT</span><span className="sb-score num">{score[0]}</span></div>
+        <div className={`sb-mid ${flash ? `flash ${flash}` : ''}`}>
+          {flash ? <span className="sb-flash"><Icon name={flash === 'defuse' ? 'scissors' : 'bomb'} size={14} />{flash === 'defuse' ? 'DEFUSED' : 'EXPLODED'}</span>
+            : ended ? <span className={`sb-result ${bomb?.kind === 'explode' ? 't' : 'ct'}`}>{bomb?.kind === 'explode' ? 'T won' : 'CT won'}</span>
+            : planting !== null || fuse !== null
+              // the bomb IS the cell: its colour fills it and drains with the fuse, the number is drawn in the contrasting colour on the
+              // fill and on the rest; a defuse splits the cell in two, the bottom half being the defuse timer
+              ? (
+                <div className={`sb-tcell ${tone || 'amber'} ${defuse ? 'split' : ''}`} title={defuse ? `${defuse.who ? `${defuse.who} · ` : ''}${defuse.kit ? 'kit' : 'no kit'}${defuse.ok ? '' : ' · too late'}` : undefined}>
+                  <BombRow p={planting !== null && fuse === null ? planting * 100 : (fuse ?? 0) / BOMB_SECONDS * 100} tone={tone || 'amber'} zero={fuse !== null && fuse <= 0}>
+                    <Icon name="bomb" size={defuse ? 12 : 16} />{fuse === null ? <small>Planting</small> : <b className="num">{clockText}</b>}
+                  </BombRow>
+                  {defuse && (
+                    <BombRow p={defuse.share * 100} tone={defuse.ok ? 'ct' : 'late'} zero={false}>
+                      <Icon name="scissors" size={12} /><b className="num">{Math.ceil(defuse.need)}</b>{defuse.kit && <small>kit</small>}
+                    </BombRow>
+                  )}
+                </div>
+              )
+              : <span className={`sb-clock num ${left <= 10 ? 'low' : ''}`}>{clockText}</span>}
+        </div>
+        <div className="sb-side t"><span className="sb-score num">{score[1]}</span><span className="sb-team">T</span></div>
       </div>
-      <div className="sb-round">Round {roundNo}</div>
       {switched && time < SWITCH_BANNER && (
         <div className="sb-switch" role="status"><Icon name="swap" size={13} /> Sides switched · {switched}'s team is CT now</div>
       )}
-      {strip && (
-        <div className={`sb-strip ${strip.cls}`}>
-          <i style={{ width: `${Math.round(strip.share * 1000) / 10}%` }} />
-          <span>{strip.icon && <Icon name={strip.icon} size={12} />}{strip.label}{strip.num && <b className="num">{strip.num}</b>}</span>
-        </div>
-      )}
     </div>
+  );
+}
+
+/**
+ * One timer row of the bomb cell: the colour fills the row and drains with the time; the number sits on a fixed dark plate, so
+ * it is one colour and readable whatever the fill is doing (no letter ever crosses the edge of the fill). At 0 the number turns red.
+ */
+function BombRow({ p, tone, zero, children }: { p: number; tone: string; zero: boolean; children: React.ReactNode }) {
+  return (
+    <div className={`bt tone-${tone} ${zero ? 'zero' : ''}`} style={{ '--p': `${Math.max(0, Math.min(100, p))}%` } as React.CSSProperties}>
+      <i className="bt-fill" />
+      <span className="bt-plate">{children}</span>
+    </div>
+  );
+}
+
+/** Players alive on each side at time t, and whether a living CT has a kit. */
+function aliveAt(r: DemoRound, t: number) {
+  const ft = r.frames.t;
+  let k = 0;
+  while (k + 1 < ft.length && ft[k + 1] <= t) k++;
+  let ct = 0, tt = 0, kit = false;
+  for (const [id, f] of Object.entries(r.frames.players)) {
+    if (!f.alive[k]) continue;
+    if (f.side === 'CT') { ct++; if (gearAt(r, id, t)?.kit) kit = true; } else tt++;
+  }
+  return { ct, t: tt, kit };
+}
+
+/** CTs alive at time t, and whether any of them carries a defuse kit. */
+function ctsAt(r: DemoRound, t: number) {
+  const ft = r.frames.t;
+  let k = 0;
+  while (k + 1 < ft.length && ft[k + 1] <= t) k++;
+  let alive = 0, kit = false;
+  for (const [id, f] of Object.entries(r.frames.players)) {
+    if (f.side !== 'CT' || !f.alive[k]) continue;
+    alive++;
+    if (gearAt(r, id, t)?.kit) kit = true;
+  }
+  return { alive, kit };
+}
+
+/**
+ * The bomb dial in the score bug's centre: a ring that drains 40 → 0 (amber, orange from 10 s, red from 5 s), ticks at
+ * 10 s and 5 s (the last start for a defuse without and with a kit), and a defuse filling inside it in CT blue (red and
+ * striped when it can't finish, a check when it will).
+ */
+function BombDial({ fuse, defuse }: { fuse: number; defuse: { share: number; ok: boolean } | null }) {
+  const tick = (left: number) => {
+    const a = (left / BOMB_SECONDS) * 2 * Math.PI - Math.PI / 2;
+    return <line x1={17 + Math.cos(a) * 13} y1={17 + Math.sin(a) * 13} x2={17 + Math.cos(a) * 17} y2={17 + Math.sin(a) * 17} className="sb-dial-tick" />;
+  };
+  return (
+    <span className="sb-dial" role="img" aria-label={`Bomb: ${Math.ceil(fuse)} s left`}>
+    <svg viewBox="0 0 34 34" width="30" height="30" aria-hidden>
+      <defs>
+        <pattern id="sb-late" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="3" height="3" fill="var(--bad)" /><rect width="1.4" height="3" fill="#0a0c10" />
+        </pattern>
+      </defs>
+      <circle cx="17" cy="17" r="15" className="sb-dial-track" />
+      <circle cx="17" cy="17" r="15" className="sb-dial-fuse" pathLength={1} strokeDasharray={`${fuse / BOMB_SECONDS} 1`} transform="rotate(-90 17 17)" />
+      {tick(10)}{tick(5)}
+      {defuse && <circle cx="17" cy="17" r="10.5" className="sb-dial-defuse" pathLength={1} strokeDasharray={`${defuse.share} 1`} transform="rotate(-90 17 17)"
+        stroke={defuse.ok ? 'var(--ct)' : 'url(#sb-late)'} />}
+      {defuse?.ok && <path d="M12 17.5l3.2 3.2 6.6-7" className="sb-dial-check" />}
+    </svg>
+    {!defuse?.ok && <Icon name="bomb" size={13} />}
+    </span>
+  );
+}
+
+/** The rounds along the top: each a chip in the winner's colour with how it ended (an elimination, the bomb, a
+ * defuse, the clock), a gap at half-time; rounds ahead stay blank until Reveal all. Click one to go there. */
+export function RoundStrip({ data, at, spoilers, onPick }: { data: DemoData; at: number; spoilers: boolean; onPick: (i: number) => void }) {
+  const swaps = new Set(sideSwitches(data));
+  // how the round ended: from the demo's reason when it has one, else from the plant (bomb down: exploded or defused) and the clock
+  const how = (r: { reason: string; winner: string | null; plant: number | null; duration: number }): 'skull' | 'bomb' | 'scissors' | 'timer' => {
+    const x = r.reason.toLowerCase().replace(/[^a-z]/g, '');
+    if (x) return x.includes('defus') ? 'scissors' : x.includes('exploded') || x.includes('targetbombed') ? 'bomb' : x.includes('saved') || x.includes('time') ? 'timer' : 'skull';
+    if (r.plant !== null) return r.winner === 'CT' ? 'scissors' : 'bomb';
+    return r.winner === 'CT' && r.duration >= 110 ? 'timer' : 'skull';
+  };
+  return (
+    <ol className="round-strip" aria-label="Rounds">
+      {data.rounds.map((r, i) => {
+        const shown = spoilers || i < at;
+        // dividers in the strip itself: sides switched at half-time, and where overtime starts
+        const first = [...swaps].find(x => x > 0) ?? 0, reg = first * 2;
+        const divider = swaps.has(i) && i > 0 ? (reg && i === reg ? 'OT' : 'Sides switched') : reg && i === reg ? 'OT' : null;
+        return (
+          <li key={i} className={divider ? 'half' : ''}>
+            {divider && <span className="rs-divider" title={divider === 'OT' ? 'Overtime' : 'Sides switched'}>{divider === 'OT' ? 'OT' : <Icon name="swap" size={12} />}</span>}
+            <button className={`rs-chip ${i === at ? 'on' : ''} ${shown && r.winner ? r.winner.toLowerCase() : ''}`} onClick={() => onPick(i)}
+              title={`R${r.n}${shown && r.winner ? ` · ${r.winner} won${r.reason ? ` · ${r.reason.replace(/_/g, ' ')}` : ''}` : ''}`}
+              aria-label={`Round ${r.n}${shown && r.winner ? `, ${r.winner} won` : ''}`}>
+              {shown && r.winner ? <Icon name={how(r)} size={14} /> : <span className="num">{r.n}</span>}
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -141,39 +258,24 @@ export function PlaybackBar({ end, recap, round }: { end: number; recap?: Review
   const s = useStore();
   const review = s.mode === 'review';
   const max = review ? Math.ceil(end) : Math.max(60, Math.ceil(end));
+  // the end of the match's last round: the recap is the next step
+  const lastRoundOver = review && !!s.review && s.review.round === s.review.data.rounds.length - 1 && s.time >= end - 0.2;
   return (
     <div className="playbar">
+      {lastRoundOver && <a className="cta primary small-btn recap-next" href="/cs2/report"><Icon name="star" size={13} /> Recap</a>}
       <button className={`play-main ${s.playing ? 'on' : ''}`} title="Play / pause (Space)" onClick={() => {
         if (!s.playing && s.time >= end - 0.05) s.setTime(s.judging?.from ?? 0);
         s.setPlaying(!s.playing);
       }}><Icon name={s.playing ? 'pause' : 'play'} /><span> {s.playing ? 'Pause' : 'Play'}</span></button>
-      <button onClick={() => { s.setPlaying(false); s.setTime(s.judging?.from ?? 0); }} title={s.judging ? 'Back to the clip\'s start' : 'Back to round start'} aria-label={s.judging ? 'Back to the clip\'s start' : 'Back to round start'}><Icon name="toStart" /></button>
-      <select value={s.speed} onChange={e => s.setSpeed(+e.target.value)} title="Playback speed">
+      <select value={s.speed} onChange={e => s.setSpeed(+e.target.value)} title="Playback speed" aria-label="Playback speed">
         <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
       </select>
-      {review && <EvalToggle />}
-      {review && (
-        <button className={s.popups ? 'on' : ''} onClick={e => { s.setPopups(!s.popups); e.currentTarget.blur(); }}
-          title={s.popups ? 'Move windows: on (a window with the grade and comments for each graded move)' : 'Move windows: off'} aria-label="Move windows"><Icon name="chat" /><span className="pb-label">Cards</span></button>
-      )}
-      {review && (
-        <button className={s.engineLines ? 'on' : ''} onClick={e => { s.setEngineLines(!s.engineLines); e.currentTarget.blur(); }}
-          title={s.engineLines ? 'Arrows: on (the engine\'s best option against what was done, and a line from each card to its player)' : 'Arrows: off (turn on to see the engine\'s lines and which player a card is about)'} aria-label="Arrows"><Icon name="route" /><span className="pb-label">Arrows</span></button>
-      )}
-      {review && (
-        <button className={`pb-rage ${s.rage ? 'on' : ''}`} onClick={e => { s.setRage(!s.rage); e.currentTarget.blur(); }}
-          title={s.rage ? 'Rage mode: on (the coach swears at your plays)' : 'Rage mode: off. Turn on to have the coach lose it at your plays (18+, strong language)'} aria-label="Rage mode"><Icon name="bolt" /><span className="pb-label">Rage</span></button>
-      )}
-      {review && s.popups && (
-        <button onClick={e => { s.setReadSlow(!s.readSlow); e.currentTarget.blur(); /* Space is play/pause, not this */ }}
-          title={s.readSlow ? 'Slow motion while you read each graded move: on' : 'Slow motion while you read each graded move: off'} aria-label="Slow motion while reading" className={`pb-slow ${s.readSlow ? 'on' : ''}`}><Icon name="slow" /><span className="pb-label">Slow</span></button>
-      )}
-      {review && <NoteKey />}
       {review && recap && round
         ? <Timeline end={end} recap={recap} round={round} time={s.time} spoilers={s.reviewSpoilers} onSeek={t => { s.setPlaying(false); s.setTime(t); }} />
         : <input className="playbar-range" type="range" min={0} max={max} step={0.1} value={Math.min(s.time, max)}
             title="Seconds after freeze time"
             onChange={e => { s.setPlaying(false); s.setTime(+e.target.value); }} />}
+      {review && <ReviewOptions />}
       {!review && (
         <>
           <button className={s.combat ? 'on' : ''} onClick={() => s.setCombat(!s.combat)} title="Combat: players fight and die" aria-label="Combat"><Icon name="swords" /></button>
@@ -214,6 +316,7 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
   const { shown } = useShown();
   const moves = recap.moves.filter(m => shown(m) && m.t <= until);
   const plant = round.plant !== null && round.plant <= until ? round.plant : null;
+  const bombEnd = plant !== null ? (round.bomb ?? []).find(e => (e.kind === 'defuse' || e.kind === 'explode') && e.t <= until) ?? null : null;
   return (
     <div className="timeline" ref={track} role="slider" aria-label="Round timeline" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(time)}
       onPointerDown={e => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); seekAt(e.clientX); }}
@@ -233,13 +336,15 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
         <i key={`k${i}`} className={`tl-kill ${sideOf(k.attacker) === 'CT' ? 'ct' : 't'}`} style={{ left: pct(k.t), background: SIDE_COLOR[sideOf(k.attacker)!] }} />
       ))}
       {plant !== null && <span className="tl-bomb" style={{ left: pct(plant) }} title={`Bomb planted at ${clock(plant)} into the round`}><Icon name="bomb" size={12} /></span>}
+      {bombEnd && <span className={`tl-bomb end ${bombEnd.kind}`} style={{ left: pct(bombEnd.t) }} title={bombEnd.kind === 'defuse' ? `Defused with ${Math.max(0, Math.round(BOMB_SECONDS - (bombEnd.t - plant!)))} s left` : 'Bomb exploded'}>
+        <Icon name={bombEnd.kind === 'defuse' ? 'scissors' : 'burst'} size={12} /></span>}
       {moves.map((m, i) => {
         const g = moveLook(m);
         // the same marks as on the map, for every move that's evaluated: book moves as small dots
         return (
-          <button key={`m${i}`} className={m.note === 'book' ? 'tl-dot' : 'tl-mark'} style={{ left: pct(m.t), background: g.color }}
-            title={`${g.label}${g.mark ? ` (${g.mark})` : ''} · ${m.title}`}
-            onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }}>{g.mark}</button>
+          <button key={`m${i}`} tabIndex={-1} className={`${m.note === 'book' ? 'tl-dot' : 'tl-mark'}${(m.note === '!!' || m.note === '??') && time >= m.t && time - m.t < 0.8 ? ' tl-hit' : ''}`} style={{ left: pct(m.t), background: m.note === 'book' ? g.color : 'none' }}
+            title={`${g.label} · ${m.title}`}
+            onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }}>{m.note !== 'book' && <MarkFace note={m.note} size={15} title={`${g.label} · ${m.title}`} />}</button>
         );
       })}
       <i className="tl-head" style={{ left: pct(time) }} />
@@ -247,21 +352,49 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
   );
 }
 
-/** What the grade marks mean (on the map, the timeline, the killfeed and the cards). */
-function NoteKey() {
+/**
+ * Review's settings in one menu over the playbar: whose moves are graded, the coach's cards (and slow motion while
+ * reading them), the engine's arrows, rage mode, and what the marks mean.
+ */
+function ReviewOptions() {
+  const s = useStore();
+  const toggle = (on: boolean, set: (v: boolean) => void, icon: Parameters<typeof Icon>[0]['name'], label: string, tip: string, cls = '') => (
+    <button className={`opt-row ${cls} ${on ? 'on' : ''}`} onClick={() => set(!on)} aria-pressed={on} title={tip}>
+      <Icon name={icon} /><span>{label}</span><i className="opt-switch" />
+    </button>
+  );
   return (
-    <details className="note-key">
-      <summary title="What the marks mean">Key</summary>
-      <div className="note-key-pop">
+    <details className="pb-options">
+      <summary title="Review settings"><Icon name="gear" /><span className="pb-label">Options</span></summary>
+      <div className="pb-options-pop">
+        <div className="opt-head">Graded moves</div>
+        <EvalToggle />
+        {toggle(s.popups, s.setPopups, 'chat', 'Coach cards', 'A card with the grade and comments for each graded move')}
+        {s.popups && toggle(s.readSlow, s.setReadSlow, 'slow', 'Slow while reading', 'Slow motion while a card is open')}
+        {toggle(s.engineLines, s.setEngineLines, 'route', 'Arrows', "The coach's best option against what was done, and a line from each card to its player")}
+        {siteConfig().flags.rage && toggle(s.rage !== 'off', on => s.setRage(on ? 'full' : 'off'), 'bolt', 'Rage mode', 'The coach swears at your plays (18+, strong language)', 'rage')}
+        <div className="opt-head">Map</div>
+        {toggle(s.autoCam, s.setAutoCam, 'target', 'Auto zoom', 'The map zooms in when everyone is on one part of it; off shows the whole map')}
+        <div className="opt-head">What the marks mean</div>
+        <NoteKeyRows />
+      </div>
+    </details>
+  );
+}
+
+/** What the grade marks mean (on the map, the timeline, the killfeed and the cards). */
+/** `tips` / `foot`: another game's wording (Deadlock's board). */
+export function NoteKeyRows({ tips, foot }: { tips?: Partial<Record<Annotation, string>>; foot?: string } = {}) {
+  return (
+    <div className="note-key-rows">
         {(Object.keys(NOTE_INFO) as Annotation[]).map(a => (
           <div key={a} className="note-key-row">
             <NoteMark m={{ note: a, kind: 'kill' }} />
-            <span><b>{NOTE_INFO[a].label}</b> <span className="muted">{NOTE_INFO[a].tip}</span></span>
+            <span><b>{NOTE_INFO[a].label}</b> <span className="muted">{tips?.[a] ?? NOTE_INFO[a].tip}</span></span>
           </div>
         ))}
-        <p className="muted">The % on a card is how much the move changed its team's chance to win the round.</p>
-      </div>
-    </details>
+        <p className="muted">{foot ?? 'The % on a card is how much the move changed its team\'s chance to win the round.'}</p>
+    </div>
   );
 }
 

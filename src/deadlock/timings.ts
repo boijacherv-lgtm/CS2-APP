@@ -42,11 +42,11 @@ export interface TimelineEvent { t: number; kind: 'camps' | 'sinners' | 'snacks'
 /** Everything scheduled up to `until` (s), in order. The rift's time is its middle estimate (± 1 min). */
 export function timeline(until = 2400): TimelineEvent[] {
   const R = RULES, ev: TimelineEvent[] = [
-    { t: R.camps.small.spawn, kind: 'camps', label: 'Small camps' },
+    { t: R.camps.small.spawn, kind: 'camps', label: 'T1 camps (small)' },
     { t: R.healingSnacks.spawn, kind: 'snacks', label: 'Healing snacks' },
     { t: R.breakables.spawn, kind: 'breakables', label: 'Crates and statues' },
-    { t: R.camps.medium.spawn, kind: 'camps', label: 'Medium camps' },
-    { t: R.camps.strong.spawn, kind: 'camps', label: 'Large camps' },
+    { t: R.camps.medium.spawn, kind: 'camps', label: 'T2 camps (medium)' },
+    { t: R.camps.strong.spawn, kind: 'camps', label: 'T3 camps (large)' },
     { t: R.sinners.spawn, kind: 'sinners', label: "Sinner's Sacrifice" },
     { t: R.buffTiers[1], kind: 'tier', label: 'Level 2 buffs' },
     { t: R.guardiansOpen, kind: 'objectives', label: 'Guardians lose resistance' },
@@ -85,10 +85,10 @@ export function timersAt(t: number, midBossKills: { t: number; team: DlTeam }[] 
     const back = last ? last.t + R.midBoss.respawn[Math.min(dead.length - 1, R.midBoss.respawn.length - 1)] : null;
     rows.push({ what: 'Mid boss', now: !last || (back !== null && t >= back) ? 'up' : `down (taken ${clock(last.t)})`, next: back !== null && t < back ? back : null, note: '7 / 6 / 5 min after each kill' });
   } else rows.push({ what: 'Mid boss', now: 'up from the start', next: null, note: 'back 7 / 6 / 5 min after each kill' });
-  const camps = ([['small', 'Small'], ['medium', 'Medium'], ['strong', 'Large']] as const).filter(([k]) => t >= R.camps[k].spawn).map(([, n]) => n);
+  const camps = ([['small', 'T1'], ['medium', 'T2'], ['strong', 'T3']] as const).filter(([k]) => t >= R.camps[k].spawn).map(([, n]) => n);
   const campNext = ([R.camps.small.spawn, R.camps.medium.spawn, R.camps.strong.spawn, R.sinners.spawn] as number[]).find(x => x > t) ?? null;
   rows.push({ what: 'Camps', now: camps.length ? `${camps.join(', ')}${t >= R.sinners.spawn ? ", Sinner's" : ''}` : 'none yet', next: campNext,
-    note: `respawn ${clock(R.camps.small.respawn)} / ${clock(R.camps.medium.respawn)} / ${clock(R.camps.strong.respawn)}, Sinner's 5:00 after cleared` });
+    note: `respawn T1 ${clock(R.camps.small.respawn)} · T2 ${clock(R.camps.medium.respawn)} · T3 ${clock(R.camps.strong.respawn)}, Sinner's 5:00 after cleared` });
   const tier = R.buffTiers.filter(x => t >= x).length;
   rows.push({ what: 'Buff level', now: `level ${tier}`, next: R.buffTiers.find(x => x > t) ?? null });
   const wave = [...R.waves].reverse().find(w => t >= w.from)!;

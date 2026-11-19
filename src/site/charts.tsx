@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 /**
  * Small hand-drawn SVG charts for the site's dashboards (profile, dev page), in the Tactical night colours: a mini
@@ -9,8 +9,8 @@ import { useId, useMemo, useState } from 'react';
  * A line that fills whatever width it gets: the line stretches, the dots are placed on top so they stay round.
  * `invert`: for numbers where lower is better, so up always means better. `target`: a dashed reference line.
  */
-export function StretchLine({ values, target = null, invert = false, height = 30, dots = 'last', tone = () => 'flat', className = '' }: {
-  values: (number | null)[]; target?: number | null; invert?: boolean; height?: number; dots?: 'last' | 'all';
+export function StretchLine({ values, target = null, invert = false, height = 30, dots = 'last', tone = () => 'flat', className = '', area = false }: {
+  values: (number | null)[]; target?: number | null; invert?: boolean; height?: number; dots?: 'last' | 'all'; area?: boolean;
   tone?: (v: number, i: number) => 'up' | 'down' | 'flat'; className?: string;
 }) {
   const pts = values.map((v, i) => ({ v, i })).filter((p): p is { v: number; i: number } => p.v !== null);
@@ -28,6 +28,7 @@ export function StretchLine({ values, target = null, invert = false, height = 30
     <div className={`stretch-line ${className}`} style={{ height }} aria-hidden="true">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none">
         {target !== null && <line x1={0} x2={100} y1={y(target)} y2={y(target)} className="sl-target" vectorEffect="non-scaling-stroke" />}
+        {area && <polygon points={`${line} ${x(pts[pts.length - 1].i).toFixed(2)},100 ${x(pts[0].i).toFixed(2)},100`} className="sl-area" />}
         <polyline points={line} className="sl-line" vectorEffect="non-scaling-stroke" />
       </svg>
       {shown.map((p, k) => (
@@ -38,19 +39,20 @@ export function StretchLine({ values, target = null, invert = false, height = 30
 }
 
 /** A tiny line for a KPI tile: the shape of the last few values, the newest dot coloured. */
-export function MiniLine({ values, good = true }: { values: number[]; good?: boolean | null }) {
-  return <StretchLine values={values} className="mini-line" tone={() => (good === null ? 'flat' : good ? 'up' : 'down')} />;
+export function MiniLine({ values, good = true, avg = null }: { values: number[]; good?: boolean | null; avg?: number | null }) {
+  return <StretchLine values={values} target={avg} height={52} area className="mini-line" tone={() => (good === null ? 'flat' : good ? 'up' : 'down')} />;
 }
 
 /** A half-ring gauge with a value in the middle (a model's accuracy, a share). `value` is 0–1. */
-export function Gauge({ value, label, sub, tone = 'flat' }: { value: number; label: string; sub?: string; tone?: 'up' | 'down' | 'flat' }) {
+/** `text`: what to print in the middle when the value isn't a share (a correlation: "r = 0.29"). */
+export function Gauge({ value, label, sub, tone = 'flat', text }: { value: number; label: string; sub?: string; tone?: 'up' | 'down' | 'flat'; text?: string }) {
   const v = Math.max(0, Math.min(1, value)), R = 52, half = Math.PI * R;
   return (
     <div className="gauge-card">
-      <svg viewBox="0 0 140 84" role="img" aria-label={`${label}: ${Math.round(v * 100)}%`}>
+      <svg viewBox="0 0 140 84" role="img" aria-label={`${label}: ${text ?? `${Math.round(v * 100)}%`}`}>
         <path d="M18 74 A52 52 0 0 1 122 74" className="gauge-track" />
         <path d="M18 74 A52 52 0 0 1 122 74" className={`gauge-fill ${tone}`} strokeDasharray={`${v * half} ${half}`} />
-        <text x={70} y={64} textAnchor="middle" className="gauge-value">{Math.round(v * 100)}%</text>
+        <text x={70} y={64} textAnchor="middle" className="gauge-value">{text ?? `${Math.round(v * 100)}%`}</text>
       </svg>
       <b>{label}</b>
       {sub && <span className="muted small">{sub}</span>}
@@ -58,9 +60,37 @@ export function Gauge({ value, label, sub, tone = 'flat' }: { value: number; lab
   );
 }
 
+/** Which x labels to draw: every step-th and the last, never two that would touch, never the same date twice in a row. */
+export function axisLabels(labels: string[], step: number): Set<number> {
+  const out = new Set<number>();
+  let prev = '';
+  for (let i = 0; i < labels.length; i++) {
+    const last = i === labels.length - 1;
+    if (!(i % step === 0 || last) || (!last && labels.length - 1 - i < step * 0.7) || labels[i] === prev) continue;
+    out.add(i); prev = labels[i];
+  }
+  return out;
+}
+
+/** A smooth line through the points that never overshoots them (a monotone cubic), as an SVG path. */
+function smoothPath(xs: number[], ys: number[]): string {
+  const n = xs.length;
+  if (n < 3) return xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
+  const dx = xs.slice(1).map((x, i) => x - xs[i]), m = ys.slice(1).map((y, i) => (y - ys[i]) / dx[i]), t = new Array<number>(n);
+  t[0] = m[0]; t[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; }
+    const a = t[i] / m[i], b = t[i + 1] / m[i], q = a * a + b * b;
+    if (q > 9) { const k = 3 / Math.sqrt(q); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
+  }
+  let d = `M${xs[0].toFixed(1)} ${ys[0].toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) d += ` C${(xs[i] + dx[i] / 3).toFixed(1)} ${(ys[i] + (t[i] * dx[i]) / 3).toFixed(1)} ${(xs[i + 1] - dx[i] / 3).toFixed(1)} ${(ys[i + 1] - (t[i + 1] * dx[i]) / 3).toFixed(1)} ${xs[i + 1].toFixed(1)} ${ys[i + 1].toFixed(1)}`;
+  return d;
+}
 export interface AreaPoint { label: string; value: number; note?: string }
 /** A line with a soft area under it, gridlines, and a readout of the point under the pointer. */
-export function AreaChart({ points, fmt, height = 220, color = 'var(--ct)' }: { points: AreaPoint[]; fmt: (v: number) => string; height?: number; color?: string }) {
+export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }: { points: AreaPoint[]; fmt: (v: number) => string; height?: number; color?: string }) {
   const id = useId().replace(/:/g, '');
   const [hover, setHover] = useState<number | null>(null);
   const W = 640, H = height, L = 48, R = 24, T = 14, B = 26;
@@ -69,15 +99,18 @@ export function AreaChart({ points, fmt, height = 220, color = 'var(--ct)' }: { 
     let lo = Math.min(...vs), hi = Math.max(...vs);
     const pad = (hi - lo) * 0.15 || Math.abs(hi) * 0.05 || 1;
     lo -= pad; hi += pad;
+    if (Math.min(...vs) >= 0) lo = Math.max(0, lo); // no axis below zero for counts and ratings
     const x = (i: number) => L + (points.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (points.length - 1));
     const y = (v: number) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
     const ticks = [0, 1, 2, 3].map(k => lo + ((hi - lo) * k) / 3);
     return { x, y, ticks };
   }, [points, H]);
   if (!points.length) return null;
-  const line = points.map((p, i) => `${i ? 'L' : 'M'}${geo.x(i).toFixed(1)} ${geo.y(p.value).toFixed(1)}`).join(' ');
+  const line = smoothPath(points.map((_, i) => geo.x(i)), points.map(p => geo.y(p.value)));
   const area = `${line} L${geo.x(points.length - 1).toFixed(1)} ${H - B} L${geo.x(0).toFixed(1)} ${H - B} Z`;
+  const avg = points.reduce((a, p) => a + p.value, 0) / points.length, few = points.length <= 12;
   const step = Math.max(1, Math.ceil(points.length / 8));
+  const labelled = axisLabels(points.map(p => p.label), step);
   const h = hover !== null ? points[hover] : null;
   return (
     <div className="area-chart">
@@ -99,11 +132,15 @@ export function AreaChart({ points, fmt, height = 220, color = 'var(--ct)' }: { 
             <text x={L - 8} y={geo.y(t)} className="axis" textAnchor="end" dominantBaseline="central">{fmt(t)}</text>
           </g>
         ))}
-        {points.map((p, i) => i % step === 0 || i === points.length - 1
+        {points.map((p, i) => labelled.has(i)
           ? <text key={i} x={geo.x(i)} y={H - 8} className="axis" textAnchor={i === points.length - 1 && i > 0 ? 'end' : i === 0 && points.length > 1 ? 'start' : 'middle'}>{p.label}</text> : null)}
         <path d={area} fill={`url(#g${id})`} />
-        <path d={line} fill="none" stroke={color} strokeWidth={2.2} strokeLinejoin="round" strokeLinecap="round" />
-        {points.map((p, i) => <circle key={i} cx={geo.x(i)} cy={geo.y(p.value)} r={hover === i ? 5 : 2.6} fill={color} stroke="var(--bg-0)" strokeWidth={hover === i ? 2 : 0} />)}
+        <path d={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        {/* the average, dashed; dots only when there are few matches (and the newest, ringed, always) */}
+        <line x1={L} x2={W - R} y1={geo.y(avg)} y2={geo.y(avg)} className="avg-line" />
+        <text x={W - R} y={geo.y(avg) - 5} className="axis" textAnchor="end">avg {fmt(avg)}</text>
+        {points.map((p, i) => (few || i === points.length - 1 || hover === i)
+          ? <circle key={i} cx={geo.x(i)} cy={geo.y(p.value)} r={hover === i ? 5 : i === points.length - 1 ? 4.5 : 2.6} fill={color} stroke="var(--bg-0)" strokeWidth={hover === i || i === points.length - 1 ? 2 : 0} /> : null)}
         {hover !== null && <line x1={geo.x(hover)} x2={geo.x(hover)} y1={T} y2={H - B} className="cursor" />}
       </svg>
       {h && (
@@ -130,7 +167,7 @@ export function Radar({ axes, refLabel = 'Level 10' }: { axes: RadarAxis[]; refL
   const poly = (f: (i: number) => number) => axes.map((_, i) => pt(i, f(i)).map(v => v.toFixed(1)).join(',')).join(' ');
   return (
     <div className="radar">
-      <svg viewBox={`0 0 ${S} ${S}`} role="img" aria-label={`Your skills against ${refLabel.toLowerCase()}`}>
+      <svg viewBox={`-78 -4 ${S + 156} ${S + 8}`} role="img" aria-label={`Your skills against ${refLabel.toLowerCase()}`}>
         {[0.25, 0.5, 0.75, 1].map(f => <polygon key={f} points={poly(() => Rmax * f)} className="radar-grid" />)}
         {axes.map((_, i) => { const [x, y] = pt(i, Rmax); return <line key={i} x1={C} y1={C} x2={x} y2={y} className="radar-grid" />; })}
         <polygon points={poly(() => r(0))} className="radar-ref" />
@@ -185,5 +222,180 @@ export function BarList({ rows }: { rows: BarRow[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+// ---- §7 charts: one look everywhere (2 px lines, rounded ends, recessive grid, numbers in text colour, tabular
+// numbers, a tooltip, a Table toggle for screen readers, one y-axis) ---------------------------------------------
+
+/** The chart's numbers as a table for screen readers (hidden on screen; no "Table" button). */
+export function ChartTable({ caption, head, rows }: { caption: string; head: string[]; rows: (string | number)[][] }) {
+  return (
+    <div className="chart-table sr-only">
+      <table>
+        <caption>{caption}</caption>
+        <thead><tr>{head.map(h => <th key={h}>{h}</th>)}</tr></thead>
+        <tbody>{rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} className="num">{c}</td>)}</tr>)}</tbody>
+      </table>
+    </div>
+  );
+}
+
+export interface SplitPoint { t: number; v: number }
+/**
+ * A diverging area around a baseline (50% for win chance, 0 for a lead): above it in one colour, below in the other,
+ * 12% fill, a 2 px line, the baseline dashed. Dots for marked moments; one direct label (the biggest swing or the
+ * biggest lead); a crosshair with a tooltip.
+ */
+export function SplitChart({ points, base, top, bottom, colors, fmt, axis = fmt, xfmt, label, dots = [], ticks = [], xticks = [], divider = null, height = 170, onPick, caption }: {
+  points: SplitPoint[]; base: number;
+  /** The y range (for win chance 100 and 0; for a lead, ± the biggest lead when left out). */
+  top?: number; bottom?: number;
+  colors: [string, string]; fmt: (v: number) => string; xfmt: (t: number) => string;
+  /** How the y-axis reads (short: 20k), when not like the values. */
+  axis?: (v: number) => string;
+  /** One direct label on the chart. */
+  label?: { t: number; text: string } | null;
+  dots?: { t: number; color: string; title: string }[];
+  /** Faint ticks along the bottom (round starts, …). */
+  ticks?: number[];
+  /** Labelled ticks along the bottom (every 3rd round, every 5 min). */
+  xticks?: number[];
+  /** A dashed divider with a label (half-time: "Sides switched"). */
+  divider?: { t: number; label: string } | null;
+  height?: number; onPick?: (t: number) => void; caption: string;
+}) {
+  const id = useId().replace(/:/g, '');
+  const [hover, setHover] = useState<number | null>(null);
+  // the chart is drawn at the width it's shown at, so its text stays 12 px whatever the card's width
+  const box = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(640);
+  useEffect(() => { const el = box.current; if (!el) return; const f = () => setW(Math.max(280, Math.round(el.clientWidth))); f(); const ro = new ResizeObserver(f); ro.observe(el); return () => ro.disconnect(); }, []);
+  const H = height, L = 44, R = 12, T = label ? 28 : 16, B = divider ? 38 : 22; // a direct label gets its own band above the plot
+  const geo = useMemo(() => {
+    const t0 = points[0]?.t ?? 0, t1 = Math.max(t0 + 1, points.at(-1)?.t ?? 1);
+    const far = Math.max(1e-9, ...points.map(p => Math.abs(p.v - base)));
+    const hi = top ?? base + far * 1.1, lo = bottom ?? base - far * 1.1;
+    const x = (t: number) => L + ((t - t0) / (t1 - t0)) * (W - L - R);
+    const y = (v: number) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+    return { x, y, hi, lo };
+  }, [points, base, top, bottom, H, W]);
+  if (points.length < 2) return <p className="muted small">2 more points to draw this.</p>;
+  const line = points.map((p, i) => `${i ? 'L' : 'M'}${geo.x(p.t).toFixed(1)} ${geo.y(p.v).toFixed(1)}`).join(' ');
+  const yb = geo.y(base);
+  const area = `${line} L${geo.x(points.at(-1)!.t).toFixed(1)} ${yb} L${geo.x(points[0].t).toFixed(1)} ${yb} Z`;
+  const at = (t: number) => points.reduce((b, p) => (Math.abs(p.t - t) < Math.abs(b.t - t) ? p : b), points[0]);
+  const h = hover !== null ? at(hover) : null;
+  const dotAt = (t: number) => dots.find(d => Math.abs(d.t - t) < 1e-6);
+  return (
+    <div className="split-chart" ref={box}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-label={`${caption}: from ${fmt(points[0].v)} to ${fmt(points.at(-1)!.v)}, highest ${fmt(Math.max(...points.map(p => p.v)))}, lowest ${fmt(Math.min(...points.map(p => p.v)))}`}
+        tabIndex={0} onBlur={() => setHover(null)}
+        onKeyDown={e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); const i = Math.max(0, points.findIndex(p => p.t === (h?.t ?? points[0].t))); setHover(points[Math.max(0, Math.min(points.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)))].t); }}
+        onMouseMove={e => { const r = e.currentTarget.getBoundingClientRect(), px = ((e.clientX - r.left) / r.width) * W; setHover(px < L || px > W - R ? null : points[0].t + ((px - L) / (W - L - R)) * (points.at(-1)!.t - points[0].t)); }}
+        onMouseLeave={() => setHover(null)} onClick={() => { if (hover !== null && onPick) onPick(at(hover).t); }} style={onPick ? { cursor: 'pointer' } : undefined}>
+        <defs>
+          <clipPath id={`up${id}`}><rect x={0} y={0} width={W} height={yb} /></clipPath>
+          <clipPath id={`dn${id}`}><rect x={0} y={yb} width={W} height={H - yb} /></clipPath>
+        </defs>
+        {[geo.hi, base, geo.lo].map((v, k) => (
+          <g key={k}>
+            {k !== 1 && <line x1={L} x2={W - R} y1={geo.y(v)} y2={geo.y(v)} className="sc-grid" />}
+            <text x={L - 6} y={geo.y(v)} className="sc-axis" textAnchor="end" dominantBaseline="central">{axis(v)}</text>
+          </g>
+        ))}
+        {ticks.map(t => <line key={t} x1={geo.x(t)} x2={geo.x(t)} y1={H - B} y2={H - B + 4} className="sc-tick" />)}
+        {(xticks.length ? xticks : [points[0].t, points.at(-1)!.t]).map((t, k, all) => <text key={t} x={geo.x(t)} y={H - B + 15} className="sc-axis" textAnchor={k === 0 ? 'start' : k === all.length - 1 ? 'end' : 'middle'}>{xfmt(t)}</text>)}
+        {divider && <g className="sc-divider-g"><line x1={geo.x(divider.t)} x2={geo.x(divider.t)} y1={H - B} y2={H - B + 6} className="sc-divider" /><rect x={geo.x(divider.t) - 50} y={H - 18} width={100} height={16} rx={6} className="sc-chip" /><text x={geo.x(divider.t)} y={H - 6} className="sc-axis" textAnchor="middle">{divider.label}</text></g>}
+        <path d={area} fill={colors[0]} fillOpacity={0.12} clipPath={`url(#up${id})`} />
+        <path d={area} fill={colors[1]} fillOpacity={0.12} clipPath={`url(#dn${id})`} />
+        <line x1={L} x2={W - R} y1={yb} y2={yb} className="sc-base" />
+        <path d={line} fill="none" stroke={colors[0]} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" clipPath={`url(#up${id})`} />
+        <path d={line} fill="none" stroke={colors[1]} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" clipPath={`url(#dn${id})`} />
+        {dots.map((d, i) => { const p = at(d.t); return <circle key={i} cx={geo.x(p.t)} cy={geo.y(p.v)} r={4} fill={d.color} className="sc-dot"><title>{d.title}</title></circle>; })}
+        {label && (() => { const p = at(label.t), x = geo.x(p.t), y = geo.y(p.v), up = p.v >= base;
+          return <g className="sc-label"><line x1={x} x2={x} y1={T - 4} y2={y} className="sc-leader" /><circle cx={x} cy={y} r={3} /><text x={Math.min(W - R - 4, Math.max(L + 4, x))} y={T - 10} textAnchor={x > W * 0.8 ? 'end' : x < W * 0.2 ? 'start' : 'middle'}>{label.text}</text></g>; })()}
+        {h && <line x1={geo.x(h.t)} x2={geo.x(h.t)} y1={T} y2={H - B} className="sc-cursor" />}
+      </svg>
+      {h && (
+        <div className={`area-tip ${geo.x(h.t) > W * 0.6 ? 'flip' : ''}`} style={{ left: `${(geo.x(h.t) / W) * 100}%` }}>
+          <b className="num">{fmt(h.v)}</b><span>{xfmt(h.t)}{dotAt(h.t) ? ` · ${dotAt(h.t)!.title}` : ''}</span>
+        </div>
+      )}
+      <ChartTable caption={caption} head={['Time', 'Value']} rows={points.filter((_, i) => i % Math.max(1, Math.ceil(points.length / 40)) === 0).map(p => [xfmt(p.t), fmt(p.v)])} />
+    </div>
+  );
+}
+
+/** A stat as a box, the same layout every time: label, the last value big, one chip ("▼ vs 1.65": the arrow is the last match against
+ * the average of the ten before it), and 11 thin bars (the last match thick-outlined + the 10 before) with a dashed average line.
+ * Teal above / orange below the average (flipped when lower is better); only an outline within ±5% of it. A dot under each bar
+ * is the result (filled won, hollow lost); the tooltip says value · result · when. */
+export type TileMeta = { win: boolean | null; tip: string };
+export function TrendTile({ label, values, fmt, higherBetter = true, sub, meta }: { label: string; values: number[]; fmt: (v: number) => string; higherBetter?: boolean; sub?: string; meta?: TileMeta[] }) {
+  const vs = values.slice(-11), ms = meta?.slice(-11);
+  if (vs.length < 2) return null;
+  const last = vs.at(-1)!, prev = vs.slice(0, -1), avg = prev.reduce((a, b) => a + b, 0) / prev.length, d = last - avg;
+  const near = (v: number) => Math.abs(v - avg) <= 0.05 * Math.abs(avg);
+  const tone = (v: number) => (near(v) ? 'mid' : (v > avg) === higherBetter ? 'good' : 'bad');
+  const lastTone = tone(last);
+  const lo = Math.min(...vs, avg), hi = Math.max(...vs, avg);
+  const base = lo / (hi || 1) > 0.6 ? lo - (hi - lo) * 0.6 : Math.min(0, lo);
+  const y = (v: number) => (hi === base ? 50 : ((v - base) / (hi - base)) * 100);
+  const ay = y(avg);
+  return (
+    <div className="trend-tile">
+      <span className="tt-label">{label}</span>
+      <b className="num tt-value">{fmt(last)}</b>
+      <span className={`tt-delta chip ${lastTone === 'mid' ? '' : lastTone === 'good' ? 'up' : 'down'}`} title="Your last match against the average of the ten before it">
+        {lastTone === 'mid' ? '≈' : d > 0 ? '▲' : '▼'} vs {fmt(avg)}</span>
+      <div className="tt-chart">
+        <div className="tt-well" aria-hidden="true"><i className="above" style={{ height: `${100 - ay}%` }} /><i className="below" style={{ height: `${ay}%` }} /></div>
+        <i className="tt-avg" style={{ '--ay': ay } as React.CSSProperties} aria-hidden="true" />
+        <ol className="tt-bars">
+          {vs.map((v, i) => {
+            const m = ms?.[i];
+            return (
+              <li key={i} tabIndex={0} className={`${tone(v)} ${i === vs.length - 1 ? 'now' : ''}`} data-tip={`${fmt(v)}${m ? ` · ${m.win === null ? 'draw' : m.win ? 'won' : 'lost'} · ${m.tip}` : ''}${sub ? ` (${sub})` : ''}`}>
+                <b style={{ height: `${Math.max(4, y(v))}%` }} />
+                {m && <u className={m.win === null ? 'tie' : m.win ? 'win' : 'loss'} />}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      <ChartTable caption={label} head={['Match', label]} rows={vs.map((v, i) => [i + 1, fmt(v)])} />
+    </div>
+  );
+}
+
+/** Rows of a label and a dot on a track (0–100, 50 = the reference), the number at the end: compares at a glance. */
+export function TrackRows({ rows, refLabel }: { rows: { label: string; pct: number | null; tip?: string; onClick?: () => void }[]; refLabel: string }) {
+  return (
+    <ul className="track-rows" aria-label={`Against ${refLabel.toLowerCase()} (50 = ${refLabel.toLowerCase()})`}>
+      {rows.map(r => (
+        <li key={r.label} title={r.tip}>
+          {r.onClick ? <button className="link-btn" onClick={r.onClick}>{r.label}</button> : <span>{r.label}</span>}
+          {r.pct !== null
+            ? <span className="sk-track" aria-label={`${r.pct} out of 100`}><i className="sk-mid" /><i className="sk-dot" style={{ left: `${Math.max(0, Math.min(100, r.pct))}%` }} /></span>
+            : <span className="muted small">not graded</span>}
+          <b className="num">{r.pct ?? ''}</b>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The last matches as W/L squares (oldest first, a grade letter on each when given), and one tile: the share won. */
+export function ResultStrip({ results }: { results: { win: boolean | null; letter?: string | null; title: string }[] }) {
+  const last = results.slice(-20), won = last.filter(r => r.win).length;
+  return (
+    <div className="result-strip">
+      <div className="rs-tile"><b className="num">{Math.round((won / Math.max(1, last.length)) * 100)}%</b><span>won · last {last.length}</span></div>
+      <ol aria-label="Results, oldest first">
+        {last.map((r, i) => <li key={i} className={r.win === null ? 'tie' : r.win ? 'win' : 'loss'} title={r.title}>{r.letter ?? ''}</li>)}
+      </ol>
+      <span className="muted small rs-legend"><i className="win" /> won <i className="loss" /> lost · oldest first</span>
+    </div>
   );
 }

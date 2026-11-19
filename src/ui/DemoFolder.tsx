@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Loading } from './Loading';
 import type { DemoData } from '../engine/recap';
 import { MAPS } from '../map/catalog';
 import { useStore } from '../store';
@@ -6,6 +7,8 @@ import { delItem, getItem, gunzipJson, gzipJson, setItem } from './localStore';
 import { DEMO_PASSES, readDemoInBrowser } from './readDemo';
 import { PARSE_V } from '../../tools/demo-core.mjs';
 import { steamFetch } from './steamApi';
+import { useFolder } from './folderStore';
+import { outcomeFromFileName } from '../engine/sharecode';
 
 /**
  * Website: "Your CS2 demo folder". You pick CS2's replays folder once (Chrome / Edge remember it); the page lists your
@@ -13,9 +16,9 @@ import { steamFetch } from './steamApi';
  * results in this browser, and picks up new demos a few seconds after CS2 downloads them. No bot, no server.
  */
 
-const AUTO_READ = 5; // newest demos read automatically; older ones on click
+const AUTO_READ = 30; // newest demos read automatically, one at a time (the 30 kept on your account); older ones on click
 const RESCAN_MS = 8000;
-const SHOW = 20;
+const SHOW = 30;
 // saved games are read again when the reader changes (PARSE_V) or the site's own summary does (V)
 const V = 5; // 5: micro detail (stance, weapon, ammo; shot speed)
 const KEY = (v: number, p: number) => `${v}${p ? `.${p}` : ''}`; // p 0: saved before PARSE_V was part of the key
@@ -206,13 +209,49 @@ export function DemoFolder() {
       if ((e as Error).name !== 'AbortError') setMsg(`Couldn't open that folder: ${(e as Error).message}`);
     }
   };
+  // logged in: every read game also goes to your account (once), so it opens on your other devices. Valve matches keep
+  // their match ID (match730_<id>_…); any other demo gets a number from its name and size
+  useEffect(() => {
+    if (!steamId) return;
+    const sent = (() => { try { return new Set<string>(JSON.parse(localStorage.getItem('rv.uploaded') ?? '[]')); } catch { return new Set<string>(); } })();
+    const todo = files.slice(0, SHOW).filter(f => sums[f.name] && !sent.has(`${steamId}:${f.name}`));
+    if (!todo.length) return;
+    let live = true;
+    (async () => {
+      for (const f of todo) {
+        if (!live) return;
+        const blob = await getItem<Blob>(DEMO(f.name));
+        if (!blob) continue;
+        const s = sums[f.name], id = outcomeFromFileName(f.name) ?? numberOf(`${f.name}:${f.size}`);
+        const info = JSON.stringify({ time: f.modified, map: s.map, scores: s.score, result: s.result, kd: s.kd });
+        const res = await steamFetch(`/demo/upload?id=${id}&info=${encodeURIComponent(info)}`, { method: 'POST', headers: { 'Content-Type': 'application/gzip' }, body: blob }).catch(() => null);
+        if (!res?.ok) continue;
+        sent.add(`${steamId}:${f.name}`);
+        try { localStorage.setItem('rv.uploaded', JSON.stringify([...sent].slice(-1000))); } catch { /* private mode */ }
+      }
+    })();
+    return () => { live = false; };
+  }, [files, sums, steamId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // the rows for the combined "Your matches" list (SteamMatches): the newest SHOW, each with how to open or read it
+  const merged = useFolder(s => s.merged);
+  useEffect(() => {
+    useFolder.setState({ rows: perm === 'granted' ? files.slice(0, SHOW).map(f => {
+      const s = sums[f.name];
+      return { name: f.name, modified: f.modified, outcomeId: outcomeFromFileName(f.name) ?? numberOf(`${f.name}:${f.size}`), map: s?.map ?? null, score: s?.score ?? null, result: s?.result ?? null,
+        kd: s?.kd ?? null, rounds: s?.rounds ?? null, state: s ? 'read' : reading?.name === f.name ? 'reading' : failed[f.name] ? 'failed' : 'unread', error: failed[f.name],
+        open: () => { void open(f); }, read: () => { void read(f); } };
+    }) : [] });
+  }, [files, sums, reading, failed, perm]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => useFolder.setState({ rows: [] }), []);
+
   const reconnect = async () => { if (dir) setPerm(await dir.requestPermission({ mode: 'read' })); };
   const disconnect = async () => { await delItem('replaysDir'); setDir(null); setPerm(null); setFiles([]); };
 
   if (!supported) {
     return (
       <section className="steam">
-        <div className="steam-head"><h2>Your CS2 demo folder</h2></div>
+        <div className="steam-head"><h2>Your Steam folder</h2></div>
         <p className="muted">Open this page in <b>Chrome</b> or <b>Edge</b> to connect CS2's demo folder (this browser can't). You can still drop demos into the box above.</p>
       </section>
     );
@@ -221,29 +260,31 @@ export function DemoFolder() {
   return (
     <section className="steam">
       <div className="steam-head">
-        <h2>Your CS2 demo folder</h2>
+        <h2>Your Steam folder</h2>
         {dir && perm === 'granted' && <button onClick={() => scan()}>Refresh</button>}
         {dir && <button onClick={disconnect} title="Forget the folder (the games already read stay)">Disconnect</button>}
       </div>
 
       {!dir && (
         <div className="steam-profile">
-          <p>Pick your <b>Steam</b> folder (or <b>SteamLibrary</b>) once: the site finds CS2's demos inside it, and your downloaded games show up here by themselves, read and ready to review. Nothing is uploaded.</p>
-          <div className="row"><button className="primary" onClick={connect}>Choose your Steam folder</button></div>
-          <p className="muted">
-            Usually <code>C:\Program Files (x86)\Steam</code> or <code>D:\SteamLibrary</code> (where CS2 is installed). Picking{' '}
-            <code>…\csgo\replays</code> itself works too. CS2 saves a demo there when you press
-            Download in Watch → Your Matches (or <b>Download in CS2</b> below).
-          </p>
+          <p><b>Auto-find your demos.</b> Pick your Steam folder once.</p>
+          <div className="row">
+            <button className="cta" onClick={connect}>Choose your Steam folder</button>
+            <details className="help-pop"><summary aria-label="Where is my Steam folder?">?</summary>
+              <p>Windows: usually <code>C:\Program Files (x86)\Steam</code>. Mac: <code>~/Library/Application Support/Steam</code>.
+                Linux: <code>~/.steam/steam</code>. Anywhere else: Steam → CS2 → Properties → Installed Files → Browse.</p>
+            </details>
+          </div>
         </div>
       )}
       {dir && perm !== 'granted' && (
-        <div className="row"><button className="primary" onClick={reconnect}>Reconnect "{dir.name}"</button><span className="muted">the browser asks once per visit</span></div>
+        <div className="row"><button className="cta" onClick={reconnect}>Reconnect "{dir.name}"</button><span className="muted">the browser asks once per visit</span></div>
       )}
       {msg && <p className="warn-text">{msg}</p>}
-      {reading && <p className="muted">Reading {reading.name}… step {reading.pass} of ~{DEMO_PASSES}</p>}
+      {reading && <Loading>Reading {reading.name}… step {reading.pass} of ~{DEMO_PASSES}</Loading>}
 
-      {dir && perm === 'granted' && (files.length === 0
+      {dir && perm === 'granted' && merged && files.length > 0 && <p className="muted">Your folder's demos are in <b>Your matches</b> below, together with the ones the bot fetched.</p>}
+      {dir && perm === 'granted' && !merged && (files.length === 0
         ? <p className="muted">No demos in "{dir.name}" yet. Download one in CS2 and it appears here.</p>
         : (
           <table className="steam-list">
@@ -270,4 +311,11 @@ export function DemoFolder() {
         ))}
     </section>
   );
+}
+
+/** A demo without a Valve match ID: a stable 18-digit number from its name and size (FNV-1a, 64 bit). */
+function numberOf(text: string): string {
+  let h = 0xcbf29ce484222325n;
+  for (const c of new TextEncoder().encode(text)) { h ^= BigInt(c); h = (h * 0x100000001b3n) & 0xffffffffffffffffn; }
+  return `9${(h % 10n ** 17n).toString().padStart(17, '0')}`;
 }

@@ -1,3 +1,4 @@
+import { go } from '../shell/router';
 import { useEffect, useState } from 'react';
 import { VERDICT_LABEL } from '../engine/profile';
 import { JUDGE_REASONS, type JudgeReason } from '../engine/corrections';
@@ -50,7 +51,7 @@ export function JudgePanel() {
     addEventListener('keydown', onKey, true);
     return () => removeEventListener('keydown', onKey, true);
   });
-  const exit = () => { useStore.setState({ judging: null, playing: false }); location.hash = '#/dev'; };
+  const exit = () => { useStore.setState({ judging: null, playing: false }); go('/dev'); };
 
   if (finished) return (
     <div className="judge">

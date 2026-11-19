@@ -1,4 +1,6 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { onPositions, positionsVersion } from './map/positions';
+import { ScenarioBar } from './moments/scenarios';
 import { runBatch, runUtilityImpact, type BatchStats, type UtilityImpact } from './engine/batch';
 import { simulate } from './engine/combat';
 import { computeSpots } from './engine/spots';
@@ -43,13 +45,15 @@ export function App() {
   const reviewData = useStore(s => s.review?.data), reviewRoundNo = useStore(s => (s.review ? s.review.round + 1 : 0));
   const reviewMatch = useMemo(() => (reviewData ? matchFingerprint(reviewData) : null), [reviewData]);
   const reviewAt = useMemo(() => (reviewMatch ? { match: reviewMatch, round: reviewRoundNo } : null), [reviewMatch, reviewRoundNo]);
+  // the level-10 positions load per map after a match opens: grade the round again once they are here
+  const posVersion = useSyncExternalStore(onPositions, positionsVersion);
   const recap = useMemo(() => {
     if (!replay) return null;
     const r = reviewRound(engine, replay);
     if (!corrections) return r;
     const moves = applyCorrections(r.moves, corrections.table);
     return { ...r, moves: reviewAt ? removeMarks(moves, corrections.removed, reviewAt) : moves };
-  }, [engine, replay, corrections, reviewAt]);
+  }, [engine, replay, corrections, reviewAt, posVersion]);
   // Analysis runs on a deferred copy so dragging stays smooth.
   const deferred = useDeferredValue(board);
   const analysis = useMemo(() => engine.analyze(deferred), [engine, deferred]);
@@ -147,6 +151,19 @@ export function App() {
         st.setReviewSpoilers(!st.reviewSpoilers);
         return;
       }
+      // J / L: 5 s back / forward; ↑ ↓: the round before / after
+      if ((e.key === 'j' || e.key === 'l') && useStore.getState().review) {
+        const st = useStore.getState();
+        st.setTime(Math.max(0, Math.min(end, st.time + (e.key === 'l' ? 5 : -5))));
+        return;
+      }
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && useStore.getState().review && useStore.getState().mode === 'review') {
+        e.preventDefault();
+        const st = useStore.getState(), r = st.review!;
+        const n = r.round + (e.key === 'ArrowDown' ? 1 : -1);
+        if (n >= 0 && n < r.data.rounds.length) st.setReviewRound(n);
+        return;
+      }
       // ← → step through the round's key moments, like moves in a chess review
       if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && recap) {
         e.preventDefault();
@@ -171,6 +188,7 @@ export function App() {
     <div className={`app ${drawerOpen ? '' : 'drawer-closed'} ${review ? 'no-rail' : ''}`}>
       {/* Review has no tools: the match's controls live in the right panel's header */}
       {!review && <Rail engine={engine} />}
+      {!review && <ScenarioBar batch={batch} sim={sim} />}
       <Board key={`${mapId}:${level}`} timelineEnd={end} analysis={analysis} engine={engine} control={control} sim={sim} spots={spots} batch={batch?.stats ?? null} recap={recap} />
       <div className="drawer" aria-hidden={!drawerOpen}>
         <button className="ghost drawer-close" onClick={() => useStore.getState().setDrawerOpen(false)} title="Hide this panel (more room for the map; the Panel button brings it back)" aria-label="Hide the panel"><Icon name="panelClose" /></button>

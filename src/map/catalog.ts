@@ -397,3 +397,9 @@ function cellCenter(grid: MapGrid, q: Vec2): Vec2 {
   if (i < 0) return q;
   return { x: ((i % grid.w) + 0.5) * CELL, y: (Math.floor(i / grid.w) + 0.5) * CELL };
 }
+
+/** A map's radar calibration (world units → radar pixels), for drawing a snapshot without building the map. */
+export const radarOf = (mapId: string): RadarCalib | null => RAW.find(m => m.id === mapId)?.radar ?? null;
+/** A map's main callouts (radar pixels, level 0), for labels on small map pictures. */
+export const calloutsOf = (mapId: string): { name: string; x: number; y: number }[] =>
+  (EXTRAS[mapId]?.callouts ?? CALLOUTS[mapId] ?? []).filter(c => !c.minor).map(c => ({ name: c.name, x: c.pos.x, y: c.pos.y }));

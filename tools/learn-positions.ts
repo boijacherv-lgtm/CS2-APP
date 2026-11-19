@@ -5,11 +5,12 @@
 //           was seen, the bomb went down): the "why" behind rotations and fall-backs
 //   flow    where a player holding a callout is 4 and 8 seconds later (the same spot = still there), per phase: the
 //           search engine moves the enemies it knows about with it when it thinks two moves ahead
-// Writes src/map/generated/positions.json, which the Review's "Pro positions" layer and the coach read.
+// Writes src/map/generated/positions/<map>.json (one file per map), which the Review's "Pro positions" layer and the coach read.
 //
 //   npm run learn:positions -- <folder> [--map de_dust2]
 //
 // Each demo's decisions are cached in <folder>/.stratboard-cache/positions; adding demos later only reads the new ones.
+import './positions-ready';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,7 +27,8 @@ const opt = (k: string) => { const i = args.indexOf(`--${k}`); return i >= 0 ? a
 const folder = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--'));
 const only = opt('map');
 if (!folder || !fs.existsSync(folder)) { console.error('Usage: npm run learn:positions -- <folder with demos> [--map de_dust2]'); process.exit(1); }
-const OUT = path.resolve(import.meta.dirname, '../src/map/generated/positions.json');
+const OUT_DIR = path.resolve(import.meta.dirname, '../src/map/generated/positions');
+const OUT = OUT_DIR; // one JSON per map: the site loads only the map of the match it opens
 
 type Round = { winner: 'CT' | 'T' | null; holds: Hold[]; moves: Move[] };
 type Cached = { map: string | null; rounds: Round[]; error?: string };
@@ -241,8 +243,8 @@ for (const [map, demos] of byMap) {
   out[map] = stats;
 }
 
-const prev = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : {};
-fs.writeFileSync(OUT, JSON.stringify({ ...prev, ...out }, null, 1) + '\n');
+fs.mkdirSync(OUT_DIR, { recursive: true });
+for (const [map, v] of Object.entries(out)) fs.writeFileSync(path.join(OUT_DIR, `${map}.json`), JSON.stringify(v));
 for (const [map, s] of Object.entries(out)) {
   console.log(`\n${map}: ${s.demos} demos, ${s.rounds} rounds`);
   for (const side of ['CT', 'T'] as const) {

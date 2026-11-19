@@ -41,7 +41,7 @@ export function D2Report() {
   const [tab, setTab] = useState<Tab>('overview');
   const tracks = useD2(s => (s.replay.status === 'ready' ? s.replay.tracks : null));
   const grades = useMemo(() => (match?.parsed ? gradeMatch(match, coach.all, tracks) : null), [match, coach.all, tracks]);
-  if (!match) return <div className="page"><p className="muted">No match open. <a href="#/dota2/review">Pick one</a></p></div>;
+  if (!match) return <div className="page"><p className="muted">No match open. <a href="/dota2/review">Pick one</a></p></div>;
   const me = coach.mine !== null ? match.players[coach.mine] : null;
   const watch = (t: number) => { useD2.getState().setTime(t - 8); useD2.getState().setPlaying(false); navigate({ page: 'dota2', mode: 'review' }); };
   const myMoves = coach.mine !== null ? coach.all.filter(m => m.slot === coach.mine) : coach.all;

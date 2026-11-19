@@ -1,0 +1,16 @@
+# the bots' image (server/Dockerfile.bots) needs the app's code and tools, not these
+.git
+node_modules
+dist
+worker
+public
+download-kit
+security
+.steam-cache
+tools/.cache
+server/node_modules
+server/data
+server/.env
+.env
+**/*.dem
+**/.stratboard-parsed

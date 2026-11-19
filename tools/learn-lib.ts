@@ -21,7 +21,7 @@ import { roundMoments } from '../src/engine/playModel';
 // ---- cache versions: bump when that learner's per-demo numbers are computed differently -----------------------
 export const COACH_V = 3; // 3: impact leaves out positioning decisions
 export const POSITIONS_V = 7; // + paths only the first 8 s after leaving a spot
-export const ANALYST_V = 15; // a rotation that starts after the plant is the retake, not a late rotation
+export const ANALYST_V = 16; // late rotation: info on the site, a player who left late and was not busy
 import { PARSE_V } from './demo-core.mjs';
 export { PARSE_V };
 

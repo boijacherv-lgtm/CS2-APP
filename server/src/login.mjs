@@ -33,7 +33,10 @@ user.on('refreshToken', token => {
   fs.writeFileSync(TOKEN_FILE, token, { mode: 0o600 });
 });
 user.on('loggedOn', () => {
-  user.requestFreeLicense([730], () => { // CS2 is free; the bot needs it in its library
+  // CS2 and Deadlock are free; the bot needs them in its library to talk to their game coordinators
+  user.requestFreeLicense([730, 1422450], (err, packages, apps) => {
+    if (err) console.log(`Couldn't add the games by itself (${err.message}): add CS2 and Deadlock to the bot's library in Steam.`);
+    else if (apps?.length) console.log(`Added to the bot's library: ${apps.join(', ')}.`);
     console.log(`Logged in as the bot (SteamID ${user.steamID.getSteamID64()}). The login is saved; you can start the service now.`);
     setTimeout(() => { user.logOff(); process.exit(0); }, 1500);
   });

@@ -15,9 +15,16 @@
  * Never add Steam login automation (steam-session / steam-user / logging in as the user): Steam flagged that
  * as malicious on the owner's account. Public and official APIs only.
  */
-import { adminStats, isOwner, saveHeartbeat } from './admin';
-import { askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
+import { adminStats, isOwner, isPro, saveHeartbeat } from './admin';
+import { addLiveCorrections, askedKeys, clipData, clipList, COACH_ASKS, corrections, MAX_CLIP_BYTES, removeClip, removeMove, restoreMove, ruledClips, saveClip, updateClip } from './clips';
+import { dlCorrections, disputeList, removeDispute, ruleDispute, saveDispute } from './dlDisputes';
+import { META_KEY, refreshDlMeta } from './dlMeta';
+import { botRoute, saveBotState } from './dlBot';
+import { kickBots, startWorkflow } from './botKick';
+import { addCoachEval, addTelemetry, BOTS_PAUSED, coachEvals, deleteUser, health, loadConfig, puzzleStats, telemetry, saveConfig, setBotsPaused, siteLog, undo, users } from './site';
 import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resolveSteamId } from './profile';
+import { board, countAnswer, countSkip, reportPuzzle, vote, votes, friendsBoard, friendsOnSite, updateBoard } from './puzzles';
+import { puzzleGameOf } from '../../src/engine/profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
 
 export interface Env {
@@ -32,6 +39,20 @@ export interface Env {
   RETURN_TO: string;
   /** Comma-separated SteamIDs that may open the dev page (GET /admin/stats). */
   OWNER_IDS?: string;
+  /** "1": every logged-in player has Pro (early access). Otherwise the owner and PRO_IDS (comma-separated SteamIDs). */
+  PRO_FOR_ALL?: string;
+  PRO_IDS?: string;
+  /** wrangler secret put GH_TOKEN: starts the Bots workflow when GitHub's timer is late (botKick.ts). Optional. */
+  GH_TOKEN?: string;
+  /** Cloudflare rate limiters (wrangler.toml [[ratelimits]]): per visitor's IP, and per logged-in player. */
+  RATE_PUBLIC?: RateLimit;
+  RATE_USER?: RateLimit;
+}
+
+/** Over the limit? (No limiter bound, e.g. in tests: never.) */
+async function limited(rl: RateLimit | undefined, key: string) {
+  if (!rl) return false;
+  try { return !(await rl.limit({ key })).success; } catch { return false; }
 }
 
 interface Match {
@@ -39,16 +60,26 @@ interface Match {
   // filled in by the server once the demo is processed
   time?: number | null; map?: string | null; scores?: [number, number] | null; result?: 'win' | 'loss' | 'tie' | null; kd?: [number, number] | null;
   parsed?: boolean; gone?: boolean; error?: string | null; tries?: number;
+  /** The bot version that last failed on it: a new version gets a fresh set of tries (the parser may have been fixed). */
+  failedIn?: string;
 }
 interface User { authCode?: string; knownCode?: string; lastCode?: string | null; matches: Match[]; lastSyncAt?: number; note?: string | null }
 
 const SESSION_DAYS = 30;
 const SYNC_EVERY_MS = 60_000; // Valve is asked at most once a minute per user
 const STEAM_API = 'https://api.steampowered.com';
-const MAX_TRIES = 3; // the server gives up on a demo after this many failures
+const MAX_TRIES = 3; // the server gives up on a demo after this many failures (per bot version: see Match.failedIn)
 const MAX_DEMO_BYTES = 24 * 1024 * 1024; // KV values must stay under 25 MB
+/** Matches uploaded from a demo folder: a read match is about 0.4 MB gzipped; KV's free plan holds 1 GB in all. */
+const UPLOAD_MAX_BYTES = 4 * 1024 * 1024, UPLOADS_MAX = 300; // (each player keeps 30 matches anyway: KEEP_MATCHES)
 
 export default {
+  // every 3 hours (wrangler.toml): Deadlock's meta for everyone
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    // every 15 minutes: the bots' backup timer (botKick.ts); every 3 hours: Deadlock's meta
+    if (event.cron === '*/15 * * * *') ctx.waitUntil(kickBots(env.GH_TOKEN).then(r => console.log(`bots: ${r}`)));
+    else ctx.waitUntil(refreshDlMeta(env.SB).then(() => undefined));
+  },
   async fetch(req: Request, env: Env): Promise<Response> {
     const origin = req.headers.get('Origin') ?? '';
     const allowed = env.SITE_ORIGINS.split(',').map(s => s.trim()).filter(Boolean);
@@ -61,9 +92,27 @@ export default {
     if (origin && !allowed.includes(origin)) return json({ error: 'Not allowed from this site.' }, 403);
 
     const path = new URL(req.url).pathname;
+    const ip = req.headers.get('CF-Connecting-IP') ?? 'unknown';
+    const slow = () => json({ error: 'Too many requests: wait a minute.' }, 429);
     try {
+      // each of these makes the Worker call Steam, so a script could burn the site's Steam API key: only the website
+      // may call them, and only so often per visitor
+      if (path === '/openid/verify' || path === '/profiles' || path.startsWith('/public/') || path.startsWith('/puzzle/')) {
+        if (await limited(env.RATE_PUBLIC, ip)) return slow();
+      }
       if (req.method === 'POST' && path === '/openid/verify') return json(await verifyLogin(env, await body(req)));
       if (path.startsWith('/internal/')) return await internal(req, env, path, json);
+
+      // the site's sampled numbers (grading time, client errors) for the dev page; rate-limited like /puzzle/
+      if (req.method === 'POST' && path === '/t') {
+        if (await limited(env.RATE_PUBLIC, ip)) return slow();
+        const b = await body(req);
+        if (b.kind === 'grade' && b.corr) await addLiveCorrections(env.SB, b.corr);
+        return json(await addTelemetry(env.SB, b));
+      }
+      // the site's content and switches, set on the dev page (site.ts): public, cached a minute
+      if (req.method === 'GET' && path === '/config')
+        return new Response(JSON.stringify(await loadConfig(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
 
       // a Dota 2 replay from Valve's server, which doesn't let web pages read it. Valve's replay addresses only.
       if (req.method === 'GET' && path === '/dota-replay') {
@@ -80,7 +129,33 @@ export default {
       // the coach's corrections from checked disputes: public (they're counts per kind of move), cached a few minutes
       if (req.method === 'GET' && path === '/corrections')
         return new Response(JSON.stringify(await corrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });
-      if (req.method === 'GET' && path === '/profiles') return json({ profiles: await profiles(env, new URL(req.url).searchParams.get('ids') ?? '') });
+      // Deadlock bot: who to add, whether you're its friend, your matches as it saw them (dlBot.ts)
+      if (req.method === 'GET' && path.startsWith('/dl/') && /^\/dl\/(bot|friend\/\d+|matches\/\d+)$/.test(path)) {
+        const out = await botRoute(env.SB, path);
+        if (out) return json(out);
+      }
+      // Deadlock: what the owner's rulings on disputed marks change (public, cached a few minutes)
+      if (req.method === 'GET' && path === '/dl/corrections')
+        return new Response(JSON.stringify(await dlCorrections(env.SB)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...cors } });
+      // Deadlock: the meta the 3-hourly job read (dlMeta.ts); public, cached 10 minutes
+      if (req.method === 'GET' && path === '/dl/meta') {
+        const meta = await env.SB.get(META_KEY);
+        if (!meta) return json({ error: 'Not read yet.' }, 404);
+        return new Response(meta, { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600', ...cors } });
+      }
+      if (req.method === 'GET' && path === '/profiles') {
+        if (!allowed.includes(origin)) return json({ error: 'Not allowed from here.' }, 403);
+        return json({ profiles: await profiles(env, new URL(req.url).searchParams.get('ids') ?? '') });
+      }
+      // puzzles: count an answer to a premade puzzle; the leaderboard (public profiles only; names via /profiles)
+      if (req.method === 'POST' && path === '/puzzle/answer') return json(await countAnswer(env.SB, await body(req)));
+      // "Settle it": who was right in a shared moment (counted per moment; anyone can vote, rate-limited like /puzzle/)
+      if (req.method === 'POST' && path === '/puzzle/vote') return json(await vote(env.SB, await body(req)));
+      { const vk = path.match(/^\/puzzle\/vote\/([a-z0-9]{6,24})$/); if (req.method === 'GET' && vk) return json(await votes(env.SB, vk[1])); }
+      if (req.method === 'POST' && path === '/puzzle/skip') return json(await countSkip(env.SB, await body(req)));
+      if (req.method === 'POST' && path === '/puzzle/report') return json(await reportPuzzle(env.SB, await body(req)));
+      if (req.method === 'GET' && path === '/puzzle/board')
+        return new Response(JSON.stringify({ rows: await (async () => { const off = (await loadConfig(env.SB)).banned; return (await board(env.SB, puzzleGameOf(new URL(req.url).searchParams.get('game')))).filter(r => !off.includes(r.steamId)); })() }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...cors } });
       // a friend's profile, when they made it public (name, avatar and their last matches' numbers)
       const pub = path.match(/^\/public\/(7656\d{13})$/);
       if (req.method === 'GET' && pub) {
@@ -91,10 +166,41 @@ export default {
       // everything else needs a logged-in user
       const token = req.headers.get('Authorization')?.match(/^Bearer ([\w-]{20,})$/)?.[1];
       const steamId = token ? await env.SB.get(`session:${token}`) : null;
-      if (path === '/me' && req.method === 'GET') return json({ me: steamId ? { steamId, ...(await publicProfile(env, steamId)), ...(isOwner(env.OWNER_IDS, steamId) ? { owner: true } : {}) } : null });
+      if (path === '/me' && req.method === 'GET') return json({ me: steamId ? { steamId, ...(await publicProfile(env, steamId)), ...(isOwner(env.OWNER_IDS, steamId) ? { owner: true } : {}), ...(isPro(env, steamId) ? { pro: true } : {}) } : null });
+      // the pages ask for these on load: logged out is an answer, not an error (no red 401 in a visitor's console)
+      if (!steamId && req.method === 'GET' && path === '/status') return json({ loggedOut: true });
+      if (!steamId && req.method === 'GET' && path === '/puzzle/friends') return json({ rows: [], note: 'Log in with Steam to see your friends.' });
       if (!steamId) return json({ error: 'Log in with Steam first.' }, 401);
+      // a logged-in player's writes and Steam look-ups, so often per player
+      if ((req.method === 'POST' || path === '/resolve') && await limited(env.RATE_USER, steamId)) return slow();
 
       if (req.method === 'GET' && path === '/status') return json(status(env, steamId, await loadUser(env, steamId)));
+      // your Steam friends on the site (public profiles), for Profile → Compare with a friend
+      if (req.method === 'GET' && path === '/friends') {
+        if (await limited(env.RATE_USER, steamId)) return slow();
+        return json(await friendsOnSite(env.SB, steamId, env.STEAM_API_KEY));
+      }
+      // the puzzle board among your Steam friends (their public profiles)
+      if (req.method === 'GET' && path === '/puzzle/friends') {
+        if (await limited(env.RATE_USER, steamId)) return slow();
+        return json(await friendsBoard(env.SB, steamId, env.STEAM_API_KEY, puzzleGameOf(new URL(req.url).searchParams.get('game'))));
+      }
+      // the dev page's control panel (site.ts): owners only, every change logged
+      if (path.startsWith('/admin/') && /^\/admin\/(config|log|undo|users|user\/delete|bots|coach|coach\/check|health|puzzles|telemetry)$/.test(path)) {
+        if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can do this.' }, 403);
+        const q = new URL(req.url).searchParams;
+        if (path === '/admin/config') return json(req.method === 'POST' ? await saveConfig(env.SB, steamId, await body(req), String(q.get('what') ?? 'Changed the site config').slice(0, 120)) : { config: await loadConfig(env.SB) });
+        if (path === '/admin/log') return json(await siteLog(env.SB));
+        if (path === '/admin/undo' && req.method === 'POST') return json(await undo(env.SB, steamId, (await body(req)).at));
+        if (path === '/admin/users') return json(await users(env.SB, q.get('q') ?? '', (await loadConfig(env.SB)).banned));
+        if (path === '/admin/user/delete' && req.method === 'POST') return json(await deleteUser(env.SB, steamId, (await body(req)).steamId));
+        if (path === '/admin/bots') return json(req.method === 'POST' ? await setBotsPaused(env.SB, steamId, (await body(req)).paused) : { paused: !!(await env.SB.get(BOTS_PAUSED)) });
+        if (path === '/admin/coach') return json(await coachEvals(env.SB));
+        if (path === '/admin/coach/check' && req.method === 'POST') return json({ result: await startWorkflow(env.GH_TOKEN, 'coach-check.yml') });
+        if (path === '/admin/health') return json(health(env as unknown as Record<string, unknown>));
+        if (path === '/admin/puzzles') return json(await puzzleStats(env.SB));
+        if (path === '/admin/telemetry') return json(await telemetry(env.SB));
+      }
       if (req.method === 'GET' && path === '/admin/stats') {
         if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);
         return json(await adminStats(env.SB));
@@ -113,6 +219,15 @@ export default {
         const text = await req.text();
         if (text.length > MAX_CLIP_BYTES) return json({ error: 'That round is too big to send.' }, 413);
         return json(await removeMove(env.SB, steamId, text));
+      }
+      // Deadlock "Coach wrong?": the player's side, then the owner's list and rulings
+      if (req.method === 'POST' && path === '/dl/dispute') return json(await saveDispute(env.SB, steamId, await body(req)));
+      if (req.method === 'POST' && path === '/dl/dispute/remove') return json(await removeDispute(env.SB, steamId, (await body(req)).id));
+      const dld = path.match(/^\/admin\/dldispute\/([0-9a-f]{24})$/);
+      if (path === '/admin/dldisputes' || dld) {
+        if (!isOwner(env.OWNER_IDS, steamId)) return json({ error: 'Only the site owner can see this.' }, 403);
+        if (path === '/admin/dldisputes') return json(await disputeList(env.SB));
+        if (req.method === 'POST') return json(await ruleDispute(env.SB, dld![1], await body(req)));
       }
       const clip = path.match(/^\/admin\/clip\/([0-9a-f]{24})$/);
       if (path === '/admin/clips' || clip) {
@@ -135,16 +250,37 @@ export default {
       if (req.method === 'GET' && demo) {
         const u = await loadUser(env, steamId);
         if (!u.matches.some(m => m.outcomeId === demo[1] && m.parsed)) return json({ error: 'Not one of your processed matches.' }, 404);
-        const gz = await env.SB.get(`demo:${demo[1]}`, 'arrayBuffer');
+        // the bot's copy (shared by everyone in the match), else the one you uploaded from your demo folder
+        const gz = await env.SB.get(`demo:${demo[1]}`, 'arrayBuffer') ?? await env.SB.get(`demo:u:${steamId}:${demo[1]}`, 'arrayBuffer');
         if (!gz) return json({ error: 'This match is not stored any more.' }, 404);
         // the browser unpacks it (Content-Encoding: gzip)
         // already gzipped: 'manual' stops Cloudflare from compressing it a second time
         return new Response(gz, { encodeBody: 'manual', headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, max-age=86400', ...cors } });
       }
+      // a match your browser read from your CS2 demo folder, saved to your account so it opens on your other devices
+      // (kept as yours only: demo:u:<you>:<id>; a gzipped match, at most UPLOAD_MAX_BYTES, at most UPLOADS_MAX of them)
+      if (req.method === 'POST' && path === '/demo/upload') {
+        const q = new URL(req.url).searchParams, id = q.get('id') ?? '';
+        if (!/^\d{5,25}$/.test(id)) return json({ error: 'Which match?' }, 400);
+        const bytes = await req.arrayBuffer();
+        const head = new Uint8Array(bytes.slice(0, 2));
+        if (bytes.byteLength > UPLOAD_MAX_BYTES || head[0] !== 0x1f || head[1] !== 0x8b) return json({ error: 'That isn\'t a read match (or it\'s too big).' }, 413);
+        const u = await loadUser(env, steamId);
+        if (u.matches.some(m => m.outcomeId === id && m.parsed)) return json({ ok: true, had: true });
+        if (u.matches.filter(m => m.code.startsWith('upload:')).length >= UPLOADS_MAX) return json({ error: `You have ${UPLOADS_MAX} uploaded matches: that's the most for now.` }, 409);
+        let info: Partial<Match> = {};
+        try { info = pick(JSON.parse(q.get('info') ?? '{}')); } catch { /* no summary: the list shows the date only */ }
+        await env.SB.put(`demo:u:${steamId}:${id}`, bytes);
+        const was = u.matches.find(m => m.outcomeId === id);
+        if (was) Object.assign(was, info, { parsed: true, error: null });
+        else u.matches.push({ code: `upload:${id}`, matchId: id, outcomeId: id, foundAt: Date.now(), ...info, parsed: true });
+        await saveUser(env, steamId, u);
+        return json({ ok: true });
+      }
       if (req.method !== 'POST') return json({ error: 'Not found.' }, 404);
       const input = await body(req);
       if (path === '/signout') { await env.SB.delete(`session:${token}`); return json({ ok: true }); }
-      if (path === '/forget') { await env.SB.delete(`user:${steamId}`); await forgetProfile(env.SB, steamId); return json({ ok: true }); }
+      if (path === '/forget') { await env.SB.delete(`user:${steamId}`); await forgetProfile(env.SB, steamId); for (const g of ['cs2', 'deadlock'] as const) await updateBoard(env.SB, steamId, undefined, false, g); return json({ ok: true }); }
       if (path === '/settings') return json(await saveSettings(env, steamId, input));
       if (path === '/sync') return json(await sync(env, steamId));
       return json({ error: 'Not found.' }, 404);
@@ -234,7 +370,16 @@ async function profiles(env: Env, raw: string): Promise<Record<string, { name: s
 async function loadUser(env: Env, steamId: string): Promise<User> {
   return ((await env.SB.get(`user:${steamId}`, 'json')) as User | null) ?? { matches: [] };
 }
-const saveUser = (env: Env, steamId: string, u: User) => env.SB.put(`user:${steamId}`, JSON.stringify(u));
+/** Each player keeps their newest KEEP_MATCHES (by when played, else when found); a match uploaded from a demo folder
+ * that falls off has its stored copy deleted (the bot's copies are shared by everyone in the match, and expire). */
+const KEEP_MATCHES = 30, BOT_DEMO_TTL = 60 * 86400;
+const saveUser = async (env: Env, steamId: string, u: User) => {
+  if (u.matches.length > KEEP_MATCHES) {
+    u.matches.sort((a, b) => (b.time ?? b.foundAt) - (a.time ?? a.foundAt));
+    for (const m of u.matches.splice(KEEP_MATCHES)) if (m.code.startsWith('upload:')) await env.SB.delete(`demo:u:${steamId}:${m.outcomeId}`);
+  }
+  await env.SB.put(`user:${steamId}`, JSON.stringify(u));
+};
 
 async function saveSettings(env: Env, steamId: string, input: Record<string, unknown>) {
   const u = await loadUser(env, steamId);
@@ -264,10 +409,12 @@ async function sync(env: Env, steamId: string) {
   if (!u.authCode || !u.knownCode) return { added: 0, note: 'Paste your authentication code and one match code first.', source: null };
   if (!env.STEAM_API_KEY) return { added: 0, note: 'The site has no Steam Web API key configured yet.', source: null };
   if (u.lastSyncAt && Date.now() - u.lastSyncAt < SYNC_EVERY_MS) return { added: 0, note: u.note ?? null, source: 'valve' };
+  const noteBefore = u.note ?? null;
   u.note = null;
   const known = new Set(u.matches.map(m => m.code));
   const t0 = Date.now();
   let code = u.lastCode ?? u.knownCode, found = 0;
+  const skipped: string[] = [];
   try {
     for (let i = 0; i < 40; i++) { // a Worker may make 50 requests per call
       const res = await fetch(`${STEAM_API}/ICSGOPlayers_730/GetNextMatchSharingCode/v1?key=${encodeURIComponent(env.STEAM_API_KEY)}`
@@ -276,6 +423,16 @@ async function sync(env: Env, steamId: string) {
       if (res.status === 403) throw new Error('Steam refused the site\'s Web API key; tell the site owner.');
       if (res.status === 412) throw new Error('Steam says your authentication code or match code doesn\'t belong to your account. Paste them again from the Steam Support page.');
       if (res.status === 429) break;
+      // Valve can't walk on from this code (too old for its history, or a mode it doesn't list): start again from the
+      // next code you pasted, newer than it, and say which one it skipped
+      if (res.status >= 500) {
+        const later = u.matches.map(m => m.code).filter(c => c.startsWith('CSGO-') && BigInt(decodeShareCode(c).matchId) > BigInt(decodeShareCode(code).matchId))
+          .sort((x, y) => (BigInt(decodeShareCode(x).matchId) < BigInt(decodeShareCode(y).matchId) ? -1 : 1));
+        skipped.push(code);
+        if (!later.length) throw new Error(`Steam's match history couldn't go on from ${skipped.join(', ')} (it answered ${res.status}). Paste a newer match code, or try again later.`);
+        code = later[0];
+        continue;
+      }
       if (!res.ok) throw new Error(`Steam's match-history API answered ${res.status}.`);
       const next = ((await res.json()) as { result?: { nextcode?: string } })?.result?.nextcode;
       if (!next || next === 'n/a') break;
@@ -283,9 +440,12 @@ async function sync(env: Env, steamId: string) {
       code = next;
     }
   } catch (e) { u.note = e instanceof Error ? e.message : String(e); }
+  if (!u.note && skipped.length) u.note = `Steam's match history couldn't go on from ${skipped.join(', ')}; it went on from your next code instead.`;
+  const changed = found > 0 || u.lastCode !== code || u.note !== noteBefore;
   u.lastCode = code;
   u.lastSyncAt = Date.now();
-  await saveUser(env, steamId, u);
+  // KV's free plan has 1,000 writes a day and the bot asks for every user every 15 minutes: write only news
+  if (changed) await saveUser(env, steamId, u);
   return { added: u.matches.length - before, note: u.note ?? null, source: 'valve' };
 }
 
@@ -304,9 +464,9 @@ function status(env: Env, steamId: string, u: User) {
     replays: [],
     importing: { file: null, error: null },
     matches: [...u.matches].sort((a, b) => (b.time ?? b.foundAt) - (a.time ?? a.foundAt)).map(m => ({
-      code: m.code, outcomeId: m.outcomeId, source: 'matchmaking', loadedAt: null, foundAt: m.foundAt,
+      code: m.code, outcomeId: m.outcomeId, source: m.code.startsWith('upload:') ? 'upload' : 'matchmaking', loadedAt: null, foundAt: m.foundAt,
       time: m.time ?? null, map: m.map ?? null, scores: m.scores ?? null, result: m.result ?? null, kd: m.kd ?? null,
-      download: downloadLink(m.code), parsed: !!m.parsed, gone: !!m.gone, processing: !m.parsed && !m.gone && (m.tries ?? 0) < MAX_TRIES,
+      download: m.code.startsWith('upload:') ? null : downloadLink(m.code), parsed: !!m.parsed, gone: !!m.gone, processing: !m.parsed && !m.gone && (m.tries ?? 0) < MAX_TRIES,
     })),
   };
 }
@@ -325,6 +485,9 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
   const got = req.headers.get('Authorization')?.replace(/^Bearer /, '') ?? '';
   if (!env.SERVER_TOKEN || !sameToken(got, env.SERVER_TOKEN)) return json({ error: 'Not allowed.' }, 403);
 
+  // the bots ask whether the owner paused them (dev page → Bots); the nightly coach check reports its score
+  if (req.method === 'GET' && path === '/internal/paused') return json({ paused: !!(await env.SB.get(BOTS_PAUSED)) });
+  if (req.method === 'POST' && path === '/internal/coach-eval') return json(await addCoachEval(env.SB, await req.json().catch(() => ({}))));
   // the moments the owner has ruled on, for the coach's tools on the owner's computer (tools/pull-disputes.ts)
   if (req.method === 'GET' && path === '/internal/disputes') return json(await ruledClips(env.SB));
   // the coach's own questions (tools/ask-coach.ts): moments it's unsure of, judged on the dev page like disputes
@@ -359,7 +522,9 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
   const pendingFor = path.match(/^\/internal\/pending\/(7656\d{13})$/);
   if (req.method === 'GET' && pendingFor) {
     const u = await loadUser(env, pendingFor[1]);
-    const todo = u.matches.filter(m => !m.parsed && !m.gone && (m.tries ?? 0) < MAX_TRIES).sort((a, b) => b.foundAt - a.foundAt)
+    // a match that used up its tries under another bot version is tried again by this one (it may be the fix that was missing)
+    const version = new URL(req.url).searchParams.get('v') ?? '';
+    const todo = u.matches.filter(m => !m.parsed && !m.gone && ((m.tries ?? 0) < MAX_TRIES || (!!version && m.failedIn !== version))).sort((a, b) => b.foundAt - a.foundAt)
       .map(m => ({ code: m.code, outcomeId: m.outcomeId, matchId: m.matchId }));
     return json({ pending: todo });
   }
@@ -368,11 +533,13 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
   if (req.method === 'PUT' && demoPut) {
     const bytes = await req.arrayBuffer();
     if (bytes.byteLength > MAX_DEMO_BYTES) return json({ error: 'Too big.' }, 413);
-    await env.SB.put(`demo:${demoPut[1]}`, bytes);
+    await env.SB.put(`demo:${demoPut[1]}`, bytes, { expirationTtl: BOT_DEMO_TTL });
     return json({ ok: true, bytes: bytes.byteLength });
   }
   // the bot's report after each round (for the dev page)
   if (req.method === 'POST' && path === '/internal/heartbeat') return json(await saveHeartbeat(env.SB, await body(req)));
+  // the Deadlock bot's friends and their matches, for the site (dlBot.ts)
+  if (req.method === 'POST' && path === '/internal/dlbot') return json(await saveBotState(env.SB, await body(req)));
   // a match the server graded, for this user's profile
   const profileFor = path.match(/^\/internal\/profile\/(7656\d{13})$/);
   if (req.method === 'POST' && profileFor) {
@@ -382,13 +549,17 @@ async function internal(req: Request, env: Env, path: string, json: (b: unknown,
   // what came of one match for one user
   const resultFor = path.match(/^\/internal\/result\/(7656\d{13})$/);
   if (req.method === 'POST' && resultFor) {
-    const r = await body(req) as { outcomeId?: string; parsed?: boolean; gone?: boolean; error?: string; info?: Partial<Match> };
+    const r = await body(req) as { outcomeId?: string; parsed?: boolean; gone?: boolean; error?: string; version?: string; info?: Partial<Match> };
     const u = await loadUser(env, resultFor[1]);
     const m = u.matches.find(x => x.outcomeId === r.outcomeId);
     if (!m) return json({ error: 'Unknown match.' }, 404);
     if (r.parsed) Object.assign(m, pick(r.info ?? {}), { parsed: true, error: null });
     else if (r.gone) Object.assign(m, { gone: true, error: r.error ?? 'Valve no longer has this demo.' });
-    else Object.assign(m, { tries: (m.tries ?? 0) + 1, error: String(r.error ?? 'failed').slice(0, 300) });
+    else {
+      // the tries count per bot version: the first failure of a new version starts the count again
+      const version = String(r.version ?? '').slice(0, 40) || undefined;
+      Object.assign(m, { tries: (version && m.failedIn !== version ? 0 : m.tries ?? 0) + 1, failedIn: version ?? m.failedIn, error: String(r.error ?? 'failed').slice(0, 300) });
+    }
     await saveUser(env, resultFor[1], u);
     return json({ ok: true });
   }

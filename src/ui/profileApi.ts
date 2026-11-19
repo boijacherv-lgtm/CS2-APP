@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { STEAM_AVAILABLE } from '../env';
-import { cleanGoals, cleanNotifyGames, cleanPrefs, cleanVerdicts, withVerdict, type MoveVerdict, EMPTY_PROFILE, withMatch, type GoalId, type ProfileData, type ProfileMatch, type ProfilePrefs } from '../engine/profile';
+import { cleanGoals, cleanNotifyGames, cleanPrefs, cleanVerdicts, withVerdict, type MoveVerdict, EMPTY_PROFILE, withMatch, MIN_ROUNDS, type GoalId, type ProfileData, type ProfileMatch, type ProfilePrefs } from '../engine/profile';
 import { steamFetch } from './steamApi';
 import type { DemoData } from '../engine/recap';
 
@@ -9,7 +9,8 @@ import type { DemoData } from '../engine/recap';
  * routes), it lives on your account and follows you between devices; otherwise it's kept in this browser. Matches
  * reviewed before logging in are uploaded once you do.
  */
-export type SteamMe = { steamId: string; name: string | null; avatar: string | null; /** may open the dev page */ owner?: boolean };
+export type SteamMe = { steamId: string; name: string | null; avatar: string | null; /** may open the dev page */ owner?: boolean;
+  /** has Pro (the Worker decides: everyone during early access) */ pro?: boolean };
 
 interface ProfileState {
   /** undefined while unknown; null = not logged in (or no Steam on this build). */
@@ -71,6 +72,7 @@ async function update(local: (d: ProfileData) => ProfileData, remote: () => Prom
 }
 
 export const recordMatch = (m: ProfileMatch) => {
+  if (m.rounds < MIN_ROUNDS) return Promise.resolve();
   // always kept here too, so logging in later uploads it
   saveLocal({ ...loadLocal(), matches: withMatch(loadLocal().matches, m) });
   return update(d => ({ ...d, matches: withMatch(d.matches, m) }), () => api('/profile/match', { match: m }));
