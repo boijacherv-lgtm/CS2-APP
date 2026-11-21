@@ -324,7 +324,7 @@ function MoveItem({ m, open, onToggle, onWatch, plant, order = 0 }: { m: Move; o
       <button className="mv-row" onClick={onToggle} aria-expanded={open} title={open ? 'Fold' : 'Why?'}>
         <span className="mv-t muted num" title={clk.bomb ? 'Time left on the bomb' : 'Time left in the round'}>{clk.bomb && <Icon name="bomb" size={11} />}{clk.text}</span>
         {/* a round's list comes in all at once: stagger the eyes, newest first, and cap the wait */}
-        <NoteMark m={m} reveal={{ move: m, where: 'list', delay: Math.min(order * 40, 360) }} />
+        <NoteMark m={m} reveal={{ move: m, where: 'list', delay: Math.min(order * 160, 1440) }} />
         <span className={`mv-title ${m.side.toLowerCase()}`}>{brief(m.title)}</span>
         <span className="mv-gain num" style={{ color: m.gain > 0.02 ? '#7fbf4d' : m.gain < -0.02 ? '#e5483a' : 'var(--muted)' }}>{signed(m.gain)}</span>
         <Icon name="chevronDown" size={11} className="mv-caret" />
