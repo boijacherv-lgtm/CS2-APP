@@ -27,13 +27,20 @@ describe('eye marks', () => {
     expect(b).not.toContain('a1');
   });
 
-  it('adds the reveal parts (lid, neutral pupil) only when animated', () => {
+  it('adds the reveal parts only when animated: a lid, a reveal of its own per mark, a neutral pupil to grow from', () => {
+    const classes = new Set<string>();
     for (const n of NOTES) {
-      expect(eyeSvg(n, 'deadlock', 'x')).not.toContain('eye-lid');
+      const still = eyeSvg(n, 'deadlock', 'x');
+      expect(still).not.toContain('eye-lid');
+      expect(still).not.toContain('eye-anim');
       const anim = eyeSvg(n, 'deadlock', 'x', true);
-      expect(anim).toContain('class="eye-anim"');
+      const cls = anim.match(/class="eye-anim (eye-[a-z]+)"/)?.[1];
+      expect(cls).toBeTruthy();
+      classes.add(cls!);
       expect(anim).toContain('eye-lid');
-      expect(anim).toContain('eye-neutral');
+      // book is already neutral, and ? keeps its pupil while the white reddens around it
+      expect(anim.includes('eye-neutral')).toBe(n !== 'book' && n !== '?');
     }
+    expect(classes.size).toBe(NOTES.length);
   });
 });
