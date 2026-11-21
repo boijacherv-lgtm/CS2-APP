@@ -63,7 +63,8 @@ export function NavBar({ route }: { route: Route }) {
   // inside a match: this game has one open, and you're on the game's pages
   const open = game === 'cs2' ? !!loaded : game === 'dota2' ? !!d2Match : !!dlMatch;
   const inMatch = open && (route.page === 'cs2' || route.page === 'deadlock' || route.page === 'dota2');
-  const places: Place[] = inMatch ? ['review', 'recap'] : ['overview', 'review', 'tab', 'puzzles'];
+  // Dota 2 has no puzzles of its own yet: the tab would only lead to CS2's
+  const places: Place[] = inMatch ? ['review', 'recap'] : game === 'dota2' ? ['overview', 'review', 'tab'] : ['overview', 'review', 'tab', 'puzzles'];
   const label: Record<Place, string> = { overview: 'Overview', review: 'Review', recap: 'Recap', tab: GAME_TAB[game].label, puzzles: 'Puzzles' };
   const icon = { overview: 'info', review: 'play', recap: 'star', tab: GAME_TAB[game].icon, puzzles: 'target' } as const;
   const tip: Record<Place, string> = {
