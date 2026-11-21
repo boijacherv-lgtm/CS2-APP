@@ -3,6 +3,7 @@ import { LETTER_COLOR, LETTERS, NOTE_INFO, type Letter } from '../engine/recap';
 import { navigate } from '../shell/router';
 import { AreaChart, BarList } from '../site/charts';
 import { Icon, type IconName } from '../ui/Icon';
+import { MarkFace } from '../ui/MarkFace';
 import { itemTimings, TIMING_MARGIN, typicalTiming } from './api';
 import type { D2Move, D2Tag } from './coach';
 import { abilityById, buildingOf, heroOf, itemById, itemByKey, mins, skillLook, TEAM_COLOR, TEAM_NAME, type D2Team } from './data';
@@ -546,7 +547,7 @@ function MoveList({ moves, watch }: { moves: D2Move[]; watch: (t: number) => voi
     <ul className="dl-moves">
       {moves.map(m => (
         <li key={`${m.kind}-${m.t}-${m.slot}`}>
-          <b className="dl-card-mark" style={{ background: NOTE_INFO[m.note].color }}>{m.note === 'book' ? '·' : NOTE_INFO[m.note].mark}</b>
+          <MarkFace note={m.note} size={24} className="dl-card-mark" />
           <span className="dl-move-text"><b>{m.title}</b>{m.why.length > 1 && <span className="muted small">{m.why.slice(0, -1).join(' ')}</span>}</span>
           <button className="chip" onClick={() => watch(m.t)}>Watch</button>
         </li>

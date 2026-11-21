@@ -112,7 +112,6 @@ button.d2-fact:hover { border-color: var(--border-strong); background: var(--sur
 /* Review: the graded moment, said on the map and marked on its hero's row */
 .d2-moment { position: absolute; left: 8px; top: 8px; z-index: 3; width: min(320px, 56%); display: grid; gap: 4px; padding: 7px 9px; border-radius: 10px; background: rgba(11, 14, 18, .94); border: 1.5px solid var(--grade); font-size: 12.5px; }
 .d2-moment header { display: flex; align-items: center; gap: 7px; }
-.d2-moment header b { min-width: 24px; height: 22px; padding: 0 4px; display: grid; place-items: center; border-radius: 6px; background: var(--grade); color: #0b0e12; font-size: 13px; }
 .d2-moment header strong { color: var(--grade); }
 .d2-moment header .num { margin-left: auto; }
 .d2-moment p { margin: 0; font-weight: 600; }
@@ -120,7 +119,7 @@ button.d2-fact:hover { border-color: var(--border-strong); background: var(--sur
 /* the kill feed lies over the map's top right corner, clear of the move's window at its top left */
 .d2-board .d2-map-box .dl-feed { top: 8px; right: 8px; z-index: 3; max-width: 40%; }
 .d2-board .dl-player.d2-row-moment { border-color: var(--grade); box-shadow: inset 0 0 0 1px var(--grade); }
-.d2-row-grade { position: absolute; right: 5px; bottom: 28px; min-width: 22px; height: 18px; padding: 0 4px; display: grid; place-items: center; border-radius: 5px; background: var(--grade); color: #0b0e12; font-size: 11.5px; line-height: 1; }
+.d2-row-grade { position: absolute; right: 5px; bottom: 26px; }
 .d2-board .dl-marks i.graded { width: 4px; height: 13px; top: -7px; border-radius: 2px; box-shadow: 0 0 0 1px #0b0e12; }
 .d2-slow { display: inline-flex; align-items: center; gap: 4px; }
 
