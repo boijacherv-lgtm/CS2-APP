@@ -254,8 +254,8 @@ export function RecapPanel({ recap, replay, engine, control }: { recap: Review; 
           </div>
         )}
         <div className="move-list">
-          {[...moves].reverse().map(m => (
-            <MoveItem key={moveId(m)} m={m} open={open === moveId(m)} onToggle={() => setOpen(o => (o === moveId(m) ? null : moveId(m)))} onWatch={watch} plant={r.plant} />
+          {[...moves].reverse().map((m, i) => (
+            <MoveItem key={moveId(m)} m={m} open={open === moveId(m)} onToggle={() => setOpen(o => (o === moveId(m) ? null : moveId(m)))} onWatch={watch} plant={r.plant} order={i} />
           ))}
           {!moves.length && <p className="muted rp-empty">{all ? 'No moves for this filter.' : 'Nothing yet.'}</p>}
         </div>
@@ -316,14 +316,15 @@ function reasonText(reason: string) {
 }
 
 /** One move, folded: time, grade, short title, win-chance change, tags. Open: the full title and the reasons, one per line. */
-function MoveItem({ m, open, onToggle, onWatch, plant }: { m: Move; open: boolean; onToggle: () => void; onWatch: (m: Move) => void; plant: number | null }) {
+function MoveItem({ m, open, onToggle, onWatch, plant, order = 0 }: { m: Move; open: boolean; onToggle: () => void; onWatch: (m: Move) => void; plant: number | null; order?: number }) {
   const g = moveLook(m);
   const clk = moveClock(plant, m.t);
   return (
     <div className={`mv ${open ? 'open' : ''}`}>
       <button className="mv-row" onClick={onToggle} aria-expanded={open} title={open ? 'Fold' : 'Why?'}>
         <span className="mv-t muted num" title={clk.bomb ? 'Time left on the bomb' : 'Time left in the round'}>{clk.bomb && <Icon name="bomb" size={11} />}{clk.text}</span>
-        <NoteMark m={m} />
+        {/* a round's list comes in all at once: stagger the eyes, newest first, and cap the wait */}
+        <NoteMark m={m} reveal={{ move: m, where: 'list', delay: Math.min(order * 40, 360) }} />
         <span className={`mv-title ${m.side.toLowerCase()}`}>{brief(m.title)}</span>
         <span className="mv-gain num" style={{ color: m.gain > 0.02 ? '#7fbf4d' : m.gain < -0.02 ? '#e5483a' : 'var(--muted)' }}>{signed(m.gain)}</span>
         <Icon name="chevronDown" size={11} className="mv-caret" />

@@ -24,8 +24,6 @@ export const LETTER_INK = '#0A0C10';
 export const LETTER_RIM = '#F5C451';
 /** A letter badge's colours: its fill, dark ink, and for S+ the gold rim. */
 export const letterStyle = (l: Letter) => ({ background: LETTER_COLOR[l], color: LETTER_INK, ...(l === 'S+' ? { boxShadow: `0 0 0 2px ${LETTER_RIM}`, '--star': '"★"' } : {}) }) as { background: string; color: string; boxShadow?: string };
-/** A move mark's symbol on its round badge (Book is a tick). */
-export const NOTE_SYMBOL: Record<Annotation, string> = { '!!': '!!', '!': '!', book: '✓', '?!': '?!', '?': '?', '??': '??' };
 export const LETTERS: Letter[] = ['S+', 'S', 'A', 'B', 'C', 'D', 'F'];
 
 /** The change in win chance as a signed chip ("▲ +22%"), never fighting the mark: a bad mark never shows a gain, a good one never a

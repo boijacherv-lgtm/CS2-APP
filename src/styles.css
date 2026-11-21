@@ -1109,6 +1109,25 @@ input.switch { min-height: 24px; height: 24px; }
   .moment-label .note-face, .moment-label .mark-face { animation: pulse-once .6s ease-out; border-radius: 50%; }
   .rush-bar span:first-of-type { display: inline-block; animation: bump .25s ease-out; }
   .recap-card, .site-card.focus-card { animation: card-in .25s ease-out; }
+  /* eye reveal (MarkFace): the eye opens on a neutral pupil, blinks, opens on its mark, then its ring draws in.
+     ~0.53 s in all; the swap happens while the lid is shut. --eye-delay staggers a list. */
+  @keyframes eye-pop { from { opacity: 0; transform: scale(.88); } to { opacity: 1; transform: none; } }
+  /* a real blink: the lid drops fast, rests a beat, lifts slower */
+  @keyframes eye-blink { 0% { transform: scaleY(0); } 35%, 50% { transform: scaleY(1); } 100% { transform: scaleY(0); } }
+  @keyframes eye-off { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes eye-on { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes eye-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  .eye-anim { --d: var(--eye-delay, 0ms); animation: eye-pop .14s var(--ease-out) var(--d) both; }
+  .eye-anim .eye-lid { animation: eye-blink .2s cubic-bezier(.77, 0, .175, 1) calc(var(--d) + .14s) both; }
+  .eye-anim .eye-neutral { animation: eye-off 1ms linear calc(var(--d) + .225s) both; }
+  .eye-anim .eye-state { animation: eye-on 1ms linear calc(var(--d) + .225s) both; }
+  .eye-anim .eye-ring { stroke-dasharray: 1 1; animation: eye-draw .24s var(--ease-out) calc(var(--d) + .29s) both; }
+  .eye-anim .eye-glow { animation: eye-on .2s var(--ease-out) calc(var(--d) + .45s) both; }
+}
+/* asked for less motion: the eye just fades in, already on its mark */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes eye-fade { from { opacity: 0; } to { opacity: 1; } }
+  .eye-anim { animation: eye-fade .16s var(--ease-out) var(--eye-delay, 0ms) both; }
 }
 
 /* skip link: hidden until focused (keyboard users jump past the nav) */

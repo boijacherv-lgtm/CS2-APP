@@ -344,7 +344,7 @@ function Timeline({ end, recap, round, time, spoilers, onSeek }: {
         return (
           <button key={`m${i}`} tabIndex={-1} className={`${m.note === 'book' ? 'tl-dot' : 'tl-mark'}${(m.note === '!!' || m.note === '??') && time >= m.t && time - m.t < 0.8 ? ' tl-hit' : ''}`} style={{ left: pct(m.t), background: m.note === 'book' ? g.color : 'none' }}
             title={`${g.label} · ${m.title}`}
-            onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }}>{m.note !== 'book' && <MarkFace note={m.note} size={15} title={`${g.label} · ${m.title}`} />}</button>
+            onPointerDown={e => { e.stopPropagation(); onSeek(m.t + 0.1); }}>{m.note !== 'book' && <MarkFace note={m.note} size={15} title={`${g.label} · ${m.title}`} reveal={{ move: m, where: 'timeline' }} />}</button>
         );
       })}
       <i className="tl-head" style={{ left: pct(time) }} />
