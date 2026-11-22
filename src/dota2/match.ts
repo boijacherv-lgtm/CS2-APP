@@ -92,6 +92,23 @@ const nickOf = (p: RawPlayer) => {
   return /[\p{L}\p{N}]/u.test(nick) ? nick : null;
 };
 
+/**
+ * The buildings that fell, and when, from a match's objectives log. The log names both tier-4 towers the same: the
+ * first fall takes the first one. A parsed match ends with the loser's Ancient, whether or not the log says so.
+ */
+export function buildingDowns(objectives: NonNullable<RawMatch['objectives']>, duration: number, winner: D2Team, parsed = true): D2Down[] {
+  const fallen = new Set<string>();
+  const downs: D2Down[] = [];
+  for (const o of objectives) {
+    if (o.type !== 'building_kill') continue;
+    const b = BUILDINGS.find(x => x.key === o.key && !fallen.has(x.uid));
+    if (b) { fallen.add(b.uid); downs.push({ uid: b.uid, t: o.time }); }
+  }
+  const fort = BUILDINGS.find(b => b.kind === 'fort' && b.team !== winner)!;
+  if (parsed && !fallen.has(fort.uid)) downs.push({ uid: fort.uid, t: duration });
+  return downs;
+}
+
 export function matchFromOpenDota(raw: RawMatch): D2Match {
   const parsed = !!(raw.od_data?.has_parsed ?? raw.version);
   const teamOf = (p: RawPlayer): D2Team => ((p.isRadiant ?? p.player_slot < 128) ? 0 : 1);
@@ -140,17 +157,8 @@ export function matchFromOpenDota(raw: RawMatch): D2Match {
   }));
 
   const objectives = raw.objectives ?? [];
-  // the log names both tier-4 towers the same: the first fall takes the first one
-  const fallen = new Set<string>();
-  const downs: D2Down[] = [];
-  for (const o of objectives) {
-    if (o.type !== 'building_kill') continue;
-    const b = BUILDINGS.find(x => x.key === o.key && !fallen.has(x.uid));
-    if (b) { fallen.add(b.uid); downs.push({ uid: b.uid, t: o.time }); }
-  }
   const winner: D2Team = raw.radiant_win ? 0 : 1;
-  const fort = BUILDINGS.find(b => b.kind === 'fort' && b.team !== winner)!;
-  if (parsed && !fallen.has(fort.uid)) downs.push({ uid: fort.uid, t: raw.duration });
+  const downs = buildingDowns(objectives, raw.duration, winner, parsed);
 
   const events = [...deaths.map(d => d.t), ...wards.map(w => w.t), ...raw.players.flatMap(p => (p.purchase_log ?? []).map(l => l.time))];
   const teamOfObjective = (o: { team?: number; slot?: number }): D2Team => (o.team === 2 ? 0 : o.team === 3 ? 1 : teamOf(raw.players[o.slot ?? 0]));

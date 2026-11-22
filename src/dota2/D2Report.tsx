@@ -5,17 +5,21 @@ import { MarkFace } from '../ui/MarkFace';
 import { ScoreRing } from '../ui/ScoreRing';
 import { LETTER_COLOR, LETTERS, NOTE_INFO, type Letter } from '../engine/recap';
 import { navigate } from '../shell/router';
-import { AreaChart, BarList } from '../site/charts';
+import { AreaChart, BarList, SplitChart } from '../site/charts';
 import { Icon, type IconName } from '../ui/Icon';
 import { itemTimings, TIMING_MARGIN, typicalTiming } from './api';
 import type { D2Move, D2Tag } from './coach';
-import { abilityById, buildingOf, heroOf, itemById, itemByKey, mins, skillLook, TEAM_COLOR, TEAM_NAME, type D2Team } from './data';
+import { abilityById, buildingOf, heroOf, itemById, itemByKey, mapImage, mins, skillLook, TEAM_COLOR, TEAM_NAME, type D2Team } from './data';
 import { TalentTree } from './D2Talents';
 import { useLiveGameData, useMapLayout } from './gameData';
 import { GRADE_LEGEND, gradeMatch, type ChapterKind, type MatchGrades } from './grades';
 import { NORM_SAMPLE, supportNumbers, supportsOf, teamPlayLetter, visionLetter } from './support';
 import { clashes, keyFacts, laneResults, SWING_MINUTES, type D2Match } from './match';
 import { reportCard, type D2Card, type PartKey } from './reportCard';
+import { HAS_WIN_MODEL, WIN_MODEL, winChance } from './winmodel';
+import { HAS_SPOTS, HAS_WARD_VALUE, positioning, SPOT_GRID, SPOT_PHASES, SPOT_SOURCE, spotGrid, wardReview } from './spots';
+import { POSITION_INFO } from './draft';
+import type { ReplayTracks } from './replay/parser';
 import { useD2 } from './store';
 import { useCoach } from './useCoach';
 import '../deadlock/dl.css';
@@ -111,6 +115,9 @@ export function D2Report() {
         <>
           {card && <ReportCardView card={card} match={match} name={nameOf(subject)} moves={moves} all={grades} watch={watch} />}
           <Facts match={match} grades={grades} subject={subject} watch={watch} />
+          {HAS_WIN_MODEL && <WinChance match={match} team={who.team} watch={watch} />}
+          {HAS_SPOTS && <Positioning match={match} slot={subject} tracks={tracks} watch={watch} />}
+          {HAS_WARD_VALUE && <WardValue match={match} slot={subject} tracks={tracks} watch={watch} />}
           {grades && <Collapse title="Everyone's grades" hint="the letters, support play, every moment"><Grades match={match} grades={grades} mine={subject} watch={watch} /></Collapse>}
           <Collapse title="Gold" hint="the lead over the match"><GoldLead match={match} team={who.team} /></Collapse>
           <Collapse title="Key moments" hint="the worst and the best"><KeyMoments moves={moves} watch={watch} /></Collapse>
@@ -192,8 +199,11 @@ function ReportCardView({ card, match, name, moves, all, watch }: { card: D2Card
   const jump = (key: PartKey) => { setOpenKey(key); setTimeout(() => document.getElementById(`grade-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30); };
   const p = match.players[card.slot];
   const rank = (m: D2Move) => ({ '??': 0, '?': 1, '!!': 0, '!': 1 } as Record<string, number>)[m.note] ?? 2;
-  const costly = moves.filter(m => m.note === '??' || m.note === '?').sort((a, b) => rank(a) - rank(b) || a.t - b.t)[0];
-  const top = moves.filter(m => m.note === '!!' || m.note === '!').sort((a, b) => rank(a) - rank(b) || a.t - b.t)[0];
+  // with the win model: the moments that moved the chance most; without it, the coach's worst and best marks
+  const swung = HAS_WIN_MODEL ? moves.filter(m => m.kind !== 'laning').map(m => ({ m, d: swingOf(match, m) })) : [];
+  const costly = HAS_WIN_MODEL ? swung.filter(x => x.d < -NOTICEABLE).sort((a, b) => a.d - b.d)[0]?.m : moves.filter(m => m.note === '??' || m.note === '?').sort((a, b) => rank(a) - rank(b) || a.t - b.t)[0];
+  const top = HAS_WIN_MODEL ? swung.filter(x => x.d > NOTICEABLE).sort((a, b) => b.d - a.d)[0]?.m : moves.filter(m => m.note === '!!' || m.note === '!').sort((a, b) => rank(a) - rank(b) || a.t - b.t)[0];
+  const said = (m: D2Move) => (HAS_WIN_MODEL ? ` · ${pts(swingOf(match, m))} win chance` : m.why[0] ? ` · ${m.why[0]}` : '');
   return (
     <>
       <section className="recap-card dl-rc-head">
@@ -257,16 +267,146 @@ function ReportCardView({ card, match, name, moves, all, watch }: { card: D2Card
 
       <section className="top3">
         <div className="top3-card leak"><span className="eyebrow">Costliest moment</span>
-          {costly ? <><b>{costly.title}</b><span className="muted small">{mins(costly.t)}{costly.why[0] ? ` · ${costly.why[0]}` : ''}</span><button className="cta small-btn" onClick={() => watch(costly.t)}><Icon name="play" size={12} /> Watch</button></> : <span className="muted">No costly moment. Clean game.</span>}
+          {costly ? <><b>{costly.title}</b><span className="muted small">{mins(costly.t)}{said(costly)}</span><button className="cta small-btn" onClick={() => watch(costly.t)}><Icon name="play" size={12} /> Watch</button></> : <span className="muted">No costly moment. Clean game.</span>}
         </div>
         <div className="top3-card best"><span className="eyebrow">Best play</span>
-          {top ? <><b>{top.title}</b><span className="muted small">{mins(top.t)}{top.why[0] ? ` · ${top.why[0]}` : ''}</span><button className="cta small-btn" onClick={() => watch(top.t)}><Icon name="play" size={12} /> Watch</button></> : <span className="muted">No standout play this time.</span>}
+          {top ? <><b>{top.title}</b><span className="muted small">{mins(top.t)}{said(top)}</span><button className="cta small-btn" onClick={() => watch(top.t)}><Icon name="play" size={12} /> Watch</button></> : <span className="muted">No standout play this time.</span>}
         </div>
         <div className="top3-card fix"><span className="eyebrow">Fix next</span>
           {worst ? <><b>{worst.label}</b><span className="muted small">{FOCUS[worst.key]}</span><button className="cta small-btn" onClick={() => jump(worst.key)}>See why</button></> : <span className="muted">Nothing stands out.</span>}
         </div>
       </section>
     </>
+  );
+}
+
+/** How much a moment moved its player's team's chance to win: from a minute before to a minute after. */
+function swingOf(match: D2Match, m: D2Move): number {
+  const team = match.players[m.slot].team;
+  return winChance(match, team, m.t + 60) - winChance(match, team, Math.max(0, m.t - 60));
+}
+/** A swing in win chance smaller than this is the model's noise, not a moment. */
+const NOTICEABLE = 0.03;
+const pts = (d: number) => `${d >= 0 ? '+' : '−'}${Math.abs(Math.round(d * 100))}%`;
+
+/** The team's chance to win over the match, from the coach's model, with its biggest swings. Click goes there. */
+function WinChance({ match, team, watch }: { match: D2Match; team: D2Team; watch: (t: number) => void }) {
+  const curve = useMemo(() => Array.from({ length: Math.floor(match.duration / 30) + 1 }, (_, i) => i * 30).map(t => ({ t, v: winChance(match, team, t) * 100 })), [match, team]);
+  // the biggest moves over two minutes, a few apart
+  const moves = useMemo(() => {
+    const out: { t: number; d: number }[] = [];
+    for (let i = 4; i < curve.length; i++) out.push({ t: curve[i - 4].t, d: curve[i].v - curve[i - 4].v });
+    const kept: typeof out = [];
+    for (const m of out.sort((a, b) => Math.abs(b.d) - Math.abs(a.d))) { if (kept.length >= 4) break; if (kept.every(k => Math.abs(k.t - m.t) > 120)) kept.push(m); }
+    return kept;
+  }, [curve]);
+  const peak = Math.max(...curve.map(c => c.v)), low = Math.min(...curve.map(c => c.v));
+  const big = moves[0];
+  return (
+    <section className="recap-card" title={`From the coach's model: ${WIN_MODEL.matches.toLocaleString()} pro matches since ${new Date(WIN_MODEL.since).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}; right about the winner ${Math.round(WIN_MODEL.test.accuracy * 100)}% of the time on matches it hadn't seen`}>
+      <h3 aria-level={2}>Chance to win</h3>
+      <div className="dl-kpis">
+        <span><b className="num"><CountUp text={`${Math.round(peak)}%`} id={`${match.id}:${team}:peak`} /></b><i>highest</i></span>
+        <span><b className="num"><CountUp text={`${Math.round(low)}%`} id={`${match.id}:${team}:low`} /></b><i>lowest</i></span>
+        <span><b className="num" style={{ color: match.winner === team ? 'var(--good)' : 'var(--bad)' }}>{match.winner === team ? 'Won' : 'Lost'}</b><i>{match.winner === team ? (low < 35 ? 'a comeback' : 'as expected') : (peak > 65 ? 'thrown from ahead' : 'never really ahead')}</i></span>
+      </div>
+      <SplitChart xticks={Array.from({ length: Math.floor(match.duration / 600) + 1 }, (_, k) => k * 600)} caption={`${match.names[team]}'s chance to win over the match`} base={50} top={100} bottom={0}
+        colors={[TEAM_COLOR[team], TEAM_COLOR[(1 - team) as D2Team]]} points={curve} fmt={v => `${Math.round(v)}%`} xfmt={mins} onPick={watch}
+        label={big ? { t: big.t, text: `${mins(big.t)} ${big.d >= 0 ? '+' : '−'}${Math.abs(big.d).toFixed(0)}%` } : null}
+        dots={match.roshan.map(r => ({ t: r.t, color: TEAM_COLOR[r.team], title: `${match.names[r.team]} took Roshan` }))} />
+    </section>
+  );
+}
+
+/** The map under a small chart: its picture laid where map points 0–1 fall in an S×S box. */
+function MiniMap({ S }: { S: number }) {
+  const m = mapImage('game');
+  return <image href={m.src} x={m.x * S} y={m.y * S} width={m.w * S} height={m.h * S} opacity={0.5} preserveAspectRatio="none" />;
+}
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+/**
+ * Where you played next to pros in your position (spots.ts, from their replays): per stage, the share of your time spent
+ * where they usually are; their usual spots with your path; the longest stretches where they rarely go, to watch.
+ */
+function Positioning({ match, slot, tracks, watch }: { match: D2Match; slot: number; tracks: ReplayTracks | null; watch: (t: number) => void }) {
+  const p = useMemo(() => positioning(match, slot, tracks), [match, slot, tracks]);
+  const team = match.players[slot].team;
+  const [phase, setPhase] = useState<number | null>(null);
+  useEffect(() => { setPhase(null); }, [slot]);
+  if (!p) return tracks ? null : (
+    <section className="recap-card"><h3 aria-level={2}>Where you played</h3><p className="muted small">Reading the replay: where you stood next to pros in your position shows here once it's read.</p></section>
+  );
+  const firstLive = Math.max(0, p.phases.findIndex(ph => ph.n > 0)), at = phase ?? firstLive, ph = SPOT_PHASES[at];
+  const grid = spotGrid(p.pos, at, team) ?? [];
+  const S = 240, cell = S / SPOT_GRID;
+  const dots = p.path.filter(d => d.t >= ph.from && d.t < ph.to);
+  const all = p.phases.reduce((a, x) => a + x.n, 0), usual = p.phases.reduce((a, x) => a + x.usual, 0);
+  return (
+    <section className="recap-card dl-spots">
+      <h3 aria-level={2}>Where you played <span className="muted small">Pos {p.pos} · {POSITION_INFO[p.pos].name} · {pct(usual / Math.max(1, all))} of the time where pros usually are</span></h3>
+      <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Next to Pos {p.pos} players in {SPOT_SOURCE.matches} pro matches, read from their replays: the shaded cells hold 85% of their time at that stage. A rare spot isn't a mistake (a smoke, a flank): it's worth a look.</p></details>
+      <div className="dl-spots-body">
+        <svg viewBox={`0 0 ${S} ${S}`} className="dl-spots-map" role="img" aria-label={`Your path from ${ph.label}, over where pros in Pos ${p.pos} usually are`}>
+          <MiniMap S={S} />
+          {grid.map((v, i) => v < 0.08 ? null : <rect key={i} x={(i % SPOT_GRID) * cell} y={Math.floor(i / SPOT_GRID) * cell} width={cell} height={cell} rx={cell * 0.2} className="dl-spots-heat" opacity={Math.min(0.55, v * 0.7)} />)}
+          {dots.map(d => <circle key={d.t} cx={d.x * S} cy={d.y * S} r={2.2} className={d.usual ? 'dl-spots-dot' : 'dl-spots-dot rare'} />)}
+        </svg>
+        <div className="dl-spots-side">
+          <div className="dl-spots-phases" role="tablist" aria-label="Stage of the match">
+            {p.phases.map((x, i) => (
+              <button key={x.label} role="tab" aria-selected={i === at} className={i === at ? 'on' : ''} disabled={!x.n} onClick={() => setPhase(i)}>
+                <span className="muted small">{x.label}</span><b className="num">{x.n ? pct(x.usual / x.n) : '–'}</b>
+              </button>
+            ))}
+          </div>
+          {p.stretches.length > 0 && (
+            <ul className="dl-spots-stretches">
+              {p.stretches.map(s => (
+                <li key={s.t}><span className="num muted">{mins(s.t)}</span><span>{Math.round(s.dur)} s where pros rarely are</span><button className="chip" onClick={() => watch(s.t)}>Watch</button></li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * How much your observers were worth (spots.ts): what pros' wards at the same spots and stage showed of the enemy, next
+ * to an average pro ward; and, from the replay, what yours really showed. Best and weakest, to watch.
+ */
+function WardValue({ match, slot, tracks, watch }: { match: D2Match; slot: number; tracks: ReplayTracks | null; watch: (t: number) => void }) {
+  const r = useMemo(() => wardReview(match, slot, tracks), [match, slot, tracks]);
+  if (!r) return null;
+  const S = 240, of = (v: number) => (r.pros ? v / r.pros : 1);
+  const sorted = [...r.wards].sort((a, b) => b.worth - a.worth);
+  const best = sorted.slice(0, 2), weak = sorted.slice(-2).reverse().filter(x => !best.includes(x));
+  const tone = (v: number) => (v >= 1.1 ? 'var(--good)' : v >= 0.85 ? 'var(--text-1)' : 'var(--bad)');
+  return (
+    <section className="recap-card dl-spots">
+      <h3 aria-level={2}>Your wards <span className="muted small">{r.wards.length} observer{r.wards.length === 1 ? '' : 's'}</span></h3>
+      <details className="help-pop"><summary aria-label="About this chart">?</summary><p className="muted small">Every observer in {SPOT_SOURCE.matches} pro matches was checked against their replays: how many seconds it showed enemy heroes per minute it stood. A spot's worth is what pros' wards there showed at that stage of the match.</p></details>
+      <div className="dl-kpis">
+        <span><b className="num" style={{ color: tone(of(r.worth)) }}><CountUp text={pct(of(r.worth))} id={`${match.id}:${slot}:wardrel`} /></b><i>spots' worth, of a pro ward's</i></span>
+        {r.seen !== null && <span><b className="num"><CountUp text={`${r.seen.toFixed(0)} s`} id={`${match.id}:${slot}:wardseen`} /></b><i>of enemies seen a minute (pros {r.pros.toFixed(0)} s)</i></span>}
+        {r.seen !== null && <span><b className="num">{r.kills}</b><i>enemy deaths in their sight</i></span>}
+      </div>
+      <div className="dl-spots-body">
+        <svg viewBox={`0 0 ${S} ${S}`} className="dl-spots-map" role="img" aria-label="Your observers on the map, by what their spots are worth">
+          <MiniMap S={S} />
+          {r.wards.map(x => <circle key={`${x.w.t}:${x.w.at.x}`} cx={x.w.at.x * S} cy={x.w.at.y * S} r={4} fill={tone(of(x.worth))} stroke="var(--surface-1)" strokeWidth={1.5}><title>{`${mins(x.w.t)}: worth ${pct(of(x.worth))} of a pro ward`}</title></circle>)}
+        </svg>
+        <ul className="dl-spots-stretches">
+          {[...best.map(x => ({ x, good: true })), ...weak.map(x => ({ x, good: false }))].map(({ x, good }) => (
+            <li key={`${good}:${x.w.t}`}><span className="num muted">{mins(x.w.t)}</span>
+              <span style={{ color: good ? 'var(--good)' : 'var(--bad)' }}>{good ? 'Best' : 'Weakest'}: {pct(of(x.worth))} of a pro ward{x.did ? ` · saw ${x.did.seen.toFixed(0)} s/min` : ''}</span>
+              <button className="chip" onClick={() => watch(x.w.t)}>Watch</button></li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
 
