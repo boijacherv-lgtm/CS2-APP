@@ -70,9 +70,11 @@ export function D2Report() {
       <header className="recap-head" style={art ? { '--map-art': `url(${art})` } as CSSProperties : undefined}>
         <div className="recap-head-main">
           <h1 className="recap-map display">Dota 2 <span className="sr-only">{kills(0)}–{kills(1)}</span></h1>
+          <span className="recap-teamname" style={{ color: TEAM_COLOR[0] }}>{match.names[0]}</span>
           <span className="recap-score display">
             <b style={{ color: TEAM_COLOR[0] }}><CountUp text={String(kills(0))} id={`${match.id}:k0`} /></b><i>–</i><b style={{ color: TEAM_COLOR[1] }}><CountUp text={String(kills(1))} id={`${match.id}:k1`} /></b>
           </span>
+          <span className="recap-teamname" style={{ color: TEAM_COLOR[1] }}>{match.names[1]}</span>
           <span className="muted">kills</span>
           {coach.mine !== null && <span className={`recap-result ${match.winner === match.players[coach.mine].team ? 'victory' : 'defeat'}`}>{match.winner === match.players[coach.mine].team ? 'Victory' : 'Defeat'}</span>}
           <button className="ghost small-btn recap-close" onClick={() => { useD2.getState().close(); navigate({ page: 'dota2', mode: 'review' }); }}><Icon name="close" size={13} /> Close match</button>
@@ -210,7 +212,7 @@ function ReportCardView({ card, match, name, moves, all, watch }: { card: D2Card
       </section>
 
       <div className="dl-rc-tiles">
-        {card.parts.map(part => {
+        {card.parts.filter(part => part.score !== null).map(part => {
           const r = rankOf(part.score, c => c.parts.find(x => x.key === part.key)?.score ?? null);
           return (
             <button key={part.key} className={`dl-rc-tile ${openKey === part.key ? 'on' : ''}`} onClick={() => (openKey === part.key ? setOpenKey(null) : jump(part.key))} aria-expanded={openKey === part.key} title={part.summary}>
@@ -221,6 +223,9 @@ function ReportCardView({ card, match, name, moves, all, watch }: { card: D2Card
           );
         })}
       </div>
+      {card.parts.some(part => part.score === null) && (
+        <p className="muted small dl-rc-ungraded">Not graded for this player: {card.parts.filter(part => part.score === null).map(part => part.label).join(', ')}. Vision and team play are a support's job; the match didn't show the rest.</p>
+      )}
 
       {card.parts.filter(part => part.key === openKey).map(part => {
         const facts = part.lines.filter(l => l.t === undefined), moments = part.lines.filter(l => l.t !== undefined);

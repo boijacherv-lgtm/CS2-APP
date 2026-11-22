@@ -64,7 +64,7 @@ export function GamePage({ kit }: { kit: GamePageKit }) {
       <section className="site-section gp-moment">
         <h2 className="section-title">One real moment</h2>
         <figure>
-          <img src={kit.moment.src} alt={kit.moment.alt} width={800} height={562} loading="lazy" />
+          <img src={kit.moment.src} alt={kit.moment.alt} width={800} height={562} decoding="async" />
           <figcaption><span>{kit.moment.caption}</span><button className="cta primary" onClick={watch} disabled={opening === 'opening'}><Icon name="play" size={12} /> Watch</button></figcaption>
         </figure>
       </section>

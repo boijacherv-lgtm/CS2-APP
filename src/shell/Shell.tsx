@@ -147,7 +147,7 @@ export function pageTitle(r: Route): string {
   if (r.page === 'guides' && 'guide' in r) return GUIDES.find(g => g.slug === r.guide)?.title ?? 'Guides · RageView';
   if (r.page === 'puzzles') return 'CS2 & Deadlock puzzles: find the best play · RageView';
   if (r.page === 'pricing') return 'RageView pricing: free, Pro free in early access';
-  return r.page === 'home' ? 'RageView — Free CS2 & Deadlock match review, every play graded' : `${PAGE_TITLE[r.page] ?? r.page} · RageView`;
+  return r.page === 'home' ? 'RageView — Free CS2, Deadlock & Dota 2 match review, every play graded' : `${PAGE_TITLE[r.page] ?? r.page} · RageView`;
 }
 
 /** An address that isn't a page. */

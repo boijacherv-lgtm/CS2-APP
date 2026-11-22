@@ -1248,7 +1248,7 @@ input.switch { min-height: 24px; height: 24px; }
 .rg thead th { font: 500 12px var(--font-ui); color: var(--text-2); border-bottom: 3px solid var(--surface-3); height: 22px; }
 .rg td.cell { padding: 0; }
 .rg .hc { width: 26px; height: 26px; border-radius: 6px; }
-.rg .hc::after { opacity: 1 !important; font: 800 14px var(--font-num); color: var(--ink); }
+.rg .hc::after { font: 800 14px var(--font-num); color: var(--ink); }
 .rg .cell:hover .hc { outline: 2px solid var(--text-1); }
 
 /* round 11: the match list in 'Golos Text': a clean score, the date whole (it wraps, never cut), the map name in the text face */

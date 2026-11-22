@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { LETTER_COLOR, LETTERS } from '../engine/notes';
 
 /**
@@ -29,7 +29,10 @@ export function WinFrag({ from = 52, to = 31, side = 'CT' }: { from?: number; to
 export function ScoreFrag({ score, rank }: { score: number; rank: string }) {
   return (
     <div className="frag frag-score" role="img" aria-label={`Score ${score} out of 100, ${rank} in the match`}>
-      <div className="frag-score-top"><b className="num">{score}</b><span className="muted small">{rank} in the match</span></div>
+      <div className="frag-score-top">
+        <span className="frag-ring" aria-hidden style={{ '--p': score, '--c': score >= 62 ? 'var(--good)' : score >= 50 ? 'var(--text-2)' : 'var(--bad)' } as CSSProperties} />
+        <span className="frag-score-text"><b className="num">{score}<small> / 100</small></b><span className="muted small">{rank} in the match</span></span>
+      </div>
       <span className="dl-rc-bar"><i style={{ width: `${score}%`, background: score >= 62 ? 'var(--good)' : score >= 50 ? 'var(--text-2)' : 'var(--bad)' }} /></span>
     </div>
   );

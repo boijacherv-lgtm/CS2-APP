@@ -85,6 +85,8 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
   const [sort, setSort] = useState<SortKey>('tier');
   const [pos, setPos] = useState<number>(0);
   const [q, setQ] = useState('');
+  // the whole list is long (125 heroes): the top of each group until you ask for all, search or pick a position
+  const [full, setFull] = useState(false);
   const [grouped, setGrouped] = useState(() => { try { return localStorage.getItem('stratboard.d2.metaGroup') !== '0'; } catch { return true; } });
   const toggleGroup = () => { setGrouped(g => { try { localStorage.setItem('stratboard.d2.metaGroup', g ? '0' : '1'); } catch { /* private mode */ } return !g; }); };
   const stats = useLoad(heroStats, []);
@@ -101,7 +103,11 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
     const find = q.trim().toLowerCase();
     return all.filter(r => r.games > 0 && (!pos || posOf(r.hero) === pos) && (!find || heroOf(r.hero).name.toLowerCase().includes(find))).sort(by[sort]);
   }, [all, sort, pos, q, pairs]); // eslint-disable-line react-hooks/exhaustive-deps
-  const groups = grouped ? POSITIONS.map(p => ({ pos: p as Position | null, rows: rows.filter(r => posOf(r.hero) === p) })).filter(g => g.rows.length) : [{ pos: null as Position | null, rows }];
+  const short = !full && !q.trim() && !pos;
+  const cut = grouped ? 6 : 20;
+  const groups = (grouped ? POSITIONS.map(p => ({ pos: p as Position | null, rows: rows.filter(r => posOf(r.hero) === p) })).filter(g => g.rows.length) : [{ pos: null as Position | null, rows }])
+    .map(g => ({ ...g, all: g.rows.length, rows: short ? g.rows.slice(0, cut) : g.rows }));
+  const hidden = short ? rows.length - groups.reduce((a, g) => a + g.rows.length, 0) : 0;
   const matches = all ? Math.round(all.reduce((a, r) => a + r.games, 0) / 10) : 0;
   return (
     <section className="dl-meta">
@@ -133,7 +139,7 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
           {groups.map(g => (
             <tbody key={g.pos ?? 'all'}>
               {g.pos && (
-                <tr className="dl-meta-group"><td colSpan={9}><span className={`dl-pos p${g.pos}`}>Pos {g.pos}</span> <b>{POSITION_INFO[g.pos].name}</b> <span className="muted small">{POSITION_INFO[g.pos].job} · {g.rows.length} {g.rows.length === 1 ? 'hero' : 'heroes'}</span></td></tr>
+                <tr className="dl-meta-group"><td colSpan={9}><span className={`dl-pos p${g.pos}`}>Pos {g.pos}</span> <b>{POSITION_INFO[g.pos].name}</b> <span className="muted small">{POSITION_INFO[g.pos].job} · {g.all} {g.all === 1 ? 'hero' : 'heroes'}</span></td></tr>
               )}
               {g.rows.map(r => {
                 const changed = patch.heroes.get(r.hero);
@@ -157,6 +163,7 @@ export function MetaHeroes({ onHero }: { onHero: (h: number) => void }) {
           ))}
         </table>
       )}
+      {all && rows.length > 0 && (hidden > 0 || full) && <button className="cta small-btn dl-meta-more" onClick={() => setFull(!full)}>{full ? 'Show the top of each group' : `Show all ${rows.length} heroes`}</button>}
       <p className="muted small">From OpenDota's last 7 days of matches, so early in a patch the rates still lean on the one before; "Since the patch" counts only the days since it came out. Tier from the win rate, pulled toward 50% for heroes with fewer games: S 52.5%+, A 51%+, B 49%+, C 47.5%+, D below. Pick rate: share of matches with the hero. Bans are counted in pro matches only. Positions: where pros play each hero, by the game's tags for heroes they rarely pick.</p>
     </section>
   );

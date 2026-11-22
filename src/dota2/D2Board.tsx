@@ -203,7 +203,6 @@ export function D2Board() {
               </li>
             ))}
           </ol>
-          <ReplayNote />
         </>} />
       </div>
       <Playbar match={match} playing={playing} speed={speed} graded={graded} slow={slow} setSlow={setSlow} canMine={coach.canMine}>
@@ -214,6 +213,7 @@ export function D2Board() {
           <span className="d2-legend small" title="Wards on the map"><b style={{ color: WARD_RING.obs }}>O</b> Obs <b style={{ color: WARD_RING.sen }}>S</b> Sen</span>
         </span>
       </Playbar>
+      <ReplayNote />
     </div>
   );
 }
@@ -224,9 +224,16 @@ const STEP_LABEL = { download: 'Downloading the replay', unpack: 'Unpacking the 
 function ReplayNote() {
   const replay = useD2(s => s.replay);
   if (replay.status === 'ready' || replay.status === 'idle') return null;
-  if (replay.status === 'failed') return <p className="d2-replay-note">Couldn't read the replay ({replay.error}), so heroes are at the last place the logs put them, not live.</p>;
+  if (replay.status === 'failed') return <p className="d2-replay-note" role="status">Couldn't read the replay ({replay.error}), so heroes are at the last place the logs put them, not live.</p>;
   const step = replay.status === 'loading' && replay.step;
-  return <p className="d2-replay-note"><b>{step ? `${STEP_LABEL[step]}… ${Math.round((replay.share ?? 0) * 100)}%` : 'Getting the replay…'}</b> The first time can take a few minutes, depending on Valve's server; after that the match opens at once. Until then heroes are at the last place the logs put them.</p>;
+  const share = Math.round((replay.share ?? 0) * 100);
+  return (
+    <div className="d2-replay-note" role="status">
+      <b>{step ? `${STEP_LABEL[step]}… ${share}%` : 'Getting the replay…'}</b>
+      <span className="report-progress"><i style={{ width: `${step ? share : 4}%` }} /></span>
+      <span>The first time can take a few minutes, depending on Valve's server; after that the match opens at once. Until then heroes are at the last place the logs put them.</span>
+    </div>
+  );
 }
 
 function NotParsed({ match }: { match: D2Match }) {

@@ -86,7 +86,7 @@ export function Settings() {
 
       <section className="site-card">
         <h2 id="games">Games</h2>
-        <p className="muted small">Deadlock: the map and its cards. CS2 has no game-only settings yet.</p>
+        <p className="muted small">Deadlock: the map and its cards. CS2 and Dota 2 have no game-only settings yet.</p>
         <Toggle label="Danger map" on={dlDanger} text="Where high-rank players die at this point of the match." onChange={() => useDl.getState().toggleDanger()} />
       </section>
 
