@@ -105,6 +105,10 @@ a.site-card:hover, button.site-card:hover, a.feature:hover, .dl-row:hover:not(:d
 .note-face { background: none !important; padding: 0 !important; min-width: 0 !important; line-height: 0; border: none !important; }
 .dl-card-mark.mark-face { padding: 0; min-width: 0; border-radius: 50%; }
 .timeline .tl-mark:has(.mark-face) { border: none; padding: 0; min-width: 0; width: 15px; height: 15px; background: none; }
+/* the eye (eyes.ts): at rest the reveal's parts are off, so a still eye shows its mark */
+.mark-face > svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.mark-face .eye-neutral { opacity: 0; }
+.mark-face .eye-lid { transform-box: fill-box; transform-origin: 50% 0; transform: scaleY(0); }
 
 /* ---- a little ornament: the game's pattern across the page, a lit top edge and a patterned corner on cards, and the
    game's mark before section titles. Kept faint so content stays first. ------------------------------------------ */

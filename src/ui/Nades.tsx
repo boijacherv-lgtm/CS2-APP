@@ -389,8 +389,9 @@ function GradeMark({ grade, x, y, k }: { grade: Annotation; x: number; y: number
   const g = NOTE_INFO[grade];
   return (
     <Group x={x} y={y} listening={false}>
-      <Circle radius={(grade === 'book' ? 3.5 : 7) * k} fill={g.color} stroke="#000" strokeWidth={1.2 * k} />
-      {grade !== 'book' && <KonvaFace note={grade} radius={7 * k} />}
+      {grade === 'book'
+        ? <Circle radius={3.5 * k} fill={g.color} stroke="#000" strokeWidth={1.2 * k} />
+        : <KonvaFace note={grade} radius={7 * k} />}
     </Group>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSiteConfig } from './siteConfig';
 import { simStateAt, type Simulation } from '../engine/combat';
 import { moveLook, NoteMark } from './NoteMark';
+import { MarkFace } from './MarkFace';
 import { gunFromName } from '../engine/guns';
 import { calloutAt, moveClock, NOTE_INFO, moveKey, QUIET_TAGS, readMs, TAG_INFO, type DemoRound, type Move, type Review, type Tag } from '../engine/recap';
 import { swingNote } from '../engine/notes';
@@ -167,6 +168,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
         {/* 1. the grade, who, when */}
         {/* the same card as Deadlock's: the grade as a coloured pill, then who and when */}
         <div className="feed-card-head">
+          <MarkFace note={card.note} size={22} reveal={{ move: card, where: 'card' }} />
           <span className="feed-grade" style={{ background: g.color }}>{g.label}</span>
           <span className="feed-who"><i className={card.side === 'CT' ? 'ct' : 't'}>{names[card.player] ?? ''}</i> · <em className="num">{moveClock(round.plant, card.t).text}</em></span>
           {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close"><Icon name="close" /></button>}
@@ -283,7 +285,7 @@ export function KillFeed({ recap, round, time, names }: { recap: Review; round: 
   const moveOf = (kind: 'kill' | 'death', id: string, t: number) => recap.moves.find(m => m.kind === kind && m.player === id && Math.abs(m.t - t) < 0.06);
   // like a chess score sheet: only annotated moves carry a mark (book kills and deaths stay plain)
   const chip = (m: Move | undefined) => m && shown(m) && m.note !== 'book'
-    ? <NoteMark m={m} className="kf-mark" title={`${NOTE_INFO[m.note].label}: ${signedPct(m.gain)} win chance`} />
+    ? <NoteMark m={m} className="kf-mark" title={`${NOTE_INFO[m.note].label}: ${signedPct(m.gain)} win chance`} reveal={{ move: m, where: 'killfeed' }} />
     : null;
   const who = (id: string) => <b className={sideOf(id) === 'CT' ? 'ct' : 't'} title={names[id]}>{names[id] ?? '?'}</b>;
   return (

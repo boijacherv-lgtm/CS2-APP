@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent, type
 import { Arc, Circle, Group, Image as KImage, Layer, Line, Shape, Text } from 'react-konva';
 import { NOTE_INFO } from '../engine/recap';
 import { Icon } from '../ui/Icon';
+import { KonvaFace } from '../ui/KonvaFace';
+import { MarkFace } from '../ui/MarkFace';
 import { loadMatch, requestParse } from './api';
 import { speedAt, type D2Move } from './coach';
 import { buildingOf, CAMP_ICONS, heroByKey, heroOf, isNight, itemByKey, itemLook, mins, nextDawnOrDusk, OBS_VISION, skillLook, roshanOnMap, RUNE_ICONS, runeIcon, RUNE_NAME, TEAM_COLOR, visionShape, type D2Team } from './data';
@@ -165,7 +167,7 @@ export function D2Board() {
                   {hp !== undefined && <span className="d2-row-hp"><i style={{ width: `${hp}%`, background: hp <= 30 ? 'var(--bad)' : TEAM_COLOR[team] }} /></span>}
                   {vitals && <span className="d2-row-mana"><i style={{ width: `${vitals.mana}%` }} /></span>}
                   {dead && <span className="dl-respawn num">{Math.ceil(dead.t + dead.respawn - time)}</span>}
-                  {moment?.slot === p.slot && <b className="d2-row-grade" title={NOTE_INFO[moment.note].label}>{NOTE_INFO[moment.note].mark}</b>}
+                  {moment?.slot === p.slot && <MarkFace note={moment.note} size={20} title={NOTE_INFO[moment.note].label} className="d2-row-grade" reveal={{ move: moment, where: 'row' }} />}
                 </button>
               );
             })}
@@ -177,7 +179,7 @@ export function D2Board() {
           {moment && moment !== closed && (
             <article className="d2-moment" style={{ '--grade': NOTE_INFO[moment.note].color } as CSSProperties}>
               <header>
-                <b>{NOTE_INFO[moment.note].mark}</b>
+                <MarkFace note={moment.note} size={22} reveal={{ move: moment, where: 'card' }} />
                 <strong>{NOTE_INFO[moment.note].label}</strong>
                 <span className="num muted small">{mins(moment.t)}</span>
                 <button className="verdict-undo" onClick={() => setClosed(moment)} aria-label="Close this move's window" title="Close"><Icon name="close" size={12} /></button>
@@ -380,8 +382,7 @@ function BoardMap({ match, selected, show, overlay, moment }: { match: D2Match; 
                 <Circle radius={(17 + beat * 16) * k} stroke={info.color} strokeWidth={2.4 * k} opacity={1 - beat} />
                 <Circle radius={16 * k} stroke={info.color} strokeWidth={2.6 * k} />
                 <Group y={-29 * k}>
-                  <Circle radius={badge} fill={info.color} stroke="#0b0e12" strokeWidth={1.6 * k} />
-                  <Text text={info.mark} x={-badge} y={-badge} width={badge * 2} height={badge * 2} align="center" verticalAlign="middle" fontSize={13 * k} fontStyle="bold" fill="#0b0e12" />
+                  <KonvaFace note={moment.note} radius={badge} />
                 </Group>
               </Group>
             );
