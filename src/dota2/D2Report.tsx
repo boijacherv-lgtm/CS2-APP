@@ -7,7 +7,6 @@ import { LETTER_COLOR, LETTERS, NOTE_INFO, type Letter } from '../engine/recap';
 import { navigate } from '../shell/router';
 import { AreaChart, BarList } from '../site/charts';
 import { Icon, type IconName } from '../ui/Icon';
-import { MarkFace } from '../ui/MarkFace';
 import { itemTimings, TIMING_MARGIN, typicalTiming } from './api';
 import type { D2Move, D2Tag } from './coach';
 import { abilityById, buildingOf, heroOf, itemById, itemByKey, mins, skillLook, TEAM_COLOR, TEAM_NAME, type D2Team } from './data';
