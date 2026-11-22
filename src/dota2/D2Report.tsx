@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Collapse } from '../ui/Collapse';
+import { CountUp } from '../ui/CountUp';
+import { MarkFace } from '../ui/MarkFace';
+import { ScoreRing } from '../ui/ScoreRing';
 import { LETTER_COLOR, LETTERS, NOTE_INFO, type Letter } from '../engine/recap';
 import { navigate } from '../shell/router';
 import { AreaChart, BarList } from '../site/charts';
@@ -7,20 +11,22 @@ import { itemTimings, TIMING_MARGIN, typicalTiming } from './api';
 import type { D2Move, D2Tag } from './coach';
 import { abilityById, buildingOf, heroOf, itemById, itemByKey, mins, skillLook, TEAM_COLOR, TEAM_NAME, type D2Team } from './data';
 import { TalentTree } from './D2Talents';
+import { useLiveGameData, useMapLayout } from './gameData';
 import { GRADE_LEGEND, gradeMatch, type ChapterKind, type MatchGrades } from './grades';
 import { NORM_SAMPLE, supportNumbers, supportsOf, teamPlayLetter, visionLetter } from './support';
 import { clashes, keyFacts, laneResults, SWING_MINUTES, type D2Match } from './match';
+import { reportCard, type D2Card, type PartKey } from './reportCard';
 import { useD2 } from './store';
 import { useCoach } from './useCoach';
 import '../deadlock/dl.css';
 import './d2.css';
 
-type Tab = 'overview' | 'grades' | 'coach' | 'draft' | 'fights' | 'objectives' | 'items' | 'skills' | 'chat' | 'scoreboard';
+// the same tabs, in the same order, as CS2's and Deadlock's recaps (Overview · Coach · Scoreboard · Timeline · Economy), then this game's own
+type Tab = 'overview' | 'coach' | 'scoreboard' | 'timeline' | 'economy' | 'draft' | 'chat';
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
-  { id: 'overview', label: 'Overview', icon: 'star' }, { id: 'grades', label: 'Grades', icon: 'list' }, { id: 'coach', label: 'Coach', icon: 'target' },
-  { id: 'draft', label: 'Draft & lanes', icon: 'grid' }, { id: 'fights', label: 'Fights', icon: 'swords' },
-  { id: 'objectives', label: 'Objectives', icon: 'map' }, { id: 'items', label: 'Items', icon: 'trendUp' },
-  { id: 'skills', label: 'Skills', icon: 'bolt' }, { id: 'chat', label: 'Chat', icon: 'chat' }, { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
+  { id: 'overview', label: 'Overview', icon: 'star' }, { id: 'coach', label: 'Coach', icon: 'chat' }, { id: 'scoreboard', label: 'Scoreboard', icon: 'list' },
+  { id: 'timeline', label: 'Timeline', icon: 'grid' }, { id: 'economy', label: 'Economy', icon: 'coins' },
+  { id: 'draft', label: 'Draft & lanes', icon: 'friends' }, { id: 'chat', label: 'Chat', icon: 'chat' },
 ];
 /** What each kind of mistake means, and what to do instead (the coach's lessons). */
 const LESSON: Partial<Record<D2Tag, { title: string; fix: string }>> = {
@@ -34,31 +40,64 @@ const LESSON: Partial<Record<D2Tag, { title: string; fix: string }>> = {
 /** OpenDota's benchmarks: the share of players on this hero you beat. */
 const BENCH: [string, string][] = [['gold_per_min', 'Gold per minute'], ['xp_per_min', 'XP per minute'], ['last_hits_per_min', 'Last hits per minute'], ['hero_damage_per_min', 'Hero damage per minute'], ['tower_damage', 'Tower damage'], ['hero_healing_per_min', 'Healing per minute']];
 
-/** Dota 2's Match recap: the result, the coach's lessons, fights, objectives, item timings and every player's numbers. */
+/** A hero's landscape art, for the recap's header. */
+const heroArt = (key: string) => (key ? `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/${key.replace('npc_dota_hero_', '')}.png` : null);
+
+/** Dota 2's Match recap, as Deadlock's: the result and the graded player, their report card, the coach, the scoreboard, the timeline. */
 export function D2Report() {
+  useLiveGameData();
   const match = useD2(s => s.match);
   const coach = useCoach();
   const [tab, setTab] = useState<Tab>('overview');
   const tracks = useD2(s => (s.replay.status === 'ready' ? s.replay.tracks : null));
+  useMapLayout(match ?? null, tracks);
   const grades = useMemo(() => (match?.parsed ? gradeMatch(match, coach.all, tracks) : null), [match, coach.all, tracks]);
+  // whose recap: yours when you played in it, else the player picked here, else the match's best
+  const [pick, setPick] = useState<number | null>(null);
+  useEffect(() => { setPick(null); }, [match?.id]);
+  const subject = pick ?? coach.mine ?? grades?.best ?? 0;
+  const card = useMemo(() => (match && grades ? reportCard(match, grades, coach.all, subject) : null), [match, grades, coach.all, subject]);
   if (!match) return <div className="page"><p className="muted">No match open. <a href="/dota2/review">Pick one</a></p></div>;
-  const me = coach.mine !== null ? match.players[coach.mine] : null;
+  const who = match.players[subject], h = heroOf(who.hero);
   const watch = (t: number) => { useD2.getState().setTime(t - 8); useD2.getState().setPlaying(false); navigate({ page: 'dota2', mode: 'review' }); };
-  const myMoves = coach.mine !== null ? coach.all.filter(m => m.slot === coach.mine) : coach.all;
+  const nameOf = (slot: number) => match.players[slot].name ?? heroOf(match.players[slot].hero).name;
+  const moves = coach.all.filter(m => m.slot === subject);
   const kills = (team: D2Team) => match.players.filter(p => p.team === team).reduce((a, p) => a + p.kills, 0);
+  const art = heroArt(h.key);
 
   return (
     <div className="report d2-report">
-      <header className="recap-head">
+      <header className="recap-head" style={art ? { '--map-art': `url(${art})` } as CSSProperties : undefined}>
         <div className="recap-head-main">
-          <span className="d2-head-team" style={{ color: TEAM_COLOR[0] }}>{match.names[0]}{match.winner === 0 && <span className="d2-head-won">won</span>}</span>
+          <h1 className="recap-map display">Dota 2 <span className="sr-only">{kills(0)}–{kills(1)}</span></h1>
           <span className="recap-score display">
-            <b style={{ color: TEAM_COLOR[0] }}>{kills(0)}</b><i>:</i><b style={{ color: TEAM_COLOR[1] }}>{kills(1)}</b>
+            <b style={{ color: TEAM_COLOR[0] }}><CountUp text={String(kills(0))} id={`${match.id}:k0`} /></b><i>–</i><b style={{ color: TEAM_COLOR[1] }}><CountUp text={String(kills(1))} id={`${match.id}:k1`} /></b>
           </span>
-          <span className="d2-head-team" style={{ color: TEAM_COLOR[1] }}>{match.winner === 1 && <span className="d2-head-won">won</span>}{match.names[1]}</span>
-          {me && <span className={`recap-result ${match.winner === me.team ? 'victory' : 'defeat'}`}>{match.winner === me.team ? 'Victory' : 'Defeat'}</span>}
+          <span className="muted">kills</span>
+          {coach.mine !== null && <span className={`recap-result ${match.winner === match.players[coach.mine].team ? 'victory' : 'defeat'}`}>{match.winner === match.players[coach.mine].team ? 'Victory' : 'Defeat'}</span>}
+          <button className="ghost small-btn recap-close" onClick={() => { useD2.getState().close(); navigate({ page: 'dota2', mode: 'review' }); }}><Icon name="close" size={13} /> Close match</button>
         </div>
-        <p className="muted">Match {match.id} · {mins(match.duration)}{me ? ` · you: ${heroOf(me.hero).name}` : ''}</p>
+        <p className="muted">Match {match.id} · {mins(match.duration)} · <span style={{ color: TEAM_COLOR[0] }}>{match.names[0]}</span> vs <span style={{ color: TEAM_COLOR[1] }}>{match.names[1]}</span> · {match.names[match.winner]} won</p>
+        <div className="dl-subject">
+          {h.icon && <img src={h.icon} alt="" width={44} height={44} />}
+          <div className="dl-subject-who">
+            <b>{nameOf(subject)}{subject === coach.mine ? ' (you)' : ''}</b>
+            <span className="muted small">{h.name}{subject === grades?.best ? <span className="d2-mvp">MVP</span> : null}</span>
+          </div>
+          <div className="dl-subject-stats">
+            <span><b className="num">{who.kills}/{who.deaths}/{who.assists}</b><i>K/D/A</i></span>
+            <span><b className="num"><CountUp text={`${(who.netWorth / 1000).toFixed(1)}k`} id={`${match.id}:${subject}:nw`} /></b><i>net worth</i></span>
+            <span><b className="num"><CountUp text={String(who.lastHits)} id={`${match.id}:${subject}:lh`} /></b><i>last hits</i></span>
+            <span><b className="num"><CountUp text={String(who.gpm)} id={`${match.id}:${subject}:gpm`} /></b><i>gold / min</i></span>
+            <span className={`dl-subject-result ${match.winner === who.team ? 'won' : 'lost'}`}>{match.winner === who.team ? 'Won' : 'Lost'}</span>
+          </div>
+          <label className="dl-subject-pick">
+            <span className="muted small">Graded player</span>
+            <select value={subject} onChange={e => setPick(Number(e.target.value))}>
+              {match.players.map(p => <option key={p.slot} value={p.slot}>{nameOf(p.slot)} · {heroOf(p.hero).name}{p.slot === coach.mine ? ' (you)' : ''}</option>)}
+            </select>
+          </label>
+        </div>
       </header>
 
       <nav className="recap-tabs" aria-label="Recap">
@@ -68,16 +107,242 @@ export function D2Report() {
       </nav>
 
       {!match.parsed && tab !== 'scoreboard' && <p className="muted">This match hasn't been parsed: only the scoreboard is available. You can ask OpenDota to parse it in Review.</p>}
-      {match.parsed && tab === 'overview' && <Overview match={match} me={me?.slot ?? null} moves={myMoves} watch={watch} grades={grades} openGrades={() => setTab('grades')} />}
-      {grades && tab === 'grades' && <Grades match={match} grades={grades} mine={coach.mine} watch={watch} />}
-      {match.parsed && tab === 'coach' && <Coach moves={myMoves} watch={watch} who={me ? 'you' : 'everyone'} />}
+      {match.parsed && tab === 'overview' && (
+        <>
+          {card && <ReportCardView card={card} match={match} name={nameOf(subject)} moves={moves} all={grades} watch={watch} />}
+          <Facts match={match} grades={grades} subject={subject} watch={watch} />
+          {grades && <Collapse title="Everyone's grades" hint="the letters, support play, every moment"><Grades match={match} grades={grades} mine={subject} watch={watch} /></Collapse>}
+          <Collapse title="Gold" hint="the lead over the match"><GoldLead match={match} team={who.team} /></Collapse>
+          <Collapse title="Key moments" hint="the worst and the best"><KeyMoments moves={moves} watch={watch} /></Collapse>
+          {who.bench && Object.keys(who.bench).length > 0 && (
+            <Collapse title={`Against others on ${h.name}`} hint="OpenDota's benchmarks">
+              <section className="recap-card">
+                <p className="muted small">The share of players on this hero {nameOf(subject)} did better than.</p>
+                <BarList rows={BENCH.filter(([k]) => who.bench![k] !== undefined).map(([k, label]) => ({ label, value: `${Math.round(who.bench![k] * 100)}%`, share: who.bench![k], tone: who.bench![k] >= 0.6 ? 'up' as const : who.bench![k] >= 0.4 ? 'flat' as const : 'down' as const }))} />
+              </section>
+            </Collapse>
+          )}
+        </>
+      )}
+      {match.parsed && tab === 'coach' && (
+        <>
+          <Coach moves={moves} watch={watch} who={nameOf(subject)} />
+          <details className="recap-card kill-log"><summary><h3 aria-level={2}>Every moment</h3> <span className="muted">{moves.length} graded</span></summary>
+            <MoveList moves={moves} watch={watch} />
+          </details>
+        </>
+      )}
+      {tab === 'scoreboard' && <Scoreboard match={match} mine={subject} />}
+      {match.parsed && tab === 'timeline' && (
+        <>
+          <Objectives match={match} watch={watch} />
+          <Collapse title="Fights" hint="three deaths or more close together" open><Fights match={match} team={who.team} watch={watch} /></Collapse>
+        </>
+      )}
+      {match.parsed && tab === 'economy' && (
+        <>
+          <Items match={match} mine={subject} />
+          <Collapse title="Skills and talents" hint="the order they were taken"><Skills match={match} mine={subject} /></Collapse>
+        </>
+      )}
       {match.parsed && tab === 'draft' && <DraftAndLanes match={match} />}
-      {tab === 'skills' && <Skills match={match} mine={coach.mine} />}
       {tab === 'chat' && <Chat match={match} watch={watch} />}
-      {match.parsed && tab === 'fights' && <Fights match={match} team={me?.team ?? 0} watch={watch} />}
-      {match.parsed && tab === 'objectives' && <Objectives match={match} watch={watch} />}
-      {match.parsed && tab === 'items' && <Items match={match} mine={coach.mine} />}
-      {tab === 'scoreboard' && <Scoreboard match={match} mine={coach.mine} />}
+    </div>
+  );
+}
+
+const ORD = (n: number) => `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
+const TONE_COLOR = { up: 'var(--good)', down: 'var(--bad)', flat: 'var(--text-3)' } as const;
+/** What to do about each part when it's the weakest. */
+const FOCUS: Record<PartKey, string> = {
+  fights: 'Fight with your team: come in after the first stun, and back off from a fight your side is already losing.',
+  lane: 'Fix the lane first: last hits and denies, and call for a rotation or pull when it\'s pushed against you.',
+  vision: 'Ward where pros do (Meta → Patch has the spots), keep wards alive with sentries nearby, and clear theirs.',
+  team: 'Use your stuns and saves on your cores, stack camps between waves, and rotate to the lane that needs you.',
+  survival: 'Before you farm alone, count the enemies on the map, and use your saving item before the stun, not after.',
+};
+const PRAISE: Record<PartKey, string> = {
+  fights: 'won the fights', lane: 'won the lane', vision: 'gave the team vision', team: 'played for the team', survival: 'stayed alive',
+};
+function verdictOf(card: D2Card): string {
+  const scored = card.parts.filter(p => p.score !== null);
+  const best = [...scored].sort((a, b) => b.score! - a.score!)[0], worst = [...scored].sort((a, b) => a.score! - b.score!)[0];
+  if (!best || card.overall === null) return 'Not enough of the match to grade.';
+  return card.overall >= 62 ? `A strong game: ${PRAISE[best.key]}.` : card.overall >= 45 ? `An average game: ${PRAISE[best.key]}, ${worst.label.toLowerCase()} held it back.`
+    : `A rough game: ${worst.label.toLowerCase()} cost the most${best.score! >= 55 ? `, though ${PRAISE[best.key]}` : ''}.`;
+}
+
+/**
+ * The report card, as Deadlock's: the overall score with a verdict and rank in the match, the five parts as tiles (one
+ * opens below them with its moments), and the costliest moment, best play and what to fix next.
+ */
+function ReportCardView({ card, match, name, moves, all, watch }: { card: D2Card; match: D2Match; name: string; moves: D2Move[]; all: MatchGrades | null; watch: (t: number) => void }) {
+  const coach = useCoach();
+  const everyone = useMemo(() => (all ? match.players.map(p => reportCard(match, all, coach.all, p.slot)) : []), [match, all, coach.all]);
+  const rankOf = (score: number | null, pick: (c: D2Card) => number | null) => {
+    if (score === null) return null;
+    const xs = everyone.map(pick).filter((x): x is number => x !== null);
+    return { n: xs.filter(x => x > score).length + 1, of: xs.length };
+  };
+  const scored = card.parts.filter(p => p.score !== null);
+  const worst = [...scored].sort((a, b) => a.score! - b.score!)[0];
+  const overallRank = rankOf(card.overall, c => c.overall);
+  const [openKey, setOpenKey] = useState<PartKey | null>(null);
+  useEffect(() => { setOpenKey(null); }, [card.slot]);
+  const jump = (key: PartKey) => { setOpenKey(key); setTimeout(() => document.getElementById(`grade-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30); };
+  const p = match.players[card.slot];
+  const rank = (m: D2Move) => ({ '??': 0, '?': 1, '!!': 0, '!': 1 } as Record<string, number>)[m.note] ?? 2;
+  const costly = moves.filter(m => m.note === '??' || m.note === '?').sort((a, b) => rank(a) - rank(b) || a.t - b.t)[0];
+  const top = moves.filter(m => m.note === '!!' || m.note === '!').sort((a, b) => rank(a) - rank(b) || a.t - b.t)[0];
+  return (
+    <>
+      <section className="recap-card dl-rc-head">
+        <div className="dl-rc-main">
+          <ScoreRing score={card.overall} note={card.note} size={104} />
+          <div>
+            <span className="muted small">{name}'s report card · {heroOf(p.hero).name}</span>
+            <p className="dl-rc-verdict">{verdictOf(card)}</p>
+            <span className="muted small" title="50 is a typical game: a B. From the grades of every moment, the KDA and the result; supports also by their vision and team play.">
+              {overallRank ? `Overall ${ORD(overallRank.n)} of ${overallRank.of}` : '50 = a typical game'}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <div className="dl-rc-tiles">
+        {card.parts.map(part => {
+          const r = rankOf(part.score, c => c.parts.find(x => x.key === part.key)?.score ?? null);
+          return (
+            <button key={part.key} className={`dl-rc-tile ${openKey === part.key ? 'on' : ''}`} onClick={() => (openKey === part.key ? setOpenKey(null) : jump(part.key))} aria-expanded={openKey === part.key} title={part.summary}>
+              <span className="dl-rc-tile-top"><ScoreRing score={part.score} note={part.note} size={44} /><b>{part.label}</b></span>
+              <span className="dl-rc-bar"><i style={{ width: `${part.score ?? 0}%`, background: part.score === null ? 'transparent' : part.note === 'book' ? 'var(--text-2)' : NOTE_INFO[part.note].color }} /></span>
+              <span className="muted small">{part.score === null ? 'not graded' : r ? `${ORD(r.n)} of ${r.of}` : ''}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {card.parts.filter(part => part.key === openKey).map(part => {
+        const facts = part.lines.filter(l => l.t === undefined), moments = part.lines.filter(l => l.t !== undefined);
+        const r = rankOf(part.score, c => c.parts.find(x => x.key === part.key)?.score ?? null);
+        return (
+          <section key={part.key} id={`grade-${part.key}`} className="recap-card dl-grade">
+            <div className="dl-grade-head">
+              <ScoreRing score={part.score} note={part.note} size={40} />
+              <span className="dl-grade-title"><h3 aria-level={2}>{part.label}</h3></span>
+              {part.note !== 'book' && <MarkFace note={part.note} size={22} className="dl-card-mark" />}
+              {r && <span className="dl-grade-rank muted small">{ORD(r.n)} of {r.of} in the match</span>}
+              <button className="ghost small-btn" onClick={() => setOpenKey(null)} aria-label={`Close ${part.label}`}><Icon name="close" size={14} /></button>
+            </div>
+            <p className="muted small dl-grade-sum">{part.summary}</p>
+            {facts.length > 0 && <ul className="dl-grade-facts">{facts.map((l, i) => <li key={i} className={`t-${l.tone ?? 'flat'}`}>{l.text}</li>)}</ul>}
+            {moments.length > 0 && (
+              <>
+                <h4 aria-level={3}>Moments</h4>
+                <ul className="dl-grade-lines">
+                  {moments.map((l, i) => (
+                    <li key={i}>
+                      <i style={{ background: TONE_COLOR[l.tone ?? 'flat'] }} />
+                      <span>{l.text}</span>
+                      <button className="chip" onClick={() => watch(l.t!)}>Watch</button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {!part.lines.length && <p className="empty-state">{part.score === null ? 'Not graded for this player: it\'s a support\'s job, or the match didn\'t show it.' : 'Nothing more to show.'}</p>}
+          </section>
+        );
+      })}
+
+      <section className="top3">
+        <div className="top3-card leak"><span className="eyebrow">Costliest moment</span>
+          {costly ? <><b>{costly.title}</b><span className="muted small">{mins(costly.t)}{costly.why[0] ? ` · ${costly.why[0]}` : ''}</span><button className="cta small-btn" onClick={() => watch(costly.t)}><Icon name="play" size={12} /> Watch</button></> : <span className="muted">No costly moment. Clean game.</span>}
+        </div>
+        <div className="top3-card best"><span className="eyebrow">Best play</span>
+          {top ? <><b>{top.title}</b><span className="muted small">{mins(top.t)}{top.why[0] ? ` · ${top.why[0]}` : ''}</span><button className="cta small-btn" onClick={() => watch(top.t)}><Icon name="play" size={12} /> Watch</button></> : <span className="muted">No standout play this time.</span>}
+        </div>
+        <div className="top3-card fix"><span className="eyebrow">Fix next</span>
+          {worst ? <><b>{worst.label}</b><span className="muted small">{FOCUS[worst.key]}</span><button className="cta small-btn" onClick={() => jump(worst.key)}>See why</button></> : <span className="muted">Nothing stands out.</span>}
+        </div>
+      </section>
+    </>
+  );
+}
+
+/** The match at a glance: the MVP, the turning point, the richest, the most kills, Roshan. */
+function Facts({ match, grades, subject, watch }: { match: D2Match; grades: MatchGrades | null; subject: number; watch: (t: number) => void }) {
+  const f = useMemo(() => keyFacts(match), [match]);
+  const heroName = (slot: number) => { const p = match.players[slot]; return p.name ?? heroOf(p.hero).name; };
+  return (
+    <section className="d2-facts" aria-label="The match at a glance">
+      {grades && grades.best !== null && (() => {
+        const best = grades.players[grades.best], top = LETTERS.slice(0, 3).reduce((a, l) => a + best.counts[l], 0);
+        return (
+          <div className="d2-fact d2-fact-grade">
+            <span className="d2-fact-label">MVP{grades.best === subject ? ' · this player' : ''}</span>
+            <b className="d2-fact-grade-row"><span className="d2-match-letter display" style={{ background: LETTER_COLOR[best.letter] }}>{best.letter}</span>{heroOf(match.players[best.slot].hero).name}</b>
+            <span className="small muted">{top} of {best.graded} moments at A or better</span>
+          </div>
+        );
+      })()}
+      {f.swing && (
+        <button className="d2-fact" onClick={() => watch(f.swing!.t)} title="Watch this moment">
+          <span className="d2-fact-label">Turning point</span>
+          <b className="num">{mins(f.swing.t)}</b>
+          <span className="small" style={{ color: TEAM_COLOR[f.swing.team] }}>{match.names[f.swing.team]} +{f.swing.gold.toLocaleString()} gold in {SWING_MINUTES} min</span>
+        </button>
+      )}
+      {f.richest !== null && (
+        <div className="d2-fact">
+          <span className="d2-fact-label">Richest</span>
+          <b>{heroOf(match.players[f.richest].hero).name}</b>
+          <span className="small muted">{heroName(f.richest)} · {match.players[f.richest].netWorth.toLocaleString()} gold</span>
+        </div>
+      )}
+      {f.killer !== null && (
+        <div className="d2-fact">
+          <span className="d2-fact-label">Most kills</span>
+          <b>{heroOf(match.players[f.killer].hero).name}</b>
+          <span className="small muted">{heroName(f.killer)} · {match.players[f.killer].kills} kills</span>
+        </div>
+      )}
+      <div className="d2-fact">
+        <span className="d2-fact-label">Roshan</span>
+        <b className="num">{f.roshan[0]} : {f.roshan[1]}</b>
+        <span className="small muted">{match.names[0]} : {match.names[1]}</span>
+      </div>
+    </section>
+  );
+}
+
+/** The gold lead over the match, from the graded player's side. */
+function GoldLead({ match, team }: { match: D2Match; team: D2Team }) {
+  const lead = useMemo(() => match.goldAdv.map((v, i) => ({ label: `${i}:00`, value: team === 0 ? v : -v })), [match, team]);
+  if (lead.length < 2) return <section className="recap-card"><p className="muted">No gold lead recorded for this match.</p></section>;
+  const end = lead[lead.length - 1].value, best = Math.max(...lead.map(x => x.value)), worst = Math.min(...lead.map(x => x.value));
+  const sign = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v)).toLocaleString()}`;
+  return (
+    <section className="recap-card">
+      <div className="dl-kpis">
+        <span><b className="num" style={{ color: end >= 0 ? 'var(--good)' : 'var(--bad)' }}>{sign(end)}</b><i>at the end</i></span>
+        <span><b className="num">{best > 0 ? sign(best) : '–'}</b><i>biggest lead</i></span>
+        <span><b className="num">{worst < 0 ? sign(worst) : '–'}</b><i>furthest behind</i></span>
+      </div>
+      <AreaChart points={lead} fmt={sign} height={220} color={TEAM_COLOR[team]} />
+    </section>
+  );
+}
+
+/** The graded player's worst and best moments. */
+function KeyMoments({ moves, watch }: { moves: D2Move[]; watch: (t: number) => void }) {
+  const rank = (n: string) => ({ '??': 0, '?': 1, '!!': 0, '!': 1 } as Record<string, number>)[n] ?? 2;
+  const bad = moves.filter(m => m.note === '?' || m.note === '??').sort((a, b) => rank(a.note) - rank(b.note) || a.t - b.t);
+  const good = moves.filter(m => m.note === '!' || m.note === '!!').sort((a, b) => rank(a.note) - rank(b.note) || a.t - b.t);
+  return (
+    <div className="dl-moments">
+      <section className="recap-card"><h3 aria-level={2}>Worst moments</h3>{bad.length ? <MoveList moves={bad.slice(0, 3)} watch={watch} /> : <p className="empty-state">No real mistakes marked.</p>}</section>
+      <section className="recap-card"><h3 aria-level={2}>Best moments</h3>{good.length ? <MoveList moves={good.slice(0, 3)} watch={watch} /> : <p className="empty-state">No standout plays marked.</p>}</section>
     </div>
   );
 }
@@ -177,81 +442,6 @@ function Grades({ match, grades, mine, watch }: { match: D2Match; grades: MatchG
           </table>
         </div>
       </section>
-    </>
-  );
-}
-
-function Overview({ match, me, moves, watch, grades, openGrades }: { match: D2Match; me: number | null; moves: D2Move[]; watch: (t: number) => void; grades: MatchGrades | null; openGrades: () => void }) {
-  const team = me !== null ? match.players[me].team : 0;
-  const lead = useMemo(() => match.goldAdv.map((v, i) => ({ label: `${i}:00`, value: team === 0 ? v : -v })), [match, team]);
-  const bad = moves.filter(m => m.note === '?' || m.note === '??'), good = moves.filter(m => m.note === '!' || m.note === '!!');
-  const bench = me !== null ? match.players[me].bench : null;
-  const f = useMemo(() => keyFacts(match), [match]);
-  const heroName = (slot: number) => { const p = match.players[slot]; return p.name ?? heroOf(p.hero).name; };
-  return (
-    <>
-      <section className="d2-facts" aria-label="The match at a glance">
-        {grades && grades.best !== null && (() => {
-          const shown = grades.players[me ?? grades.best], top = LETTERS.slice(0, 3).reduce((a, l) => a + shown.counts[l], 0);
-          return (
-            <button className="d2-fact d2-fact-grade" onClick={openGrades} title="See everyone's grades">
-              <span className="d2-fact-label">{me !== null ? 'Your grade' : 'MVP'}</span>
-              <b className="d2-fact-grade-row"><span className="d2-match-letter display" style={{ background: LETTER_COLOR[shown.letter] }}>{shown.letter}</span>{heroOf(match.players[shown.slot].hero).name}</b>
-              <span className="small muted">{top} of {shown.graded} moments at A or better</span>
-            </button>
-          );
-        })()}
-        {f.swing && (
-          <button className="d2-fact" onClick={() => watch(f.swing!.t)} title="Watch this moment">
-            <span className="d2-fact-label">Turning point</span>
-            <b className="num">{mins(f.swing.t)}</b>
-            <span className="small" style={{ color: TEAM_COLOR[f.swing.team] }}>{match.names[f.swing.team]} +{f.swing.gold.toLocaleString()} gold in {SWING_MINUTES} min</span>
-          </button>
-        )}
-        {f.richest !== null && (
-          <div className="d2-fact">
-            <span className="d2-fact-label">Richest</span>
-            <b>{heroOf(match.players[f.richest].hero).name}</b>
-            <span className="small muted">{heroName(f.richest)} · {match.players[f.richest].netWorth.toLocaleString()} gold</span>
-          </div>
-        )}
-        {f.killer !== null && (
-          <div className="d2-fact">
-            <span className="d2-fact-label">Most kills</span>
-            <b>{heroOf(match.players[f.killer].hero).name}</b>
-            <span className="small muted">{heroName(f.killer)} · {match.players[f.killer].kills} kills</span>
-          </div>
-        )}
-        <div className="d2-fact">
-          <span className="d2-fact-label">Roshan</span>
-          <b className="num">{f.roshan[0]} : {f.roshan[1]}</b>
-          <span className="small muted">{match.names[0]} : {match.names[1]}</span>
-        </div>
-      </section>
-      <div className="d2-overview-grid">
-      {lead.length > 1 && (
-        <section className="recap-card overview">
-          <h3>Gold lead ({match.names[team]}{me !== null ? ', your team' : ''})</h3>
-          <AreaChart points={lead} fmt={v => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v)).toLocaleString()}`} height={220} color={TEAM_COLOR[team]} />
-        </section>
-      )}
-      <section className="recap-card">
-        <h3>The coach's marks{me !== null ? ' on your play' : ''}</h3>
-        <BarList rows={(['!!', '!', '?!', '?', '??'] as const).map(n => {
-          const c = moves.filter(m => m.note === n).length;
-          return { label: `${NOTE_INFO[n].mark} ${NOTE_INFO[n].label}`, value: String(c), share: c / Math.max(1, moves.filter(m => m.note !== 'book').length), tone: n.startsWith('!') ? 'up' as const : n === '?!' ? 'flat' as const : 'down' as const };
-        })} />
-        {bad.length > 0 && <><h4>Worst moments</h4><MoveList moves={[...bad].sort((a, b) => (a.note === '??' ? -1 : 0) - (b.note === '??' ? -1 : 0)).slice(0, 4)} watch={watch} /></>}
-        {good.length > 0 && <><h4>Best moments</h4><MoveList moves={good.slice(0, 3)} watch={watch} /></>}
-      </section>
-      </div>
-      {bench && Object.keys(bench).length > 0 && (
-        <section className="recap-card">
-          <h3>You against others on {heroOf(match.players[me!].hero).name}</h3>
-          <p className="muted small">The share of players on this hero you beat (OpenDota's benchmarks).</p>
-          <BarList rows={BENCH.filter(([k]) => bench[k] !== undefined).map(([k, label]) => ({ label, value: `${Math.round(bench[k] * 100)}%`, share: bench[k], tone: bench[k] >= 0.6 ? 'up' as const : bench[k] >= 0.4 ? 'flat' as const : 'down' as const }))} />
-        </section>
-      )}
     </>
   );
 }

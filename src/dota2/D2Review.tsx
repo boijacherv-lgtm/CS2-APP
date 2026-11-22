@@ -8,6 +8,7 @@ import { SteamLoginButton } from '../ui/SteamLogin';
 import { loadMatch, matchHistory, proMatches, recentMatches, rememberMatch, steamId3, type D2HistoryRow, type ProMatchRow, type RecentMatch } from './api';
 import { D2Board } from './D2Board';
 import { heroOf, mins } from './data';
+import { useGameData, useLiveGameData } from './gameData';
 import { useD2 } from './store';
 
 /** How many pro matches to offer. */
@@ -19,6 +20,7 @@ const ago = (unix: number) => {
 
 /** Dota 2 Review: pick a match (yours, or any by its ID), then replay it on the map. */
 export function D2Review() {
+  useLiveGameData();
   const match = useD2(s => s.match);
   return match ? <D2Board /> : <D2Start />;
 }
@@ -53,6 +55,7 @@ function D2Start() {
       <header className="rs-head">
         <h1 className="display">Review a Dota 2 match</h1>
         <p className="muted">Every hero moving on the map, with wards, buildings, fights and the coach. Matches come from opendota.com, positions from the match's replay.</p>
+        <GamePatch />
       </header>
       <form className="dl-id" onSubmit={e => { e.preventDefault(); if (typed) void open(typed); }}>
         <label htmlFor="d2-match-id">Match ID</label>
@@ -108,6 +111,18 @@ function D2Start() {
         )}
       </section>
     </div>
+  );
+}
+
+/** Which patch the heroes, items, skills and talents are from. */
+function GamePatch() {
+  const { patch, status } = useGameData();
+  return (
+    <p className="muted small d2-patch">
+      {status === 'live' && patch ? <>Game data: patch <b>{patch}</b>, read from the game's own data.</>
+        : status === 'loading' ? 'Reading the current patch…'
+          : status === 'failed' ? "Couldn't read the current patch: heroes, items and talents may be a patch old." : null}
+    </p>
   );
 }
 

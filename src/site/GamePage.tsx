@@ -25,7 +25,8 @@ export interface GamePageKit {
 }
 
 export function GamePage({ kit }: { kit: GamePageKit }) {
-  const over = useSiteConfig().games[kit.game === 'deadlock' ? 'deadlock' : 'cs2'];
+  // the dev page can reword CS2's and Deadlock's; another game keeps its own words
+  const games = useSiteConfig().games, over = kit.game === 'cs2' || kit.game === 'deadlock' ? games[kit.game] : undefined;
   const g = GAMES.find(x => x.id === kit.game)!;
   const [opening, setOpening] = useState<'idle' | 'opening' | 'failed'>('idle');
   const watch = async () => { setOpening('opening'); try { await kit.sample(); } catch { setOpening('failed'); } };

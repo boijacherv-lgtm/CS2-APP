@@ -28,7 +28,7 @@ type Place = 'overview' | 'review' | 'recap' | 'tab' | 'puzzles';
 const GAME_TAB: Record<KitGame, { label: string; icon: 'grid' | 'stats'; href: string; tip: string }> = {
   cs2: { label: 'Tactical', icon: 'grid', href: '/cs2/tactical', tip: 'Tactical board: place players, utility and routes, then play the round out' },
   deadlock: { label: 'Meta', icon: 'stats', href: '/deadlock/meta', tip: 'Meta & builds: heroes this patch by position, builds, draft and macro planners' },
-  dota2: { label: 'Tactical', icon: 'grid', href: '/dota2/tactical', tip: 'Plan lanes, rotations and wards, or a teamfight' },
+  dota2: { label: 'Meta', icon: 'stats', href: '/dota2/meta', tip: 'Meta & builds: heroes this patch by position, the patch notes, builds, draft and planners' },
 };
 const HREF: Record<KitGame, Record<Place, string>> = {
   cs2: { overview: '/cs2', review: '/cs2/review', recap: '/cs2/report', tab: GAME_TAB.cs2.href, puzzles: '/puzzles' },
@@ -63,7 +63,8 @@ export function NavBar({ route }: { route: Route }) {
   // inside a match: this game has one open, and you're on the game's pages
   const open = game === 'cs2' ? !!loaded : game === 'dota2' ? !!d2Match : !!dlMatch;
   const inMatch = open && (route.page === 'cs2' || route.page === 'deadlock' || route.page === 'dota2');
-  const places: Place[] = inMatch ? ['review', 'recap'] : ['overview', 'review', 'tab', 'puzzles'];
+  // Dota 2 has no puzzles of its own yet: the tab would only lead to CS2's
+  const places: Place[] = inMatch ? ['review', 'recap'] : game === 'dota2' ? ['overview', 'review', 'tab'] : ['overview', 'review', 'tab', 'puzzles'];
   const label: Record<Place, string> = { overview: 'Overview', review: 'Review', recap: 'Recap', tab: GAME_TAB[game].label, puzzles: 'Puzzles' };
   const icon = { overview: 'info', review: 'play', recap: 'star', tab: GAME_TAB[game].icon, puzzles: 'target' } as const;
   const tip: Record<Place, string> = {

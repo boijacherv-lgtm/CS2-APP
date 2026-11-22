@@ -465,7 +465,18 @@ const UNIT_CLASSES: Record<string, UnitKind> = {
   CDOTA_Unit_Roshan: 'roshan', CDOTA_Unit_Miniboss: 'tormentor', CDOTA_Item_Rune: 'rune', CDOTA_Unit_Courier: 'courier',
 };
 const UNIT_FIELDS = [...HERO_FIELDS.slice(0, 7), 'm_iTeamNum', 'm_iRuneType'];
+/** The map's fixed things, by their class: read once, where they first appear. */
+const FIXTURE_CLASSES: Record<string, FixtureKind> = {
+  CDOTA_BaseNPC_Tower: 'tower', CDOTA_BaseNPC_Barracks: 'rax', CDOTA_BaseNPC_Fort: 'fort', CDOTA_NeutralSpawner: 'camp',
+  CDOTA_Unit_Twin_Gate: 'gate', CDOTA_BaseNPC_LotusPool: 'lotus', CDOTA_BaseNPC_Watch_Tower: 'outpost',
+  CDOTA_Item_RuneSpawner_Bounty: 'bounty', CDOTA_Item_RuneSpawner_Powerup: 'power', CDOTA_Item_RuneSpawner_XP: 'wisdom',
+  CDOTA_RoshanSpawner: 'roshan', CDOTA_MinibossSpawner: 'tormentor',
+};
+// spawners keep their place in a scene node, everything else in a skeleton
+const SCENE_ORIGIN = 'CBodyComponent.m_sceneNode.m_vecOrigin';
+const FIXTURE_FIELDS = [...HERO_FIELDS.slice(0, 4), `${SCENE_ORIGIN}.m_cellX`, `${SCENE_ORIGIN}.m_cellY`, `${SCENE_ORIGIN}.m_vecX`, `${SCENE_ORIGIN}.m_vecY`, 'm_iTeamNum', 'm_Type'];
 const keepFor = (name: string) => (name.startsWith('CDOTA_Unit_Hero_') ? new Set(HERO_FIELDS)
+  : FIXTURE_CLASSES[name] ? new Set(FIXTURE_FIELDS)
   : name === 'CDOTAGamerulesProxy' ? new Set(RULES_FIELDS)
     : name === 'CDOTA_PlayerResource' ? new Set<string>()
       : UNIT_CLASSES[name] ? new Set(UNIT_FIELDS)
@@ -496,7 +507,13 @@ export interface ReplaySkill { name: string; levels: { t: number; level: number;
  * and Tormentors only.
  */
 export interface ReplayUnit { kind: UnitKind; team: number; from: number; every: number; x: number[]; y: number[]; hp?: number[]; rune?: number }
-export interface ReplayTracks { times: number[]; heroes: ReplayHero[]; unitTimes: number[]; units: ReplayUnit[] }
+/**
+ * The map's fixed things where this match had them, in map cells: a patch moves them, and the replay knows where they
+ * are. `tier` is a neutral camp's (the game's number: 0 small, 1 medium, 2 large, 3 ancient).
+ */
+export type FixtureKind = 'tower' | 'rax' | 'fort' | 'camp' | 'gate' | 'lotus' | 'outpost' | 'bounty' | 'power' | 'wisdom' | 'roshan' | 'tormentor';
+export interface ReplayFixture { kind: FixtureKind; team: number; x: number; y: number; tier?: number }
+export interface ReplayTracks { times: number[]; heroes: ReplayHero[]; unitTimes: number[]; units: ReplayUnit[]; fixtures?: ReplayFixture[] }
 
 /** How often positions are kept: every 5 ticks, six times a second. */
 const SAMPLE_TICKS = 5;
@@ -596,6 +613,7 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
         const values = cls.keep ? new Map(baselineOf(cls)) : null;
         readFields(r, cls, values);
         entities[index] = { cls, values };
+        if (values && FIXTURE_CLASSES[cls.name]) addFixture(FIXTURE_CLASSES[cls.name], values);
       } else if (cmd === 0) {
         const e = entities[index];
         if (!e) throw new Error(`Replay reader lost its place: entity ${index} doesn't exist.`);
@@ -649,6 +667,17 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
   /** The seconds left on each skill or item when last looked at. */
   const castLeft = new Map<Entity, number>();
   const unitTimes: number[] = [], allUnits: ReplayUnit[] = [];
+  const fixtures: ReplayFixture[] = [], fixtureAt = new Set<string>();
+  function addFixture(kind: FixtureKind, v: Map<string, number>) {
+    const origin = v.has(`${SCENE_ORIGIN}.m_cellX`) ? SCENE_ORIGIN : ORIGIN;
+    const at = (axis: 'X' | 'Y') => Math.round(((v.get(`${origin}.m_cell${axis}`) ?? 0) + (v.get(`${origin}.m_vec${axis}`) ?? 0) / CELL) * 100) / 100;
+    const x = at('X'), y = at('Y'), key = `${kind}:${Math.round(x)}:${Math.round(y)}`;
+    if (!x || !y || fixtureAt.has(key)) return;
+    fixtureAt.add(key);
+    // the game's teams are 2 (Radiant) and 3 (Dire); a spawner belongs to nobody
+    const team = v.get('m_iTeamNum') === 3 ? 1 : 0;
+    fixtures.push({ kind, team, x, y, ...(kind === 'camp' ? { tier: v.get('m_Type') ?? 0 } : {}) });
+  }
   let nextUnits = 0;
   const cell = (v: Map<string, number>, axis: 'X' | 'Y') => (v.get(`${ORIGIN}.m_cell${axis}`) ?? 0) + (v.get(`${ORIGIN}.m_vec${axis}`) ?? 0) / CELL;
   const sampleUnits = (list: Entity[], clock: number) => {
@@ -838,5 +867,5 @@ export function readReplay(file: Bytes, progress?: (share: number) => void): Rep
     }
     for (const list of Object.values(h.itemCasts)) for (const c of list) { c.t = clock(c.t); c.until = clock(c.until); }
   }
-  return { times: times.map(clock), heroes: [...heroes.values()], unitTimes: unitTimes.map(clock), units: allUnits };
+  return { times: times.map(clock), heroes: [...heroes.values()], unitTimes: unitTimes.map(clock), units: allUnits, fixtures };
 }
