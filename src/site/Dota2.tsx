@@ -1,90 +1,45 @@
-import { APP_NAME } from '../shell/Logo';
-import { Icon, type IconName } from '../ui/Icon';
-import '../deadlock/dl.css';
-import { GAMES, STATUS_LABEL } from './games';
-import { GameMark } from './gameMarks';
+/**
+ * Dota 2's page: the game kit's game page (GamePage) filled in for Dota 2, like Deadlock's. Reached at /dota2 (Review,
+ * Recap and Meta — Meta & builds — are /dota2/review, /dota2/report and /dota2/meta).
+ */
+import { DOTA2_FAQ } from './gameFaq';
+import { openD2Sample } from '../ui/sample';
+import { GamePage, type GamePageKit } from './GamePage';
 
-const GAME = GAMES.find(g => g.id === 'dota2')!;
+const KIT: GamePageKit = {
+  game: 'dota2',
+  h1: 'Every Dota 2 fight, graded.',
+  lead: 'Paste a match ID. Watch every hero and creep on the map while the coach grades each kill, death, lane and ward.',
+  review: '/dota2/review', reviewLabel: 'Review a Dota 2 match', sample: openD2Sample,
+  shot: { src: '/images/shots/d2-replay.jpg', alt: 'A Dota 2 replay: both teams with their items and talents, the map, and a kill graded Great' },
+  // the parts of a match the recap's grades are made of (dota2/grades.ts), with the letter's numbers as Deadlock shows them
+  grades: [
+    { icon: 'swords', title: 'Fights', text: 'Kills, deaths and damage in each fight, against your share.', score: [74, '2nd of 10'] },
+    { icon: 'trendUp', title: 'Laning', text: 'Last hits and gold at 10:00 against your lane opponent.', score: [61, '4th of 10'] },
+    { icon: 'map', title: 'Vision', text: 'Wards placed, how long they lived, on the spots pros use.', score: [68, '3rd of 10'] },
+    { icon: 'friends', title: 'Team play', text: 'Stuns, saves, items used on allies, ganks on other lanes.', score: [57, '5th of 10'] },
+    { icon: 'shield', title: 'Survival', text: 'Deaths you could have avoided, and what they cost.', score: [45, '7th of 10'] },
+    { icon: 'grid', title: 'Draft', text: 'Picks that went with your team and against theirs.', score: [63, '3rd of 10'] },
+  ],
+  moment: { src: '/images/shots/d2-moment.jpg', alt: 'One graded Dota 2 moment: a death marked Mistake with the reasons, on the map at that moment', caption: 'From the sample: a pro match on patch 7.42.' },
+  meta: {
+    title: 'Top heroes this patch', href: '/dota2/meta', cta: 'Meta & builds',
+    // the meta table's numbers (OpenDota, every rank, the last 7 days): the 3 best win rates with plenty of games
+    load: async () => {
+      const [{ heroMeta, heroStats, RANKS }, { heroOf }] = await Promise.all([import('../dota2/meta'), import('../dota2/data')]);
+      const rows = heroMeta(await heroStats(), RANKS[0], null);
+      return rows.filter(r => r.games >= 20_000).sort((a, b) => b.winRate - a.winRate).slice(0, 3)
+        .map(r => ({ title: heroOf(r.hero).name, sub: `${(r.winRate * 100).toFixed(1)}% won · tier ${r.tier}`, img: heroOf(r.hero).icon }));
+    },
+  },
+  steps: [
+    { title: 'Pick a match', text: 'Yours after logging in with Steam, or any by its match ID.' },
+    { title: 'Replay it', text: 'Every hero and creep on the map, every play graded against your hero and position.' },
+    { title: 'Plan the next one', text: 'The meta of this patch, builds, and a draft that picks by role against theirs.' },
+  ],
+  faq: DOTA2_FAQ,
 
-/** Dota 2's page while it's in beta: what works today, where the data comes from, and what's missing. */
-export function Dota2() {
-  return (
-    <div className="page dl" style={{ '--game': GAME.color } as React.CSSProperties}>
-      <section className="dl-hero">
-        <div className="dl-hero-text">
-          <span className="eyebrow"><GameMark game={GAME} size={14} /> {GAME.name} <span className={`games-status ${GAME.status}`}>{STATUS_LABEL[GAME.status]}</span></span>
-          <h1>The same coach, for Dota 2.</h1>
-          <p className="lead">Open any match by its ID and watch it back: every hero and creep moving on the map, with what they carry and their cooldowns. The coach grades every death, kill and lane; then plan your next one in Tactical. Beta on {APP_NAME}.</p>
-          <div className="hero-cta">
-            <a className="cta primary" href="/dota2/review">Review a match <Icon name="arrowRight" size={14} /></a>
-            <a className="cta" href="/dota2/tactical">Plan a match</a>
-          </div>
-        </div>
-        <div className="d2-hero-map" aria-hidden>
-          <img src="/images/maps/dota2-dark.png" alt="" width="520" height="520" loading="eager" />
-        </div>
-      </section>
+  footer: 'Not affiliated with Valve. Dota 2 and its logo belong to Valve.',
+};
 
-      <section className="site-section">
-        <h2 className="section-title">What it does</h2>
-        <div className="feature-grid">
-          {FEATURES.map(f => (
-            <div key={f.title} className="feature">
-              <span className="feature-ico"><Icon name={f.icon} size={18} /></span>
-              <b>{f.title}</b>
-              <p>{f.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="site-section">
-        <h2 className="section-title">Where it's at</h2>
-        <p className="muted dl-why">Match data comes from opendota.com, so any public match works without a file. Where heroes walked comes from the match's replay, read right in your browser. Valve keeps replays for about two weeks; a replay you've opened once stays in this browser.</p>
-        <ol className="dl-road">
-          {ROAD.map(r => (
-            <li key={r.title} className={r.state === 'next' ? 'next' : ''}>
-              <span className="dl-road-dot" aria-hidden />
-              <div><b>{r.title}</b><span>{r.text}</span></div>
-              <span className={`games-status ${r.state === 'done' ? 'live' : r.state}`}>{r.state === 'done' ? 'Live' : 'Next'}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="site-section">
-        <h2 className="section-title">Questions</h2>
-        <div className="faq">
-          {FAQ.map(q => <details key={q.q}><summary>{q.q}</summary><p>{q.a}</p></details>)}
-        </div>
-      </section>
-
-      <footer className="site-footer">
-        <span className="muted">Not affiliated with Valve. Dota 2 and its logo belong to Valve.</span>
-      </footer>
-    </div>
-  );
-}
-
-const FEATURES: { icon: IconName; title: string; text: string }[] = [
-  { icon: 'play', title: 'Match replay', text: 'Heroes and creeps moving on the map, Roshan, runes, wards with their vision, towers falling.' },
-  { icon: 'target', title: 'The coach', text: 'Every death and kill graded, with the reasons. Lanes compared at 10:00.' },
-  { icon: 'star', title: 'Match recap', text: 'Gold lead, lessons that come back, fights, objectives, item timings, scoreboard.' },
-  { icon: 'grid', title: 'Draft', text: 'Who counters whom, and picks against the other team.' },
-  { icon: 'route', title: 'Macro plan', text: 'Heroes and wards over the match, with notes for your team.' },
-  { icon: 'swords', title: 'Teamfight planner', text: 'A fight frame by frame: positions, range rings, who focuses whom.' },
-  { icon: 'trendUp', title: 'You on your hero', text: 'How your numbers compare with other players on the same hero.' },
-];
-
-const ROAD: { title: string; text: string; state: 'done' | 'next' }[] = [
-  { title: 'Match replay and the coach', text: 'Any parsed match by its ID, graded, with its recap.', state: 'done' },
-  { title: 'Tactical', text: 'Draft with counters, a macro planner with wards, a teamfight planner, and planning from any moment of a match.', state: 'done' },
-  { title: 'Heroes on the map', text: 'Every hero moving as they did in the match, with their health.', state: 'done' },
-  { title: 'Your replay files', text: 'Open a replay you saved, even after Valve has deleted it.', state: 'next' },
-];
-
-const FAQ = [
-  { q: 'Where do matches come from?', a: 'opendota.com, a free community service with Dota 2 match data.' },
-  { q: 'What does "not parsed" mean?', a: 'OpenDota has only the final scoreboard until it has read the replay. Ask for it on the match: it takes a few minutes, while Valve still keeps the replay (about two weeks).' },
-  { q: 'Why can\'t I see my matches?', a: 'Log in with Steam, and turn on Expose Public Match Data in Dota 2\'s settings. A match ID works either way.' },
-];
+export function Dota2() { return <GamePage kit={KIT} />; }

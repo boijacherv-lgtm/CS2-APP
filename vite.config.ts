@@ -5,6 +5,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { dotaDataUrl } from './src/dota2/dataFeed';
 
 /** POST a .dem to /api/demo → parsed rounds as JSON. Local only; the file never leaves this machine. */
 function demoApi(): Plugin {
@@ -158,11 +159,39 @@ function dotaReplayProxy(): Plugin {
   };
 }
 
+/** The game's live data from Valve (gameData.ts), cached here a few minutes. */
+function dotaDataProxy(): Plugin {
+  const kept = new Map<string, { at: number; body: string }>();
+  return {
+    name: 'dota-data-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/dota-data', async (req, res) => {
+        const target = dotaDataUrl(new URL(req.url ?? '/', 'http://x').searchParams);
+        if (!target) { res.statusCode = 400; return res.end('Not one of the game data lists.'); }
+        try {
+          let hit = kept.get(target);
+          if (!hit || Date.now() - hit.at > 600_000) {
+            const up = await fetch(target, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+            if (!up.ok) { res.statusCode = up.status; return res.end(); }
+            hit = { at: Date.now(), body: await up.text() };
+            kept.set(target, hit);
+          }
+          res.setHeader('Content-Type', 'application/json');
+          res.end(hit.body);
+        } catch (e) {
+          res.statusCode = 502;
+          res.end(e instanceof Error ? e.message : String(e));
+        }
+      });
+    },
+  };
+}
+
 /** Which code a build is (the dev page shows it): the commit and when it was built. */
 const commit = (() => { try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
 
 export default defineConfig({
-  plugins: [react(), demoApi(), steamApi(), securityHeaders(), dotaReplayProxy()],
+  plugins: [react(), demoApi(), steamApi(), securityHeaders(), dotaReplayProxy(), dotaDataProxy()],
   define: { __BUILD__: JSON.stringify({ commit, time: new Date().toISOString() }) },
   // the workers are module workers already; ES output lets them load data per map with import() instead of carrying it all
   worker: { format: 'es' },

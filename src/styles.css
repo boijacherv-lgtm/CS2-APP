@@ -1109,6 +1109,54 @@ input.switch { min-height: 24px; height: 24px; }
   .moment-label .note-face, .moment-label .mark-face { animation: pulse-once .6s ease-out; border-radius: 50%; }
   .rush-bar span:first-of-type { display: inline-block; animation: bump .25s ease-out; }
   .recap-card, .site-card.focus-card { animation: card-in .25s ease-out; }
+  /* eye reveal (MarkFace): the eye opens on a plain neutral pupil, then each mark plays its own effect while the
+     ring draws in, all within 2 s (the owner's pick: the reveal is meant to be watched). --eye-delay staggers a list. */
+  @keyframes eye-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes eye-out { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes eye-open { from { transform: scaleY(1); } to { transform: scaleY(0); } }
+  @keyframes eye-draw { 0% { stroke-dashoffset: 1; opacity: 0; } 4% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 1; } }
+  .eye-anim { --d: var(--eye-delay, 0ms); animation: eye-in .2s var(--ease-out) var(--d) both; }
+  .eye-anim .eye-lid { animation: eye-open .45s cubic-bezier(.33, 0, .2, 1) calc(var(--d) + .1s) both; }
+  .eye-anim .eye-ring { stroke-dasharray: 1 2; animation: eye-draw 1.2s var(--ease-out) calc(var(--d) + .45s) both; }
+  .eye-anim .eye-neutral { animation: eye-in 1ms linear var(--d) both; }
+  .eye-anim .eye-star, .eye-anim .eye-p1, .eye-anim .eye-p2, .eye-anim .eye-dilate, .eye-anim .eye-cloud, .eye-anim .eye-out { transform-box: fill-box; transform-origin: 50% 50%; }
+  /* !!: the eye flares up, a star spins into the pupil, lashes lift, the glow blooms */
+  @keyframes eye-flare { from { opacity: 0; filter: brightness(2.2); } 30% { opacity: 1; } to { opacity: 1; filter: none; } }
+  @keyframes eye-star { from { transform: scale(0) rotate(-140deg); } 70% { transform: scale(1.18) rotate(8deg); } to { transform: none; } }
+  @keyframes eye-lift { from { opacity: 0; transform: translateY(1.6px); } to { opacity: 1; transform: none; } }
+  @keyframes eye-bloom { from { opacity: 0; } 45% { opacity: 1; } to { opacity: .9; } }
+  .eye-brilliant .eye-state { animation: eye-flare .9s var(--ease-out) calc(var(--d) + .5s) both; }
+  .eye-brilliant .eye-star { animation: eye-star .7s var(--ease-out) calc(var(--d) + .6s) both; }
+  .eye-brilliant .eye-out { animation: eye-lift .5s var(--ease-out) calc(var(--d) + .7s) both; }
+  .eye-brilliant .eye-glow { animation: eye-bloom 1s ease-out calc(var(--d) + .6s) both; }
+  /* !: the pupil splits in two */
+  @keyframes eye-split1 { from { transform: translate(1.4px, .6px) scale(1.25); } to { transform: none; } }
+  @keyframes eye-split2 { from { transform: translate(-1.6px, -.8px) scale(1.4); } to { transform: none; } }
+  .eye-great .eye-state { animation: eye-in 1ms linear calc(var(--d) + .6s) both; }
+  .eye-great .eye-p1 { animation: eye-split1 .8s cubic-bezier(.34, 1.4, .64, 1) calc(var(--d) + .6s) both; }
+  .eye-great .eye-p2 { animation: eye-split2 .8s cubic-bezier(.34, 1.4, .64, 1) calc(var(--d) + .6s) both; }
+  /* ?!: once open, the lid sags into a squint, the pupil sinks and the bags come up */
+  @keyframes eye-sag { from { transform: translateY(-5.5px); } to { transform: none; } }
+  @keyframes eye-droop { from { transform: translateY(-.6px) scale(1.22); } to { transform: none; } }
+  .eye-tired .eye-state { animation: eye-in .3s ease-out calc(var(--d) + .55s) both; }
+  .eye-tired .eye-heavy { animation: eye-sag .8s cubic-bezier(.45, 0, .2, 1) calc(var(--d) + .75s) both; }
+  .eye-tired .eye-droop { transform-box: fill-box; transform-origin: 50% 50%; animation: eye-droop 1s cubic-bezier(.45, 0, .55, 1) calc(var(--d) + .75s) both; }
+  .eye-tired .eye-blush { animation: eye-in .8s ease-in-out calc(var(--d) + .9s) both; }
+  .eye-tired .eye-out { animation: eye-in .8s ease-in-out calc(var(--d) + .9s) both; }
+  /* ?: the white floods red, the veins creep in, the pupil widens */
+  @keyframes eye-dilate { from { transform: scale(.85); } to { transform: none; } }
+  .eye-red .eye-blood { animation: eye-in 1.3s ease-in-out calc(var(--d) + .55s) both; }
+  .eye-red .eye-veins { animation: eye-in 1.1s ease-in calc(var(--d) + .8s) both; }
+  .eye-red .eye-dilate { animation: eye-dilate 1.2s ease-in-out calc(var(--d) + .6s) both; }
+  /* ??: the cataract clouds over the pupil */
+  @keyframes eye-cloud { from { transform: scale(.35); } to { transform: none; } }
+  .eye-cataract .eye-state { animation: eye-in 1.35s ease-in-out calc(var(--d) + .55s) both; }
+  .eye-cataract .eye-cloud { animation: eye-cloud 1.35s var(--ease-out) calc(var(--d) + .55s) both; }
+}
+/* asked for less motion: the eye just fades in, already on its mark */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes eye-fade { from { opacity: 0; } to { opacity: 1; } }
+  .eye-anim { animation: eye-fade .16s var(--ease-out) var(--eye-delay, 0ms) both; }
 }
 
 /* skip link: hidden until focused (keyboard users jump past the nav) */

@@ -112,7 +112,6 @@ button.d2-fact:hover { border-color: var(--border-strong); background: var(--sur
 /* Review: the graded moment, said on the map and marked on its hero's row */
 .d2-moment { position: absolute; left: 8px; top: 8px; z-index: 3; width: min(320px, 56%); display: grid; gap: 4px; padding: 7px 9px; border-radius: 10px; background: rgba(11, 14, 18, .94); border: 1.5px solid var(--grade); font-size: 12.5px; }
 .d2-moment header { display: flex; align-items: center; gap: 7px; }
-.d2-moment header b { min-width: 24px; height: 22px; padding: 0 4px; display: grid; place-items: center; border-radius: 6px; background: var(--grade); color: #0b0e12; font-size: 13px; }
 .d2-moment header strong { color: var(--grade); }
 .d2-moment header .num { margin-left: auto; }
 .d2-moment p { margin: 0; font-weight: 600; }
@@ -120,7 +119,7 @@ button.d2-fact:hover { border-color: var(--border-strong); background: var(--sur
 /* the kill feed lies over the map's top right corner, clear of the move's window at its top left */
 .d2-board .d2-map-box .dl-feed { top: 8px; right: 8px; z-index: 3; max-width: 40%; }
 .d2-board .dl-player.d2-row-moment { border-color: var(--grade); box-shadow: inset 0 0 0 1px var(--grade); }
-.d2-row-grade { position: absolute; right: 5px; bottom: 28px; min-width: 22px; height: 18px; padding: 0 4px; display: grid; place-items: center; border-radius: 5px; background: var(--grade); color: #0b0e12; font-size: 11.5px; line-height: 1; }
+.d2-row-grade { position: absolute; right: 5px; bottom: 26px; }
 .d2-board .dl-marks i.graded { width: 4px; height: 13px; top: -7px; border-radius: 2px; box-shadow: 0 0 0 1px #0b0e12; }
 .d2-slow { display: inline-flex; align-items: center; gap: 4px; }
 
@@ -316,7 +315,7 @@ button.d2-fact:hover { border-color: var(--border-strong); background: var(--sur
   .d2-row-neutral .d2-slot { aspect-ratio: auto; border-radius: 4px; }
 }
 @media (max-width: 1250px) {
-  .d2-board .dl-phases { display: none; }
+  .d2-board .d2-phases { display: none; }
 }
 @media (max-width: 900px) {
   .d2-board .dl-main { grid-template-columns: 1fr 1fr; }
@@ -328,3 +327,61 @@ button.d2-fact:hover { border-color: var(--border-strong); background: var(--sur
 @media (max-width: 520px) {
   .d2-board .dl-main { grid-template-columns: 1fr; }
 }
+
+/* the play bar: one slim row, the timeline taking what's left */
+.d2-board .dl-playbar { gap: 8px; padding: 6px 10px; }
+.d2-board .dl-playbar .play-main { padding: 5px 11px; }
+.d2-phases { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); }
+.d2-phases button { padding: 3px 9px; border: 0; border-radius: 6px; background: none; color: var(--text-2); font-size: 12px; white-space: nowrap; }
+.d2-phases button:hover { color: var(--text-1); }
+.d2-phases button.on { background: var(--surface-3); color: var(--text-1); }
+.d2-board .d2-layers { gap: 8px; font-size: 12px; }
+
+/* Meta & builds: a hero's items by stage, talents beside this patch's changes, skills */
+.d2-stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.d2-stage h4 { margin: 0 0 6px; font-size: 13px; display: flex; flex-direction: column; gap: 1px; }
+.d2-stage ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.d2-stage li { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 7px; align-items: center; }
+.d2-stage li b { display: block; font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d2-stage li i { display: block; height: 3px; margin-top: 3px; border-radius: 3px; background: color-mix(in srgb, var(--text-3) 22%, transparent); position: relative; overflow: hidden; }
+.d2-stage li i::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--good); opacity: .75; }
+.d2-build-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.d2-build-cols .d2-talents { max-width: 520px; }
+.d2-skill-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.d2-skill-row { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 10px; align-items: start; }
+.d2-skill-row img { border-radius: 6px; }
+.d2-skill-row b { display: block; font-size: 13px; }
+.d2-skill-row .muted { display: block; line-height: 1.45; }
+.d2-patch-general > summary { cursor: pointer; list-style: none; }
+.d2-patch-general > summary::-webkit-details-marker { display: none; }
+.d2-patch-general[open] > summary { margin-bottom: 8px; }
+@media (max-width: 900px) {
+  .d2-stages { grid-template-columns: 1fr 1fr; }
+  .d2-build-cols { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) { .d2-stages { grid-template-columns: 1fr; } }
+
+/* Meta & builds: two or three builds, and the one picked in order */
+.d2-builds { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.d2-build { display: grid; gap: 5px; justify-items: start; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-1); text-align: left; }
+.d2-build:hover { border-color: var(--border-strong); }
+.d2-build.on { border-color: var(--game, var(--border-strong)); background: color-mix(in srgb, var(--game, #fff) 10%, var(--surface-1)); }
+.d2-build b { font-size: 13.5px; }
+.d2-build .up { color: var(--good); } .d2-build .down { color: var(--bad); }
+.d2-build-items { display: flex; gap: 4px; }
+.d2-build-detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px; }
+.d2-build-detail h4 { margin: 0 0 6px; font-size: 13px; color: var(--text-2); }
+.d2-build-detail h4 + * { margin-bottom: 12px; }
+.d2-build-start { display: flex; flex-wrap: wrap; gap: 6px; }
+.d2-build-start-item { position: relative; }
+.d2-build-start-item b { position: absolute; right: 1px; bottom: 0; font-size: 10.5px; color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000; }
+.d2-build-order { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.d2-build-order li { display: grid; grid-template-columns: 40px 38px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 3px 6px; border-radius: 7px; }
+.d2-build-order li.own { background: color-mix(in srgb, var(--game, #fff) 9%, transparent); }
+.d2-build-order b { font-size: 13px; font-weight: 500; }
+.d2-skill-order { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
+.d2-skill-order li { display: grid; justify-items: center; gap: 2px; font-size: 11px; }
+.d2-skill-order img, .d2-so-talent, .d2-so-empty { width: 30px; height: 30px; border-radius: 5px; }
+.d2-so-talent { display: grid; place-items: center; background: color-mix(in srgb, #e8c15a 24%, transparent); color: #f6dc92; font-size: 13px; }
+.d2-so-empty { display: grid; place-items: center; background: var(--surface-2); color: var(--text-3); font-size: 13px; }
+@media (max-width: 900px) { .d2-build-detail { grid-template-columns: 1fr; } .d2-skill-order { grid-template-columns: repeat(6, minmax(0, 1fr)); } }

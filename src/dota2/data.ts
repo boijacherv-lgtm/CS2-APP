@@ -9,7 +9,8 @@ export const TEAM_NAME: Record<D2Team, string> = { 0: 'Radiant', 1: 'Dire' };
 export const TEAM_COLOR: Record<D2Team, string> = { 0: '#7fd05a', 1: '#e5533d' };
 
 export interface D2Hero { id: number; key: string; name: string; icon: string | null }
-export const D2_HEROES = HEROES as D2Hero[];
+/** Every hero: the bundled list until the game's live one arrives (gameData.ts), then that, changed in place. */
+export const D2_HEROES = [...HEROES] as D2Hero[];
 const byId = new Map(D2_HEROES.map(h => [h.id, h]));
 const byKey = new Map(D2_HEROES.map(h => [h.key, h]));
 /** A match OpenDota has only just heard of has no heroes yet (id 0). */
@@ -18,7 +19,7 @@ export const heroOf = (id: number): D2Hero => byId.get(id) ?? { id, key: '', nam
 export const heroByKey = (key: string | undefined) => (key ? byKey.get(key.replace(/^illusion_/, '')) : undefined);
 
 export interface D2Item { id: number; key: string; name: string; cost: number; icon: string | null }
-export const D2_ITEMS = ITEMS as D2Item[];
+export const D2_ITEMS = [...ITEMS] as D2Item[];
 export const itemById = new Map(D2_ITEMS.map(i => [i.id, i]));
 export const itemByKey = new Map(D2_ITEMS.map(i => [i.key, i]));
 
@@ -32,14 +33,33 @@ export function itemLook(slot: string): { key: string; name: string; icon: strin
   };
 }
 
+export interface D2Ability { key: string; name: string; talent: boolean }
+const abilities = new Map(Object.entries(ABILITIES as Record<string, D2Ability>).map(([id, a]) => [Number(id), a]));
+const abilityByKey = new Map([...abilities.values()].map(a => [a.key, a]));
 /** A skill or talent by the number a match's skill order uses. */
-export const abilityById = (id: number): { key: string; name: string; talent: boolean } | null => (ABILITIES as Record<string, { key: string; name: string; talent: boolean }>)[id] ?? null;
+export const abilityById = (id: number): D2Ability | null => abilities.get(id) ?? null;
+
+/**
+ * Puts the game's current lists in place of the bundled ones (gameData.ts reads them from Valve and OpenDota), so a
+ * patch's new heroes, items, skills and talents show without a new build. Whatever a list leaves out keeps its old entry.
+ */
+export function applyGameData(live: { heroes?: D2Hero[]; items?: D2Item[]; abilities?: [number, D2Ability][] }) {
+  if (live.heroes?.length) {
+    for (const h of live.heroes) { const old = byId.get(h.id); if (old) byKey.delete(old.key); byId.set(h.id, h); byKey.set(h.key, h); }
+    D2_HEROES.splice(0, D2_HEROES.length, ...[...byId.values()].sort((a, b) => a.name.localeCompare(b.name)));
+  }
+  if (live.items?.length) {
+    for (const i of live.items) { const old = itemById.get(i.id); if (old) itemByKey.delete(old.key); itemById.set(i.id, i); itemByKey.set(i.key, i); }
+    D2_ITEMS.splice(0, D2_ITEMS.length, ...[...itemById.values()].sort((a, b) => a.name.localeCompare(b.name)));
+  }
+  for (const [id, a] of live.abilities ?? []) { abilities.set(id, a); abilityByKey.set(a.key, a); }
+}
 
 /** A skill as a replay names it (`axe_battle_hunger`, hero `npc_dota_hero_axe`): its icon, and a readable name. */
 export function skillLook(name: string, heroKey: string): { name: string; icon: string } {
   const prefix = `${heroKey.replace('npc_dota_hero_', '')}_`;
   const short = name.startsWith(prefix) ? name.slice(prefix.length) : name;
-  return { name: short.split('_').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' '), icon: `${ITEM_ICONS.replace(/items$/, 'abilities')}/${name}.png` };
+  return { name: abilityByKey.get(name)?.name || short.split('_').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' '), icon: `${ITEM_ICONS.replace(/items$/, 'abilities')}/${name}.png` };
 }
 
 export type Pt = { x: number; y: number };
@@ -191,3 +211,66 @@ export const LANE_TOWER: Record<1 | 2 | 3, Record<D2Team, string>> = {
 };
 /** Vision of an Observer Ward, in map widths. */
 export const OBS_VISION = 1600 / MAP_UNITS;
+
+/**
+ * Where a patch put the map's fixed things, in map cells: the buildings (by their uid without the team), neutral camps
+ * (with the game's tier: 0 small, 1 medium, 2 large, 3 ancient), Twin Gates, Lotus Pools and rune spots. From a match's
+ * replay (layoutFrom), or kept per patch in generated/mapLayouts.json for matches without one.
+ */
+export interface MapLayout {
+  buildings: Record<D2Team, Record<string, [number, number]>>;
+  camps: [number, number, number][]; gates: [number, number][]; lotus: [number, number][];
+  bounty: [number, number][]; power: [number, number][];
+}
+type Fixture = { kind: string; team: number; x: number; y: number; tier?: number };
+const CAMP_TIERS: CampTier[] = ['small', 'medium', 'large', 'ancient'];
+const buildingKind = (uid: string) => (uid === 'fort' ? 'fort' : uid.includes('rax') ? 'rax' : 'tower');
+/** A replay's fixed things as a layout: each building is the one of its team and kind standing nearest its usual place. */
+export function layoutFrom(fixtures: Fixture[]): MapLayout | null {
+  const of = (kind: string) => fixtures.filter(f => f.kind === kind).map((f): [number, number] => [f.x, f.y]);
+  const buildings: MapLayout['buildings'] = { 0: {}, 1: {} };
+  for (const team of [0, 1] as D2Team[]) {
+    const free = fixtures.filter(f => f.team === team && ['tower', 'rax', 'fort'].includes(f.kind));
+    for (const [uid, [x, y]] of Object.entries(SPOTS[team])) {
+      let best = -1, near = Infinity;
+      free.forEach((f, i) => { const d = Math.hypot(f.x - x, f.y - y); if (f.kind === buildingKind(uid) && d < near) { near = d; best = i; } });
+      // a building this far from its place isn't it: keep the usual place
+      if (best >= 0 && near < 12) { buildings[team][uid] = [free[best].x, free[best].y]; free.splice(best, 1); }
+    }
+  }
+  const camps = fixtures.filter(f => f.kind === 'camp').map((f): [number, number, number] => [f.x, f.y, f.tier ?? 1]);
+  if (camps.length < 10 || Object.keys(buildings[0]).length < 10) return null;
+  return { buildings, camps, gates: of('gate'), lotus: of('lotus'), bounty: of('bounty'), power: of('power') };
+}
+
+/** The layout the site was built with (7.41), for putting back. */
+const BUILT_IN: MapLayout = {
+  buildings: SPOTS,
+  camps: (Object.keys(CAMP_SPOTS) as CampTier[]).flatMap(tier => CAMP_SPOTS[tier].map(([x, y]): [number, number, number] => [x, y, CAMP_TIERS.indexOf(tier)])),
+  gates: SIGHTS.filter(s => s.kind === 'gate').map(s => mapToCell(s.at)), lotus: SIGHTS.filter(s => s.kind === 'lotus').map(s => mapToCell(s.at)),
+  bounty: [...BOUNTY_SPOTS], power: [...POWER_SPOTS],
+};
+function mapToCell(at: Pt): [number, number] { return [at.x * VIEW.span + VIEW.left, VIEW.top - at.y * VIEW.span]; }
+let shown: MapLayout = BUILT_IN;
+/** Moves the map's fixed things to where this layout has them (null: as the site was built), changing the lists in place. */
+export function applyMapLayout(layout: MapLayout | null): boolean {
+  const next = layout ?? BUILT_IN;
+  if (next === shown) return false;
+  shown = next;
+  for (const b of BUILDINGS) {
+    const uid = b.uid.slice(2), at = next.buildings[b.team][uid] ?? SPOTS[b.team][uid];
+    Object.assign(b, cellToMap(at[0], at[1]));
+  }
+  CAMPS.splice(0, CAMPS.length, ...next.camps.map(([x, y, tier]) => {
+    const at = cellToMap(x, y);
+    return { x: inside(at.x), y: inside(at.y), tier: CAMP_TIERS[tier] ?? 'medium' };
+  }));
+  const wisdom = SIGHTS.filter(s => s.kind === 'wisdom');
+  SIGHTS.splice(0, SIGHTS.length,
+    ...(next.gates.length ? next.gates : BUILT_IN.gates).map(([x, y]) => ({ kind: 'gate' as const, name: 'Twin Gate', at: cellToMap(x, y) })),
+    ...wisdom,
+    ...(next.lotus.length ? next.lotus : BUILT_IN.lotus).map(([x, y]) => ({ kind: 'lotus' as const, name: 'Lotus Pool', at: cellToMap(x, y) })));
+  if (next.bounty.length) BOUNTY_SPOTS.splice(0, BOUNTY_SPOTS.length, ...next.bounty);
+  if (next.power.length) POWER_SPOTS.splice(0, POWER_SPOTS.length, ...next.power);
+  return true;
+}

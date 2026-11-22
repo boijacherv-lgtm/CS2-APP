@@ -15,10 +15,12 @@ export function moveLook(m: Pick<Move, 'note' | 'kind'>): { label: string; color
   return { label: m.kind === 'objective' ? 'Standard' : 'Book', color: n.color, mark: '✓', tip: n.tip };
 }
 
-/** A move's mark: its face (MarkFace) for annotated moves, an icon chip for plain ones. */
-export function NoteMark({ m, className = 'badge', size = 11, title }: { m: Pick<Move, 'note' | 'kind'>; className?: string; size?: number; title?: string }) {
+/** A move's mark: its face (MarkFace) for annotated moves, an icon chip for plain ones. `reveal`: see MarkFace. */
+export function NoteMark({ m, className = 'badge', size = 11, title, reveal }: {
+  m: Pick<Move, 'note' | 'kind'>; className?: string; size?: number; title?: string; reveal?: { move: object; where: string; delay?: number };
+}) {
   const l = moveLook(m);
-  if (!l.icon) return <span className={`${className} note-face`} title={title ?? `${l.label}: ${l.tip}`}><MarkFace note={m.note} size={size + 8} title={title ?? `${l.label}: ${l.tip}`} /></span>;
+  if (!l.icon) return <span className={`${className} note-face`} title={title ?? `${l.label}: ${l.tip}`}><MarkFace note={m.note} size={size + 8} title={title ?? `${l.label}: ${l.tip}`} reveal={reveal} /></span>;
   return (
     <span className={`${className} note-${m.note === 'book' ? 'book' : 'mark'}`} style={{ background: l.color }} title={title ?? `${l.label}: ${l.tip}`}>
       {l.icon ? <Icon name={l.icon} size={size} /> : l.mark}

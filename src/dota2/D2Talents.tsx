@@ -1,4 +1,5 @@
 import { abilityById, mins } from './data';
+import { useHeroData } from './gameData';
 import TALENTS from './generated/talents.json';
 
 const TREES = TALENTS as unknown as Record<string, [string, string][]>;
@@ -22,7 +23,8 @@ export function talentPicks(upgrades: number[]): Map<string, number> {
  * With `level`, as things stood at that hero level; without it, by the end of the match.
  */
 export function TalentTree({ hero, upgrades, level, at }: { hero: number; upgrades: number[]; level?: number; at?: number }) {
-  const tree = TREES[hero];
+  // this patch's tree from the game's data once it's in; the one built into the site until then
+  const tree = useHeroData(hero)?.talents ?? TREES[hero];
   if (!tree?.length) return null;
   const picks = talentPicks(upgrades);
   const taken = (key: string) => { const by = picks.get(key); return by !== undefined && (level === undefined || by <= level); };

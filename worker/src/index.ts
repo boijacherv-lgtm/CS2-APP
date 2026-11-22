@@ -26,6 +26,7 @@ import { addMatchFromServer, forgetProfile, profileRoute, publicProfileOf, resol
 import { board, countAnswer, countSkip, reportPuzzle, vote, votes, friendsBoard, friendsOnSite, updateBoard } from './puzzles';
 import { puzzleGameOf } from '../../src/engine/profile';
 import { AUTH_CODE, byAge, decodeShareCode, downloadLink, extractFromText, OPENID_ENDPOINT, SHARE_CODE } from '../../src/engine/sharecode';
+import { dotaDataUrl } from '../../src/dota2/dataFeed';
 
 export interface Env {
   SB: KVNamespace;
@@ -124,6 +125,15 @@ export default {
         const up = first?.ok ? first : await fetch(target.replace(/\.(dota2\.com\.cn|wmsj\.cn)\//, '.valve.net/'));
         const size = up.headers.get('Content-Length');
         return new Response(up.body, { status: up.status, headers: { 'Content-Type': 'application/octet-stream', ...(size ? { 'Content-Length': size } : {}), ...cors } });
+      }
+
+      // the game's live data (heroes, skills, talents, patches) from Valve's datafeed, which doesn't let web pages read
+      // it either: four lists only, cached at the edge for an hour
+      if (req.method === 'GET' && path === '/dota-data') {
+        const target = dotaDataUrl(new URL(req.url).searchParams);
+        if (!target) return json({ error: 'Not one of the game data lists.' }, 400);
+        const up = await fetch(target, { headers: { 'User-Agent': 'Mozilla/5.0' }, cf: { cacheTtl: 3600, cacheEverything: true } });
+        return new Response(up.body, { status: up.status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600', ...cors } });
       }
 
       // the coach's corrections from checked disputes: public (they're counts per kind of move), cached a few minutes

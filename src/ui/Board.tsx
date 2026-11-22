@@ -868,9 +868,10 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             return (
               <Group key={`badge-${i}`} x={sim.x[pi][step] + 13 * k} y={sim.y[pi][step] - 13 * k} listening={false}
                 opacity={age < 0.8 ? 1 : (1 - age) * 5} scaleX={age < 0.06 ? 0.6 + age * 7 : 1} scaleY={age < 0.06 ? 0.6 + age * 7 : 1}>
-                {/* book moves: a small plain dot; annotated ones: their face */}
-                <Circle radius={(m.note === 'book' ? 4.5 : 9) * k} fill={g.color} stroke="#000" strokeWidth={1.5 * k} shadowColor="#000" shadowBlur={4} shadowOpacity={0.5} />
-                {m.note !== 'book' && <KonvaFace note={m.note} radius={9 * k} />}
+                {/* book moves: a small plain dot; annotated ones: their eye */}
+                {m.note === 'book'
+                  ? <Circle radius={4.5 * k} fill={g.color} stroke="#000" strokeWidth={1.5 * k} shadowColor="#000" shadowBlur={4} shadowOpacity={0.5} />
+                  : <KonvaFace note={m.note} radius={9 * k} />}
               </Group>
             );
           })}

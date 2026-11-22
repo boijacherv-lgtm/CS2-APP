@@ -31,7 +31,7 @@ interface RawPlayer {
   purchase_log?: RawLog[]; runes_log?: RawLog[]; lane_pos?: Record<string, Record<string, number>>; ability_upgrades_arr?: number[] | null;
 }
 export interface RawMatch {
-  match_id: number; duration: number; radiant_win: boolean; start_time: number; version?: number | null; replay_url?: string | null;
+  match_id: number; duration: number; radiant_win: boolean; start_time: number; version?: number | null; replay_url?: string | null; patch?: number | null;
   od_data?: { has_parsed?: boolean }; radiant_name?: string; dire_name?: string; radiant_team?: { name?: string }; dire_team?: { name?: string };
   players: RawPlayer[]; radiant_gold_adv?: number[] | null; radiant_xp_adv?: number[] | null;
   picks_bans?: { is_pick: boolean; hero_id: number; team: number; order: number }[] | null;
@@ -66,6 +66,8 @@ export interface D2Minute { gold: number[]; lh: number[]; dn: number[]; xp: numb
 export interface D2Chat { t: number; slot: number | null; who: string | null; text: string; wheel: boolean }
 export interface D2Match {
   id: number; parsed: boolean; start: number; duration: number; winner: D2Team; startTime: number; names: Record<D2Team, string>;
+  /** OpenDota's number for the patch it was played on (61: 7.42), when it says. */
+  patch?: number | null;
   /** Where Valve keeps the replay (about two weeks), when OpenDota knows. */
   replayUrl: string | null;
   players: D2Player[]; minutes: D2Minute[]; deaths: D2Death[]; wards: D2Ward[]; downs: D2Down[];
@@ -173,7 +175,7 @@ export function matchFromOpenDota(raw: RawMatch): D2Match {
     chat,
     events: happenings,
     draft: [...(raw.picks_bans ?? [])].sort((a, b) => a.order - b.order).map(d => ({ hero: d.hero_id, team: d.team as D2Team, pick: d.is_pick })),
-    id: raw.match_id, parsed, duration: raw.duration, winner, startTime: raw.start_time, replayUrl: raw.replay_url ?? null,
+    id: raw.match_id, parsed, duration: raw.duration, winner, startTime: raw.start_time, replayUrl: raw.replay_url ?? null, patch: raw.patch ?? null,
     start: Math.min(0, ...events.filter(t => t > -180)),
     names: { 0: raw.radiant_team?.name ?? raw.radiant_name ?? 'Radiant', 1: raw.dire_team?.name ?? raw.dire_name ?? 'Dire' },
     players: raw.players.map((p, slot): D2Player => ({

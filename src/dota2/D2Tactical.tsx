@@ -6,15 +6,25 @@ import { assignPositions, autoPick, bestPair, countersOf, LANE_NAME, picksByRole
 import { bestWards, phaseAt, WARD_ICON, WARD_PHASES, WARD_SAMPLE } from './wardSpots';
 import { BOUNTY_SPOTS, buildingOf, CAMP_ICONS, cellToMap, D2_HEROES, heroOf, LAIRS, LANE_TOWER, MAP_UNITS, mins, OBS_VISION, POWER_SPOTS, roshanOnMap, runeIcon, TEAM_COLOR, TEAM_NAME, TORMENTOR_SPOTS, visionShape, type D2Team, type MapStyle, type Pt } from './data';
 import { DayNight } from './D2Board';
+import { HeroBuilds, MetaHeroes, PatchView } from './D2Meta';
+import { useLiveGameData, useMapLayout } from './gameData';
 import { D2Map, drawCamps, useImages } from './D2Map';
 import { useD2 } from './store';
 import { keyAt, MATCH_LENGTH, useTac, WARD_LIFE, type TacHero } from './tacticalStore';
 import '../deadlock/dl.css';
 import './d2.css';
 
-type Tab = 'draft' | 'macro' | 'fight';
+/** Meta & builds' top tabs, as Deadlock's: the meta (heroes, the patch, builds), the draft and the planners. */
+type Top = 'meta' | 'patch' | 'builds' | 'draft' | 'planner';
+const TOP: { id: Top; label: string; icon: IconName; tip: string }[] = [
+  { id: 'meta', label: 'Meta heroes', icon: 'trendUp', tip: 'Every hero this week: tier, win, pick and ban rates by position, at your ranks, and since the patch' },
+  { id: 'patch', label: 'Patch', icon: 'bolt', tip: 'The newest patch notes, read: buffs and nerfs per hero and item, and who moved since' },
+  { id: 'builds', label: 'Builds', icon: 'star', tip: 'A hero\'s items by stage, talents, skills and what the patch changed' },
+  { id: 'draft', label: 'Draft', icon: 'friends', tip: 'Both teams\' heroes, who counters whom, and picks by role against the other side' },
+  { id: 'planner', label: 'Planner', icon: 'route', tip: 'Macro plan and teamfight planner' },
+];
+type Tab = 'macro' | 'fight';
 const TABS: { id: Tab; label: string; icon: IconName; tip: string }[] = [
-  { id: 'draft', label: 'Draft', icon: 'grid', tip: 'Both teams\' heroes, who counters whom, and picks against the other side' },
   { id: 'macro', label: 'Macro plan', icon: 'route', tip: 'Who goes where over the match: lanes, rotations, wards' },
   { id: 'fight', label: 'Teamfight', icon: 'swords', tip: 'One fight, frame by frame: positions, engages, who focuses whom' },
 ];
@@ -293,20 +303,46 @@ const SPAWN: Record<D2Team, Pt> = { 0: { x: 0.12, y: 0.9 }, 1: { x: 0.88, y: 0.0
 /** The usual lanes for five heroes: 1 and 5 bottom for Radiant (top for Dire), 2 mid, 3 and 4 the other side. */
 const LANES_OF: Record<D2Team, (1 | 2 | 3)[]> = { 0: [1, 2, 3, 3, 1], 1: [3, 2, 1, 1, 3] };
 
-/** Dota 2 Tactical: two planners in tabs. Everything is kept in this browser. */
+/** Dota 2 Meta & builds: the heroes this patch, its notes, builds, the draft and the planners, in tabs. */
 export function D2Tactical() {
-  const [tab, setTab] = useState<Tab>(() => { try { return (localStorage.getItem('stratboard.d2.tab') as Tab) || 'draft'; } catch { return 'draft'; } });
+  useLiveGameData();
+  // plans are for the game as it is now: the newest patch's map
+  useMapLayout(null, null);
+  const [top, setTop] = useState<Top>(() => { try { return (localStorage.getItem('stratboard.d2.top') as Top) || 'meta'; } catch { return 'meta'; } });
+  const pickTop = (t: Top) => { setTop(t); try { localStorage.setItem('stratboard.d2.top', t); } catch { /* private mode */ } };
+  const [hero, setHero] = useState<number>(() => { try { return Number(localStorage.getItem('stratboard.d2.metaHero')) || D2_HEROES[0].id; } catch { return D2_HEROES[0].id; } });
+  const pickHero = (h: number) => { setHero(h); try { localStorage.setItem('stratboard.d2.metaHero', String(h)); } catch { /* private mode */ } };
+  const builds = (h: number) => { pickHero(h); pickTop('builds'); };
+  return (
+    <div className="dl-tac dl-tac-top">
+      <h1 className="sr-only">Dota 2 meta and builds</h1>
+      <nav className="recap-tabs dl-tac-tabs" aria-label="Meta and builds">
+        <div className="recap-tabs-list" role="tablist">
+          {TOP.map(t => <button key={t.id} role="tab" aria-selected={top === t.id} className={top === t.id ? 'on' : ''} onClick={() => pickTop(t.id)} title={t.tip}><Icon name={t.icon} size={14} /> {t.label}</button>)}
+        </div>
+      </nav>
+      {top === 'meta' && <MetaHeroes onHero={builds} />}
+      {top === 'patch' && <PatchView onHero={builds} />}
+      {top === 'builds' && <HeroBuilds hero={hero} setHero={pickHero} />}
+      {top === 'draft' && <Draft />}
+      {top === 'planner' && <Planner />}
+    </div>
+  );
+}
+
+/** The planners: a macro plan over the match, and one teamfight frame by frame. Everything is kept in this browser. */
+function Planner() {
+  const [tab, setTab] = useState<Tab>(() => { try { return localStorage.getItem('stratboard.d2.tab') === 'fight' ? 'fight' : 'macro'; } catch { return 'macro'; } });
   const pick = (t: Tab) => { setTab(t); try { localStorage.setItem('stratboard.d2.tab', t); } catch { /* private mode */ } };
   return (
     <div className="dl-tac">
-      <h1 className="sr-only">Dota 2 tactical board</h1>
       <nav className="recap-tabs dl-tac-tabs" aria-label="Planner">
         <div className="recap-tabs-list" role="tablist">
           {TABS.map(t => <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => pick(t.id)} title={t.tip}><Icon name={t.icon} size={14} /> {t.label}</button>)}
         </div>
         <button className="ghost small-btn" onClick={() => { if (confirm('Clear every plan (heroes, paths, wards, frames)?')) useTac.getState().reset(); }}>Clear all</button>
       </nav>
-      {tab === 'draft' ? <Draft /> : tab === 'macro' ? <Macro /> : <Fight />}
+      {tab === 'macro' ? <Macro /> : <Fight />}
     </div>
   );
 }
