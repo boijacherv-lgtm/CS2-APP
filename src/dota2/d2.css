@@ -21,7 +21,7 @@
 }
 
 /* Match recap: the header, the match at a glance, draft, lanes, skill order, items against what's usual */
-.d2-report { max-width: 1240px; margin-inline: auto; width: 100%; }
+.d2-report { max-width: 1120px; margin-inline: auto; width: 100%; }
 .d2-report .recap-head-main { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; }
 .d2-head-team { display: inline-flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; }
 .d2-head-won { padding: 1px 7px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: #0b2414; background: var(--good); }
@@ -269,8 +269,9 @@ button.d2-fact:hover { border-color: var(--border-strong); background: var(--sur
 .d2-map-style { position: absolute; right: 8px; bottom: 8px; }
 .d2-layers { display: inline-flex; align-items: center; gap: 10px; font-size: 12.5px; }
 .d2-legend { color: var(--text-2); }
-.d2-replay-note { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: min(76%, 460px); margin: 0; padding: 7px 11px; border-radius: 9px; border: 1px solid var(--border); background: rgba(11, 14, 18, .92); font-size: 12px; color: var(--text-2); text-align: center; }
-.d2-replay-note b { display: block; color: var(--text-1); font-size: 13px; }
+.d2-replay-note { display: grid; gap: 6px; margin: 0; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--surface-1); font-size: 12px; color: var(--text-2); }
+.d2-replay-note b { color: var(--text-1); font-size: 14px; }
+.d2-replay-note .report-progress { max-width: none; margin: 0; }
 
 /* more about the selected hero, under their team */
 .d2-items-panel { display: grid; gap: 5px; padding: 7px 8px; border-radius: 12px; border: 1px solid var(--border); background: rgba(17, 20, 25, .96); }
@@ -385,3 +386,8 @@ button.d2-fact:hover { border-color: var(--border-strong); background: var(--sur
 .d2-so-talent { display: grid; place-items: center; background: color-mix(in srgb, #e8c15a 24%, transparent); color: #f6dc92; font-size: 13px; }
 .d2-so-empty { display: grid; place-items: center; background: var(--surface-2); color: var(--text-3); font-size: 13px; }
 @media (max-width: 900px) { .d2-build-detail { grid-template-columns: 1fr; } .d2-skill-order { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
+/* round 16 */
+.d2-report .recap-teamname { font-size: 14px; font-weight: 700; }
+.dl-meta-more { margin: 10px 0 6px; }
+.dl-rc-ungraded { margin: 0 0 10px; }

@@ -202,7 +202,9 @@ export function Profile() {
   const name = me?.name ?? 'Your profile';
   // stats per game: CS2 or Deadlock (the game you were last in first); switching also dresses the page in its colours
   const [game, setGame] = useState<GameId>(() => gameOf('profile'));
-  const pickGame = (g: GameId) => { setGame(g); applyGame(gameOf(g)); };
+  // Dota 2 has no stats of its own here yet: its tab says so and points to the matches
+  const [d2, setD2] = useState(false);
+  const pickGame = (g: GameId) => { setD2(false); setGame(g); applyGame(gameOf(g)); };
   // the header's dim map art: your most-played map; Premier now and over the last 10
   const headArt = game === 'cs2' ? mapStats(matches)[0]?.map ?? null : null;
   const premier = (() => {
@@ -232,14 +234,22 @@ export function Profile() {
       <nav className="recap-tabs profile-games" aria-label="Game">
         <div className="recap-tabs-list" role="tablist">
           {(['cs2', 'deadlock'] as GameId[]).map(g => (
-            <button key={g} role="tab" aria-selected={game === g} className={game === g ? 'on' : ''} onClick={() => pickGame(g)}>{g === 'cs2' ? 'Counter-Strike 2' : 'Deadlock'}</button>
+            <button key={g} role="tab" aria-selected={!d2 && game === g} className={!d2 && game === g ? 'on' : ''} onClick={() => pickGame(g)}>{g === 'cs2' ? 'Counter-Strike 2' : 'Deadlock'}</button>
           ))}
+          <button role="tab" aria-selected={d2} className={d2 ? 'on' : ''} onClick={() => setD2(true)}>Dota 2</button>
         </div>
       </nav>
 
-      <FocusBanner game={game} />
+      {!d2 && <FocusBanner game={game} />}
 
-      {game === 'deadlock' ? <DlProfile account={me?.steamId ? steamId3(me.steamId) : null} /> : <>
+      {d2 ? (
+        <section className="empty-card">
+          <EmptyArt />
+          <h2>Dota 2 stats are not on your profile yet.</h2>
+          <p className="muted">Your Dota 2 matches are graded in the recap as you open them. Pick a recent pro match or paste a match ID.</p>
+          <div className="hero-cta"><a className="cta primary" href="/dota2/review">Review a Dota 2 match</a></div>
+        </section>
+      ) : game === 'deadlock' ? <DlProfile account={me?.steamId ? steamId3(me.steamId) : null} /> : <>
       {!matches.length ? (
         <section className="empty-card">
           <EmptyArt />

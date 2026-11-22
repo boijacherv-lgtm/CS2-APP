@@ -7,7 +7,7 @@ import { setNotifyPro, useProfile } from '../ui/profileApi';
 import { SteamLoginButton } from '../ui/SteamLogin';
 
 const FREE = [
-  'Graded replay of every round',
+  'Graded replay in CS2, Deadlock and Dota 2',
   'The coach against FACEIT level 10',
   'The engine\'s biggest mistakes in each match',
   `Profile with your last ${FREE_HISTORY} matches`,

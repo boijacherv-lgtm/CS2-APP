@@ -9,7 +9,7 @@ import { GameMark } from './gameMarks';
 import { CardFrag, GradeFrag, ScrollWin } from './Frags';
 import { useEffect, useRef, useState } from 'react';
 import { setNotifyGame, useProfile } from '../ui/profileApi';
-import { openCs2Sample, openDlSample } from '../ui/sample';
+import { openCs2Sample, openD2Sample, openDlSample } from '../ui/sample';
 
 
 /** The hero's loop with a pause button (a moving picture that runs over 5 s needs one: WCAG 2.2.2). */
@@ -48,6 +48,10 @@ export function Home() {
     setSample('opening');
     try { await openCs2Sample(); } catch { setSample('failed'); }
   };
+  const tryD2Sample = async () => {
+    setSample('opening');
+    try { await openD2Sample(); } catch { setSample('failed'); }
+  };
   const trySample = async () => {
     setSample('opening');
     try { await openDlSample(); } catch { setSample('failed'); }
@@ -67,12 +71,13 @@ export function Home() {
           {/* two actions: review a match (the game chips above pick the game), or try a sample */}
           <div className="hero-cta">
             <a className="cta primary" href="/cs2/review">Review my match <Icon name="arrowRight" size={14} /></a>
-            {/* a sample in either game: a small menu, CS2 or Deadlock */}
+            {/* a sample in either game: a small menu, CS2 or Deadlock; Dota 2 points to its latest pro matches */}
             <details className="sample-menu">
               <summary className="cta"><Icon name="play" size={12} /> {sample === 'opening' ? 'Opening…' : 'Watch a sample'}</summary>
               <div className="sample-pop">
                 <button onClick={tryCs2Sample} disabled={sample === 'opening'}><Icon name="crosshair" size={14} /> CS2 sample <span className="muted small">a FACEIT Mirage match</span></button>
                 <button onClick={trySample} disabled={sample === 'opening'}><Icon name="target" size={14} /> Deadlock sample <span className="muted small">a Phantom+ match</span></button>
+                <button onClick={tryD2Sample} disabled={sample === 'opening'}><Icon name="map" size={14} /> Dota 2 sample <span className="muted small">a pro match, patch 7.42</span></button>
               </div>
             </details>
           </div>

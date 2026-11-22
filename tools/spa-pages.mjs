@@ -9,9 +9,9 @@ import { CS2_FAQ, DEADLOCK_FAQ } from '../src/site/gameFaq.ts';
 const DIST = path.resolve(import.meta.dirname, '../dist');
 const SITE = 'https://tsakhstvo.xyz';
 // the pages (src/shell/router.ts); /m is a shared moment (its code in the query)
-const PAGES = ['cs2', 'cs2/review', 'cs2/tactical', 'cs2/report', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'deadlock/meta', 'deadlock/report', 'dota2', 'dota2/review', 'dota2/tactical', 'dota2/report',
+const PAGES = ['cs2', 'cs2/review', 'cs2/tactical', 'cs2/report', 'deadlock', 'deadlock/review', 'deadlock/tactical', 'deadlock/meta', 'deadlock/report', 'dota2', 'dota2/review', 'dota2/meta', 'dota2/tactical', 'dota2/report',
   'puzzles', 'profile', 'pricing', 'settings', 'privacy', 'changelog', 'guides', ...GUIDE_LIST.map(g => `guides/${g.slug}`), 'dev', 'm'];
-const PUBLIC = ['', 'cs2', 'cs2/review', 'cs2/tactical', 'deadlock', 'deadlock/review', 'deadlock/meta', 'puzzles', 'pricing', 'privacy', 'changelog', 'guides', ...GUIDE_LIST.map(g => `guides/${g.slug}`)];
+const PUBLIC = ['', 'cs2', 'cs2/review', 'cs2/tactical', 'deadlock', 'deadlock/review', 'deadlock/meta', 'dota2', 'dota2/review', 'dota2/meta', 'puzzles', 'pricing', 'privacy', 'changelog', 'guides', ...GUIDE_LIST.map(g => `guides/${g.slug}`)];
 
 const html = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
 // the front page's FAQ and the coach's numbers, from the same module the page uses (run with vite-node: it reads TS)
@@ -19,15 +19,22 @@ const { FAQ, MATCHES, PRO_MATCHES, DL_MATCHES } = await import('../src/site/faq.
 // each public page's own title, description and link preview, and a few lines of text for crawlers and AI bots that
 // don't run the app (the page itself replaces the <noscript> text). `h1` and `text` say only what the page says.
 const META = {
-  '': { title: 'RageView — Free CS2 & Deadlock match review, every play graded', h1: 'Every move you make, graded.',
-    desc: 'Drop your CS2 demo or Deadlock match ID. Every play graded S+ to F, with the better play. Free, in your browser, nothing uploaded.',
-    text: ['Free match review for Counter-Strike 2 and Deadlock: every play graded, with the play you should have made.', 'CS2 demos are read in your browser; nothing is uploaded. Deadlock matches open by their match ID.'] },
+  '': { title: 'RageView — Free CS2, Deadlock & Dota 2 match review, every play graded', h1: 'Every move you make, graded.',
+    desc: 'Drop your CS2 demo, or open a Deadlock or Dota 2 match by its ID. Every play graded S+ to F, with the better play. Free, in your browser, nothing uploaded.',
+    text: ['Free match review for Counter-Strike 2, Deadlock and Dota 2: every play graded, with the play you should have made.', 'CS2 demos are read in your browser; nothing is uploaded. Deadlock and Dota 2 matches open by their match ID.'] },
   cs2: { title: 'CS2 demo review: every round graded S+ to F · RageView', h1: 'Every CS2 round, graded.',
     desc: 'Drop a CS2 demo: every round graded S+ to F, every move from Brilliant to Blunder, with the better play. Free, read in your browser.',
     text: ['Drop a .dem demo: every round graded S+ to F and every move from Brilliant to Blunder, with the better play.', 'A coach built on FACEIT level-10 games; the demo is read in your browser.'] },
   deadlock: { title: 'Deadlock match review by match ID: every fight graded · RageView', h1: 'Every Deadlock fight, graded.', ogTitle: 'Every Deadlock fight, graded.',
     desc: 'Replay any Deadlock match by its match ID. Every kill, death and move graded, with the better play. Free.',
     text: ['Paste a Deadlock match ID: replay it on the map, every fight graded, and what top players do instead.', 'Match data from deadlock-api.com; replay files are read in your browser.'] },
+  dota2: { title: 'Dota 2 match review by match ID: every fight graded · RageView', h1: 'Every Dota 2 fight, graded.', ogTitle: 'Every Dota 2 fight, graded.',
+    desc: 'Replay any Dota 2 match by its match ID. Every fight, pick-off and lane graded S+ to F, with the better play. Free.',
+    text: ['Paste a Dota 2 match ID: replay it on the map, every fight graded, and what top players do instead.', 'Match data from OpenDota; the replay file is read in your browser.'] },
+  'dota2/review': { title: 'Dota 2 match review: open a match by ID · RageView', h1: 'Review a Dota 2 match', desc: 'Open a Dota 2 match by its ID or pick a recent pro match, then replay it with the coach.', text: ['Open a match by its ID, or pick one of the latest pro matches.'] },
+  'dota2/meta': { title: 'Dota 2 meta & builds this patch, by position · RageView', h1: 'Dota 2 meta and builds', desc: 'Every Dota 2 hero on this patch by position: win rate, pick rate, builds and the patch notes.', text: ['Every hero on this patch by position, with win rate and pick rate, builds and the patch notes.'] },
+  settings: { title: 'Settings · RageView', h1: 'Settings', desc: 'Your RageView settings: games, notifications and account.', text: ['Your RageView settings.'] },
+  profile: { title: 'Your profile · RageView', h1: 'Profile', desc: 'Your graded matches, habits and goals across the games RageView reviews.', text: ['Your graded matches, habits and goals.'] },
   'deadlock/meta': { title: 'Deadlock meta & builds this patch, by position · RageView', h1: 'Deadlock meta and builds',
     desc: 'Every Deadlock hero on this patch by position: tier, win rate, pick rate and builds, plus a draft and a macro planner.',
     text: ['Every hero on this patch by position, with tier, win rate and pick rate.', 'Builds, a draft planner and a macro planner.'] },
@@ -71,6 +78,7 @@ for (const p of PAGES) {
     .replace(/(<meta property="og:description" content=")[^"]*"/, '$1Replay any Deadlock match. Every kill, death and move graded, with the better play."')
     .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${SITE}/${p}"`);
   // CS2's pages get CS2's picture
+  if (p.startsWith('dota2')) page = page.replace('content="Every move you make, graded."', 'content="Every Dota 2 fight, graded."');
   if (p.startsWith('cs2')) page = page.replace('content="https://tsakhstvo.xyz/images/og.png"', 'content="https://tsakhstvo.xyz/images/og-cs2.png"');
   page = withMeta(page, p);
   // the game pages' own questions as FAQPage data, and in the static text (crawlers that don't run the app)
@@ -94,7 +102,7 @@ fs.writeFileSync(path.join(DIST, 'index.html'), withMeta(html, '').replace('</he
 // /llms.txt: what the site is, in plain words, for AI assistants (facts from the site only)
 fs.writeFileSync(path.join(DIST, 'llms.txt'), `# RageView
 
-> Every move you make, graded. Free match review for Counter-Strike 2 and Deadlock: every move gets a mark (Brilliant to Blunder), every round and match a grade (S+ to F), with the better play the coach found.
+> Every move you make, graded. Free match review for Counter-Strike 2, Deadlock and Dota 2: every move gets a mark (Brilliant to Blunder), every round and match a grade (S+ to F), with the better play the coach found.
 
 - CS2: drop a .dem demo; it is read in your browser, nothing is uploaded. The coach learned from ${MATCHES} FACEIT level-10 matches${PRO_MATCHES ? ` and ${PRO_MATCHES} pro matches` : ''}.
 - Deadlock: open any match by its match ID (match data from deadlock-api.com). The coach learned from ${DL_MATCHES.toLocaleString('en-US')} Phantom-and-up matches since the patch.
@@ -108,6 +116,8 @@ fs.writeFileSync(path.join(DIST, 'llms.txt'), `# RageView
 - [CS2 review](${SITE}/cs2)
 - [Deadlock review](${SITE}/deadlock)
 - [Deadlock meta and builds](${SITE}/deadlock/meta)
+- [Dota 2 review](${SITE}/dota2)
+- [Dota 2 meta and builds](${SITE}/dota2/meta)
 - [Puzzles](${SITE}/puzzles)
 - [Pricing](${SITE}/pricing)
 - [Privacy](${SITE}/privacy)
@@ -117,7 +127,7 @@ fs.writeFileSync(path.join(DIST, 'llms.txt'), `# RageView
 ${FAQ.map(f => `- **${f.q}** ${f.a}`).join('\n')}
 `);
 // /cs2/ and /deadlock/ (a folder, from cs2/review.html…): the game page, not a 404
-for (const p of ['cs2', 'deadlock']) fs.copyFileSync(path.join(DIST, `${p}.html`), path.join(DIST, p, 'index.html'));
+for (const p of ['cs2', 'deadlock', 'dota2']) fs.copyFileSync(path.join(DIST, `${p}.html`), path.join(DIST, p, 'index.html'));
 fs.writeFileSync(path.join(DIST, '404.html'), html.replace('<head>', '<head><meta name="robots" content="noindex" />'));
 fs.writeFileSync(path.join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${PUBLIC.map(p => `  <url><loc>${SITE}/${p}</loc></url>`).join('\n')}\n</urlset>\n`);
 console.log(`spa-pages: ${PAGES.length} pages, 404.html, sitemap (${PUBLIC.length} public)`);
