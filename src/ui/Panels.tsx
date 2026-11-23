@@ -11,6 +11,7 @@ import { killColor } from './Board';
 import type { Econ } from '../engine/types';
 import { hasLayer, isAutoLayer, MAPS, presetsFor, roughNote, tPlaysFor } from '../map/catalog';
 import { useStore, type Tool } from '../store';
+import { useFloor } from './floor';
 import { Fold } from './Fold';
 import { BUILTIN_LINEUPS, flightTime, type Lineup, type Technique } from '../map/lineups';
 import { useEffect, useRef, useState } from 'react';
@@ -184,6 +185,7 @@ export function AnalysisPanel({ analysis, engine, control, sim, spots, batch, im
   impact: { v: UtilityImpact; done: boolean } | null; stale: boolean;
 }) {
   const s = useStore();
+  const lowerFloor = useFloor() > 0;
   const ctx = s.board.context;
   // entries ordered by how much of the T push is expected through them, then by threat
   const entries = entryReports(engine, analysis, s.board).sort((a, b) => b.pressure - a.pressure || b.threat - a.threat);
@@ -218,6 +220,12 @@ export function AnalysisPanel({ analysis, engine, control, sim, spots, batch, im
       {sim && <KillFeed sim={sim} engine={engine} />}
       {control && <MapControl control={control} time={s.time} />}
 
+      {lowerFloor && (
+        <section className="summary">
+          <p><b>Estimate unavailable on the lower floor.</b></p>
+          <p className="muted">The engine reads the upper radar only: map control, kill chances and the blast estimate are hidden while the lower floor is shown.</p>
+        </section>
+      )}
       {!engine.map.chokepoints.length && (
         <section className="summary">
           <p><b>No prediction engine for {engine.map.name}{s.level ? ' (lower level)' : ''} yet.</b></p>

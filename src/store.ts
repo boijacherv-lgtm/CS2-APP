@@ -56,7 +56,7 @@ function loadJson<T>(key: string, fallback: T): T {
 function saveJson(key: string, v: unknown) { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode etc. */ } }
 export type KillMetric = 'pKill' | 'expKills' | 'survive';
 
-interface Store {
+export interface Store {
   mapId: string;
   level: number;
   /** Boards for maps you switched away from, restored when you come back. */
@@ -128,6 +128,9 @@ interface Store {
   boardFromReplay: boolean;
   /** Review shows the whole round at once instead of revealing it as time passes. */
   reviewSpoilers: boolean;
+  /** Maps with two radars: which one the review shows. 'auto' follows the plant, the picked move or the followed player; a number is a choice that sticks (0 upper, 1 lower). */
+  reviewFloor: 'auto' | number;
+  setReviewFloor(f: 'auto' | number): void;
   /** The owner judging a disputed moment: Review plays just this window of the round (ui/disputesApi.ts). */
   judging: { clip: Clip; from: number; to: number } | null;
   /** Short message shown over the board (e.g. why an action did nothing). */
@@ -260,6 +263,8 @@ export const useStore = create<Store>((set, get) => {
     parked: null,
     boardFromReplay: false,
     reviewSpoilers: false,
+    reviewFloor: 'auto',
+    setReviewFloor: reviewFloor => set({ reviewFloor }),
     judging: null,
     notice: null,
 

@@ -7,6 +7,9 @@ import { SIDE_COLOR, T } from './tokens';
 import { useShown } from './shown';
 import { Icon } from './Icon';
 import { useStore } from '../store';
+import { getEngine } from '../map/catalog';
+import { plantSite, siteText } from '../engine/floors';
+import { levelsOfMap } from '../map/floors';
 
 /** CS2's round clock is 1:55 after freeze time. The board's time counts up from 0 at the end of freeze time. */
 export const ROUND_SECONDS = 115;
@@ -93,8 +96,10 @@ export function RoundHud({ players, score, plantedAt }: { players: HudPlayer[]; 
  * round number under it, and a strip that becomes the bomb's: planting (filling), the 40 s fuse (draining, red),
  * a defuse (filling blue, green when it beats the fuse, red when it can't), then defused / exploded.
  */
-export function ScoreBug({ score, round, roundNo, time, switched, names }: {
+export function ScoreBug({ score, round, roundNo, time, switched, names, site }: {
   score: [number, number]; round: DemoRound; roundNo: number; time: number; names?: Record<string, string>;
+  /** The bomb site of this round's plant ("B", or "B, lower"), for the bomb cell. */
+  site?: string | null;
   /** The first round after the teams swapped sides: who's on CT now (a player's name), shown for the first seconds. */
   switched?: string | null;
 }) {
@@ -130,7 +135,7 @@ export function ScoreBug({ score, round, roundNo, time, switched, names }: {
               ? (
                 <div className={`sb-tcell ${tone || 'amber'} ${defuse ? 'split' : ''}`} title={defuse ? `${defuse.who ? `${defuse.who} · ` : ''}${defuse.kit ? 'kit' : 'no kit'}${defuse.ok ? '' : ' · too late'}` : undefined}>
                   <BombRow p={planting !== null && fuse === null ? planting * 100 : (fuse ?? 0) / BOMB_SECONDS * 100} tone={tone || 'amber'} zero={fuse !== null && fuse <= 0}>
-                    <Icon name="bomb" size={defuse ? 12 : 16} />{fuse === null ? <small>Planting</small> : <b className="num">{clockText}</b>}
+                    <Icon name="bomb" size={defuse ? 12 : 16} />{site && <small className="bt-site" title={`Bomb at ${site}`}>{site.charAt(0)}</small>}{fuse === null ? <small>Planting</small> : <b className="num">{clockText}</b>}
                   </BombRow>
                   {defuse && (
                     <BombRow p={defuse.share * 100} tone={defuse.ok ? 'ct' : 'late'} zero={false}>
@@ -231,6 +236,9 @@ export function RoundStrip({ data, at, spoilers, onPick }: { data: DemoData; at:
     if (r.plant !== null) return r.winner === 'CT' ? 'scissors' : 'bomb';
     return r.winner === 'CT' && r.duration >= 110 ? 'timer' : 'skull';
   };
+  // the bomb site (and floor) of a round's plant, for the chip's tooltip
+  const mapDef = useMemo(() => getEngine(data.map, 0).map, [data.map]);
+  const siteOf = (r: DemoRound) => { const ps = plantSite(mapDef, r); return ps ? ` · planted at ${siteText(ps, levelsOfMap(data.map).length > 1)}` : ''; };
   return (
     <ol className="round-strip" aria-label="Rounds">
       {data.rounds.map((r, i) => {
@@ -242,8 +250,8 @@ export function RoundStrip({ data, at, spoilers, onPick }: { data: DemoData; at:
           <li key={i} className={divider ? 'half' : ''}>
             {divider && <span className="rs-divider" title={divider === 'OT' ? 'Overtime' : 'Sides switched'}>{divider === 'OT' ? 'OT' : <Icon name="swap" size={12} />}</span>}
             <button className={`rs-chip ${i === at ? 'on' : ''} ${shown && r.winner ? r.winner.toLowerCase() : ''}`} onClick={() => onPick(i)}
-              title={`R${r.n}${shown && r.winner ? ` · ${r.winner} won${r.reason ? ` · ${r.reason.replace(/_/g, ' ')}` : ''}` : ''}`}
-              aria-label={`Round ${r.n}${shown && r.winner ? `, ${r.winner} won` : ''}`}>
+              title={`R${r.n}${shown && r.winner ? ` · ${r.winner} won${r.reason ? ` · ${r.reason.replace(/_/g, ' ')}` : ''}${siteOf(r)}` : ''}`}
+              aria-label={`Round ${r.n}${shown && r.winner ? `, ${r.winner} won${siteOf(r)}` : ''}`}>
               {shown && r.winner ? <Icon name={how(r)} size={14} /> : <span className="num">{r.n}</span>}
             </button>
           </li>
