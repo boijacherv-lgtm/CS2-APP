@@ -18,7 +18,7 @@ export interface SiteConfig {
   /** Pages showing "back soon" instead of themselves (route page names: cs2, deadlock, puzzles, profile …). */
   maintenance: string[];
   flags: { rage: boolean; proEarlyAccess: boolean; puzzlesBoard: boolean; comingSoon: string };
-  samples: { cs2: string; deadlock: number };
+  samples: { cs2: string; deadlock: number; dota2: number };
   /** The daily puzzle: a pinned id, ids skipped as daily, ids hidden everywhere. */
   puzzles: { pin: string; skip: string[]; hide: string[] };
   /** Rage lines over coach-remarks.json, per situation: { chance, lines: [{ text, weight }] }. */
@@ -48,7 +48,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
   banner: { on: false, text: '', link: '', until: null },
   maintenance: [],
   flags: { rage: true, proEarlyAccess: true, puzzlesBoard: true, comingSoon: '' },
-  samples: { cs2: '/samples/cs2-mirage.json.gz', deadlock: 131074890 },
+  samples: { cs2: '/samples/cs2-mirage.json.gz', deadlock: 131074890, dota2: 9096888698 },
   puzzles: { pin: '', skip: [], hide: [] },
   rage: {},
   hintsVersion: 1,
@@ -89,7 +89,7 @@ export function cleanConfig(raw: unknown, was: SiteConfig = DEFAULT_CONFIG): Sit
     banner: { on: bool(b.on, false), text: str(b.text, 200), link: /^(https:\/\/|\/)/.test(link) ? link : '', until: typeof b.until === 'number' && b.until > 0 ? b.until : null },
     maintenance: strs(r.maintenance ?? was.maintenance, 10).filter(x => PAGES.includes(x)),
     flags: { rage: bool(f.rage, true), proEarlyAccess: bool(f.proEarlyAccess, true), puzzlesBoard: bool(f.puzzlesBoard, true), comingSoon: str(f.comingSoon, 40) },
-    samples: { cs2: /^\/samples\/[\w.-]+\.json(\.gz)?$/.test(str(s.cs2, 120)) ? str(s.cs2, 120) : DEFAULT_CONFIG.samples.cs2, deadlock: Number.isInteger(+s.deadlock) && +s.deadlock > 0 ? +s.deadlock : DEFAULT_CONFIG.samples.deadlock },
+    samples: { cs2: /^\/samples\/[\w.-]+\.json(\.gz)?$/.test(str(s.cs2, 120)) ? str(s.cs2, 120) : DEFAULT_CONFIG.samples.cs2, deadlock: Number.isInteger(+s.deadlock) && +s.deadlock > 0 ? +s.deadlock : DEFAULT_CONFIG.samples.deadlock, dota2: Number.isInteger(+s.dota2) && +s.dota2 > 0 ? +s.dota2 : DEFAULT_CONFIG.samples.dota2 },
     puzzles: { pin: str(p.pin, 80), skip: strs(p.skip, 100, 80), hide: strs(p.hide, 300, 80) },
     rage,
     hintsVersion: Number.isInteger(+(r.hintsVersion ?? was.hintsVersion)) ? Math.max(1, +(r.hintsVersion ?? was.hintsVersion)) : 1,

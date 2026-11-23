@@ -28,7 +28,7 @@ export const D2_SAMPLE_MATCH = 9096888698;
 export async function openD2Sample() {
   const { loadMatch, rememberMatch } = await import('../dota2/api');
   const { useD2 } = await import('../dota2/store');
-  const m = await loadMatch(D2_SAMPLE_MATCH);
+  const m = await loadMatch(siteConfig().samples.dota2 || D2_SAMPLE_MATCH); // the dev page can pick another match (Content)
   rememberMatch(m);
   useD2.getState().open(m);
   navigate({ page: 'dota2', mode: 'review' });

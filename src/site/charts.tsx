@@ -72,28 +72,12 @@ export function axisLabels(labels: string[], step: number): Set<number> {
   return out;
 }
 
-/** A smooth line through the points that never overshoots them (a monotone cubic), as an SVG path. */
-function smoothPath(xs: number[], ys: number[]): string {
-  const n = xs.length;
-  if (n < 3) return xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(' ');
-  const dx = xs.slice(1).map((x, i) => x - xs[i]), m = ys.slice(1).map((y, i) => (y - ys[i]) / dx[i]), t = new Array<number>(n);
-  t[0] = m[0]; t[n - 1] = m[n - 2];
-  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
-  for (let i = 0; i < n - 1; i++) {
-    if (m[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; }
-    const a = t[i] / m[i], b = t[i + 1] / m[i], q = a * a + b * b;
-    if (q > 9) { const k = 3 / Math.sqrt(q); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
-  }
-  let d = `M${xs[0].toFixed(1)} ${ys[0].toFixed(1)}`;
-  for (let i = 0; i < n - 1; i++) d += ` C${(xs[i] + dx[i] / 3).toFixed(1)} ${(ys[i] + (t[i] * dx[i]) / 3).toFixed(1)} ${(xs[i + 1] - dx[i] / 3).toFixed(1)} ${(ys[i + 1] - (t[i + 1] * dx[i]) / 3).toFixed(1)} ${xs[i + 1].toFixed(1)} ${ys[i + 1].toFixed(1)}`;
-  return d;
-}
 export interface AreaPoint { label: string; value: number; note?: string }
 /** A line with a soft area under it, gridlines, and a readout of the point under the pointer. */
 export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }: { points: AreaPoint[]; fmt: (v: number) => string; height?: number; color?: string }) {
   const id = useId().replace(/:/g, '');
   const [hover, setHover] = useState<number | null>(null);
-  const W = 640, H = height, L = 48, R = 24, T = 14, B = 26;
+  const W = 640, H = height, L = 48, R = 64, T = 14, B = 26; // R: room right of the plot for the average's label
   const geo = useMemo(() => {
     const vs = points.map(p => p.value);
     let lo = Math.min(...vs), hi = Math.max(...vs);
@@ -106,7 +90,8 @@ export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }:
     return { x, y, ticks };
   }, [points, H]);
   if (!points.length) return null;
-  const line = smoothPath(points.map((_, i) => geo.x(i)), points.map(p => geo.y(p.value)));
+  // straight segments between matches: a smoothed curve overshoots the real values between two games
+  const line = points.map((p, i) => `${i ? 'L' : 'M'}${geo.x(i).toFixed(1)} ${geo.y(p.value).toFixed(1)}`).join(' ');
   const area = `${line} L${geo.x(points.length - 1).toFixed(1)} ${H - B} L${geo.x(0).toFixed(1)} ${H - B} Z`;
   const avg = points.reduce((a, p) => a + p.value, 0) / points.length, few = points.length <= 12;
   const step = Math.max(1, Math.ceil(points.length / 8));
@@ -138,7 +123,7 @@ export function AreaChart({ points, fmt, height = 220, color = 'var(--theme)' }:
         <path d={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {/* the average, dashed; dots only when there are few matches (and the newest, ringed, always) */}
         <line x1={L} x2={W - R} y1={geo.y(avg)} y2={geo.y(avg)} className="avg-line" />
-        <text x={W - R} y={geo.y(avg) - 5} className="axis" textAnchor="end">avg {fmt(avg)}</text>
+        <text x={W - R + 6} y={geo.y(avg)} className="axis" textAnchor="start" dominantBaseline="central">avg {fmt(avg)}</text>
         {points.map((p, i) => (few || i === points.length - 1 || hover === i)
           ? <circle key={i} cx={geo.x(i)} cy={geo.y(p.value)} r={hover === i ? 5 : i === points.length - 1 ? 4.5 : 2.6} fill={color} stroke="var(--bg-0)" strokeWidth={hover === i || i === points.length - 1 ? 2 : 0} /> : null)}
         {hover !== null && <line x1={geo.x(hover)} x2={geo.x(hover)} y1={T} y2={H - B} className="cursor" />}
@@ -339,9 +324,11 @@ export function TrendTile({ label, values, fmt, higherBetter = true, sub, meta }
   const near = (v: number) => Math.abs(v - avg) <= 0.05 * Math.abs(avg);
   const tone = (v: number) => (near(v) ? 'mid' : (v > avg) === higherBetter ? 'good' : 'bad');
   const lastTone = tone(last);
-  const lo = Math.min(...vs, avg), hi = Math.max(...vs, avg);
+  // the scale stops at the 95th percentile: one outlier (a 4.95 K/D) would flatten every other bar; it is drawn full height with a ▲
+  const sorted = [...vs].sort((a, b) => a - b), p95 = vs.length >= 5 ? sorted[Math.floor(0.95 * (sorted.length - 1))] : sorted[sorted.length - 1];
+  const lo = Math.min(...vs, avg), hi = Math.max(p95, avg);
   const base = lo / (hi || 1) > 0.6 ? lo - (hi - lo) * 0.6 : Math.min(0, lo);
-  const y = (v: number) => (hi === base ? 50 : ((v - base) / (hi - base)) * 100);
+  const y = (v: number) => (hi === base ? 50 : Math.min(100, ((v - base) / (hi - base)) * 100));
   const ay = y(avg);
   return (
     <div className="trend-tile">
@@ -357,6 +344,7 @@ export function TrendTile({ label, values, fmt, higherBetter = true, sub, meta }
             const m = ms?.[i];
             return (
               <li key={i} tabIndex={0} className={`${tone(v)} ${i === vs.length - 1 ? 'now' : ''}`} data-tip={`${fmt(v)}${m ? ` · ${m.win === null ? 'draw' : m.win ? 'won' : 'lost'} · ${m.tip}` : ''}${sub ? ` (${sub})` : ''}`}>
+                {v > hi && <span className="tt-cap" aria-hidden title="Past the top of the scale">▲</span>}
                 <b style={{ height: `${Math.max(4, y(v))}%` }} />
                 {m && <u className={m.win === null ? 'tie' : m.win ? 'win' : 'loss'} />}
               </li>

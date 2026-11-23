@@ -1764,3 +1764,15 @@ body { font-weight: 500; }
 .feed-card .feed-who { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .feed-card .feed-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .steam-list td:nth-child(1) { white-space: nowrap; }
+
+/* round 17: the biggest-leak card keeps its content together instead of spreading it to match its neighbour's height */
+.leak-row { align-items: start; }
+.leak-row > .site-card { justify-content: flex-start; height: auto; }
+/* a bar past the top of the scale (a trend tile caps it at the 95th percentile) */
+.tt-bars li .tt-cap { position: absolute; top: -2px; left: 50%; transform: translateX(-50%); font-size: 12px; line-height: 1; color: var(--text-1); }
+
+/* round 17: the Content tab's section links, and the Shows on / Live now / Preview line */
+.dev-anchors { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; position: sticky; top: 0; z-index: var(--z-sticky); padding: 8px 0; background: var(--bg-0); }
+.dev-anchors a { padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 14px; text-decoration: none; }
+.dev-anchors a:hover { color: var(--text-1); background: var(--surface-3); }
+.dev-shows b { color: var(--text-1); font-weight: 500; }

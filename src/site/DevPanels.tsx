@@ -77,7 +77,7 @@ export function DevContent() {
   const [draft, setDraft] = useState<SiteConfig | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   // an older Worker answers without the newest fields: fill them with the defaults so the page never breaks
-  useEffect(() => { if (data) setDraft({ ...DEFAULT_CONFIG, ...data.config, flags: { ...DEFAULT_CONFIG.flags, ...data.config.flags }, banner: { ...DEFAULT_CONFIG.banner, ...data.config.banner }, games: { ...DEFAULT_CONFIG.games, ...data.config.games }, footer: { ...DEFAULT_CONFIG.footer, ...data.config.footer }, pricing: { ...DEFAULT_CONFIG.pricing, ...data.config.pricing }, hero: { ...DEFAULT_CONFIG.hero, ...data.config.hero } }); }, [data]);
+  useEffect(() => { if (data) setDraft({ ...DEFAULT_CONFIG, ...data.config, flags: { ...DEFAULT_CONFIG.flags, ...data.config.flags }, banner: { ...DEFAULT_CONFIG.banner, ...data.config.banner }, games: { ...DEFAULT_CONFIG.games, ...data.config.games }, footer: { ...DEFAULT_CONFIG.footer, ...data.config.footer }, pricing: { ...DEFAULT_CONFIG.pricing, ...data.config.pricing }, hero: { ...DEFAULT_CONFIG.hero, ...data.config.hero }, samples: { ...DEFAULT_CONFIG.samples, ...data.config.samples } }); }, [data]);
   if (err) return <section className="site-card"><p className="warn-text small">{err}</p></section>;
   if (!draft) return <Loading>Loading the site's config…</Loading>;
   const c = draft, set = (p: Partial<SiteConfig>) => setDraft({ ...c, ...p });
@@ -87,28 +87,29 @@ export function DevContent() {
       setData({ config }); setSiteConfig(config); setSaved(`${what}: live now, saved ${new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}. Visitors see it within a minute. Undo is in the Log tab.`);
     } catch (e) { setSaved((e as Error).message); }
   };
+  const live = data?.config; // what visitors see now (saved), not the draft
   const lines = (s: string[]) => s.join('\n'), unlines = (s: string) => s.split(/[\n,]/).map(x => x.trim()).filter(Boolean);
   return (
     <>
+      <nav className="dev-anchors" aria-label="Sections">{[['announcement', 'Announcement'], ['switches', 'Switches'], ['samples-and-the-daily-pu', 'Samples and the daily puzzle'], ['front-page-text', 'Front page text'], ['game-pages-text', 'Game pages text'], ['guides-headline-and-open', 'Guides'], ['pricing', 'Pricing'], ['footer-links', 'Footer links'], ['questions-front-page', 'Questions'], ['what-s-new', 'What\'s new'], ['rage-lines', 'Rage lines'], ['hints', 'Hints']].map(([id, label]) => <a key={id} href={`#dev-${id}`}>{label}</a>)}</nav>
       {saved && <p className="muted small dev-saved"><Icon name="check" size={13} /> {saved}</p>}
-      <section className="site-card">
-        <div className="card-head"><h2>Announcement</h2></div>
+      <section className="site-card" id="dev-announcement">
+        <div className="card-head"><h2>Announcement</h2><ShowsOn pages={['/']} live={live?.banner.on ? live.banner.text : 'nothing (off)'} /></div>
         <label className="dev-field"><span>Text</span><input value={c.banner.text} maxLength={200} onChange={e => set({ banner: { ...c.banner, text: e.target.value } })} /></label>
         <label className="dev-field"><span>Link (optional)</span><input value={c.banner.link} placeholder="/changelog or https://…" onChange={e => set({ banner: { ...c.banner, link: e.target.value } })} /></label>
-        <label className="dev-field"><span>Until (optional)</span><input type="date" value={c.banner.until ? new Date(c.banner.until).toISOString().slice(0, 10) : ''} onChange={e => set({ banner: { ...c.banner, until: e.target.value ? Date.parse(`${e.target.value}T23:59:59Z`) : null } })} /></label>
+        <label className="dev-field"><span>Until (optional)</span><input type="date" value={c.banner.until ? localDay(c.banner.until) : ''} onChange={e => set({ banner: { ...c.banner, until: e.target.value ? Date.parse(`${e.target.value}T23:59:59`) : null } })} /></label>
         <div className="dev-actions">
           <label className="dev-check-row"><input type="checkbox" checked={c.banner.on} onChange={e => set({ banner: { ...c.banner, on: e.target.checked } })} /> Show it</label>
           <button className="cta primary small-btn" onClick={() => void save('Announcement', { banner: c.banner })}>Save</button>
         </div>
       </section>
 
-      <section className="site-card">
-        <div className="card-head"><h2>Switches</h2></div>
+      <section className="site-card" id="dev-switches">
+        <div className="card-head"><h2>Switches</h2><ShowsOn pages={['/']} live={[...(live?.soon ?? []), ...(live?.flags.comingSoon ? [live.flags.comingSoon] : [])].join(', ') || 'no coming-soon list'} /></div>
         {([['rage', 'Rage mode', 'Off hides the switch and every Rage line'], ['proEarlyAccess', 'Pro early access', 'Pro free for everyone (the site; the Worker\'s PRO_FOR_ALL decides on its side)'], ['puzzlesBoard', 'Puzzle leaderboards', 'Off hides the Leaderboard tab']] as const).map(([k, label, tip]) => (
           <label key={k} className="dev-check-row" title={tip}><input type="checkbox" checked={c.flags[k]} onChange={e => set({ flags: { ...c.flags, [k]: e.target.checked } })} /> {label} <span className="muted small">{tip}</span></label>
         ))}
-        <label className="dev-field"><span>Coming soon: games, one a line (shown on the front page)</span><textarea rows={3} value={c.soon.join('\n')} onChange={e => set({ soon: e.target.value.split('\n').map(x => x.trim()).filter(Boolean) })} /></label>
-        <label className="dev-field"><span>"Coming soon" text (older single field; added after the list)</span><input value={c.flags.comingSoon} maxLength={40} placeholder="e.g. Dota 2" onChange={e => set({ flags: { ...c.flags, comingSoon: e.target.value } })} /></label>
+        <label className="dev-field"><span>Coming soon: one a line (shown on the front page, one list)</span><textarea rows={3} value={[...c.soon, ...(c.flags.comingSoon && !c.soon.includes(c.flags.comingSoon) ? [c.flags.comingSoon] : [])].join('\n')} onChange={e => set({ soon: e.target.value.split('\n').map(x => x.trim()).filter(Boolean), flags: { ...c.flags, comingSoon: '' } })} /></label>
         <div className="dev-field"><span>Back in a moment (pages taken down; you still see them)</span>
           <div className="chips">{PAGE_NAMES.map(p => <button key={p} className={`chip ${c.maintenance.includes(p) ? 'on' : ''}`} aria-pressed={c.maintenance.includes(p)}
             onClick={() => set({ maintenance: c.maintenance.includes(p) ? c.maintenance.filter(x => x !== p) : [...c.maintenance, p] })}>{p}</button>)}</div>
@@ -116,10 +117,11 @@ export function DevContent() {
         <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Switches', { flags: c.flags, maintenance: c.maintenance, soon: c.soon })}>Save</button></div>
       </section>
 
-      <section className="site-card">
-        <div className="card-head"><h2>Samples and the daily puzzle</h2></div>
+      <section className="site-card" id="dev-samples-and-the-daily-pu">
+        <div className="card-head"><h2>Samples and the daily puzzle</h2><ShowsOn pages={['/']} live={live ? `CS2 ${live.samples.cs2} · Deadlock ${live.samples.deadlock} · Dota 2 ${live.samples.dota2 ?? ''}` : ''} /></div>
         <label className="dev-field"><span>CS2 sample (a file in public/samples)</span><input value={c.samples.cs2} onChange={e => set({ samples: { ...c.samples, cs2: e.target.value } })} /></label>
         <label className="dev-field"><span>Deadlock sample (match ID)</span><input inputMode="numeric" value={c.samples.deadlock} onChange={e => set({ samples: { ...c.samples, deadlock: +e.target.value || 0 } })} /></label>
+        <label className="dev-field"><span>Dota 2 sample (match ID)</span><input inputMode="numeric" value={c.samples.dota2} onChange={e => set({ samples: { ...c.samples, dota2: +e.target.value || 0 } })} /></label>
         <label className="dev-field"><span>Pin today's daily (puzzle ID, empty: the usual pick)</span><input value={c.puzzles.pin} onChange={e => set({ puzzles: { ...c.puzzles, pin: e.target.value } })} /></label>
         <label className="dev-field"><span>Never as the daily (IDs, one a line)</span><textarea rows={2} value={lines(c.puzzles.skip)} onChange={e => set({ puzzles: { ...c.puzzles, skip: unlines(e.target.value) } })} /></label>
         <label className="dev-field"><span>Hidden everywhere (IDs, one a line)</span><textarea rows={2} value={lines(c.puzzles.hide)} onChange={e => set({ puzzles: { ...c.puzzles, hide: unlines(e.target.value) } })} /></label>
@@ -127,15 +129,15 @@ export function DevContent() {
       </section>
 
       {/* the pages' own words (round 10, G3): each shows where it appears, and saving says when it went live */}
-      <section className="site-card">
-        <div className="card-head"><h2>Front page text</h2><ShowsOn pages={['/']} /></div>
+      <section className="site-card" id="dev-front-page-text">
+        <div className="card-head"><h2>Front page text</h2><ShowsOn pages={['/']} live={live?.hero.h1} /></div>
         <label className="dev-field"><span>Headline (empty: "Every move you make, graded.")</span><input value={c.hero.h1} maxLength={80} onChange={e => set({ hero: { ...c.hero, h1: e.target.value } })} /></label>
         <label className="dev-field"><span>First line (empty: the built-in one)</span><textarea rows={2} maxLength={240} value={c.hero.lead} onChange={e => set({ hero: { ...c.hero, lead: e.target.value } })} /></label>
         <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Front page text', { hero: c.hero })}>Save</button></div>
       </section>
 
-      <section className="site-card">
-        <div className="card-head"><h2>Game pages text</h2><ShowsOn pages={['/cs2', '/deadlock']} /></div>
+      <section className="site-card" id="dev-game-pages-text">
+        <div className="card-head"><h2>Game pages text</h2><ShowsOn pages={['/cs2', '/deadlock', '/dota2']} live={[live?.games.cs2.h1, live?.games.deadlock.h1].filter(Boolean).join(' · ')} /></div>
         {(['cs2', 'deadlock'] as const).map(g => (
           <div key={g}><b>{g === 'cs2' ? 'CS2' : 'Deadlock'}</b>
             <label className="dev-field"><span>Headline (empty: the built-in one)</span><input value={c.games[g].h1} maxLength={80} onChange={e => set({ games: { ...c.games, [g]: { ...c.games[g], h1: e.target.value } } })} /></label>
@@ -145,7 +147,7 @@ export function DevContent() {
         <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Game pages text', { games: c.games })}>Save</button></div>
       </section>
 
-      <section className="site-card">
+      <section className="site-card" id="dev-guides-headline-and-open">
         <div className="card-head"><h2>Guides (headline and opening line)</h2><ShowsOn pages={['/guides/download-cs2-demo', '/guides/deadlock-match-id', '/guides/adr-and-kast', '/guides/where-players-die']} /></div>
         {['download-cs2-demo', 'deadlock-match-id', 'adr-and-kast', 'where-players-die'].map(slug => (
           <div key={slug}><b>{slug}</b>
@@ -156,28 +158,28 @@ export function DevContent() {
         <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Guides text', { guides: c.guides })}>Save</button></div>
       </section>
 
-      <section className="site-card">
-        <div className="card-head"><h2>Pricing</h2><ShowsOn pages={['/pricing']} /></div>
+      <section className="site-card" id="dev-pricing">
+        <div className="card-head"><h2>Pricing</h2><ShowsOn pages={['/pricing']} live={live?.pricing.price} /></div>
         <label className="dev-field"><span>Price a month (empty: $5)</span><input value={c.pricing.price} maxLength={20} placeholder="$5" onChange={e => set({ pricing: { ...c.pricing, price: e.target.value } })} /></label>
         <label className="dev-field"><span>Early access ends (a date in words, empty: not announced)</span><input value={c.pricing.earlyEnds} maxLength={40} placeholder="Dec 31, 2026" onChange={e => set({ pricing: { ...c.pricing, earlyEnds: e.target.value } })} /></label>
         <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Pricing', { pricing: c.pricing })}>Save</button></div>
       </section>
 
-      <section className="site-card">
-        <div className="card-head"><h2>Footer links</h2><ShowsOn pages={['/', '/cs2', '/deadlock']} /></div>
+      <section className="site-card" id="dev-footer-links">
+        <div className="card-head"><h2>Footer links</h2><ShowsOn pages={['/', '/cs2', '/deadlock']} live={[live?.footer.discord, live?.footer.contact].filter(Boolean).join(' · ') || 'no links (hidden)'} /></div>
         <label className="dev-field"><span>Discord (https://…, empty: hidden)</span><input value={c.footer.discord} placeholder="https://discord.gg/…" onChange={e => set({ footer: { ...c.footer, discord: e.target.value } })} /></label>
         <label className="dev-field"><span>Contact (https://… or mailto:…, empty: hidden)</span><input value={c.footer.contact} placeholder="mailto:you@example.com" onChange={e => set({ footer: { ...c.footer, contact: e.target.value } })} /></label>
         <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Footer links', { footer: c.footer })}>Save</button></div>
       </section>
 
-      <section className="site-card">
+      <section className="site-card" id="dev-questions-front-page">
         <div className="card-head"><h2>Questions (front page)</h2><ShowsOn pages={['/']} /></div>
         <p className="muted small">One a line: question :: answer. Empty keeps the built-in questions. The questions in the page's search data and /llms.txt are built with the site, not from here.</p>
         <textarea rows={6} value={c.faq.map(x => `${x.q} :: ${x.a}`).join('\n')} onChange={e => set({ faq: e.target.value.split('\n').map(l => { const [q, ...a] = l.split('::'); return { q: (q ?? '').trim(), a: a.join('::').trim() }; }).filter(x => x.q && x.a) })} />
         <div className="dev-actions"><button className="cta primary small-btn" onClick={() => void save('Questions', { faq: c.faq })}>Save</button></div>
       </section>
 
-      <section className="site-card">
+      <section className="site-card" id="dev-what-s-new">
         <div className="card-head"><h2>What's new</h2><ShowsOn pages={['/changelog']} /></div>
         <p className="muted small">New entries on top of the file's. The footer shows a dot to everyone who hasn't seen the newest one. One entry per block: a date line, then one change a line.</p>
         <textarea rows={6} value={c.changelog.map(e => `${e.date}\n${e.items.join('\n')}`).join('\n\n')} onChange={e => set({ changelog: e.target.value.split(/\n\s*\n/).map(b => { const [date, ...items] = b.split('\n').map(x => x.trim()).filter(Boolean); return { date: date ?? '', items }; }).filter(x => x.date && x.items.length) })} />
@@ -186,7 +188,7 @@ export function DevContent() {
 
       <RageEditor config={c} onSave={rage => void save('Rage lines', { rage })} />
 
-      <section className="site-card">
+      <section className="site-card" id="dev-hints">
         <div className="card-head"><h2>Hints</h2><span className="muted small">version {c.hintsVersion}</span></div>
         <p className="muted small">Everyone sees the welcome card and the one-line hints once more on their next visit.</p>
         <div className="dev-actions"><button className="cta small-btn" onClick={() => void save('Hints shown again to everyone', { hintsVersion: c.hintsVersion + 1 })}>Show the hints to everyone again</button></div>
@@ -218,7 +220,7 @@ function RageEditor({ config, onSave }: { config: SiteConfig; onSave: (rage: Sit
     return out;
   })();
   return (
-    <section className="site-card">
+    <section className="site-card" id="dev-rage-lines">
       <div className="card-head"><h2>Rage lines</h2><span className="muted small">over coach-remarks.json · weight 1 rare, 2 normal, 3 common</span></div>
       <label className="dev-field"><span>Situation</span>
         <select value={k} onChange={e => setK(e.target.value)}>{Object.entries(kinds).map(([id, v]) => <option key={id} value={id}>{id}{config.rage[id] ? ' (changed)' : ''} — {v.when}</option>)}</select>
@@ -400,6 +402,14 @@ export function TelemetryPills() {
 }
 
 /** Where a piece of content shows, as links to those pages. */
-function ShowsOn({ pages }: { pages: string[] }) {
-  return <span className="muted small">Shows on: {pages.map((p, i) => <span key={p}>{i > 0 && ' · '}<a href={p} target="_blank" rel="noreferrer">{p}</a></span>)}</span>;
+/** A date as the person's own calendar day (yyyy-mm-dd): the date input works in local time, not UTC. */
+const localDay = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+/** Where a card's text shows, what is live now (the saved value, not the draft), and a link to look at it. */
+function ShowsOn({ pages, live }: { pages: string[]; live?: string }) {
+  return (
+    <span className="muted small dev-shows">
+      Shows on: {pages.map((p, i) => <span key={p}>{i > 0 && ' · '}<a href={p} target="_blank" rel="noreferrer">{p}</a></span>)}
+      {live !== undefined && <> · Live now: <b>{live || 'the built-in text'}</b></>} · <a href={pages[0]} target="_blank" rel="noreferrer">Preview ↗</a>
+    </span>
+  );
 }
