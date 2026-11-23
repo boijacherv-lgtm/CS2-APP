@@ -392,11 +392,11 @@ export function MomentNav({ recap }: { recap: Review }) {
       <button onClick={() => stepMoment(recap, -1)} disabled={first} title="Previous moment (←)" aria-label="Previous moment"><Icon name="prev" /></button>
       <div className="moment-label">
         {idx < 0
-          ? <span className="muted">Round {rv.round + 1} start · {list.length} moments</span>
+          ? <span className="muted ml-text" title={`Round ${rv.round + 1} start · ${list.length} moments`}>Round {rv.round + 1} start · {list.length} moments</span>
           : <>
               <span className="muted">{idx + 1}/{list.length}</span>
               {main && <NoteMark m={main} />}
-              <span className={atMoment ? '' : 'muted'}>{main && brief(main.title)}{cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}</span>
+              <span className={`ml-text ${atMoment ? '' : 'muted'}`} title={main ? `${brief(main.title)}${cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}` : undefined}>{main && brief(main.title)}{cur.moves.length > 1 ? ` +${cur.moves.length - 1}` : ''}</span>
               {cur && <button className="mini" onClick={watch} title="Watch the 3 s leading up to it" aria-label="Watch the lead-up"><Icon name="rewind" size={12} /></button>}
             </>}
       </div>
