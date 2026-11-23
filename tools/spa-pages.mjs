@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { GUIDES as GUIDE_LIST } from '../src/site/guideList.ts';
-import { CS2_FAQ, DEADLOCK_FAQ } from '../src/site/gameFaq.ts';
+import { CS2_FAQ, DEADLOCK_FAQ, DOTA2_FAQ } from '../src/site/gameFaq.ts';
 const DIST = path.resolve(import.meta.dirname, '../dist');
 const SITE = 'https://tsakhstvo.xyz';
 // the pages (src/shell/router.ts); /m is a shared moment (its code in the query)
@@ -35,6 +35,9 @@ const META = {
   'dota2/meta': { title: 'Dota 2 meta & builds this patch, by position · RageView', h1: 'Dota 2 meta and builds', desc: 'Every Dota 2 hero on this patch by position: win rate, pick rate, builds and the patch notes.', text: ['Every hero on this patch by position, with win rate and pick rate, builds and the patch notes.'] },
   settings: { title: 'Settings · RageView', h1: 'Settings', desc: 'Your RageView settings: games, notifications and account.', text: ['Your RageView settings.'] },
   profile: { title: 'Your profile · RageView', h1: 'Profile', desc: 'Your graded matches, habits and goals across the games RageView reviews.', text: ['Your graded matches, habits and goals.'] },
+  'cs2/review': { title: 'Review a CS2 demo: replay every round with the coach · RageView', h1: 'Review a CS2 demo', desc: 'Drop a .dem file, pick a match from your Steam history or open the sample, then replay every round with the coach. Free, read in your browser.', text: ['Drop a CS2 demo to replay each round on the radar with every move graded.', 'Nothing is uploaded; the demo is read in your browser.'] },
+  'cs2/tactical': { title: 'CS2 Tactical Board: plan a round and play it out · RageView', h1: 'CS2 Tactical Board', desc: 'Place players, utility and routes on the radar, then play the round out against the coach\'s prediction. Free, in your browser.', text: ['Place players, grenades and routes on a CS2 map and watch the round play out.', 'The coach predicts the T plays and scores your setup.'] },
+  'deadlock/review': { title: 'Review a Deadlock match: open it by match ID · RageView', h1: 'Review a Deadlock match', desc: 'Paste a Deadlock match ID or pick a recent one, then replay it on the map with every fight graded. Free.', text: ['Paste a match ID to replay a Deadlock match with the coach.', 'Match data from deadlock-api.com.'] },
   'deadlock/meta': { title: 'Deadlock meta & builds this patch, by position · RageView', h1: 'Deadlock meta and builds',
     desc: 'Every Deadlock hero on this patch by position: tier, win rate, pick rate and builds, plus a draft and a macro planner.',
     text: ['Every hero on this patch by position, with tier, win rate and pick rate.', 'Builds, a draft planner and a macro planner.'] },
@@ -77,13 +80,24 @@ for (const p of PAGES) {
     .replace('content="Every move you make, graded."', 'content="Every Deadlock fight, graded."')
     .replace(/(<meta property="og:description" content=")[^"]*"/, '$1Replay any Deadlock match. Every kill, death and move graded, with the better play."')
     .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${SITE}/${p}"`);
+  // Dota 2, Puzzles and Pricing have their own pictures too
+  if (p.startsWith('dota2')) page = page.replace('content="https://tsakhstvo.xyz/images/og.png"', 'content="https://tsakhstvo.xyz/images/og-dota2.png"');
+  if (p === 'puzzles') page = page.replace('content="https://tsakhstvo.xyz/images/og.png"', 'content="https://tsakhstvo.xyz/images/og-puzzles.png"');
+  if (p === 'pricing') page = page.replace('content="https://tsakhstvo.xyz/images/og.png"', 'content="https://tsakhstvo.xyz/images/og-pricing.png"');
   // CS2's pages get CS2's picture
   if (p.startsWith('dota2')) page = page.replace('content="Every move you make, graded."', 'content="Every Dota 2 fight, graded."');
   if (p.startsWith('cs2')) page = page.replace('content="https://tsakhstvo.xyz/images/og.png"', 'content="https://tsakhstvo.xyz/images/og-cs2.png"');
   page = withMeta(page, p);
   // the game pages' own questions as FAQPage data, and in the static text (crawlers that don't run the app)
-  const gf = p === 'cs2' ? CS2_FAQ : p === 'deadlock' ? DEADLOCK_FAQ : null;
+  const gf = p === 'cs2' ? CS2_FAQ : p === 'deadlock' ? DEADLOCK_FAQ : p === 'dota2' ? DOTA2_FAQ : null;
   if (p === 'pricing' || p === 'puzzles') page = page.replace('</noscript></div>', `${FAQ.slice(0, 4).map(f => `<h2>${esc(f.q)}</h2><p>${esc(f.a)}</p>`).join('')}</noscript></div>`);
+  // Puzzles and Pricing: the front page's first questions as structured data too (Pricing also says what it costs)
+  if (p === 'pricing' || p === 'puzzles') {
+    const ld = [{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: FAQ.slice(0, 4).map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) },
+      ...(p === 'pricing' ? [{ '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'RageView', url: `${SITE}/`, applicationCategory: 'GameApplication', operatingSystem: 'Web browser',
+        offers: [{ '@type': 'Offer', name: 'Free', price: '0', priceCurrency: 'USD' }, { '@type': 'Offer', name: 'Pro (free during early access)', price: '5', priceCurrency: 'USD' }] }] : [])];
+    page = page.replace('</head>', `${ld.map(x => `    <script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>\n`).join('')}  </head>`);
+  }
   if (gf) page = page.replace('</head>', `    <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: gf.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }).replace(/</g, '\\u003c')}</script>\n  </head>`)
     .replace('</noscript></div>', `${gf.map(f => `<h2>${esc(f.q)}</h2><p>${esc(f.a)}</p>`).join('')}</noscript></div>`);
   // the owner's page: never in search results
@@ -106,6 +120,7 @@ fs.writeFileSync(path.join(DIST, 'llms.txt'), `# RageView
 
 - CS2: drop a .dem demo; it is read in your browser, nothing is uploaded. The coach learned from ${MATCHES} FACEIT level-10 matches${PRO_MATCHES ? ` and ${PRO_MATCHES} pro matches` : ''}.
 - Deadlock: open any match by its match ID (match data from deadlock-api.com). The coach learned from ${DL_MATCHES.toLocaleString('en-US')} Phantom-and-up matches since the patch.
+- Dota 2: open any match by its match ID (match data from OpenDota; the replay is read in your browser from Valve's servers). The coach grades fights, lanes, vision and team play; Meta & builds shows the heroes of the current patch by position.
 - Puzzles: real moments from top players' matches and your own; a daily puzzle, a rush and a rating per game.
 - Free. Pro adds unlimited history; it is free during early access, later $5 a month.
 - Login is optional, through Steam (the site gets your SteamID, public name and avatar only).

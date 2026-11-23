@@ -1,4 +1,4 @@
-// The link-preview pictures (Discord, X, iMessage): 1200×630 PNGs for the site, CS2 and Deadlock, drawn from an HTML
+// The link-preview pictures (Discord, X, iMessage): 1200×630 PNGs for the site, each game, Puzzles and Pricing, drawn from an HTML
 // card with a real screen of the app, in headless Chrome (no dependency). Writes public/images/og*.png.
 //   node tools/og-images.mjs        (CHROME=/path/to/chrome to pick the browser)
 import { spawn } from 'node:child_process';
@@ -9,9 +9,12 @@ import path from 'node:path';
 const ROOT = path.resolve(import.meta.dirname, '..'), IMG = path.join(ROOT, 'public/images');
 const data = f => `data:image/${f.endsWith('.png') ? 'png' : 'jpeg'};base64,${fs.readFileSync(path.join(IMG, f)).toString('base64')}`;
 const CARDS = [
-  { file: 'og.png', accent: '#f2b13c', glow: '#3a2a10', line1: 'Every move you make,', line2: 'graded.', sub: 'Every play in your CS2 or Deadlock match graded S+ to F, with the better play.', shot: 'shots/cs2-recap.jpg', tag: 'CS2 · DEADLOCK' },
+  { file: 'og.png', accent: '#f2b13c', glow: '#3a2a10', line1: 'Every move you make,', line2: 'graded.', sub: 'Every play in your CS2, Deadlock or Dota 2 match graded S+ to F, with the better play.', shot: 'shots/cs2-recap.jpg', tag: 'CS2 · DEADLOCK' },
   { file: 'og-cs2.png', accent: '#f2b13c', glow: '#3a2a10', line1: 'Every CS2 round,', line2: 'graded.', sub: 'Drop a CS2 demo: every round S+ to F, every move Brilliant to Blunder, with the better play. Read in your browser.', shot: 'shots/cs2-moment.jpg', tag: 'COUNTER-STRIKE 2' },
   { file: 'og-deadlock.png', accent: '#4fd1a5', glow: '#0f2f26', line1: 'Every Deadlock fight,', line2: 'graded.', sub: 'Paste a Deadlock match ID: every fight graded, and what top players do instead.', shot: 'shots/replay.jpg', tag: 'DEADLOCK' },
+  { file: 'og-dota2.png', accent: '#e5533d', glow: '#34150f', line1: 'Every Dota 2 fight,', line2: 'graded.', sub: 'Paste a Dota 2 match ID: every fight, lane and ward graded, with the meta of this patch.', shot: 'shots/d2-replay.jpg', tag: 'DOTA 2' },
+  { file: 'og-puzzles.png', accent: '#f2b13c', glow: '#3a2a10', line1: 'Find the', line2: 'best play.', sub: 'Real moments from top CS2 and Deadlock matches and your own. A daily puzzle, a 3-minute rush, a rating per game.', shot: 'shots/puzzle.jpg', tag: 'PUZZLES' },
+  { file: 'og-pricing.png', accent: '#f2b13c', glow: '#3a2a10', line1: 'Free. Pro is', line2: 'free too, for now.', sub: 'Unlimited history with Pro, free during early access. Later $5 a month.', shot: 'shots/coach.jpg', tag: 'PRICING' },
 ];
 const html = c => `<!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@500;700;800&family=Oswald:wght@700&display=swap" rel="stylesheet">

@@ -54,6 +54,7 @@ export function Privacy() {
 /** Newest first: what changed for players (not the internals). */
 const CHANGES: { date: string; items: string[]; shot?: { src: string; alt: string } }[] = [
   { date: 'Nov 23, 2026', items: [
+    'Link previews and search: Review, Tactical and the Deadlock review page have their own titles, Dota 2, Puzzles and Pricing have their own preview pictures and structured data, and llms.txt now says what the Dota 2 page does.',
     'Profile: trend lines run straight between your matches (no overshoot) and the average label sits beside the line, a stat tile\'s scale stops at the 95th percentile so one outlier match no longer squashes the rest (the outlier bar carries a ▲), and the biggest-leak card keeps its content together.',
     'Replay polish: at 1200 px the kill feed starts below the round strip instead of under it, a long nickname on the move card is cut with an ellipsis (the sentence takes at most two lines), and the date in your match list stays on one line.',
     'The recap\'s numbers are fixed: no move is worth more than 100% of the win chance (a "−103%" death is now −100%), the chance line says "Ahead most of the match · one dip at R21" when that is what it shows, the grade has a line saying why, and the game rating says what it is.',
