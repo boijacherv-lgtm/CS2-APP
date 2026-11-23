@@ -1475,7 +1475,7 @@ function CostliestButton() {
   const clock = `${Math.floor(b.t / 60)}:${String(Math.floor(b.t % 60)).padStart(2, '0')}`;
   return (
     <span className="tl-btn costliest">
-      <button onClick={go} title={b.title}>Your costliest: R{b.round + 1} {clock} (−{Math.abs(Math.round(b.gain * 100))}%) · Watch</button>
+      <button onClick={go} title={b.title}>Your costliest: R{b.round + 1} {clock} (−{Math.min(100, Math.abs(Math.round(b.gain * 100)))}%) · Watch</button>
       <button className="costliest-x" onClick={done} aria-label="Hide your costliest moment"><Icon name="close" size={12} /></button>
     </span>
   );

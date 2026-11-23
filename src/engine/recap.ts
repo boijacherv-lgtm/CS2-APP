@@ -935,6 +935,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const vOdds = rv !== null && rk !== null ? duelOdds(rv, rk) : null;
     if (vOdds !== null) {
       loss *= 1 + (vOdds - 0.5) * 0.6;
+      loss = Math.max(-1, Math.min(1, loss)); // the rating weight can't take more win chance than there was
       if (vOdds >= 0.65) why.push(`You were the favourite (${pct(vOdds)}) vs a lower-rated player. Lost.`);
       else if (vOdds <= 0.35) why.push(`Much higher-rated opponent (${num(rk!)} vs ${num(rv!)}).`);
     }
@@ -1024,7 +1025,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
       // a kill once the round is decided (an exit frag, a saving player hunted down) is worth half
       if (decided(k.t - 0.05, aSide)) gain *= 0.5;
       const aOdds = vOdds !== null ? 1 - vOdds : null;
-      if (aOdds !== null) gain *= 1 + (0.5 - aOdds) * 0.6;
+      if (aOdds !== null) gain = Math.max(-1, Math.min(1, gain * (1 + (0.5 - aOdds) * 0.6)));
       const upset = aOdds !== null && aOdds <= 0.35;
       const others = ai >= 0 ? enemiesSeeing(ai, k.t - 0.05, vi) : 0;
       const multi = sim.kills.filter(o => o.killer === k.killer && Math.abs(o.t - k.t) <= 6).length;
@@ -1658,7 +1659,7 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
-const signedPct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v * 100))}%`;
+const signedPct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.min(100, Math.abs(Math.round(v * 100)))}%`;
 
 /**
  * What each player did this round, guessed from how they played it:

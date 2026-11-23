@@ -1753,3 +1753,6 @@ body { font-weight: 500; }
 .floor-pick button { flex: none; }
 .floor-pick button { padding: 3px 8px; min-height: 28px; border-radius: 6px; background: transparent; border: 0; color: var(--text-2); font-size: 14px; font-weight: 500; white-space: nowrap; }
 .floor-pick button.on { background: var(--surface-3); color: var(--text-1); }
+
+.perf-why { margin: 6px 0 0; font-size: 14px; color: var(--text-2); }
+.perf-why b { color: var(--text-1); font-weight: 700; }
