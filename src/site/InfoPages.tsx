@@ -54,6 +54,7 @@ export function Privacy() {
 /** Newest first: what changed for players (not the internals). */
 const CHANGES: { date: string; items: string[]; shot?: { src: string; alt: string } }[] = [
   { date: 'Nov 23, 2026', items: [
+    'The recap\'s numbers are fixed: no move is worth more than 100% of the win chance (a "−103%" death is now −100%), the chance line says "Ahead most of the match · one dip at R21" when that is what it shows, the grade has a line saying why, and the game rating says what it is.',
     'Maps with two floors (Nuke, Vertigo, Train): the review draws the floor that matters. A bomb planted at B on Nuke is on the lower radar, not on top of A. Auto follows the plant, the move you picked or the player you follow; Upper and Lower stay put once you pick them. People on the other floor are faint with an arrow, shots across floors are long dashes, and the bomb cell, the round strip and the feed say where the bomb went down ("B, lower"). The radar also fills the stage now.',
     'The bar under the replay keeps its shape: the timeline stays the same width whichever mark you pick, and the move label beside the arrows has a fixed width.',
   ] },

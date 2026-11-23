@@ -347,7 +347,7 @@ function weaponIcon(w: string): Cs2Icon | null {
 
 /** A win-chance change as shown: +12%, −3%, or 0% (never "−0%"). */
 function signedPct(gain: number) {
-  const p = Math.round(gain * 100);
+  const p = Math.max(-100, Math.min(100, Math.round(gain * 100)));
   return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)}%`;
 }
 

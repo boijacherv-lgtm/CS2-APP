@@ -201,7 +201,7 @@ function MatchHeader({ data, view, me, done, error, verdict }: { data: DemoData;
       {share && saved && <ShareDialog m={saved} player={profileName ?? saved.name ?? 'Me'} onClose={() => setShare(false)} />}
       <p className="muted">
         {data.rounds.length} rounds · {mine ? `you started ${mine.team === 0 ? 'CT' : 'T'}${result ? ` · ${result === 'Victory' ? 'won' : result === 'Defeat' ? 'lost' : 'drew'} ${a}–${b}` : ''}` : `Team A started CT · ${a}–${b} (pick yourself below for "you")`}
-        {mine && mine.gameRating !== null && <> · you: game rating <b>{fmt(mine.gameRating)}</b>{delta !== null && <span className={delta >= 0 ? 'up' : 'down'}> ({delta >= 0 ? '+' : '−'}{fmt(Math.abs(delta))} vs your Premier)</span>}</>}
+        {mine && mine.gameRating !== null && <span title="An estimate of the Premier rating this game was played at, from your duels and the win chance you added each round"> · you played this game like a <b>{fmt(mine.gameRating)}</b> Premier player{delta !== null && <span className={delta >= 0 ? 'up' : 'down'}> ({fmt(Math.abs(delta))} {delta >= 0 ? 'above' : 'below'} your real rating)</span>}</span>}
         {!ranked && <span title="No Premier ratings in this demo: estimates use a 10,000 player as base"> · No Premier ratings</span>}
         {!done && <> · <b>grading rounds {view.graded}/{view.total}…</b></>}
         {done && error && <> · <b className="down">grading stopped after {view.graded}/{view.total} rounds: {error}</b></>}
@@ -235,8 +235,13 @@ function MatchChance({ data, team, onRound }: { data: DemoData; team: 0 | 1; onR
   const decided = k > 0 ? curve[k] : null;
   const ledFrom = vs.findIndex((_, i) => vs.slice(i).every(v => v > 50));
   const firstBehind = vs.findIndex(v => v < 50); // the first round the chance was under 50%
+  // how much of the match the line was above 50%, and in how many separate dips under it
+  const aheadShare = vs.filter(v => v > 50).length / vs.length;
+  const dips = vs.reduce((n, v, i) => n + (v < 50 && (i === 0 || vs[i - 1] >= 50) ? 1 : 0), 0);
   const story = won
-    ? (low >= 50 ? 'Never below 50%' : low < 35 ? `Comeback from ${Math.round(low)}%` : ledFrom > 0 ? `Led from R${curve[ledFrom].t}` : 'Won as expected')
+    ? (low >= 50 ? 'Never below 50%' : low < 35 ? `Comeback from ${Math.round(low)}%`
+      : aheadShare >= 0.7 ? `Ahead most of the match${dips === 1 ? ` · one dip at R${lowAt} (down to ${Math.round(low)}%)` : ''}`
+      : ledFrom > 0 ? `Led from R${curve[ledFrom].t}` : 'Won as expected')
     : (peak > 65 ? (firstBehind > 0 && peakAt > curve[firstBehind].t ? `Behind from R${curve[firstBehind].t} · one late push to ${Math.round(peak)}% (R${peakAt})` : `Lost from ahead ${Math.round(peak)}% → ${Math.round(end)}%`) : peak <= 50 ? 'Never above 50%' : `Behind from R${curve[Math.max(0, vs.findIndex((_, i) => vs.slice(i).every(v => v < 50)))].t}`);
   const first = [...swaps].find(i => i > 0);
   return (
@@ -261,7 +266,7 @@ function TopThree({ p, fix, onWatch }: { p: PlayerReport; fix: CoachNote | null;
     return m && (!acc || Math.abs(m.gain) > Math.abs(acc.m.gain)) ? { i, m } : acc;
   }, null);
   const worst = pick('worst'), best = pick('best');
-  const pct = (g: number) => `${g >= 0 ? '+' : '−'}${Math.round(Math.abs(g) * 100)}%`;
+  const pct = (g: number) => `${g >= 0 ? '+' : '−'}${Math.min(100, Math.round(Math.abs(g) * 100))}%`;
   const card = (cls: string, label: string, body: React.ReactNode, watch: (() => void) | null) => (
     <div className={`top3-card ${cls}`}>
       <span className="eyebrow">{label}</span>
@@ -281,6 +286,13 @@ function TopThree({ p, fix, onWatch }: { p: PlayerReport; fix: CoachNote | null;
 /** The focused player's game: match grade, game rating against their real rating, and three key numbers vs normal. */
 function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: PlayerReport[]; me: string | null; onPlayer: (id: string) => void }) {
   const normal = useNormal(p);
+  // one line under the grade: what held it down (or lifted it), from the coach's biggest note
+  const why = useMemo(() => {
+    const c = coach(p);
+    const low = ['C', 'D', 'F'].includes(matchGrade(p)), n = low ? c.improve[0] : c.strengths[0] ?? c.improve[0];
+    if (!n) return null;
+    return { label: low ? `Why ${matchGrade(p)}:` : 'Strongest:', text: n.headline ?? n.title };
+  }, [p]);
   const kpi = (id: FeatureId, label: string, value: string, v: number) => {
     const m = normal[id];
     const z = (v - m.baseline) / m.spread;
@@ -325,6 +337,7 @@ function Performance({ p, players, me, onPlayer }: { p: PlayerReport; players: P
         {kpi('kast', 'KAST', `${p.kast.toFixed(0)}%`, p.kast)}
         {kpi('impact', 'Impact', `${p.impactPerRound >= 0 ? '+' : ''}${p.impactPerRound.toFixed(1)}%`, p.impactPerRound)}
       </div>
+      {why && <p className="perf-why"><b>{why.label}</b> {why.text}</p>}
       <p className="muted perf-line num">{p.kills} kills · {p.deaths} deaths · {p.hs.toFixed(0)}% HS · openings {p.openingKills}–{p.openingDeaths}{p.clutches ? ` · ${p.clutches} clutch kill${p.clutches === 1 ? '' : 's'}` : ''}</p>
     </section>
   );
