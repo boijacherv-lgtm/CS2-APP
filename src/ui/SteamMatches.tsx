@@ -287,6 +287,7 @@ function ValveSetup({ st, post, first, onDone }: { st: SteamStatus; post: <T>(ro
 }
 
 /** "Nov 11 · 4:12 PM": never cut short. */
-const fmtWhen = (t: number) => `${new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+// no break anywhere in it: the date and time stay on one line
+const fmtWhen = (t: number) => `${new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`.replace(/\s/g, '\u00a0');
 const fmtDay = (t: number) => new Date(t).toLocaleDateString(undefined, { dateStyle: 'medium' });
 const errText = (e: unknown) => `Couldn't do that: ${e instanceof Error ? e.message : String(e)}`;

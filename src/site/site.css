@@ -1756,3 +1756,11 @@ body { font-weight: 500; }
 
 .perf-why { margin: 6px 0 0; font-size: 14px; color: var(--text-2); }
 .perf-why b { color: var(--text-1); font-weight: 700; }
+
+/* round 17: replay polish. The kill feed no longer runs under the round strip (between 1100 and 1320 px the feed
+   starts below it); a long nickname on the move card is one line with an ellipsis, the sentence at most two; the date
+   in the match list stays on one line */
+@container (min-width: 1101px) and (max-width: 1320px) { .app .board-ui.broadcast .slot.tr { margin-top: 36px; } }
+.feed-card .feed-who { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed-card .feed-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.steam-list td:nth-child(1) { white-space: nowrap; }

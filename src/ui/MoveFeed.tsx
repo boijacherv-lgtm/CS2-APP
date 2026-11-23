@@ -174,7 +174,7 @@ export function MoveFeed({ recap, sim, round, time, view, boardRef, names, onFoc
           {!playing && <button className="ghost feed-x" onClick={e => { e.stopPropagation(); setClosedAt({ key: cardKey, t: time }); }} title="Close" aria-label="Close"><Icon name="close" /></button>}
         </div>
         {/* 2. what happened */}
-        <div className="feed-title">{brief(card.title).replace(/;?\s*best was .*$/i, '').replace(new RegExp(`^${escapeRe(names[card.player] ?? '')}: `), '')}</div>
+        <div className="feed-title" title={brief(card.title)}>{brief(card.title).replace(/;?\s*best was .*$/i, '').replace(new RegExp(`^${escapeRe(names[card.player] ?? '')}: `), '')}</div>
         {/* 3. what it did to the round: the win chance before and after */}
         <WinMeter m={card} swing={facts.swing} />
         {/* 4. the better play, when the engine had one */}
