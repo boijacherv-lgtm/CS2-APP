@@ -54,6 +54,7 @@ export function Privacy() {
 /** Newest first: what changed for players (not the internals). */
 const CHANGES: { date: string; items: string[]; shot?: { src: string; alt: string } }[] = [
   { date: 'Nov 23, 2026', items: [
+    'Maps with two floors (Nuke, Vertigo, Train): the review draws the floor that matters. A bomb planted at B on Nuke is on the lower radar, not on top of A. Auto follows the plant, the move you picked or the player you follow; Upper and Lower stay put once you pick them. People on the other floor are faint with an arrow, shots across floors are long dashes, and the bomb cell, the round strip and the feed say where the bomb went down ("B, lower"). The radar also fills the stage now.',
     'The bar under the replay keeps its shape: the timeline stays the same width whichever mark you pick, and the move label beside the arrows has a fixed width.',
   ] },
   { date: 'Nov 15, 2026', items: ['New fonts: Golos Text for text and Oswald for numbers, scores and grade letters. The stat strip shows your last match and the ten before it as bars, the score bar has a defuse line, the blast plays once when the bomb goes off, and Dota 2 is on the site.'], shot: { src: '/images/shots/cs2-recap.jpg', alt: "The CS2 match recap: grade, key numbers and the coach's three cards" } },

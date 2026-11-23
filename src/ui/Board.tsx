@@ -1,5 +1,8 @@
 import Konva from 'konva';
-import { MAPS } from '../map/catalog';
+import { MAPS, getEngine } from '../map/catalog';
+import { levelOf } from '../map/floors';
+import { plantFloor, plantSite, plantZ, playerFloor, siteText } from '../engine/floors';
+import { FLOOR_NAME, floorCount, useFloor } from './floor';
 import { useCanvasLabel } from './canvasLabel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BLAST_REACH_U, blastDamageAt, blastField } from '../engine/blast';
@@ -114,6 +117,13 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   /** Review: the players an open move card is about (the rest of the map dims). */
   const [focus, setFocus] = useState<string[] | null>(null);
   const s = useStore();
+  // maps with two radars (Nuke, Vertigo, Train): the floor the review shows, and which floor each thing is on
+  const floor = useFloor();
+  const floors = recap ? floorCount(MAP.id) : 1;
+  const levels = useMemo(() => MAPS.find(m => m.id === MAP.id)?.levels ?? [], [MAP.id]);
+  // the part of the radar picture that has map on it (Nuke's is under half of it): the review fits to that
+  const bounds = useMemo(() => (recap ? contentBounds(floors > 1 ? [engine.grid, getEngine(MAP.id, 1).grid] : [engine.grid]) : undefined), [recap, floors, engine, MAP.id]);
+  const shownEngine = useMemo(() => (floor === 0 ? engine : getEngine(MAP.id, floor)), [engine, floor, MAP.id]);
   // Everything on the map (tokens, badges, labels) is sized for the screen, not the radar: a player token is about
   // 1.6 % of the map's on-screen size, between 7.5 and 11 px, so a small map isn't buried under its own markers and
   // zooming in doesn't make them huge.
@@ -124,7 +134,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const rosters = s.mode === 'review' && !!s.review;
   const rostersRef = useRef(rosters);
   rostersRef.current = rosters;
-  const zoomedIn = view.scale >= fitView(size.w, size.h, rosters).scale * ZOOM_DETAIL;
+  const boundsRef = useRef(bounds);
+  boundsRef.current = bounds;
+  const zoomedIn = view.scale >= fitView(size.w, size.h, rosters, bounds).scale * ZOOM_DETAIL;
   // a callout the move card on screen names ("smoke at Lamp Room"), as a whole word
   const cardText = s.mode === 'review' ? s.cardText : null;
   const named = (name: string) => !!cardText && new RegExp(`(^|[^\\w])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w])`, 'i').test(cardText);
@@ -152,7 +164,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     const ro = new ResizeObserver(() => {
       const w = Math.max(el.clientWidth, 100), h = Math.max(el.clientHeight, 100);
       setSize({ w, h });
-      setView(fitView(w, h, rostersRef.current));
+      setView(fitView(w, h, rostersRef.current, boundsRef.current));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -291,9 +303,9 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size.w, size.h]);
 
-  const fit = () => setView(fitView(size.w, size.h, rosters));
+  const fit = () => setView(fitView(size.w, size.h, rosters, bounds));
   // the panels came or went (a match loaded, Review ↔ Tactical): fit again
-  useEffect(() => { setView(fitView(size.w, size.h, rosters)); }, [rosters]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setView(fitView(size.w, size.h, rosters, bounds)); }, [rosters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Where each player is at the current round time (routes animate them).
   const baked = useMemo(() => new Map(s.board.players.map(p => [p.id, bakeRoute(engine, p)])), [engine, s.board.players]);
@@ -311,7 +323,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const camTarget = useRef<typeof view | null>(null);
   useEffect(() => {
     if (!rosters) { camTarget.current = null; return; }
-    const full = fitView(size.w, size.h, true);
+    const full = fitView(size.w, size.h, true, bounds);
     const area = { x0: full.x, y0: full.y, x1: full.x + 1024 * full.scale, y1: full.y + 1024 * full.scale };
     const pts = [...live.values()].filter(l => l.alive).map(l => l.pos);
     let target = full;
@@ -336,7 +348,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
       if (inside && Math.abs(target.scale / cur.scale - 1) < 0.15) return;
     }
     camTarget.current = target;
-  }, [live, rosters, s.autoCam, size.w, size.h]);
+  }, [live, rosters, s.autoCam, size.w, size.h, bounds]);
   // glide the view to the camera's framing: a critically damped spring on the framed point and the zoom (log scale,
   // so zooming in and out feel the same), in real time, so it eases in and out at any frame rate
   const sizeRef = useRef(size), viewRef = useRef(view);
@@ -351,7 +363,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
       last = now;
       const t = camTarget.current, v = viewRef.current;
       if (t) {
-        const full = fitView(sizeRef.current.w, sizeRef.current.h, true);
+        const full = fitView(sizeRef.current.w, sizeRef.current.h, true, boundsRef.current);
         const ax = full.x + 512 * full.scale, ay = full.y + 512 * full.scale; // the middle of the framed area
         const at = (w: typeof v) => ({ cx: (ax - w.x) / w.scale, cy: (ay - w.y) / w.scale, ls: Math.log(w.scale) });
         const goal = at(t);
@@ -397,7 +409,10 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   // the planted bomb's blast over the walkable grid (an estimate): each player's expected damage, for the roster's blinking slice
   const bombNow = s.review ? bombAt(s.review.data.rounds[s.review.round], s.time) : null;
   // the blast field is worked out once planted (for the roster's slice); it is DRAWN only when the bomb goes off: a wave along the paths, once (~1.2 s)
-  const plantedAt = bombNow && (bombNow.kind === 'plant' || bombNow.kind === 'explode') ? worldToRadar(bombNow, engine.map.radar) : null;
+  // the floor the bomb is on (maps with two radars). The blast estimate is the upper radar's grid: none for a lower bomb.
+  const bombRound = s.review ? s.review.data.rounds[s.review.round] : null;
+  const bombLevel = bombNow && bombNow.kind !== 'carry' && floors > 1 && bombRound ? levelOf(levels, bombNow.z ?? plantZ(bombRound), floor) : null;
+  const plantedAt = bombNow && (bombNow.kind === 'plant' || bombNow.kind === 'explode') && !bombLevel ? worldToRadar(bombNow, engine.map.radar) : null;
   const blastAge = bombNow?.kind === 'explode' ? s.time - bombNow.since : -1;
   const blastF = useMemo(() => (plantedAt ? blastField(engine.grid, plantedAt, UNITS_PER_PX) : null), [plantedAt?.x, plantedAt?.y, engine]); // eslint-disable-line react-hooks/exhaustive-deps
   const blastImg = useMemo(() => (blastF ? blastCanvas(blastF) : null), [blastF]);
@@ -424,6 +439,15 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
     return !!l && Math.hypot(l.pos.x - p.pos.x, l.pos.y - p.pos.y) > 1;
   };
   const isDead = (p: Player) => live.get(p.id)?.alive === false;
+  const reviewRound_ = recap && s.review ? s.review.data.rounds[s.review.round] : null;
+  /** Each player's floor now (a stair keeps the floor they were on); people on the other floor are drawn faint with an arrow. */
+  const pFloor = useMemo(() => {
+    if (!reviewRound_ || floors < 2) return null;
+    const key = `tok${s.review!.round}`;
+    return new Map(Object.keys(reviewRound_.frames.players).map(id => [id, playerFloor(reviewRound_, id, s.time, levels, key)]));
+  }, [reviewRound_, floors, s.time, levels]); // eslint-disable-line react-hooks/exhaustive-deps
+  const otherFloor = (id: string) => !!pFloor && pFloor.get(id) !== undefined && pFloor.get(id) !== floor;
+  const arrowOf = (id: string) => ((pFloor?.get(id) ?? 0) > floor ? '↓' : '↑');
   const draftPlayer = s.draftRoute && s.board.players.find(p => p.id === s.draftRoute!.playerId);
   const draftLabel = draftPlayer ? `${draftPlayer.side} ${draftPlayer.label}` : '';
   const selectedRaw = s.board.players.find(p => p.id === s.selectedId);
@@ -479,7 +503,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
   const controlImg = useMemo(() => (control ? controlCanvas(engine, control) : null), [engine, control]);
   const spotImg = useMemo(() => (spots ? spotCanvas(engine, spots) : null), [engine, spots]);
   const walkImg = useMemo(() => (tools && s.overlays.walkable ? walkableCanvas(engine) : null), [engine, tools, s.overlays.walkable]);
-  const radarImg = useRadarImage(MAP.radarImage);
+  const radarImg = useRadarImage(shownEngine.map.radarImage);
   useCanvasLabel(wrap, `${MAPS.find(m => m.id === s.mapId)?.name ?? 'The'} map: ${recap ? 'the round replaying' : 'the tactical board'}, players and grenades`);
 
   return (
@@ -522,15 +546,15 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
         <Layer listening={s.tool !== 'select'}>
           <Rect x={-2000} y={-2000} width={5000} height={5000} fill={COLORS.bg} name="floor" />
           {radarImg && <KImage image={radarImg} width={1024} height={1024} name="floor" />}
-          {controlImg && <KImage image={controlImg} width={1024} height={1024} opacity={0.42} listening={false} />}
-          {spotImg && <KImage image={spotImg} width={1024} height={1024} listening={false} />}
+          {floor === 0 && controlImg && <KImage image={controlImg} width={1024} height={1024} opacity={0.42} listening={false} />}
+          {floor === 0 && spotImg && <KImage image={spotImg} width={1024} height={1024} listening={false} />}
           {walkImg && <KImage image={walkImg} width={1024} height={1024} imageSmoothingEnabled={false} opacity={0.6} listening={false} />}
           {timingImg && <KImage image={timingImg} width={1024} height={1024} imageSmoothingEnabled={false} opacity={0.75} listening={false} />}
         </Layer>
 
         <Layer listening={false}>
           {/* the bomb's blast reaches, UNDER the players and everything else (an estimate: blast.ts) */}
-          {blastImg && plantedAt && blastAge >= 0 && blastAge < 1.2 && (
+          {floor === 0 && blastImg && plantedAt && blastAge >= 0 && blastAge < 1.2 && (
             <Group listening={false} clipFunc={ctx => { ctx.arc(plantedAt.x, plantedAt.y, (Math.min(1, blastAge / 0.5) * BLAST_REACH_U) / UNITS_PER_PX, 0, Math.PI * 2); }}>
               <KImage image={blastImg} x={0} y={0} width={blastF!.w * CELL} height={blastF!.h * CELL} listening={false} opacity={0.55 * Math.min(1, blastAge / 0.3) * (1 - blastAge / 1.2)} />
             </Group>
@@ -612,7 +636,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             });
           })()}
           {/* main callouts with the Callouts layer; detailed ones too once you zoom in (or with "All callout names") */}
-          {(s.overlays.callouts || s.overlays.calloutsAll) && MAP.callouts
+          {(s.overlays.callouts || s.overlays.calloutsAll) && shownEngine.map.callouts
             .filter(c => !c.minor || s.overlays.calloutsAll || zoomedIn || named(c.name))
             .map((c, i) => {
               // a fixed size on screen (like CS2's radar): small spaced capitals, quieter for the detailed spots;
@@ -726,7 +750,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             const fade = Math.max(0, Math.min(1, (CORPSE_GONE - age) / (CORPSE_GONE - CORPSE_FADE)));
             if (fade <= 0) return null;
             return (
-              <Group key={`dead-${p.id}`} x={p.pos.x} y={p.pos.y} scaleX={k} scaleY={k} listening={false} opacity={(focus && !focus.includes(p.id) ? 0.3 : 0.8) * fade}>
+              <Group key={`dead-${p.id}`} x={p.pos.x} y={p.pos.y} scaleX={k} scaleY={k} listening={false} opacity={(focus && !focus.includes(p.id) ? 0.3 : 0.8) * fade * (otherFloor(p.id) ? 0.3 : 1)}>
                 <Circle radius={TOKEN_R * 0.85} fill="#2a2f36" stroke={COLORS[p.side]} strokeWidth={1.5} />
                 <Line points={[-5, -5, 5, 5]} stroke={COLORS[p.side]} strokeWidth={2.2} lineCap="round" />
                 <Line points={[-5, 5, 5, -5]} stroke={COLORS[p.side]} strokeWidth={2.2} lineCap="round" />
@@ -740,7 +764,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             const moved = displaced(lp);
             return (
             <Group key={p.id} x={p.pos.x} y={p.pos.y} draggable={s.tool === 'select' && !carry && !moved}
-              opacity={carry === p.id || (focus && !focus.includes(p.id)) ? 0.35 : 1}
+              opacity={otherFloor(p.id) ? 0.22 : carry === p.id || (focus && !focus.includes(p.id)) ? 0.35 : 1}
               onDblClick={e => { e.cancelBubble = true; if (s.tool !== 'path') pickUp(p.id); }} onDblTap={e => { e.cancelBubble = true; if (s.tool !== 'path') pickUp(p.id); }}
               onMouseEnter={e => { setHoverPlayer(p.id); e.target.getStage()!.container().style.cursor = 'pointer'; }}
               onMouseLeave={e => { setHoverPlayer(h => (h === p.id ? null : h)); e.target.getStage()!.container().style.cursor = ''; }}
@@ -789,6 +813,7 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
                 {!names && <Text text={p.label} fontSize={11} fontStyle="bold" fill="#0d0f12" width={22} x={-11} y={-5.5} align="center" />}
                 {names && (!crowded.has(p.id) || hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)) &&
                   <NameTag name={names[p.id] ?? p.label} side={p.side} fs={nameFs} y={TOKEN_R + 5.5} strong={hoverPlayer === p.id || s.selectedId === p.id || !!focus?.includes(p.id)} />}
+                {otherFloor(p.id) && <Text text={arrowOf(p.id)} fontSize={15} fontStyle="bold" fill="#fff" x={TOKEN_R + 3} y={-TOKEN_R - 12} listening={false} />}
                 {s.overlays.playerInfo && s.mode !== 'review' && (zoomedIn || hoverPlayer === p.id || s.selectedId === p.id) && <Text text={gunOf(p).short} fontSize={7} fill={gunOf(p).cls === 'awp' ? TOK.highlight : '#fff'} stroke="#000" strokeWidth={2} fillAfterStrokeEnabled
                   width={40} x={-20} y={names ? TOKEN_R + 5 + nameFs * 1.5 : 13} align="center" fontStyle="bold" listening={false} />}
                 {s.overlays.playerInfo && s.mode !== 'review' && batch?.players[p.id] && (
@@ -807,9 +832,11 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             const b = bombAt(s.review.data.rounds[s.review.round], s.time);
             if (!b) return null;
             const r = s.review.data.rounds[s.review.round], act = bombTryAt(r, s.time);
+            // a bomb on the other floor isn't on this radar
+            if (b.kind !== 'carry' && bombLevel !== null && bombLevel !== floor) return null;
             if (b.kind === 'carry') {
               const at = live.get(b.id);
-              if (!at || at.alive === false) return null;
+              if (!at || at.alive === false || otherFloor(b.id)) return null;
               return (
                 <>
                   {/* planting: a T-colour arc filling round the planter over the 3.2 s */}
@@ -833,9 +860,11 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
             const killer = sim.ids.indexOf(kv.killer);
             const step = Math.min(sim.steps - 1, Math.floor(kv.t / 0.1));
             const side = s.board.players.find(q => q.id === kv.killer)?.side ?? 'CT';
+            // a shot from one floor to the other: long dashes, fainter
+            const across = floors > 1 && !!reviewRound_ && playerFloor(reviewRound_, kv.killer, kv.t, levels, `kill${s.review!.round}`) !== playerFloor(reviewRound_, kv.victim, kv.t, levels, `kill${s.review!.round}`);
             return (
               <Line key={`shot-${i}`} points={[sim.x[killer][step], sim.y[killer][step], kv.at.x, kv.at.y]} listening={false}
-                stroke={COLORS[side]} strokeWidth={2 * k} opacity={1 - (s.time - kv.t) / 1.5} dash={[2 * k, 3 * k]} />
+                stroke={COLORS[side]} strokeWidth={2 * k} opacity={(1 - (s.time - kv.t) / 1.5) * (across ? 0.6 : 1)} dash={across ? [8 * k, 5 * k] : [2 * k, 3 * k]} />
             );
           })}
           {spots && spots.best.map((sp, i) => (
@@ -916,13 +945,22 @@ export function Board({ analysis, engine, control, sim, spots, batch, recap, tim
               {s.reviewSpoilers ? <><Icon name="prev" /> Live</> : <><Icon name="revealAll" /> Reveal all</>}
             </button>
           )}
+          {recap && floors > 1 && (
+            <div className="tl-btn floor-pick" role="group" aria-label="Radar floor" title="This map has two floors. Auto follows the plant, the move you picked or the player you follow.">
+              {(['auto', 0, 1] as const).map(f => (
+                <button key={f} className={s.reviewFloor === f ? 'on' : ''} aria-pressed={s.reviewFloor === f} onClick={() => s.setReviewFloor(f)}>
+                  {f === 'auto' ? `Auto${s.reviewFloor === 'auto' ? ` · ${FLOOR_NAME[floor].toLowerCase()}` : ''}` : FLOOR_NAME[f]}
+                </button>
+              ))}
+            </div>
+          )}
           {recap && <CostliestButton />}
           <button className={`tl-btn drawer-toggle ${s.drawerOpen ? 'on' : ''}`} onClick={() => s.setDrawerOpen(!s.drawerOpen)}
             title={s.drawerOpen ? 'Hide the panel (more room for the map)' : 'Show the panel'}><Icon name={s.drawerOpen ? 'panelClose' : 'panelOpen'} /> Panel</button>
         </div>
         <div className="slot top">
           {s.review && s.mode === 'review' && <RoundStrip data={s.review.data} at={s.review.round} spoilers={s.reviewSpoilers} onPick={i => s.setReviewRound(i)} />}
-          {rosterRound && s.review && <ScoreBug names={s.review.data.names} score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time}
+          {rosterRound && s.review && <ScoreBug site={(() => { const ps = plantSite(MAP, rosterRound); return ps ? siteText(ps, floors > 1) : null; })()} names={s.review.data.names} score={scoreBefore(s.review.data, s.review.round)} round={rosterRound} roundNo={s.review.round + 1} time={s.time}
             switched={switches.includes(s.review.round) ? s.review.data.names[Object.keys(rosterRound.frames.players).find(id => rosterRound.frames.players[id].side === 'CT') ?? ''] ?? 'the other' : null} />}
           {!rosterRound && <RoundHud
             players={rosterRound ? [] : s.board.players.map(p => ({
@@ -1036,13 +1074,31 @@ const TEAMBAR = { w: 330, h: 248 }, ROSTER_MIN_W = 700;
  * The whole radar, as big as fits between the overlays. With Review's team panels in the bottom corners: either the
  * map stays between them (narrower), or above them (shorter), whichever leaves it bigger.
  */
-function fitView(w: number, h: number, rosters = false) {
+type Bounds = { x0: number; y0: number; x1: number; y1: number };
+/** The box (radar px) the walkable cells of these levels cover, with a margin. */
+function contentBounds(grids: { w: number; h: number; walk: Uint8Array }[]): Bounds | undefined {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const g of grids) for (let i = 0; i < g.walk.length; i++) {
+    if (!g.walk[i]) continue;
+    const cx = i % g.w, cy = Math.floor(i / g.w);
+    if (cx < x0) x0 = cx; if (cx > x1) x1 = cx; if (cy < y0) y0 = cy; if (cy > y1) y1 = cy;
+  }
+  if (!Number.isFinite(x0)) return undefined;
+  const m = 3 * CELL;
+  return { x0: Math.max(0, x0 * CELL - m), y0: Math.max(0, y0 * CELL - m), x1: Math.min(1024, (x1 + 1) * CELL + m), y1: Math.min(1024, (y1 + 1) * CELL + m) };
+}
+function fitView(w: number, h: number, rosters = false, bounds?: Bounds) {
   // phones: the radar picture has empty borders around the map itself, so a narrow board zooms in a little past
   // them (only the borders go off screen) and keeps almost no side margin
   const narrow = w < 600;
   const fit = (side: number, bottom: number) => {
     const aw = Math.max(200, w * 0.5, w - (narrow ? 6 : side) * 2), ah = Math.max(200, h - FIT_PAD.top - bottom);
     // the radar picture has empty borders: the Tactical board (no rosters) zooms past them a little, the phones more
+    // the review fits the walkable part of the picture to the stage; elsewhere the whole picture, a little past its borders
+    if (rosters && bounds) {
+      const bw = bounds.x1 - bounds.x0, bh = bounds.y1 - bounds.y0, sc = Math.min(aw / bw, ah / bh);
+      return { scale: sc, x: w / 2 - ((bounds.x0 + bounds.x1) / 2) * sc, y: FIT_PAD.top + ah / 2 - ((bounds.y0 + bounds.y1) / 2) * sc };
+    }
     const scale = (Math.min(aw, ah) / 1024) * (narrow ? 1.12 : rosters ? 1 : 1.15);
     return { scale, x: (w - 1024 * scale) / 2, y: FIT_PAD.top + (ah - 1024 * scale) / 2 };
   };

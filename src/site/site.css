@@ -1747,3 +1747,9 @@ body { font-weight: 500; }
   .app .teambar .tb-main { padding: 0 4px; }
   .app .teambar .tb-name, .app .teambar .tb-kd, .app .teambar .tb-rk, .app .teambar .tb-line.gear { display: none; }
 }
+
+/* round 17: the floor switch (Auto | Upper | Lower) beside Standard and Reveal all on maps with two radars */
+.floor-pick { display: inline-flex; gap: 2px; padding: 3px; order: 10; }
+.floor-pick button { flex: none; }
+.floor-pick button { padding: 3px 8px; min-height: 28px; border-radius: 6px; background: transparent; border: 0; color: var(--text-2); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.floor-pick button.on { background: var(--surface-3); color: var(--text-1); }

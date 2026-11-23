@@ -150,8 +150,8 @@ export function buildDemoData(parser, input, progress = () => {}) {
   const plants = roundEvents.filter(e => evName(e) === 'bomb_planted').map(e => num(e.tick));
   // where the bomb is: who picks it up, where it's dropped / planted, defused or blown up (positions are the player's)
   const BOMB_KIND = { bomb_pickup: 'carry', bomb_dropped: 'drop', bomb_planted: 'plant', bomb_defused: 'defuse', bomb_exploded: 'explode' };
-  const bombEvents = (safe(() => p.parseEvents(input, Object.keys(BOMB_KIND), ['X', 'Y'], [])) ?? [])
-    .map(e => ({ tick: num(e.tick), kind: BOMB_KIND[evName(e)], id: sid(pick(e, 'user_steamid')), x: num(pick(e, 'user_X', 'user_x')), y: num(pick(e, 'user_Y', 'user_y')) }))
+  const bombEvents = (safe(() => p.parseEvents(input, Object.keys(BOMB_KIND), ['X', 'Y', 'Z'], [])) ?? [])
+    .map(e => ({ tick: num(e.tick), kind: BOMB_KIND[evName(e)], id: sid(pick(e, 'user_steamid')), x: num(pick(e, 'user_X', 'user_x')), y: num(pick(e, 'user_Y', 'user_y')), z: num(pick(e, 'user_Z', 'user_z')) }))
     .filter(e => e.kind && Number.isFinite(e.tick)).sort((a, b) => a.tick - b.tick);
   // planting and defusing, start to finish (or let go), for the HUD's timers: [start tick, end tick, done, kit]
   const tryEvents = (safe(() => p.parseEvents(input, ['bomb_beginplant', 'bomb_abortplant', 'bomb_begindefuse', 'bomb_abortdefuse'], [], [])) ?? [])
@@ -274,7 +274,7 @@ export function buildDemoData(parser, input, progress = () => {}) {
     const start = holder && !inRoundBomb.some(e => e.tick <= econTicks[idx]) ? { kind: 'carry', id: holder, x: NaN, y: NaN }
       : before && (before.kind === 'carry' || before.kind === 'drop') ? before : null;
     const bomb = [...(start ? [{ ...start, tick: r.start }] : []), ...inRoundBomb]
-      .map(e => ({ t: round2(tOf(e.tick)), kind: e.kind, id: e.id, x: round1(e.x), y: round1(e.y) }));
+      .map(e => ({ t: round2(tOf(e.tick)), kind: e.kind, id: e.id, x: round1(e.x), y: round1(e.y), ...(Number.isFinite(e.z) ? { z: round1(e.z) } : {}) }));
     const tries = bombTries.filter(b => inRound(b.tick))
       .map(b => ({ t: round2(tOf(b.tick)), end: round2(tOf(b.end)), kind: b.kind, id: b.id, done: b.done, ...(b.kind === 'defuse' ? { kit: b.kit } : {}) }));
     // each player's gear, only when it changes: [t, inventory, armour, helmet, kit, money]

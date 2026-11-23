@@ -2,6 +2,8 @@ import { AIM_SHARE, aimedShare } from './aim';
 import { FLASH_POP, HE_POP, SIM_DT, type KillEvent, type Simulation } from './combat';
 import { computeControl } from './control';
 import { radarToWorld, worldToRadar } from './coords';
+import { plantSite, siteText } from './floors';
+import { levelsOfMap } from '../map/floors';
 import { gunFromName, primaryGun } from './guns';
 import { CELL, lifeOf, popAt, segmentHitsCircle, smokeBlasts, smokeOpenAt, SMOKE_CLEAR, SMOKE_RADIUS_UNITS, UTIL_FLIGHT } from './grid';
 import type { TacticalEngine } from './predict';
@@ -82,7 +84,8 @@ export const FL = { walking: 1, crouching: 2, scoped: 4, airborne: 8, spotted: 1
 export interface FightTrack { x: number[]; y: number[]; z: number[]; yaw: number[]; pitch: number[] }
 export interface Fight { t0: number; dt: number; attacker: string; victim: string; a: FightTrack; v: FightTrack }
 
-export interface BombEvent { t: number; kind: 'carry' | 'drop' | 'plant' | 'defuse' | 'explode'; id: string; x: number; y: number }
+/** `z`: the player's height (world units), newer parses; older ones get it from the player's track (engine/floors.ts). */
+export interface BombEvent { t: number; kind: 'carry' | 'drop' | 'plant' | 'defuse' | 'explode'; id: string; x: number; y: number; z?: number }
 export interface BombTry { t: number; end: number; kind: 'plant' | 'defuse'; id: string; done: boolean; kit?: boolean }
 export const PLANT_SECONDS = 3.2, DEFUSE_SECONDS = 10, DEFUSE_KIT_SECONDS = 5;
 /** The C4's fuse, a knife-out run (units a second), and when a round counts as decided (win chance, either way). */
@@ -115,19 +118,19 @@ export function moveClock(plant: number | null, t: number): { text: string; bomb
 }
 export type BombState =
   | { kind: 'carry'; id: string }
-  | { kind: 'drop' | 'plant' | 'defuse' | 'explode'; x: number; y: number; since: number; plantedAt: number | null };
+  | { kind: 'drop' | 'plant' | 'defuse' | 'explode'; x: number; y: number; z?: number; since: number; plantedAt: number | null };
 
 /** Where the bomb is at time t: carried by someone, or lying on the map (dropped / planted / defused / exploded). */
 export function bombAt(r: DemoRound, t: number): BombState | null {
   let state: BombState | null = null;
-  let spot: { x: number; y: number; at: number } | null = null; // the planted bomb stays where it was planted
+  let spot: { x: number; y: number; z?: number; at: number } | null = null; // the planted bomb stays where it was planted
   for (const e of r.bomb ?? []) {
     if (e.t > t) break;
     if (e.kind === 'carry') state = { kind: 'carry', id: e.id };
     else if (e.kind === 'drop' || e.kind === 'plant') {
-      if (e.kind === 'plant') spot = { x: e.x, y: e.y, at: e.t };
-      state = { kind: e.kind, x: e.x, y: e.y, since: e.t, plantedAt: spot?.at ?? null };
-    } else if (spot) state = { kind: e.kind, x: spot.x, y: spot.y, since: e.t, plantedAt: spot.at };
+      if (e.kind === 'plant') spot = { x: e.x, y: e.y, z: e.z, at: e.t };
+      state = { kind: e.kind, x: e.x, y: e.y, z: e.z, since: e.t, plantedAt: spot?.at ?? null };
+    } else if (spot) state = { kind: e.kind, x: spot.x, y: spot.y, z: spot.z, since: e.t, plantedAt: spot.at };
   }
   return state;
 }
@@ -1388,7 +1391,8 @@ export function reviewRound(engine: TacticalEngine, rep: Replay): Review {
     const gain = forSide(s, after - before);
     const why = [`${s} win chance ${pct(s === 'CT' ? before : 1 - before)} → ${pct(s === 'CT' ? after : 1 - after)}.`];
     const tags: Tag[] = [b.kind === 'plant' ? 'PLANT' : 'DEFUSE'];
-    let note: Annotation = 'book', title = `${name(b.id)} planted the bomb${where(at)}`;
+    const ps = b.kind === 'plant' ? plantSite(engine.map, r) : null, twoFloors = levelsOfMap(engine.map.id).length > 1;
+    let note: Annotation = 'book', title = `${name(b.id)} planted the bomb${ps && twoFloors ? ` at ${siteText(ps, true)}` : where(at)}`;
     if (b.kind === 'defuse') {
       const left = r.plant !== null ? BOMB_TIME - (b.t - r.plant) : null;
       const me = posAt(idx(b.id), b.t);
